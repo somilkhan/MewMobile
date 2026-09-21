@@ -23,6 +23,9 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+      - name: Prepare Gradle local properties
+        run: touch local.properties
+
       - name: Build Android Full debug
         run: ./gradlew :androidApp:assembleFullDebug -Pnuvio.android.distribution=full --stacktrace
 
