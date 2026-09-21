@@ -1,0 +1,31 @@
+name: Mew CloudStream Build
+
+on:
+  push:
+    branches:
+      - feature/cloudstream-dynamic-repositories
+  workflow_dispatch:
+
+jobs:
+  android-full-debug:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Build Android Full debug
+        run: ./gradlew :androidApp:assembleFullDebug -Pnuvio.android.distribution=full --stacktrace
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: mew-cloudstream-full-debug
+          path: androidApp/build/outputs/apk/full/debug/*.apk
+          if-no-files-found: error
