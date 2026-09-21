@@ -267,7 +267,22 @@ actual object CloudStreamRepository {
                 registryRevision = current.registryRevision + if (changed) 1 else 0,
             )
         }
-        if (!enabled) CloudStreamPlatformRuntime.unload(pluginId)
+        if (!enabled) {
+            CloudStreamPlatformRuntime.unload(pluginId)
+        } else {
+            val enabledPlugin = _uiState.value.plugins.firstOrNull { it.metadata.id.value == pluginId }
+            if (enabledPlugin?.isRunnable == true) {
+                // Some CloudStream plugins (notably MegaProvider) register additional
+                // repositories from BasePlugin.load(). Discover those immediately after enable.
+                scope.launch {
+                    runCatching {
+                        CloudStreamPlatformRuntime.syncDynamicRepositories(enabledPlugin)
+                    }.onFailure { error ->
+                        log.w(error) { "CloudStream dynamic repository discovery failed id=$pluginId" }
+                    }
+                }
+            }
+        }
         persist()
     }
 
