@@ -99,45 +99,52 @@ internal actual object CloudStreamPlatformRuntime {
     }
 
     private suspend fun syncDynamicallyRegisteredRepositories() {
-        val discovered = runCatching { RepositoryManager.getRepositories().toList() }
-            .onFailure { error ->
-                log.w(error) { "Could not read CloudStream dynamically registered repositories" }
-            }
-            .getOrDefault(emptyList())
-
-        if (discovered.isEmpty()) return
-
         val existing = CloudStreamRepository.uiState.value.repositories
             .map { it.manifest.sourceUrl }
             .toSet()
+        val baseline = runCatching { RepositoryManager.getRepositories().map { it.url }.toSet() }
+            .getOrDefault(emptySet())
 
-        discovered
-            .asSequence()
-            .mapNotNull { it.url.trim().takeIf(String::isNotBlank) }
-            .filterNot { it in existing }
-            .distinct()
-            .forEach { url ->
-                val result = CloudStreamRepository.addRepository(url)
-                if (result is AddCloudStreamRepositoryResult.Success) {
-                    log.i { "Imported dynamically registered CloudStream repository: $url" }
-                } else if (result is AddCloudStreamRepositoryResult.Error) {
-                    log.w { "Could not import dynamically registered repository $url: " + result.message }
+        // MegaProvider registers repositories from an ioSafe coroutine inside load().
+        // Give that asynchronous registration time to finish, while importing only
+        // repositories that appeared because of this plugin load.
+        repeat(DYNAMIC_REPOSITORY_DISCOVERY_ATTEMPTS) { attempt ->
+            val discovered = runCatching { RepositoryManager.getRepositories().toList() }
+                .onFailure { error ->
+                    log.w(error) { "Could not read CloudStream dynamically registered repositories" }
                 }
+                .getOrDefault(emptyList())
+
+            val newRepositories = discovered
+                .asSequence()
+                .filter { it.url !in baseline }
+                .mapNotNull { it.url.trim().takeIf(String::isNotBlank) }
+                .filterNot { it in existing }
+                .distinct()
+                .toList()
+
+            if (newRepositories.isNotEmpty()) {
+                newRepositories.forEach { url ->
+                    val result = CloudStreamRepository.addRepository(url)
+                    when (result) {
+                        is AddCloudStreamRepositoryResult.Success ->
+                            log.i { "Imported dynamically registered CloudStream repository: $url" }
+                        is AddCloudStreamRepositoryResult.Error ->
+                            log.w { "Could not import dynamically registered repository $url: " + result.message }
+                    }
+                }
+                return
             }
-    }
 
-    actual fun unload(pluginId: String) {
-        synchronized(loadedLock) { loaded.remove(pluginId) }?.unload()
-    }
-
-    actual fun clear() {
-        val plugins = synchronized(loadedLock) {
-            loaded.values.toList().also {
-                loaded.clear()
+            if (attempt + 1 < DYNAMIC_REPOSITORY_DISCOVERY_ATTEMPTS) {
+                delay(DYNAMIC_REPOSITORY_DISCOVERY_DELAY_MS)
             }
         }
-        plugins.forEach(LoadedPlugin::unload)
-        PluginManager.clear()
+    }
+
+    private companion object {
+        const val DYNAMIC_REPOSITORY_DISCOVERY_ATTEMPTS = 20
+        const val DYNAMIC_REPOSITORY_DISCOVERY_DELAY_MS = 500L
     }
 
     private fun loadPlugin(item: CloudStreamPluginItem): LoadedPlugin {
