@@ -67,6 +67,20 @@ internal actual object CloudStreamPlatformRuntime {
         activityReference = (androidContext as? Activity)?.let(::WeakReference)
     }
 
+    actual suspend fun syncDynamicRepositories(plugin: CloudStreamPluginItem) {
+        if (plugin.compatibility.runtimeKind != CloudStreamRuntimeKind.AndroidDex) return
+        withContext(Dispatchers.IO) {
+            loadMutex.withLock {
+                synchronized(loadedLock) {
+                    if (!loaded.containsKey(plugin.metadata.id.value)) {
+                        loaded[plugin.metadata.id.value] = loadPlugin(plugin)
+                    }
+                }
+                syncDynamicallyRegisteredRepositories()
+            }
+        }
+    }
+
     actual suspend fun provider(plugin: CloudStreamPluginItem): CloudStreamProvider? {
         if (plugin.compatibility.runtimeKind != CloudStreamRuntimeKind.AndroidDex) return null
         return withContext(Dispatchers.IO) {
