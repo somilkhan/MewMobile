@@ -98,6 +98,20 @@ internal actual object CloudStreamPlatformRuntime {
         }
     }
 
+    actual fun unload(pluginId: String) {
+        synchronized(loadedLock) { loaded.remove(pluginId) }?.unload()
+    }
+
+    actual fun clear() {
+        val plugins = synchronized(loadedLock) {
+            loaded.values.toList().also {
+                loaded.clear()
+            }
+        }
+        plugins.forEach(LoadedPlugin::unload)
+        PluginManager.clear()
+    }
+
     private suspend fun syncDynamicallyRegisteredRepositories() {
         val existing = CloudStreamRepository.uiState.value.repositories
             .map { it.manifest.sourceUrl }
