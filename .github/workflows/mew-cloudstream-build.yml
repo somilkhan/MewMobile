@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - feature/cloudstream-dynamic-repositories
+  pull_request:
+    branches:
+      - enhanced
   workflow_dispatch:
 
 jobs:
