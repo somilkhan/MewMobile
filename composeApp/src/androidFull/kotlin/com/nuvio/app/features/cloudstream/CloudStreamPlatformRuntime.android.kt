@@ -29,6 +29,7 @@ import com.lagradost.cloudstream3.plugins.BasePlugin
 import com.lagradost.cloudstream3.plugins.Plugin
 import com.lagradost.cloudstream3.plugins.PluginData
 import com.lagradost.cloudstream3.plugins.PluginManager
+import com.lagradost.cloudstream3.plugins.RepositoryManager
 import com.lagradost.cloudstream3.syncproviders.SyncIdName
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.ExtractorLinkType
@@ -70,12 +71,45 @@ internal actual object CloudStreamPlatformRuntime {
         if (plugin.compatibility.runtimeKind != CloudStreamRuntimeKind.AndroidDex) return null
         return withContext(Dispatchers.IO) {
             loadMutex.withLock {
-                synchronized(loadedLock) {
-                    loaded[plugin.metadata.id.value]?.provider
-                        ?: loadPlugin(plugin).also { loaded[plugin.metadata.id.value] = it }.provider
+                val loadedPlugin = synchronized(loadedLock) {
+                    loaded[plugin.metadata.id.value]
+                        ?: loadPlugin(plugin).also { loaded[plugin.metadata.id.value] = it }
                 }
+                // CloudStream plugins can register repositories dynamically during load().
+                // MegaProvider uses this mechanism; mirror those repositories into Mew's
+                // own repository state so their plugin lists become visible/installable.
+                syncDynamicallyRegisteredRepositories()
+                loadedPlugin.provider
             }
         }
+    }
+
+    private suspend fun syncDynamicallyRegisteredRepositories() {
+        val discovered = runCatching { RepositoryManager.getRepositories().toList() }
+            .onFailure { error ->
+                log.w(error) { "Could not read CloudStream dynamically registered repositories" }
+            }
+            .getOrDefault(emptyList())
+
+        if (discovered.isEmpty()) return
+
+        val existing = CloudStreamRepository.uiState.value.repositories
+            .map { it.manifest.sourceUrl }
+            .toSet()
+
+        discovered
+            .asSequence()
+            .mapNotNull { it.url.trim().takeIf(String::isNotBlank) }
+            .filterNot { it in existing }
+            .distinct()
+            .forEach { url ->
+                val result = CloudStreamRepository.addRepository(url)
+                if (result is AddCloudStreamRepositoryResult.Success) {
+                    log.i { "Imported dynamically registered CloudStream repository: $url" }
+                } else if (result is AddCloudStreamRepositoryResult.Error) {
+                    log.w { "Could not import dynamically registered repository $url: " + result.message }
+                }
+            }
     }
 
     actual fun unload(pluginId: String) {
