@@ -142,10 +142,8 @@ internal actual object CloudStreamPlatformRuntime {
         }
     }
 
-    private companion object {
-        const val DYNAMIC_REPOSITORY_DISCOVERY_ATTEMPTS = 20
-        const val DYNAMIC_REPOSITORY_DISCOVERY_DELAY_MS = 500L
-    }
+    private const val DYNAMIC_REPOSITORY_DISCOVERY_ATTEMPTS = 20
+    private const val DYNAMIC_REPOSITORY_DISCOVERY_DELAY_MS = 500L
 
     private fun loadPlugin(item: CloudStreamPluginItem): LoadedPlugin {
         val context = requireNotNull(appContext) { "CloudStream Android runtime is not initialized" }
