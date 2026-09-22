@@ -754,19 +754,36 @@ object MetaDetailsRepository {
         onProgress: (suspend (MetaDetails) -> Unit)? = null,
     ): MetaDetails {
         TmdbSettingsRepository.ensureLoaded()
+        val settings = TmdbSettingsRepository.snapshot()
+        if (!settings.enabled) {
+            RuntimeDiagnostics.recordLog("tmdb-enrichment-miss reason=disabled")
+            return meta
+        }
+        RuntimeDiagnostics.recordLog("tmdb-enrichment-start")
         val seasonCount = meta.videos.mapNotNull { it.season }.distinct().size
         var latestProgress = meta
-        return withTimeoutOrNull(tmdbEnrichmentTimeoutMs(seasonCount)) {
-            TmdbMetadataService.enrichMeta(
-                meta = meta,
-                fallbackItemId = fallbackItemId,
-                settings = TmdbSettingsRepository.snapshot(),
-                onEpisodeProgress = { progress ->
-                    latestProgress = progress
-                    onProgress?.invoke(progress)
-                },
-            )
-        } ?: latestProgress
+        val result = runCatching {
+            withTimeoutOrNull(tmdbEnrichmentTimeoutMs(seasonCount)) {
+                TmdbMetadataService.enrichMeta(
+                    meta = meta,
+                    fallbackItemId = fallbackItemId,
+                    settings = settings,
+                    onEpisodeProgress = { progress ->
+                        latestProgress = progress
+                        onProgress?.invoke(progress)
+                    },
+                )
+            }
+        }.getOrElse { failure ->
+            RuntimeDiagnostics.recordLog("tmdb-enrichment-failure error=${failure.message?.take(160)}")
+            return latestProgress
+        }
+        if (result == null) {
+            RuntimeDiagnostics.recordLog("tmdb-enrichment-miss reason=timeout-or-no-match")
+            return latestProgress
+        }
+        RuntimeDiagnostics.recordLog("tmdb-enrichment-success")
+        return result
     }
 
     private suspend fun applyMoreLikeThisSource(
