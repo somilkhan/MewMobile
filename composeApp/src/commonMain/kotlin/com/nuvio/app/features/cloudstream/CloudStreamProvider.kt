@@ -14,7 +14,6 @@ internal expect object CloudStreamPlatformRuntime {
 
     fun initialize(context: Any?)
     suspend fun provider(plugin: CloudStreamPluginItem): CloudStreamProvider?
-    suspend fun syncDynamicRepositories(plugin: CloudStreamPluginItem)
     fun unload(pluginId: String)
     fun clear()
 }
