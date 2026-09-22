@@ -134,7 +134,6 @@ internal fun LazyListScope.advancedSettingsContent(
                 SettingsNavigationRow(
                     title = "View logs",
                     description = "Open recent runtime and CloudStream diagnostics.",
-                    icon = androidx.compose.material.icons.rounded.BugReport,
                     isTablet = isTablet,
                     onClick = { showLogs = true },
                 )
@@ -142,7 +141,6 @@ internal fun LazyListScope.advancedSettingsContent(
                 SettingsNavigationRow(
                     title = if (copied) "Logs copied" else "Copy logs",
                     description = "Copy diagnostics to the clipboard.",
-                    icon = androidx.compose.material.icons.rounded.Link,
                     isTablet = isTablet,
                     onClick = {
                         clipboard.setText(AnnotatedString(logs))
@@ -153,7 +151,6 @@ internal fun LazyListScope.advancedSettingsContent(
                 SettingsNavigationRow(
                     title = if (exported) "Export started" else "Export logs",
                     description = "Save diagnostics as a file for debugging or support.",
-                    icon = androidx.compose.material.icons.rounded.CloudDownload,
                     isTablet = isTablet,
                     onClick = {
                         NuvioEnhancedBackupFileBridge.exportBackup(
