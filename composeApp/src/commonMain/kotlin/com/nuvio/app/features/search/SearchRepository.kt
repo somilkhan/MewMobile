@@ -126,29 +126,42 @@ object SearchRepository {
 
         activeJob = scope.launch {
             val peopleDeferred = async { tmdbPeopleSearch(normalizedQuery) }
-            val resultChannel = Channel<IndexedSearchResult>(Channel.UNLIMITED)
+            val cloudSearchDeferred = async {
+                cloudSearchSections(normalizedQuery, cloudPlugins) { section ->
+                    _uiState.update { current ->
+                        current.copy(
+                            isLoading = true,
+                            sections = (current.sections + section).distinctBy(HomeCatalogSection::key),
+                        )
+                    }
+                }
+            }
+            val resultChannel = Channel<IndexedSearchResult>(capacity = requests.size.coerceAtLeast(1))
+            val requestGate = Semaphore(SEARCH_CATALOG_CONCURRENCY)
             val jobs = requests.mapIndexed { index, request ->
                 launch {
-                    runCatching { request.toSection() }
-                        .fold(
-                            onSuccess = { section ->
-                                resultChannel.trySend(
-                                    IndexedSearchResult(
-                                        index = index,
-                                        section = section,
-                                    ),
-                                )
-                            },
-                            onFailure = { error ->
-                                if (error is CancellationException) throw error
-                                resultChannel.trySend(
-                                    IndexedSearchResult(
-                                        index = index,
-                                        error = error,
-                                    ),
-                                )
-                            },
-                        )
+                    requestGate.withPermit {
+                        runCatching { request.toSection() }
+                            .fold(
+                                onSuccess = { section ->
+                                    resultChannel.trySend(
+                                        IndexedSearchResult(
+                                            index = index,
+                                            section = section,
+                                        ),
+                                    )
+                                },
+                                onFailure = { error ->
+                                    if (error is CancellationException) throw error
+                                    resultChannel.trySend(
+                                        IndexedSearchResult(
+                                            index = index,
+                                            error = error,
+                                        ),
+                                    )
+                                },
+                            )
+                    }
                 }
             }
             val closeChannelJob = launch {
@@ -175,14 +188,7 @@ object SearchRepository {
 
             val completedResults = results.filterNotNull()
             val sections = results.orderedSections()
-            val cloudSections = cloudSearchSections(normalizedQuery, cloudPlugins) { section ->
-                _uiState.update { current ->
-                    current.copy(
-                        isLoading = true,
-                        sections = (current.sections + section).distinctBy(HomeCatalogSection::key),
-                    )
-                }
-            }
+            val cloudSections = cloudSearchDeferred.await()
             val firstFailure = completedResults.firstNotNullOfOrNull { it.error?.message }
             val allFailed = completedResults.isNotEmpty() && completedResults.all { it.error != null }
             val providerSections = sections + cloudSections
@@ -268,6 +274,10 @@ object SearchRepository {
             availableItemCount = previews.size,
             hasMore = false,
         )
+    }
+
+    private companion object {
+        private const val SEARCH_CATALOG_CONCURRENCY = 6
     }
 
     private fun searchTmdbOnly(query: String, fallbackReason: SearchEmptyStateReason) {
