@@ -125,7 +125,7 @@ internal fun LazyListScope.advancedSettingsContent(
         var showLogs by rememberSaveable { mutableStateOf(false) }
         var copied by rememberSaveable { mutableStateOf(false) }
         var exported by rememberSaveable { mutableStateOf(false) }
-        val logs = RuntimeDiagnostics.snapshotText()
+        var logs by remember { mutableStateOf(RuntimeDiagnostics.snapshotText()) }
 
         SettingsSection(
             title = "Logs",
@@ -136,7 +136,10 @@ internal fun LazyListScope.advancedSettingsContent(
                     title = "View logs",
                     description = "Open recent runtime and CloudStream diagnostics.",
                     isTablet = isTablet,
-                    onClick = { showLogs = true },
+                    onClick = {
+                        logs = RuntimeDiagnostics.snapshotText()
+                        showLogs = true
+                    },
                 )
                 SettingsGroupDivider(isTablet = isTablet)
                 SettingsNavigationRow(
@@ -144,6 +147,7 @@ internal fun LazyListScope.advancedSettingsContent(
                     description = "Copy diagnostics to the clipboard.",
                     isTablet = isTablet,
                     onClick = {
+                        logs = RuntimeDiagnostics.snapshotText()
                         clipboard.setText(AnnotatedString(logs))
                         copied = true
                     },
@@ -154,8 +158,9 @@ internal fun LazyListScope.advancedSettingsContent(
                     description = "Save diagnostics as a file for debugging or support.",
                     isTablet = isTablet,
                     onClick = {
+                        logs = RuntimeDiagnostics.snapshotText()
                         NuvioEnhancedBackupFileBridge.exportBackup(
-                            fileName = "mew-diagnostics.json",
+                            fileName = "mew-diagnostics.txt",
                             payload = logs,
                         ) { result ->
                             exported = result.isSuccess
@@ -191,6 +196,7 @@ internal fun LazyListScope.advancedSettingsContent(
                         ) {
                             Button(
                                 onClick = {
+                                    logs = RuntimeDiagnostics.snapshotText()
                                     clipboard.setText(AnnotatedString(logs))
                                     copied = true
                                 },
@@ -201,8 +207,9 @@ internal fun LazyListScope.advancedSettingsContent(
                             Spacer(modifier = Modifier.width(NuvioTokens.Space.s10))
                             Button(
                                 onClick = {
+                                    logs = RuntimeDiagnostics.snapshotText()
                                     NuvioEnhancedBackupFileBridge.exportBackup(
-                                        fileName = "mew-diagnostics.json",
+                                        fileName = "mew-diagnostics.txt",
                                         payload = logs,
                                     ) { result ->
                                         exported = result.isSuccess
