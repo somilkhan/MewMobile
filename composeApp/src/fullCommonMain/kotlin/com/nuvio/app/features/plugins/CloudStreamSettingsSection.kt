@@ -172,7 +172,7 @@ internal fun CloudStreamSettingsSection() {
                 repositoryUrl = it
                 message = null
             },
-            placeholder = "https://github.com/Kraptor123/cs-kraptor",
+            placeholder = "Repository URL, MegaProvider, or MegaRepo",
         )
         Spacer(Modifier.height(12.dp))
         NuvioPrimaryButton(
@@ -191,6 +191,17 @@ internal fun CloudStreamSettingsSection() {
                     if (previous != null && requested == previous) {
                         CloudStreamRepository.refreshRepository(previous)
                         message = copy.repositoryRefreshing
+                    } else if (
+                        previous == null && (
+                            requested.equals("MegaProvider", ignoreCase = true) ||
+                                requested.equals("MegaRepo", ignoreCase = true) ||
+                                requested.contains("self-similarity/MegaRepo", ignoreCase = true)
+                            )
+                    ) {
+                        when (val result = CloudStreamRepository.discoverRepositories(requested)) {
+                            is Result.Success -> message = copy.repositoriesDiscovered(result.getOrThrow())
+                            is Result.Failure -> message = result.exceptionOrNull()?.message ?: copy.repositoryDiscoveryFailed
+                        }
                     } else {
                         when (val result = CloudStreamRepository.addRepository(requested)) {
                             is AddCloudStreamRepositoryResult.Success -> {
@@ -252,8 +263,61 @@ internal fun CloudStreamSettingsSection() {
         }
     }
 
-    if (state.plugins.isNotEmpty()) {
-        NuvioSectionLabel(copy.providersSectionTitle)
+    val installedRepositoryUrls = remember(state.repositories) {
+        state.repositories.map { it.manifest.sourceUrl }.toSet()
+    }
+    val discoveredRepositories = remember(state.discoveredRepositories, installedRepositoryUrls) {
+        state.discoveredRepositories.filterNot { it.sourceUrl in installedRepositoryUrls }
+    }
+
+    if (discoveredRepositories.isNotEmpty()) {
+        NuvioSectionLabel(copy.discoveredRepositoriesSectionTitle)
+        discoveredRepositories.forEach { repository ->
+            NuvioSurfaceCard {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    AsyncImage(
+                        model = repository.iconUrl,
+                        contentDescription = null,
+                        modifier = Modifier.size(48.dp).clip(RoundedCornerShape(12.dp)),
+                        contentScale = ContentScale.Crop,
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(repository.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text(
+                            repository.sourceUrl,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    OutlinedButton(
+                        enabled = !isAddingRepository,
+                        onClick = {
+                            isAddingRepository = true
+                            message = null
+                            scope.launch {
+                                when (val result = CloudStreamRepository.addRepository(repository.sourceUrl)) {
+                                    is AddCloudStreamRepositoryResult.Success -> message = copy.repositoryAdded(result.repository.name)
+                                    is AddCloudStreamRepositoryResult.Error -> message = result.message
+                                }
+                                isAddingRepository = false
+                            }
+                        },
+                    ) {
+                        Text(copy.installRepository)
+                    }
+                }
+            }
+        }
+    }
+
+$marker
         NuvioSurfaceCard {
             Text(copy.searchAndFilterTitle, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(10.dp))
@@ -499,6 +563,8 @@ private class CloudStreamSettingsCopy private constructor(
         if (turkish) "CloudStream / CS3" else "CloudStream / CS3"
     val repositoriesSectionTitle: String =
         if (turkish) "CS3 repositoryleri" else "CS3 repositories"
+    val discoveredRepositoriesSectionTitle: String =
+        if (turkish) "Bulunan repositoryler" else "Discovered repositories"
     val providersSectionTitle: String =
         if (turkish) "CS3 providerları" else "CS3 providers"
     val sectionDescription: String =
@@ -607,6 +673,9 @@ private class CloudStreamSettingsCopy private constructor(
 
     fun repositoryAdded(name: String): String =
         if (turkish) "$name eklendi." else "$name added."
+
+    fun repositoriesDiscovered(count: Int): String =
+        if (turkish) "$count repository bulundu." else "Found $count repositories."
 
     fun installAndEnableAll(count: Int): String =
         if (turkish) "Tümünü kur ve aktif et ($count)" else "Install and enable all ($count)"
