@@ -16,7 +16,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.delay
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.contentOrNull
@@ -34,7 +33,6 @@ actual object CloudStreamRepository {
     private var initialized = false
     private var currentProfileId = 1
     private val refreshJobs = mutableMapOf<String, Job>()
-    private val dynamicDiscoveryJobs = mutableMapOf<String, Job>()
 
     actual fun initialize() {
         val profileId = ProfileRepository.activeProfileId.coerceAtLeast(1)
@@ -49,8 +47,6 @@ actual object CloudStreamRepository {
     actual fun onProfileChanged(profileId: Int) {
         refreshJobs.values.forEach { it.cancel() }
         refreshJobs.clear()
-        dynamicDiscoveryJobs.values.forEach { it.cancel() }
-        dynamicDiscoveryJobs.clear()
         CloudStreamPlatformRuntime.clear()
         currentProfileId = profileId.coerceAtLeast(1)
         CloudStreamPlatformStorage.setActiveProfile(currentProfileId)
@@ -121,8 +117,11 @@ actual object CloudStreamRepository {
 
             val repositoryUrls = if (databaseUrl != null) {
                 json.parseToJsonElement(httpGetText(databaseUrl)).jsonArray.mapNotNull { element ->
-                    element.jsonPrimitive.contentOrNull
-                        ?: element.jsonObject["url"]?.jsonPrimitive?.contentOrNull
+                    when {
+                        element is kotlinx.serialization.json.JsonPrimitive -> element.contentOrNull
+                        element is kotlinx.serialization.json.JsonObject -> element["url"]?.jsonPrimitive?.contentOrNull
+                        else -> null
+                    }
                 }.map(String::trim).filter(String::isNotBlank).distinct()
             } else {
                 listOf(resolveCloudStreamRepositoryInput(input))
