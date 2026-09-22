@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -29,6 +30,7 @@ actual object CloudStreamRepository {
     private var initialized = false
     private var currentProfileId = 1
     private val refreshJobs = mutableMapOf<String, Job>()
+    private val dynamicDiscoveryJobs = mutableMapOf<String, Job>()
 
     actual fun initialize() {
         val profileId = ProfileRepository.activeProfileId.coerceAtLeast(1)
@@ -42,25 +44,16 @@ actual object CloudStreamRepository {
         // Some CloudStream plugins (e.g. MegaProvider) register repositories from
         // BasePlugin.load(), so discovery must also run after state restoration.
         val enabledPlugins = _uiState.value.plugins.filter(CloudStreamPluginItem::isRunnable)
-        if (enabledPlugins.isNotEmpty()) {
-            scope.launch {
-                enabledPlugins.forEach { plugin ->
-                    runCatching {
-                        CloudStreamPlatformRuntime.syncDynamicRepositories(plugin)
-                    }.onFailure { error ->
-                        log.w(error) {
-                            "CloudStream dynamic repository discovery failed during initialization id=" +
-                                plugin.metadata.id.value
-                        }
-                    }
-                }
-            }
+        enabledPlugins.forEach { plugin ->
+            scheduleDynamicDiscovery(plugin, initialDelayMs = 350L)
         }
     }
 
     actual fun onProfileChanged(profileId: Int) {
         refreshJobs.values.forEach { it.cancel() }
         refreshJobs.clear()
+        dynamicDiscoveryJobs.values.forEach { it.cancel() }
+        dynamicDiscoveryJobs.clear()
         CloudStreamPlatformRuntime.clear()
         currentProfileId = profileId.coerceAtLeast(1)
         CloudStreamPlatformStorage.setActiveProfile(currentProfileId)
@@ -293,16 +286,45 @@ actual object CloudStreamRepository {
             if (enabledPlugin?.isRunnable == true) {
                 // Some CloudStream plugins (notably MegaProvider) register additional
                 // repositories from BasePlugin.load(). Discover those immediately after enable.
-                scope.launch {
-                    runCatching {
-                        CloudStreamPlatformRuntime.syncDynamicRepositories(enabledPlugin)
-                    }.onFailure { error ->
-                        log.w(error) { "CloudStream dynamic repository discovery failed id=$pluginId" }
-                    }
-                }
+                scheduleDynamicDiscovery(enabledPlugin)
             }
         }
         persist()
+    }
+
+    private fun scheduleDynamicDiscovery(
+        plugin: CloudStreamPluginItem,
+        initialDelayMs: Long = 0L,
+    ) {
+        val pluginId = plugin.metadata.id.value
+        if (dynamicDiscoveryJobs[pluginId]?.isActive == true) return
+
+        lateinit var job: Job
+        job = scope.launch {
+            if (initialDelayMs > 0L) delay(initialDelayMs)
+
+            repeat(DYNAMIC_DISCOVERY_RETRIES) { attempt ->
+                val result = runCatching {
+                    CloudStreamPlatformRuntime.syncDynamicRepositories(plugin)
+                }
+                if (result.isSuccess) return@launch
+
+                result.exceptionOrNull()?.let { error ->
+                    log.w(error) {
+                        "CloudStream dynamic repository discovery attempt=${attempt + 1}/$DYNAMIC_DISCOVERY_RETRIES failed id=$pluginId"
+                    }
+                }
+                if (attempt + 1 < DYNAMIC_DISCOVERY_RETRIES) {
+                    delay(DYNAMIC_DISCOVERY_RETRY_DELAY_MS)
+                }
+            }
+        }
+        dynamicDiscoveryJobs[pluginId] = job
+        job.invokeOnCompletion {
+            if (dynamicDiscoveryJobs[pluginId] === job) {
+                dynamicDiscoveryJobs.remove(pluginId)
+            }
+        }
     }
 
     actual fun removePlugin(pluginId: String) {
