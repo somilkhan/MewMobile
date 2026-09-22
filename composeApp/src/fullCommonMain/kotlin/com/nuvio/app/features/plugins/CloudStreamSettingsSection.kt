@@ -319,7 +319,8 @@ internal fun CloudStreamSettingsSection() {
         }
     }
 
-$marker
+    if (state.plugins.isNotEmpty()) {
+        NuvioSectionLabel(copy.providersSectionTitle)
         NuvioSurfaceCard {
             Text(copy.searchAndFilterTitle, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(10.dp))
