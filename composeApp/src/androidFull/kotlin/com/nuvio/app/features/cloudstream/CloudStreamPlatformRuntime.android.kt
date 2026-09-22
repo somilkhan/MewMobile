@@ -324,71 +324,86 @@ private class AndroidDexCloudStreamProvider(
         val sections = Collections.synchronizedList(
             mutableListOf<Pair<String, List<CloudStreamSearchItem>>>(),
         )
+        val apiGate = Semaphore(CLOUDSTREAM_API_CONCURRENCY)
         var lastError: Throwable? = null
-        providers.filter(MainAPI::hasMainPage).forEach { api ->
-            val requests = api.mainPage.ifEmpty {
-                listOf(com.lagradost.cloudstream3.MainPageData(api.name, api.mainUrl, false))
-            }
-            suspend fun loadRequest(data: com.lagradost.cloudstream3.MainPageData) =
-                runCatching {
-                    withTimeout(stageTimeout(api.getMainPageTimeoutMs, DEFAULT_DISCOVERY_TIMEOUT_MS)) {
-                        api.getMainPage(
-                            page.coerceAtLeast(1),
-                            MainPageRequest(data.name, data.data, data.horizontalImages),
-                        )
-                    }
-                }.onSuccess { response ->
-                    response?.items.orEmpty().forEach { section ->
-                        val title = if (providers.size > 1) "${api.name} · ${section.name}" else section.name
-                        val items = section.list.map { it.toNuvioSearchItem(api) }
-                        if (items.isNotEmpty()) sections += title to items
-                    }
-                }.onFailure { error ->
-                    synchronized(sections) { lastError = error }
-                    log.w(error) { "CloudStream main page failed api=${api.name}" }
-                }
 
-            if (api.sequentialMainPage) {
-                requests.forEachIndexed { index, data ->
-                    if (index > 0 && api.sequentialMainPageDelay > 0) {
-                        delay(api.sequentialMainPageDelay)
+        coroutineScope {
+            providers.filter(MainAPI::hasMainPage).map { api ->
+                async {
+                    apiGate.withPermit {
+                        val requests = api.mainPage.ifEmpty {
+                            listOf(com.lagradost.cloudstream3.MainPageData(api.name, api.mainUrl, false))
+                        }
+
+                        suspend fun loadRequest(data: com.lagradost.cloudstream3.MainPageData) =
+                            runCatching {
+                                withTimeout(stageTimeout(api.getMainPageTimeoutMs, DEFAULT_DISCOVERY_TIMEOUT_MS)) {
+                                    api.getMainPage(
+                                        page.coerceAtLeast(1),
+                                        MainPageRequest(data.name, data.data, data.horizontalImages),
+                                    )
+                                }
+                            }.onSuccess { response ->
+                                response?.items.orEmpty().forEach { section ->
+                                    val title = if (providers.size > 1) "${api.name} · ${section.name}" else section.name
+                                    val items = section.list.map { it.toNuvioSearchItem(api) }
+                                    if (items.isNotEmpty()) sections += title to items
+                                }
+                            }.onFailure { error ->
+                                synchronized(sections) { lastError = error }
+                                log.w(error) { "CloudStream main page failed api=${api.name}" }
+                            }
+
+                        if (api.sequentialMainPage) {
+                            requests.forEachIndexed { index, data ->
+                                if (index > 0 && api.sequentialMainPageDelay > 0) {
+                                    delay(api.sequentialMainPageDelay)
+                                }
+                                loadRequest(data)
+                            }
+                        } else {
+                            requests.map { data -> async { loadRequest(data) } }.awaitAll()
+                        }
                     }
-                    loadRequest(data)
                 }
-            } else {
-                coroutineScope {
-                    requests.map { data -> async { loadRequest(data) } }.awaitAll()
-                }
-            }
+            }.awaitAll()
         }
+
         if (sections.isEmpty()) throw lastError ?: return@withContext emptyList()
         synchronized(sections) { sections.toList() }
     }
 
     override suspend fun search(query: String): List<CloudStreamSearchItem> = withContext(Dispatchers.IO) {
-        val results = mutableListOf<CloudStreamSearchItem>()
+        val results = Collections.synchronizedList(mutableListOf<CloudStreamSearchItem>())
+        val apiGate = Semaphore(CLOUDSTREAM_API_CONCURRENCY)
         var lastError: Throwable? = null
-        providers.forEach { api ->
-            runCatching {
-                withTimeout(stageTimeout(api.searchTimeoutMs, DEFAULT_DISCOVERY_TIMEOUT_MS)) {
-                    api.search(query, 1)?.items.orEmpty()
-                }
-            }.onSuccess { items ->
-                log.d {
-                    "CloudStream search api=${api.name} query=$query returned=${items.size} " +
-                        "sample=${items.take(3).joinToString { it.name }}"
-                }
-                results += items.map { it.toNuvioSearchItem(api) }
-            }
-                .onFailure { error ->
-                    lastError = error
-                    log.w(error) { "CloudStream search failed api=${api.name}" }
-                }
-        }
-        if (results.isEmpty()) throw lastError ?: return@withContext emptyList()
-        results.distinctBy { it.data }
-    }
 
+        coroutineScope {
+            providers.map { api ->
+                async {
+                    apiGate.withPermit {
+                        runCatching {
+                            withTimeout(stageTimeout(api.searchTimeoutMs, DEFAULT_DISCOVERY_TIMEOUT_MS)) {
+                                api.search(query, 1)?.items.orEmpty()
+                            }
+                        }.onSuccess { items ->
+                            log.d {
+                                "CloudStream search api=${api.name} query=$query returned=${items.size} " +
+                                    "sample=${items.take(3).joinToString { it.name }}"
+                            }
+                            results += items.map { it.toNuvioSearchItem(api) }
+                        }.onFailure { error ->
+                            synchronized(results) { lastError = error }
+                            log.w(error) { "CloudStream search failed api=${api.name}" }
+                        }
+                    }
+                }
+            }.awaitAll()
+        }
+
+        if (results.isEmpty()) throw lastError ?: return@withContext emptyList()
+        synchronized(results) { results.toList().distinctBy { it.data } }
+    }
     override suspend fun loadByExternalId(externalId: String): CloudStreamLoadItem? = withContext(Dispatchers.IO) {
         val syncName = when {
             externalId.matches(IMDB_ID_REGEX) -> SyncIdName.Imdb
@@ -526,6 +541,7 @@ private class AndroidDexCloudStreamProvider(
         private fun stageTimeout(providerHint: Long?, hostMaximum: Long): Long =
             providerHint?.coerceIn(5_000L, hostMaximum) ?: hostMaximum
 
+        private const val CLOUDSTREAM_API_CONCURRENCY = 4
         private const val DEFAULT_DISCOVERY_TIMEOUT_MS = 15_000L
         private const val DEFAULT_LOAD_TIMEOUT_MS = 30_000L
         private const val DEFAULT_LINK_TIMEOUT_MS = 120_000L
