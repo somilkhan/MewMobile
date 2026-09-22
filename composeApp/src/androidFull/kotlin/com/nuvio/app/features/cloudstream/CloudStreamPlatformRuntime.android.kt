@@ -156,12 +156,12 @@ internal actual object CloudStreamPlatformRuntime {
             RuntimeDiagnostics.recordLog(
                 "cs-provider-register plugin=" + item.metadata.id.value + " count=" + providers.size,
             )
-            RuntimeDiagnostics.recordLog(
-                "CloudStream plugin-load-success id=" + item.metadata.id.value + " providers=" + providers.size,
-            )
             require(providers.isNotEmpty()) {
                 "Plugin loaded but registered no providers. It may reject the host runtime."
             }
+            RuntimeDiagnostics.recordLog(
+                "CloudStream plugin-load-success id=" + item.metadata.id.value + " providers=" + providers.size,
+            )
             providers.forEach(MainAPI::init)
             val registeredExtractors = extractorApis
                 .filter { it !in extractorsBefore || it.sourcePlugin == file.absolutePath }
