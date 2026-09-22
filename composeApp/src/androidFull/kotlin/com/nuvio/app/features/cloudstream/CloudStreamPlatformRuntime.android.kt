@@ -11,6 +11,7 @@ import com.lagradost.cloudstream3.APIHolder
 import com.lagradost.cloudstream3.AnimeLoadResponse
 import com.lagradost.cloudstream3.AnimeSearchResponse
 import com.lagradost.cloudstream3.CloudStreamApp
+import com.lagradost.cloudstream3.app
 import com.lagradost.cloudstream3.CommonActivity
 import com.lagradost.cloudstream3.LiveSearchResponse
 import com.lagradost.cloudstream3.LiveStreamLoadResponse
@@ -25,6 +26,7 @@ import com.lagradost.cloudstream3.TvSeriesLoadResponse
 import com.lagradost.cloudstream3.TvSeriesSearchResponse
 import com.lagradost.cloudstream3.TvType
 import com.lagradost.cloudstream3.actions.VideoClickActionHolder
+import com.lagradost.cloudstream3.network.initClient
 import com.lagradost.cloudstream3.plugins.BasePlugin
 import com.lagradost.cloudstream3.plugins.Plugin
 import com.lagradost.cloudstream3.plugins.PluginData
@@ -256,6 +258,13 @@ internal actual object CloudStreamPlatformRuntime {
         activityReference?.get()?.let(CommonActivity::setActivityInstance)
         CloudStreamApp.context = context
         setContext(WeakReference(context))
+
+        // CloudStream extensions are allowed to use the global app HTTP client.
+        // Mew does not run CloudStream's Application/MainActivity, so that client is
+        // not initialized automatically. Plugins such as MegaProvider register their
+        // child repositories from an async app.get(...) call; without this initialization
+        // that call fails silently inside ioSafe and the dynamic repository registry stays empty.
+        app.initClient(context)
     }
 
     /**
