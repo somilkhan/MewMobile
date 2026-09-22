@@ -93,7 +93,6 @@ internal actual object CloudStreamPlatformRuntime {
             }
         }
         plugins.forEach(LoadedPlugin::unload)
-        RepositoryManager.clearRepositoryEventBridge()
         PluginManager.clear()
     }
 
