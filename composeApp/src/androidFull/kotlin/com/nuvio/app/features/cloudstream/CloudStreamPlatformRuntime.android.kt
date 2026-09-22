@@ -31,6 +31,7 @@ import com.lagradost.cloudstream3.plugins.Plugin
 import com.lagradost.cloudstream3.plugins.PluginData
 import com.lagradost.cloudstream3.plugins.PluginManager
 import com.lagradost.cloudstream3.plugins.RepositoryManager
+import com.lagradost.cloudstream3.network.initClient
 import com.lagradost.cloudstream3.syncproviders.SyncIdName
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.ExtractorLinkType
@@ -136,14 +137,15 @@ internal actual object CloudStreamPlatformRuntime {
             .toList()
 
         newRepositories.forEach { url ->
-            val result = runCatching { CloudStreamRepository.addRepository(url) }.getOrNull()
+            val result = runCatching { CloudStreamRepository.addRepository(url) }
+                .getOrElse { error ->
+                    AddCloudStreamRepositoryResult.Error(error.message ?: "unexpected exception")
+                }
             when (result) {
                 is AddCloudStreamRepositoryResult.Success ->
                     log.i { "[CS-DYN] repository-import-success url=$url" }
                 is AddCloudStreamRepositoryResult.Error ->
                     log.w { "[CS-DYN] repository-import-failed url=$url error=" + result.message }
-                null ->
-                    log.w { "[CS-DYN] repository-import-failed url=$url error=unexpected exception" }
             }
         }
 
