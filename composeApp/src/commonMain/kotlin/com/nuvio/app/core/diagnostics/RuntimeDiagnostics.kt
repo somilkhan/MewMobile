@@ -137,6 +137,7 @@ object RuntimeDiagnostics {
         if (recentLogs.size == maxLogs) recentLogs.removeFirst()
         recentLogs.addLast(line)
         addRecentEvent("LOG: $line")
+        PlatformRuntimeLogcat.appendAppLog("INFO", line)
     }
 
     fun record(event: DiagnosticEvent) = synchronized(lock) {
@@ -248,6 +249,11 @@ object RuntimeDiagnostics {
             appendLine(if (recentEvents.isEmpty()) "none" else recentEvents.joinToString(" | "))
             appendLine("Diagnostic log:")
             append(if (recentLogs.isEmpty()) "none" else recentLogs.joinToString("\n"))
+            PlatformRuntimeLogcat.snapshot()?.let { logcat ->
+                appendLine()
+                appendLine("Android Logcat (current app process):")
+                append(logcat)
+            }
         }
     }
 
