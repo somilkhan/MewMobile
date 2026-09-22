@@ -7,6 +7,7 @@ import com.nuvio.app.features.addons.httpRequestRaw
 import com.nuvio.app.features.plugins.currentEpochMillis
 import com.nuvio.app.features.profiles.ProfileRepository
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.async
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -129,7 +130,7 @@ actual object CloudStreamRepository {
 
             val manifests = kotlinx.coroutines.coroutineScope {
                 repositoryUrls.map { url ->
-                    kotlinx.coroutines.async(Dispatchers.IO) {
+                    async(Dispatchers.IO) {
                         runCatching {
                             CloudStreamRepositoryParser.parseRepository(url, httpGetText(url))
                         }.getOrNull()
