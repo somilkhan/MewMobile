@@ -315,79 +315,48 @@ object SearchRepository {
 
     fun refreshDiscover(addons: List<ManagedAddon>) {
         val activeAddons = addons.enabledAddons().filter { it.manifest != null }
-        if (activeAddons.isEmpty()) {
-            activeDiscoverJob?.cancel()
-            discoverSources = emptyList()
-            lastDiscoverHideUnreleasedContent = null
-            log.d { "Discover refresh aborted: no active addons" }
-            _discoverUiState.value = DiscoverUiState(
-                emptyStateReason = DiscoverEmptyStateReason.NoActiveAddons,
-            )
-            return
-        }
+        CloudStreamRepository.initialize()
+        val cloudProviders = CloudStreamRepository.uiState.value.plugins.filter(CloudStreamPluginItem::isRunnable)
 
-        val sources = buildDiscoverSources(activeAddons)
+        val sources = if (activeAddons.isEmpty()) {
+            cloudProviders.map { plugin ->
+                DiscoverCatalogOption(
+                    key = "cloudstream:" + plugin.metadata.id.storageKey,
+                    addonName = plugin.metadata.name,
+                    manifestUrl = "",
+                    type = "CloudStream",
+                    catalogId = plugin.metadata.id.value,
+                    catalogName = plugin.metadata.name,
+                    supportsPagination = false,
+                    cloudStreamProviderId = plugin.metadata.id.value,
+                )
+            }
+        } else { buildDiscoverSources(activeAddons) }
+        prepareDiscoverSources(sources)
+    }
+
+    private fun prepareDiscoverSources(sources: List<DiscoverCatalogOption>) {
+        activeDiscoverJob?.cancel()
         val current = _discoverUiState.value
         val hideUnreleasedContent = HomeCatalogSettingsRepository.snapshot().hideUnreleasedContent
-        if (
-            sources == discoverSources &&
-            lastDiscoverHideUnreleasedContent == hideUnreleasedContent &&
-            current.canReuseDiscoverState(sources)
-        ) {
-            log.d {
-                "Reusing discover state type=${current.selectedType} catalog=${current.selectedCatalogKey} " +
-                    "genre=${current.selectedGenre ?: "<all>"} items=${current.items.size} nextSkip=${current.nextSkip}"
-            }
-            return
-        }
-
+        if (sources == discoverSources && lastDiscoverHideUnreleasedContent == hideUnreleasedContent && current.canReuseDiscoverState(sources)) return
         discoverSources = sources
         lastDiscoverHideUnreleasedContent = hideUnreleasedContent
         if (sources.isEmpty()) {
-            activeDiscoverJob?.cancel()
-            log.d { "Discover refresh found no compatible discover catalogs" }
             _discoverUiState.value = DiscoverUiState(
-                emptyStateReason = DiscoverEmptyStateReason.NoDiscoverCatalogs,
+                emptyStateReason = if (CloudStreamRepository.uiState.value.plugins.any(CloudStreamPluginItem::isRunnable)) DiscoverEmptyStateReason.NoResults else DiscoverEmptyStateReason.NoActiveAddons,
             )
             return
         }
-
-        val preferredCatalogKey = DiscoverSelectionStorage.loadCatalogKey()
-            ?.trim()
-            ?.takeIf { it.isNotEmpty() }
-        val selectedCatalog = requireNotNull(
-            resolveDiscoverCatalog(
-                sources = sources,
-                preferredCatalogKey = preferredCatalogKey,
-                currentCatalogKey = current.selectedCatalogKey,
-            ),
-        )
+        val preferredCatalogKey = DiscoverSelectionStorage.loadCatalogKey()?.trim()?.takeIf { it.isNotEmpty() }
+        val selectedCatalog = requireNotNull(resolveDiscoverCatalog(sources, preferredCatalogKey, current.selectedCatalogKey))
         val typeOptions = sources.map { it.type }.distinct()
         val selectedType = selectedCatalog.type
         val catalogOptions = sources.filter { it.type == selectedType }
         val selectedGenre = selectedCatalog.resolveGenreSelection(current.selectedGenre)
-
-        _discoverUiState.value = DiscoverUiState(
-            typeOptions = typeOptions,
-            selectedType = selectedType,
-            catalogOptions = catalogOptions,
-            selectedCatalogKey = selectedCatalog.key,
-            selectedGenre = selectedGenre,
-            items = emptyList(),
-            isLoading = false,
-            nextSkip = null,
-            emptyStateReason = null,
-            errorMessage = null,
-        )
-
-        log.d {
-            "Discover refresh prepared type=$selectedType catalog=${selectedCatalog.key} " +
-                "genre=${selectedGenre ?: "<all>"} sources=${sources.size}"
-        }
-
+        _discoverUiState.value = DiscoverUiState(typeOptions = typeOptions, selectedType = selectedType, catalogOptions = catalogOptions, selectedCatalogKey = selectedCatalog.key, selectedGenre = selectedGenre, items = emptyList(), isLoading = false, nextSkip = null, emptyStateReason = null, errorMessage = null)
         loadDiscoverFeed(reset = true)
     }
-
     fun selectDiscoverType(type: String) {
         val current = _discoverUiState.value
         if (current.selectedType == type) return
@@ -571,14 +540,12 @@ object SearchRepository {
         val current = _discoverUiState.value
         val selectedCatalog = current.selectedCatalog ?: return
         val requestedSkip = if (reset) 0 else current.nextSkip ?: return
-        val requestUrl = buildCatalogUrl(
-            manifestUrl = selectedCatalog.manifestUrl,
-            type = selectedCatalog.type,
-            catalogId = selectedCatalog.catalogId,
-            genre = current.selectedGenre,
-            search = null,
-            skip = requestedSkip.takeIf { it > 0 },
-        )
+        val cloudStreamProviderId = selectedCatalog.cloudStreamProviderId
+        val requestUrl = if (cloudStreamProviderId == null) {
+            buildCatalogUrl(manifestUrl = selectedCatalog.manifestUrl, type = selectedCatalog.type, catalogId = selectedCatalog.catalogId, genre = current.selectedGenre, search = null, skip = requestedSkip.takeIf { it > 0 })
+        } else {
+            "cloudstream://" + cloudStreamProviderId + "/main-page"
+        }
 
         log.d {
             "Discover request reset=$reset addon=${selectedCatalog.addonName} type=${selectedCatalog.type} " +
@@ -597,14 +564,13 @@ object SearchRepository {
 
         activeDiscoverJob = scope.launch {
             runCatching {
-                fetchCatalogPage(
-                    manifestUrl = selectedCatalog.manifestUrl,
-                    type = selectedCatalog.type,
-                    catalogId = selectedCatalog.catalogId,
-                    genre = current.selectedGenre,
-                    skip = requestedSkip.takeIf { it > 0 },
-                ).withUnreleasedFilter()
-            }.fold(
+                if (cloudStreamProviderId != null) {
+                    val sections = CloudStreamRepository.getMainPage(cloudStreamProviderId, requestedSkip / 20 + 1).getOrThrow()
+                    CatalogPage(items = sections.flatMap { it.second }.map { it.toMetaPreview() }, rawItemCount = sections.sumOf { it.second.size }, nextSkip = null)
+                } else {
+                    fetchCatalogPage(manifestUrl = selectedCatalog.manifestUrl, type = selectedCatalog.type, catalogId = selectedCatalog.catalogId, genre = current.selectedGenre, skip = requestedSkip.takeIf { it > 0 }).withUnreleasedFilter()
+                }
+            }            }.fold(
                 onSuccess = { page ->
                     val latest = _discoverUiState.value
                     if (latest.selectedCatalogKey != selectedCatalog.key || latest.selectedGenre != current.selectedGenre) {
