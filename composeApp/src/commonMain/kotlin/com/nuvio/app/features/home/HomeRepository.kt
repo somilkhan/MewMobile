@@ -46,6 +46,16 @@ object HomeRepository {
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
+    private val _selectedCloudStreamProviderId = MutableStateFlow<String?>(null)
+    val selectedCloudStreamProviderId: StateFlow<String?> = _selectedCloudStreamProviderId.asStateFlow()
+
+    fun setSelectedCloudStreamProvider(providerId: String?) {
+        val normalized = providerId?.trim()?.takeIf { it.isNotEmpty() }
+        if (_selectedCloudStreamProviderId.value == normalized) return
+        _selectedCloudStreamProviderId.value = normalized
+        refresh(AddonRepository.uiState.value.addons.enabledAddons(), force = true)
+    }
+
     private var activeJob: Job? = null
     private var activeRequestKey: String? = null
     private var completedRequestKey: String? = null
@@ -64,7 +74,10 @@ object HomeRepository {
     fun refresh(addons: List<ManagedAddon>, force: Boolean = false) {
         CloudStreamRepository.initialize()
         val cloudState = CloudStreamRepository.uiState.value
-        val cloudPlugins = cloudState.plugins.filter(CloudStreamPluginItem::isRunnable)
+        val selectedProviderId = _selectedCloudStreamProviderId.value
+        val cloudPlugins = cloudState.plugins
+            .filter(CloudStreamPluginItem::isRunnable)
+            .filter { selectedProviderId == null || it.metadata.id.value == selectedProviderId }
         val activeAddons = addons.enabledAddons()
         val requests = buildHomeCatalogDefinitions(activeAddons)
         currentDefinitions = requests
@@ -76,6 +89,8 @@ object HomeRepository {
             append(cloudState.registryRevision)
             append(':')
             append(cloudPlugins.joinToString(separator = ",") { it.metadata.id.value })
+            append("|selectedCloudStreamProvider=")
+            append(selectedProviderId.orEmpty())
         }
 
         if (!force && activeRequestKey == requestKey && _uiState.value.isLoading) return
