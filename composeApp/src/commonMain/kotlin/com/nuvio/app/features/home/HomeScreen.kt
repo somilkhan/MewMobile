@@ -1377,7 +1377,8 @@ fun HomeScreen(
                 }
             }
 
-            if (runnableCloudStreamProviders.isNotEmpty()) {
+            val addonDataFetchEnabled = enabledAddons.any { it.manifest != null }
+            if (!addonDataFetchEnabled && runnableCloudStreamProviders.isNotEmpty()) {
                 Box(
                     modifier = Modifier
                         .align(androidx.compose.ui.Alignment.BottomEnd)
