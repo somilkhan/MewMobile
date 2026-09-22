@@ -28,8 +28,9 @@ object RepositoryManager {
 
     val PREBUILT_REPOSITORIES: Array<RepositoryData> = emptyArray()
 
+    /** ABI-compatible CloudStream repository manifest model. */
     @Serializable
-    data class RepositoryManifest(
+    data class Repository(
         @SerialName("iconUrl") val iconUrl: String? = null,
         @SerialName("name") val name: String = "",
         @SerialName("description") val description: String? = null,
@@ -44,21 +45,24 @@ object RepositoryManager {
      * Parse a standard CloudStream repo.json. Plugins use this to resolve a repository's
      * display metadata before registering it with addRepository().
      */
-    suspend fun parseRepository(url: String): RepositoryManifest? = withContext(Dispatchers.IO) {
+    suspend fun parseRepository(url: String): Repository? = withContext(Dispatchers.IO) {
         runCatching {
-            val connection = (URL(url).openConnection() as HttpURLConnection).apply {
-                connectTimeout = 15_000
-                readTimeout = 15_000
-                instanceFollowRedirects = true
-                requestMethod = "GET"
-                setRequestProperty("Accept", "application/json")
-                setRequestProperty("User-Agent", "MewMobile-CloudStream")
-            }
-            connection.use {
-                require(it.responseCode in 200..299) { "HTTP ${it.responseCode}" }
-                it.inputStream.bufferedReader().use { reader ->
-                    json.decodeFromString<RepositoryManifest>(reader.readText())
+            val connection = URL(url).openConnection() as HttpURLConnection
+            try {
+                connection.connectTimeout = 15_000
+                connection.readTimeout = 15_000
+                connection.instanceFollowRedirects = true
+                connection.requestMethod = "GET"
+                connection.setRequestProperty("Accept", "application/json")
+                connection.setRequestProperty("User-Agent", "MewMobile-CloudStream")
+                require(connection.responseCode in 200..299) {
+                    "HTTP ${connection.responseCode}"
                 }
+                connection.inputStream.bufferedReader().use { reader ->
+                    json.decodeFromString<Repository>(reader.readText())
+                }
+            } finally {
+                connection.disconnect()
             }
         }.getOrNull()
     }
