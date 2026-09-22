@@ -2,23 +2,35 @@ package com.lagradost.cloudstream3.network
 
 import android.content.Context
 import com.lagradost.cloudstream3.USER_AGENT
+import com.lagradost.nicehttp.Requests
 import okhttp3.Cache
 import okhttp3.Headers
 import okhttp3.Headers.Companion.toHeaders
 import okhttp3.OkHttpClient
-import com.lagradost.nicehttp.Requests
+import org.conscrypt.Conscrypt
 import java.io.File
+import java.security.Security
 
 private val defaultHeaders = mapOf("user-agent" to USER_AGENT)
 
 /**
  * Initializes the NiceHttp global client expected by CloudStream extensions.
  *
- * The host app does not run CloudStream's Application class, so this must be
- * performed explicitly before third-party plugins call `app.get()`.
+ * CloudStream performs this from its Application/Activity lifecycle. Mew hosts
+ * the CloudStream runtime inside its own process, so the same initialization
+ * must be performed explicitly here.
  */
 fun Requests.initClient(context: Context) {
-    baseClient = OkHttpClient.Builder()
+    this.baseClient = buildDefaultClient(context)
+}
+
+fun buildDefaultClient(context: Context): OkHttpClient {
+    // Match CloudStream's Android networking setup. Conscrypt is important for
+    // modern TLS interoperability on Android and is installed before OkHttp
+    // creates connections.
+    runCatching { Security.insertProviderAt(Conscrypt.newProvider(), 1) }
+
+    return OkHttpClient.Builder()
         .followRedirects(true)
         .followSslRedirects(true)
         .cache(
