@@ -104,6 +104,7 @@ fun SearchScreen(
     }
 
     val addonsUiState by AddonRepository.uiState.collectAsStateWithLifecycle()
+    val cloudStreamUiState by com.nuvio.app.features.cloudstream.CloudStreamRepository.uiState.collectAsStateWithLifecycle()
     val uiState by SearchRepository.uiState.collectAsStateWithLifecycle()
     val discoverUiState by SearchRepository.discoverUiState.collectAsStateWithLifecycle()
     val homeCatalogSettingsUiState by remember {
@@ -127,6 +128,16 @@ fun SearchScreen(
     LaunchedEffect(scrollToTopRequests) {
         scrollToTopRequests.collect {
             listState.animateScrollToItem(0)
+        }
+    }
+
+    val cloudStreamRefreshKey = remember(cloudStreamUiState.registryRevision, cloudStreamUiState.plugins) {
+        buildString {
+            append(cloudStreamUiState.registryRevision)
+            append(':')
+            append(cloudStreamUiState.plugins.joinToString(separator = ",") { plugin ->
+                plugin.metadata.id.value + ":" + plugin.isRunnable
+            })
         }
     }
 
@@ -156,7 +167,7 @@ fun SearchScreen(
         SearchRepository.refreshDiscover(addonsUiState.addons)
     }
 
-    LaunchedEffect(query, addonRefreshKey, homeCatalogSettingsUiState.hideUnreleasedContent) {
+    LaunchedEffect(query, addonRefreshKey, cloudStreamRefreshKey, homeCatalogSettingsUiState.hideUnreleasedContent) {
         val normalizedQuery = query.trim()
         if (normalizedQuery.isBlank()) {
             lastRequestedQuery = null
