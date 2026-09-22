@@ -35,6 +35,7 @@ import com.lagradost.cloudstream3.syncproviders.SyncIdName
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.ExtractorLinkType
 import com.lagradost.cloudstream3.utils.extractorApis
+import com.nuvio.app.core.diagnostics.RuntimeDiagnostics
 import dalvik.system.PathClassLoader
 import java.io.File
 import java.lang.ref.WeakReference
@@ -150,6 +151,10 @@ internal actual object CloudStreamPlatformRuntime {
             "[CS-DYN] repository-state-count count=" +
                 CloudStreamRepository.uiState.value.repositories.size
         }
+        RuntimeDiagnostics.recordLog(
+            "CloudStream repository-state-count count=" +
+                CloudStreamRepository.uiState.value.repositories.size,
+        )
     }
 
     private fun loadPlugin(item: CloudStreamPluginItem): LoadedPlugin {
@@ -204,6 +209,7 @@ internal actual object CloudStreamPlatformRuntime {
         val extractorsBefore = extractorApis.toSet()
         try {
             log.i { "[CS-DYN] plugin-load-start id=" + item.metadata.id.value }
+            RuntimeDiagnostics.recordLog("CloudStream plugin-load-start id=" + item.metadata.id.value)
             if (instance is Plugin) instance.load(identityContext) else instance.load()
             val providers = APIHolder.allProviders
                 .filter { it !in providersBefore || it.sourcePlugin == file.absolutePath }
@@ -251,10 +257,17 @@ internal actual object CloudStreamPlatformRuntime {
         CloudStreamApp.context = context
         setContext(WeakReference(context))
 
+        // CloudStream normally initializes NiceHttp from its Application lifecycle.
+        // Mew does not run that Application, so initialize the shared client explicitly
+        // before any third-party extension can call app.get().
+        app.initClient(context)
+        RuntimeDiagnostics.recordLog("CloudStream HTTP client initialized")
+
         // Register the extension -> host event before plugin load(). This is the
         // authoritative path for repositories created asynchronously by extensions.
         RepositoryManager.onRepositoryAdded = { repository ->
             log.i { "[CS-DYN] repository-callback url=" + repository.url }
+            RuntimeDiagnostics.recordLog("CloudStream repository-callback url=" + repository.url)
             importDynamicRepository(repository.url)
         }
     }
@@ -264,6 +277,7 @@ internal actual object CloudStreamPlatformRuntime {
         if (normalized.isBlank()) return
 
         log.i { "[CS-DYN] repository-import-start url=$normalized" }
+        RuntimeDiagnostics.recordLog("CloudStream repository-import-start url=" + normalized)
         val result = runCatching { CloudStreamRepository.addRepository(normalized) }
             .getOrElse { error ->
                 log.w(error) {
@@ -275,10 +289,14 @@ internal actual object CloudStreamPlatformRuntime {
         when (result) {
             is AddCloudStreamRepositoryResult.Success ->
                 log.i { "[CS-DYN] repository-import-success url=$normalized" }
+                RuntimeDiagnostics.recordLog("CloudStream repository-import-success url=" + normalized)
             is AddCloudStreamRepositoryResult.Error ->
                 log.w {
                     "[CS-DYN] repository-import-failed url=$normalized error=" + result.message
                 }
+                RuntimeDiagnostics.recordLog(
+                    "CloudStream repository-import-failed url=" + normalized + " error=" + result.message,
+                )
         }
         log.i {
             "[CS-DYN] repository-state-count count=" +
