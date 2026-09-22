@@ -247,8 +247,7 @@ object RuntimeDiagnostics {
             appendLine("Recent events: ")
             appendLine(if (recentEvents.isEmpty()) "none" else recentEvents.joinToString(" | "))
             appendLine("Diagnostic log:")
-            append(if (recentLogs.isEmpty()) "none" else recentLogs.joinToString("
-"))
+            append(if (recentLogs.isEmpty()) "none" else recentLogs.joinToString("\n"))
         }
     }
 
