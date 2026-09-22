@@ -62,8 +62,10 @@ enum class ProfileBackgroundStatus {
 
 object RuntimeDiagnostics {
     private const val maxEvents = 20
+    private const val maxLogs = 250
     private val lock = SynchronizedObject()
     private val recentEvents = ArrayDeque<String>()
+    private val recentLogs = ArrayDeque<String>()
     private var area = DiagnosticArea.Startup
     private var previousArea = DiagnosticArea.Startup
     private var lastIssueArea: DiagnosticArea? = null
@@ -128,6 +130,13 @@ object RuntimeDiagnostics {
         enabledPluginScrapers = enabledScrapers.coerceAtLeast(0)
         totalPluginCodeChars = totalCodeChars.coerceAtLeast(0L)
         largestPluginCodeChars = largestCodeChars.coerceAtLeast(0)
+    }
+
+    fun recordLog(message: String) = synchronized(lock) {
+        val line = message.trim().takeIf { it.isNotEmpty() } ?: return@synchronized
+        if (recentLogs.size == maxLogs) recentLogs.removeFirst()
+        recentLogs.addLast(line)
+        addRecentEvent("LOG: $line")
     }
 
     fun record(event: DiagnosticEvent) = synchronized(lock) {
@@ -235,8 +244,11 @@ object RuntimeDiagnostics {
                 "Plugins: repositories=$pluginRepositories scrapers=$pluginScrapers enabled=$enabledPluginScrapers " +
                     "sourceChars=$totalPluginCodeChars largestSourceChars=$largestPluginCodeChars",
             )
-            append("Recent events: ")
-            append(if (recentEvents.isEmpty()) "none" else recentEvents.joinToString(" | "))
+            appendLine("Recent events: ")
+            appendLine(if (recentEvents.isEmpty()) "none" else recentEvents.joinToString(" | "))
+            appendLine("Diagnostic log:")
+            append(if (recentLogs.isEmpty()) "none" else recentLogs.joinToString("
+"))
         }
     }
 
@@ -247,6 +259,7 @@ object RuntimeDiagnostics {
 
     internal fun resetForTests() = synchronized(lock) {
         recentEvents.clear()
+        recentLogs.clear()
         area = DiagnosticArea.Startup
         previousArea = DiagnosticArea.Startup
         lastIssueArea = null
