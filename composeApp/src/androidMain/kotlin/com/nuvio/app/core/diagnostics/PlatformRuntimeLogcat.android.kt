@@ -7,6 +7,7 @@ import java.io.InputStreamReader
 
 actual object PlatformRuntimeLogcat {
     private const val tag = "MewMobile"
+    private const val maxSnapshotChars = 120_000
 
     actual fun appendAppLog(level: String, message: String) {
         when (level) {
@@ -24,7 +25,9 @@ actual object PlatformRuntimeLogcat {
             )
             process.inputStream.use { input ->
                 BufferedReader(InputStreamReader(input)).use { reader ->
-                    reader.readText().trim()
+                    reader.readText().trim().let { output ->
+                        if (output.length <= maxSnapshotChars) output else output.takeLast(maxSnapshotChars)
+                    }
                 }
             }.also {
                 process.destroy()
