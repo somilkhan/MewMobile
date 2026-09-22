@@ -5,6 +5,7 @@ import com.nuvio.app.features.addons.httpGetBytesWithHeaders
 import com.nuvio.app.features.addons.httpGetText
 import com.nuvio.app.features.addons.httpRequestRaw
 import com.nuvio.app.features.plugins.currentEpochMillis
+import com.nuvio.app.core.diagnostics.RuntimeDiagnostics
 import com.nuvio.app.features.profiles.ProfileRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
@@ -308,6 +309,7 @@ actual object CloudStreamRepository {
 
     actual fun setPluginEnabled(pluginId: String, enabled: Boolean) {
         initialize()
+        RuntimeDiagnostics.recordLog("cs-provider-enabled id=$pluginId enabled=$enabled")
         _uiState.update { current ->
             var changed = false
             val plugins = current.plugins.map { item ->
@@ -359,8 +361,11 @@ actual object CloudStreamRepository {
     actual suspend fun getMainPage(
         providerId: String,
         page: Int,
-    ): Result<List<Pair<String, List<CloudStreamSearchItem>>>> = providerResult(providerId) {
-        getMainPage(page.coerceAtLeast(1))
+    ): Result<List<Pair<String, List<CloudStreamSearchItem>>>> {
+        RuntimeDiagnostics.recordLog("cs-mainpage-start id=\$providerId page=\${page.coerceAtLeast(1)}")
+        return providerResult(providerId) { getMainPage(page.coerceAtLeast(1)) }
+            .onSuccess { sections -> RuntimeDiagnostics.recordLog("cs-mainpage-success id=\$providerId sections=\${sections.size} items=\${sections.sumOf { it.second.size }}") }
+            .onFailure { error -> RuntimeDiagnostics.recordLog("cs-mainpage-failure id=\$providerId error=\${error.message?.take(160)}") }
     }
 
     actual suspend fun search(
@@ -369,11 +374,23 @@ actual object CloudStreamRepository {
     ): List<Result<List<CloudStreamSearchItem>>> {
         initialize()
         val activeIds = runnableProviderIds().filter { providerId == null || it == providerId }
-        return activeIds.map { id -> providerResult(id) { search(query.trim()) } }
+        RuntimeDiagnostics.recordLog("cs-search-start providers=\${activeIds.size}")
+        val results = activeIds.map { id ->
+            RuntimeDiagnostics.recordLog("cs-search-provider-start id=\$id")
+            providerResult(id) { search(query.trim()) }
+                .onSuccess { items -> RuntimeDiagnostics.recordLog("cs-search-provider-success id=\$id count=\${items.size}") }
+                .onFailure { error -> RuntimeDiagnostics.recordLog("cs-search-provider-failure id=\$id error=\${error.message?.take(160)}") }
+        }
+        RuntimeDiagnostics.recordLog("cs-search-complete providers=\${activeIds.size} successful=\${results.count { it.isSuccess }} results=\${results.sumOf { it.getOrNull()?.size ?: 0 }}")
+        return results
     }
 
-    actual suspend fun load(providerId: String, data: String): Result<CloudStreamLoadItem> =
-        providerResult(providerId) { load(data) }
+    actual suspend fun load(providerId: String, data: String): Result<CloudStreamLoadItem> {
+        RuntimeDiagnostics.recordLog("cs-load-start id=\$providerId")
+        return providerResult(providerId) { load(data) }
+            .onSuccess { item -> RuntimeDiagnostics.recordLog("cs-load-success id=\$providerId episodes=\${item.episodes.size}") }
+            .onFailure { error -> RuntimeDiagnostics.recordLog("cs-load-failure id=\$providerId error=\${error.message?.take(160)}") }
+    }
 
     actual suspend fun loadByExternalId(
         providerId: String,
