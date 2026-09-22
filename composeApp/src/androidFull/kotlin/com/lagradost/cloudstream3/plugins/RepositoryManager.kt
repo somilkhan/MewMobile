@@ -26,6 +26,9 @@ object RepositoryManager {
     private val repoLock = Mutex()
     private val json = Json { ignoreUnknownKeys = true }
 
+    /** Host bridge for extensions that register repositories dynamically. */
+    var onRepositoryAdded: (suspend (RepositoryData) -> Unit)? = null
+
     val PREBUILT_REPOSITORIES: Array<RepositoryData> = emptyArray()
 
     @Serializable
@@ -63,11 +66,16 @@ object RepositoryManager {
     }
 
     suspend fun addRepository(repository: RepositoryData) {
-        repoLock.withLock {
+        val added = repoLock.withLock {
             val current = getRepositories().toList()
-            if (current.any { it.url == repository.url }) return
-            setKey(REPOSITORIES_KEY, (current + repository).toTypedArray())
+            if (current.any { it.url == repository.url }) false
+            else {
+                setKey(REPOSITORIES_KEY, (current + repository).toTypedArray())
+                true
+            }
         }
+        // Notify outside repoLock because the host callback may perform network I/O.
+        if (added) onRepositoryAdded?.invoke(repository)
     }
 
     suspend fun removeRepository(context: Context, repository: RepositoryData) {
