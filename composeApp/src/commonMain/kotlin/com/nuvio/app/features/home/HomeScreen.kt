@@ -10,7 +10,11 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -92,6 +96,7 @@ import com.nuvio.app.features.watching.application.WatchingState
 import com.nuvio.app.features.watching.domain.WatchingContentRef
 import com.nuvio.app.features.watching.domain.isReleasedBy
 import com.nuvio.app.features.collection.CollectionRepository
+import com.nuvio.app.features.cloudstream.CloudStreamPluginItem
 import com.nuvio.app.features.cloudstream.CloudStreamRepository
 import com.nuvio.app.features.library.LibraryRepository
 import com.nuvio.app.features.library.toLibraryItem
@@ -183,6 +188,21 @@ fun HomeScreen(
     var observedOfflineState by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
     var manualRefreshRequested by remember { mutableStateOf(false) }
+    var cloudStreamProviderMenuExpanded by remember { mutableStateOf(false) }
+    val runnableCloudStreamProviders = remember(cloudStreamUiState.registryRevision) {
+        cloudStreamUiState.plugins
+            .filter(CloudStreamPluginItem::isRunnable)
+            .sortedBy { it.metadata.name.lowercase() }
+    }
+    val selectedCloudStreamProviderId by HomeRepository.selectedCloudStreamProviderId.collectAsStateWithLifecycle()
+
+    LaunchedEffect(runnableCloudStreamProviders, selectedCloudStreamProviderId) {
+        if (selectedCloudStreamProviderId != null &&
+            runnableCloudStreamProviders.none { it.metadata.id.value == selectedCloudStreamProviderId }
+        ) {
+            HomeRepository.setSelectedCloudStreamProvider(null)
+        }
+    }
 
     LaunchedEffect(scrollToTopRequests) {
         scrollToTopRequests.collect {
@@ -1353,6 +1373,46 @@ fun HomeScreen(
                                 }
                             }
                         }
+                    }
+                }
+            }
+
+            if (runnableCloudStreamProviders.isNotEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .align(androidx.compose.ui.Alignment.BottomEnd)
+                        .padding(
+                            end = 16.dp,
+                            bottom = nativeBottomNavigationOverlayHeight + 16.dp,
+                        ),
+                ) {
+                    DropdownMenu(
+                        expanded = cloudStreamProviderMenuExpanded,
+                        onDismissRequest = { cloudStreamProviderMenuExpanded = false },
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("All extensions") },
+                            onClick = {
+                                cloudStreamProviderMenuExpanded = false
+                                HomeRepository.setSelectedCloudStreamProvider(null)
+                            },
+                        )
+                        runnableCloudStreamProviders.forEach { provider ->
+                            DropdownMenuItem(
+                                text = { Text(provider.metadata.name) },
+                                onClick = {
+                                    cloudStreamProviderMenuExpanded = false
+                                    HomeRepository.setSelectedCloudStreamProvider(provider.metadata.id.value)
+                                },
+                            )
+                        }
+                    }
+                    FloatingActionButton(
+                        onClick = { cloudStreamProviderMenuExpanded = true },
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        contentColor = MaterialTheme.colorScheme.onSurface,
+                    ) {
+                        Text("CS", style = MaterialTheme.typography.labelLarge)
                     }
                 }
             }
