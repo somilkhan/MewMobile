@@ -156,6 +156,9 @@ internal actual object CloudStreamPlatformRuntime {
             RuntimeDiagnostics.recordLog(
                 "cs-provider-register plugin=" + item.metadata.id.value + " count=" + providers.size,
             )
+            RuntimeDiagnostics.recordLog(
+                "CloudStream plugin-load-success id=" + item.metadata.id.value + " providers=" + providers.size,
+            )
             require(providers.isNotEmpty()) {
                 "Plugin loaded but registered no providers. It may reject the host runtime."
             }
@@ -185,6 +188,9 @@ internal actual object CloudStreamPlatformRuntime {
                 provider = AndroidDexCloudStreamProvider(item.metadata.id.value, providers),
             )
         } catch (error: Throwable) {
+            RuntimeDiagnostics.recordLog(
+                "CloudStream plugin-load-failure id=" + item.metadata.id.value + " error=" + error.message,
+            )
             log.e(error) { "Failed to load ${item.metadata.internalName}" }
             APIHolder.allProviders.removeAll { it !in providersBefore && it.sourcePlugin == file.absolutePath }
             extractorApis.removeAll { it !in extractorsBefore && it.sourcePlugin == file.absolutePath }
