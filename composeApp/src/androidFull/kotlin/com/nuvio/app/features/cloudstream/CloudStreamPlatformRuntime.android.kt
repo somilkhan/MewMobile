@@ -265,6 +265,24 @@ internal actual object CloudStreamPlatformRuntime {
         // child repositories from an async app.get(...) call; without this initialization
         // that call fails silently inside ioSafe and the dynamic repository registry stays empty.
         app.initClient(context)
+
+        // Wire the extension -> host event before load() so async registrations
+        // (e.g. MegaProvider) cannot be missed.
+        RepositoryManager.onRepositoryAdded = { repository ->
+            importDynamicRepository(repository.url)
+        }
+    }
+
+    private suspend fun importDynamicRepository(url: String) {
+        val normalized = url.trim()
+        if (normalized.isBlank()) return
+        val result = CloudStreamRepository.addRepository(normalized)
+        when (result) {
+            is AddCloudStreamRepositoryResult.Success ->
+                log.i { "Imported dynamically registered CloudStream repository: $normalized" }
+            is AddCloudStreamRepositoryResult.Error ->
+                log.w { "Dynamic CloudStream repository import failed url=$normalized: " + result.message }
+        }
     }
 
     /**
