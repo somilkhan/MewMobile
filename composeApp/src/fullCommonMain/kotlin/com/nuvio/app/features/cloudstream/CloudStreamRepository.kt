@@ -31,6 +31,8 @@ actual object CloudStreamRepository {
     private var currentProfileId = 1
     private val refreshJobs = mutableMapOf<String, Job>()
     private val dynamicDiscoveryJobs = mutableMapOf<String, Job>()
+    private const val DYNAMIC_DISCOVERY_RETRIES = 3
+    private const val DYNAMIC_DISCOVERY_RETRY_DELAY_MS = 750L
 
     actual fun initialize() {
         val profileId = ProfileRepository.activeProfileId.coerceAtLeast(1)
