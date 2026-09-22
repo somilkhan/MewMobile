@@ -37,6 +37,25 @@ actual object CloudStreamRepository {
         CloudStreamPlatformStorage.setActiveProfile(profileId)
         initialized = true
         _uiState.value = restoreState(profileId)
+
+        // Enabled plugins can be restored without going through setPluginEnabled().
+        // Some CloudStream plugins (e.g. MegaProvider) register repositories from
+        // BasePlugin.load(), so discovery must also run after state restoration.
+        val enabledPlugins = _uiState.value.plugins.filter(CloudStreamPluginItem::isRunnable)
+        if (enabledPlugins.isNotEmpty()) {
+            scope.launch {
+                enabledPlugins.forEach { plugin ->
+                    runCatching {
+                        CloudStreamPlatformRuntime.syncDynamicRepositories(plugin)
+                    }.onFailure { error ->
+                        log.w(error) {
+                            "CloudStream dynamic repository discovery failed during initialization id=" +
+                                plugin.metadata.id.value
+                        }
+                    }
+                }
+            }
+        }
     }
 
     actual fun onProfileChanged(profileId: Int) {
