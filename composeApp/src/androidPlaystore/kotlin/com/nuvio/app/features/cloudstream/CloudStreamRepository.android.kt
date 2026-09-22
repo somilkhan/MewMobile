@@ -12,6 +12,7 @@ actual object CloudStreamRepository {
     actual fun clearLocalState() = Unit
     actual fun acceptSecurityWarning() = Unit
     actual suspend fun addRepository(rawUrl: String): AddCloudStreamRepositoryResult = AddCloudStreamRepositoryResult.Error("CloudStream is available only in full builds")
+    actual suspend fun discoverRepositories(rawInput: String): Result<Int> = Result.failure(UnsupportedOperationException("CloudStream is available only in full builds"))
     actual fun refreshRepository(manifestUrl: String) = Unit
     actual fun refreshAll() = Unit
     actual fun removeRepository(manifestUrl: String) = Unit
