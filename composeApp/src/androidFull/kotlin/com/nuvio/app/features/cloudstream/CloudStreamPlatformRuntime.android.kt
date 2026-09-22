@@ -289,16 +289,18 @@ internal actual object CloudStreamPlatformRuntime {
             }
 
         when (result) {
-            is AddCloudStreamRepositoryResult.Success ->
+            is AddCloudStreamRepositoryResult.Success -> {
                 log.i { "[CS-DYN] repository-import-success url=$normalized" }
                 RuntimeDiagnostics.recordLog("CloudStream repository-import-success url=" + normalized)
-            is AddCloudStreamRepositoryResult.Error ->
+            }
+            is AddCloudStreamRepositoryResult.Error -> {
                 log.w {
                     "[CS-DYN] repository-import-failed url=$normalized error=" + result.message
                 }
                 RuntimeDiagnostics.recordLog(
                     "CloudStream repository-import-failed url=" + normalized + " error=" + result.message,
                 )
+            }
         }
         log.i {
             "[CS-DYN] repository-state-count count=" +
