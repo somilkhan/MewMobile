@@ -116,12 +116,13 @@ internal actual object CloudStreamPlatformRuntime {
         val existing = CloudStreamRepository.uiState.value.repositories
             .map { it.manifest.sourceUrl }
             .toSet()
-        val baseline = runCatching { RepositoryManager.getRepositories().map { it.url }.toSet() }
-            .getOrDefault(emptySet())
-
+        // RepositoryManager persists dynamically registered repositories across app
+        // launches. A "before load" baseline would miss repositories registered by an
+        // earlier MegaProvider load. Import every CloudStream repository not already known
+        // to Mew instead.
+        //
         // MegaProvider registers repositories from an ioSafe coroutine inside load().
-        // Give that asynchronous registration time to finish, while importing only
-        // repositories that appeared because of this plugin load.
+        // Give that asynchronous registration time to finish.
         repeat(DYNAMIC_REPOSITORY_DISCOVERY_ATTEMPTS) { attempt ->
             val discovered = runCatching { RepositoryManager.getRepositories().toList() }
                 .onFailure { error ->
@@ -131,7 +132,6 @@ internal actual object CloudStreamPlatformRuntime {
 
             val newRepositories = discovered
                 .asSequence()
-                .filter { it.url !in baseline }
                 .mapNotNull { it.url.trim().takeIf(String::isNotBlank) }
                 .filterNot { it in existing }
                 .distinct()
