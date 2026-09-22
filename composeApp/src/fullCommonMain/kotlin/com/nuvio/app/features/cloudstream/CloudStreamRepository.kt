@@ -18,6 +18,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.contentOrNull
@@ -35,6 +38,8 @@ actual object CloudStreamRepository {
     private var initialized = false
     private var currentProfileId = 1
     private val refreshJobs = mutableMapOf<String, Job>()
+    private const val REPOSITORY_DISCOVERY_CONCURRENCY = 6
+    private const val PROVIDER_REQUEST_CONCURRENCY = 4
 
     actual fun initialize() {
         val profileId = ProfileRepository.activeProfileId.coerceAtLeast(1)
@@ -129,12 +134,15 @@ actual object CloudStreamRepository {
                 listOf(resolveCloudStreamRepositoryInput(input))
             }
 
-            val manifests = kotlinx.coroutines.coroutineScope {
+            val manifests = coroutineScope {
+                val gate = Semaphore(REPOSITORY_DISCOVERY_CONCURRENCY)
                 repositoryUrls.map { url ->
                     async(Dispatchers.IO) {
-                        runCatching {
-                            CloudStreamRepositoryParser.parseRepository(url, httpGetText(url))
-                        }.getOrNull()
+                        gate.withPermit {
+                            runCatching {
+                                CloudStreamRepositoryParser.parseRepository(url, httpGetText(url))
+                            }.getOrNull()
+                        }
                     }
                 }.mapNotNull { it.await() }
             }.distinctBy { it.sourceUrl }
@@ -374,14 +382,22 @@ actual object CloudStreamRepository {
     ): List<Result<List<CloudStreamSearchItem>>> {
         initialize()
         val activeIds = runnableProviderIds().filter { providerId == null || it == providerId }
+        val startedAt = currentEpochMillis()
         RuntimeDiagnostics.recordLog("cs-search-start providers=${activeIds.size}")
-        val results = activeIds.map { id ->
-            RuntimeDiagnostics.recordLog("cs-search-provider-start id=$id")
-            providerResult(id) { search(query.trim()) }
-                .onSuccess { items -> RuntimeDiagnostics.recordLog("cs-search-provider-success id=$id count=${items.size}") }
-                .onFailure { error -> RuntimeDiagnostics.recordLog("cs-search-provider-failure id=$id error=${error.message?.take(160)}") }
+        val results = coroutineScope {
+            val gate = Semaphore(PROVIDER_REQUEST_CONCURRENCY)
+            activeIds.map { id ->
+                async {
+                    gate.withPermit {
+                        RuntimeDiagnostics.recordLog("cs-search-provider-start id=$id")
+                        providerResult(id) { search(query.trim()) }
+                            .onSuccess { items -> RuntimeDiagnostics.recordLog("cs-search-provider-success id=$id count=${items.size}") }
+                            .onFailure { error -> RuntimeDiagnostics.recordLog("cs-search-provider-failure id=$id error=${error.message?.take(160)}") }
+                    }
+                }
+            }.map { it.await() }
         }
-        RuntimeDiagnostics.recordLog("cs-search-complete providers=${activeIds.size} successful=${results.count { it.isSuccess }} results=${results.sumOf { it.getOrNull()?.size ?: 0 }}")
+        RuntimeDiagnostics.recordLog("cs-search-complete providers=${activeIds.size} successful=${results.count { it.isSuccess }} results=${results.sumOf { it.getOrNull()?.size ?: 0 }} durationMs=${currentEpochMillis() - startedAt}")
         return results
     }
 
