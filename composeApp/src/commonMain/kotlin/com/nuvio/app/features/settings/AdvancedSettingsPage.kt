@@ -24,8 +24,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.nuvio.app.core.diagnostics.RuntimeDiagnostics
 import com.nuvio.app.core.ui.NuvioTokens
 import com.nuvio.app.core.ui.nuvio
 import com.nuvio.app.features.profiles.ProfileRepository
@@ -113,6 +116,107 @@ internal fun LazyListScope.advancedSettingsContent(
                         showSentryDialog = false
                     },
                 )
+            }
+        }
+    }
+    item {
+        val clipboard = LocalClipboardManager.current
+        var showLogs by rememberSaveable { mutableStateOf(false) }
+        var copied by rememberSaveable { mutableStateOf(false) }
+        var exported by rememberSaveable { mutableStateOf(false) }
+        val logs = RuntimeDiagnostics.snapshotText()
+
+        SettingsSection(
+            title = "Logs",
+            isTablet = isTablet,
+        ) {
+            SettingsGroup(isTablet = isTablet) {
+                SettingsNavigationRow(
+                    title = "View logs",
+                    description = "Open recent runtime and CloudStream diagnostics.",
+                    icon = androidx.compose.material.icons.rounded.BugReport,
+                    isTablet = isTablet,
+                    onClick = { showLogs = true },
+                )
+                SettingsGroupDivider(isTablet = isTablet)
+                SettingsNavigationRow(
+                    title = if (copied) "Logs copied" else "Copy logs",
+                    description = "Copy diagnostics to the clipboard.",
+                    icon = androidx.compose.material.icons.rounded.Link,
+                    isTablet = isTablet,
+                    onClick = {
+                        clipboard.setText(AnnotatedString(logs))
+                        copied = true
+                    },
+                )
+                SettingsGroupDivider(isTablet = isTablet)
+                SettingsNavigationRow(
+                    title = if (exported) "Export started" else "Export logs",
+                    description = "Save diagnostics as a file for debugging or support.",
+                    icon = androidx.compose.material.icons.rounded.CloudDownload,
+                    isTablet = isTablet,
+                    onClick = {
+                        NuvioEnhancedBackupFileBridge.exportBackup(
+                            fileName = "mew-diagnostics.json",
+                            payload = logs,
+                        ) { result ->
+                            exported = result.isSuccess
+                        }
+                    },
+                )
+            }
+        }
+
+        if (showLogs) {
+            BasicAlertDialog(onDismissRequest = { showLogs = false }) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.nuvio.colors.surfaceDialog,
+                    shape = MaterialTheme.nuvio.shapes.dialog,
+                ) {
+                    Column(modifier = Modifier.padding(MaterialTheme.nuvio.spacing.dialogPadding)) {
+                        Text(
+                            text = "Runtime logs",
+                            style = MaterialTheme.typography.titleLarge,
+                            color = MaterialTheme.nuvio.colors.textPrimary,
+                        )
+                        Spacer(modifier = Modifier.height(NuvioTokens.Space.s12))
+                        Text(
+                            text = logs,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.nuvio.colors.textMuted,
+                        )
+                        Spacer(modifier = Modifier.height(NuvioTokens.Space.s12))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End,
+                        ) {
+                            Button(
+                                onClick = {
+                                    clipboard.setText(AnnotatedString(logs))
+                                    copied = true
+                                },
+                                shape = MaterialTheme.nuvio.shapes.button,
+                            ) {
+                                Text("Copy")
+                            }
+                            Spacer(modifier = Modifier.width(NuvioTokens.Space.s10))
+                            Button(
+                                onClick = {
+                                    NuvioEnhancedBackupFileBridge.exportBackup(
+                                        fileName = "mew-diagnostics.json",
+                                        payload = logs,
+                                    ) { result ->
+                                        exported = result.isSuccess
+                                    }
+                                },
+                                shape = MaterialTheme.nuvio.shapes.button,
+                            ) {
+                                Text("Export")
+                            }
+                        }
+                    }
+                }
             }
         }
     }
