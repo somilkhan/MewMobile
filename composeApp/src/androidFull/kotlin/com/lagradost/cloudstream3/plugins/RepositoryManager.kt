@@ -1,7 +1,7 @@
 package com.lagradost.cloudstream3.plugins
 
 import android.content.Context
-import com.lagradost.cloudstream3.CloudStreamApp.Companion.getKey
+import com.lagradost.cloudstream3.CloudStreamApp.Companion.getKeyClass
 import com.lagradost.cloudstream3.CloudStreamApp.Companion.setKey
 import com.lagradost.cloudstream3.ui.settings.extensions.RepositoryData
 import java.net.HttpURLConnection
@@ -39,12 +39,8 @@ object RepositoryManager {
     )
 
     fun getRepositories(): Array<RepositoryData> =
-        getKey<Array<RepositoryData>>(REPOSITORIES_KEY) ?: emptyArray()
+        getKeyClass(REPOSITORIES_KEY, Array<RepositoryData>::class.java) ?: emptyArray()
 
-    /**
-     * Parse a standard CloudStream repo.json. Plugins use this to resolve a repository's
-     * display metadata before registering it with addRepository().
-     */
     suspend fun parseRepository(url: String): Repository? = withContext(Dispatchers.IO) {
         runCatching {
             val connection = URL(url).openConnection() as HttpURLConnection
@@ -67,11 +63,6 @@ object RepositoryManager {
         }.getOrNull()
     }
 
-    /**
-     * Persist a dynamically registered repository. This intentionally owns only the
-     * CloudStream-compatible registry; Mew's UI remains the source of truth for its
-     * own repository/plugin state.
-     */
     suspend fun addRepository(repository: RepositoryData) {
         repoLock.withLock {
             val current = getRepositories().toList()
