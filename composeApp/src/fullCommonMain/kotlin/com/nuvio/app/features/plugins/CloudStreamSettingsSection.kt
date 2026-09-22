@@ -198,9 +198,11 @@ internal fun CloudStreamSettingsSection() {
                                 requested.contains("self-similarity/MegaRepo", ignoreCase = true)
                             )
                     ) {
-                        when (val result = CloudStreamRepository.discoverRepositories(requested)) {
-                            is Result.Success -> message = copy.repositoriesDiscovered(result.getOrThrow())
-                            is Result.Failure -> message = result.exceptionOrNull()?.message ?: copy.repositoryDiscoveryFailed
+                        val result = CloudStreamRepository.discoverRepositories(requested)
+                        message = if (result.isSuccess) {
+                            copy.repositoriesDiscovered(result.getOrThrow())
+                        } else {
+                            result.exceptionOrNull()?.message ?: copy.repositoryDiscoveryFailed
                         }
                     } else {
                         when (val result = CloudStreamRepository.addRepository(requested)) {
