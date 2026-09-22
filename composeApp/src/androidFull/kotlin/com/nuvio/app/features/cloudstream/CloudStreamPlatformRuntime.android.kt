@@ -153,6 +153,9 @@ internal actual object CloudStreamPlatformRuntime {
             val providers = APIHolder.allProviders
                 .filter { it !in providersBefore || it.sourcePlugin == file.absolutePath }
                 .distinct()
+            RuntimeDiagnostics.recordLog(
+                "cs-provider-register plugin=" + item.metadata.id.value + " count=" + providers.size,
+            )
             require(providers.isNotEmpty()) {
                 "Plugin loaded but registered no providers. It may reject the host runtime."
             }
