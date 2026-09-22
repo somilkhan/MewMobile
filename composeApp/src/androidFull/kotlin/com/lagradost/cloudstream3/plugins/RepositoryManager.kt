@@ -66,28 +66,28 @@ object RepositoryManager {
     }
 
     suspend fun addRepository(repository: RepositoryData) {
-        val normalized = repository.copy(url = repository.url.trim())
-        if (normalized.url.isBlank()) return
+        val normalizedUrl = repository.url.trim()
+        if (normalizedUrl.isBlank()) return
 
         val added = repoLock.withLock {
             val current = getRepositories().toList()
-            if (current.any { it.url.trim() == normalized.url }) {
+            if (current.any { it.url.trim() == normalizedUrl }) {
                 false
             } else {
-                setKey(REPOSITORIES_KEY, (current + normalized).toTypedArray())
+                setKey(REPOSITORIES_KEY, (current + repository).toTypedArray())
                 true
             }
         }
 
         if (added) {
-            android.util.Log.i("CloudStreamRepo", "[CS-DYN] repository-add url=" + normalized.url)
+            android.util.Log.i("CloudStreamRepo", "[CS-DYN] repository-add url=" + normalizedUrl)
             // Never hold repoLock while crossing into host/UI/network code.
-            runCatching { onRepositoryAdded?.invoke(normalized) }
+            runCatching { onRepositoryAdded?.invoke(repository) }
                 .onFailure { error ->
                     android.util.Log.w(
                         "CloudStreamRepo",
                         "[CS-DYN] repository-callback-failed url=" +
-                            normalized.url + " error=" + error.message,
+                            normalizedUrl + " error=" + error.message,
                     )
                 }
         }
