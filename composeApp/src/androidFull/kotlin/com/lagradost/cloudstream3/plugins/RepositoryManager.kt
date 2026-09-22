@@ -28,7 +28,6 @@ object RepositoryManager {
 
     val PREBUILT_REPOSITORIES: Array<RepositoryData> = emptyArray()
 
-    /** ABI-compatible CloudStream repository manifest model. */
     @Serializable
     data class Repository(
         @SerialName("iconUrl") val iconUrl: String? = null,
