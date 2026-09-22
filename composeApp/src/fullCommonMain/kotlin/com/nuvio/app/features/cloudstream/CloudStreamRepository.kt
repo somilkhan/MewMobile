@@ -19,6 +19,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
 actual object CloudStreamRepository {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -31,8 +35,6 @@ actual object CloudStreamRepository {
     private var currentProfileId = 1
     private val refreshJobs = mutableMapOf<String, Job>()
     private val dynamicDiscoveryJobs = mutableMapOf<String, Job>()
-    private const val DYNAMIC_DISCOVERY_RETRIES = 3
-    private const val DYNAMIC_DISCOVERY_RETRY_DELAY_MS = 750L
 
     actual fun initialize() {
         val profileId = ProfileRepository.activeProfileId.coerceAtLeast(1)
@@ -42,13 +44,6 @@ actual object CloudStreamRepository {
         initialized = true
         _uiState.value = restoreState(profileId)
 
-        // Enabled plugins can be restored without going through setPluginEnabled().
-        // Some CloudStream plugins (e.g. MegaProvider) register repositories from
-        // BasePlugin.load(), so discovery must also run after state restoration.
-        val enabledPlugins = _uiState.value.plugins.filter(CloudStreamPluginItem::isRunnable)
-        enabledPlugins.forEach { plugin ->
-            scheduleDynamicDiscovery(plugin, initialDelayMs = 350L)
-        }
     }
 
     actual fun onProfileChanged(profileId: Int) {
@@ -107,6 +102,52 @@ actual object CloudStreamRepository {
                     AddCloudStreamRepositoryResult.Error(error.message ?: "Could not load CloudStream repository")
                 },
             )
+    }
+
+    actual suspend fun discoverRepositories(rawInput: String): Result<Int> {
+        initialize()
+        val input = rawInput.trim()
+        if (input.isBlank()) return Result.failure(IllegalArgumentException("Repository input is empty"))
+
+        return runCatching {
+            val databaseUrl = when {
+                input.equals("MegaProvider", ignoreCase = true) ||
+                    input.equals("MegaRepo", ignoreCase = true) ||
+                    input.contains("self-similarity/MegaRepo", ignoreCase = true) ||
+                    input.contains("cs-repos/master/repos-db.json", ignoreCase = true) ->
+                    "https://raw.githubusercontent.com/recloudstream/cs-repos/master/repos-db.json"
+                else -> null
+            }
+
+            val repositoryUrls = if (databaseUrl != null) {
+                json.parseToJsonElement(httpGetText(databaseUrl)).jsonArray.mapNotNull { element ->
+                    element.jsonPrimitive.contentOrNull
+                        ?: element.jsonObject["url"]?.jsonPrimitive?.contentOrNull
+                }.map(String::trim).filter(String::isNotBlank).distinct()
+            } else {
+                listOf(resolveCloudStreamRepositoryInput(input))
+            }
+
+            val manifests = kotlinx.coroutines.coroutineScope {
+                repositoryUrls.map { url ->
+                    kotlinx.coroutines.async(Dispatchers.IO) {
+                        runCatching {
+                            CloudStreamRepositoryParser.parseRepository(url, httpGetText(url))
+                        }.getOrNull()
+                    }
+                }.mapNotNull { it.await() }
+            }.distinctBy { it.sourceUrl }
+
+            _uiState.update { current ->
+                current.copy(
+                    discoveredRepositories = manifests.filterNot { discovered ->
+                        current.repositories.any { it.manifest.sourceUrl == discovered.sourceUrl }
+                    },
+                )
+            }
+            log.i { "CloudStream repository discovery found " + manifests.size + " repositories" }
+            manifests.size
+        }
     }
 
     actual fun refreshRepository(manifestUrl: String) {
@@ -286,47 +327,9 @@ actual object CloudStreamRepository {
         } else {
             val enabledPlugin = _uiState.value.plugins.firstOrNull { it.metadata.id.value == pluginId }
             if (enabledPlugin?.isRunnable == true) {
-                // Some CloudStream plugins (notably MegaProvider) register additional
-                // repositories from BasePlugin.load(). Discover those immediately after enable.
-                scheduleDynamicDiscovery(enabledPlugin)
             }
         }
         persist()
-    }
-
-    private fun scheduleDynamicDiscovery(
-        plugin: CloudStreamPluginItem,
-        initialDelayMs: Long = 0L,
-    ) {
-        val pluginId = plugin.metadata.id.value
-        if (dynamicDiscoveryJobs[pluginId]?.isActive == true) return
-
-        lateinit var job: Job
-        job = scope.launch {
-            if (initialDelayMs > 0L) delay(initialDelayMs)
-
-            repeat(DYNAMIC_DISCOVERY_RETRIES) { attempt ->
-                val result = runCatching {
-                    CloudStreamPlatformRuntime.syncDynamicRepositories(plugin)
-                }
-                if (result.isSuccess) return@launch
-
-                result.exceptionOrNull()?.let { error ->
-                    log.w(error) {
-                        "CloudStream dynamic repository discovery attempt=${attempt + 1}/$DYNAMIC_DISCOVERY_RETRIES failed id=$pluginId"
-                    }
-                }
-                if (attempt + 1 < DYNAMIC_DISCOVERY_RETRIES) {
-                    delay(DYNAMIC_DISCOVERY_RETRY_DELAY_MS)
-                }
-            }
-        }
-        dynamicDiscoveryJobs[pluginId] = job
-        job.invokeOnCompletion {
-            if (dynamicDiscoveryJobs[pluginId] === job) {
-                dynamicDiscoveryJobs.remove(pluginId)
-            }
-        }
     }
 
     actual fun removePlugin(pluginId: String) {
