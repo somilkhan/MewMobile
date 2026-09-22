@@ -598,6 +598,10 @@ private class CloudStreamSettingsCopy private constructor(
         if (turkish) "Repository ekle" else "Add repository"
     val repositoryRefreshing: String =
         if (turkish) "Repository yenileniyor." else "Refreshing repository."
+    val repositoryDiscoveryFailed: String =
+        if (turkish) "Repository listesi yüklenemedi." else "Repository list could not be loaded."
+    val installRepository: String =
+        if (turkish) "Kur" else "Install"
     val editRepositoryContentDescription: String =
         if (turkish) "Repository düzenle" else "Edit repository"
     val refreshRepositoryContentDescription: String =
