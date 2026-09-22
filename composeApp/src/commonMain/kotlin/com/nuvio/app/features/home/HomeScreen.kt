@@ -981,7 +981,7 @@ fun HomeScreen(
         }
     }
 
-    val hasActiveAddons = enabledAddons.any { it.manifest != null }
+    val hasActiveAddons = enabledAddons.any { it.manifest != null } || runnableCloudStreamProviders.isNotEmpty()
     val showHeroSlot = homeSettingsUiState.heroEnabled
     val isResolvingHeroSources = enabledAddons.any { it.isRefreshing } || homeUiState.isLoading
     val showHeroSkeleton = showHeroSlot &&
