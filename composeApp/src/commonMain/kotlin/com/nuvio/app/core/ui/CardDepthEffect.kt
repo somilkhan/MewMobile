@@ -6,6 +6,8 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -106,9 +108,9 @@ fun Modifier.cardDepthVisual(
     }
 }
 
-private fun androidx.compose.ui.graphics.Outline.toPath(): androidx.compose.ui.graphics.Path = when (this) {
-    is androidx.compose.ui.graphics.Outline.Rectangle -> androidx.compose.ui.graphics.Path().apply { addRect(rect) }
-    is androidx.compose.ui.graphics.Outline.Rounded -> androidx.compose.ui.graphics.Path().apply { addRoundRect(roundRect) }
-    is androidx.compose.ui.graphics.Outline.Generic -> path
+private fun Outline.toPath(): Path = when (this) {
+    is Outline.Rectangle -> Path().apply { addRect(rect) }
+    is Outline.Rounded -> Path().apply { addRoundRect(roundRect) }
+    is Outline.Generic -> path
 }
 
