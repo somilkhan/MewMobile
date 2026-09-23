@@ -334,9 +334,10 @@ private fun ProfileAvatarCard(
     val avatarImageUrl = remember(profile.avatarUrl, avatarItem) {
         profileAvatarImageUrl(profile, avatarItem)
     }
-    val imageRequest = remember(avatarImageUrl) {
+    val context = LocalPlatformContext.current
+    val imageRequest = remember(context, avatarImageUrl) {
         avatarImageUrl?.let {
-            ImageRequest.Builder(LocalPlatformContext.current)
+            ImageRequest.Builder(context)
                 .data(it)
                 .size(220)
                 .memoryCacheKey("profile-avatar:$it")
@@ -518,43 +519,3 @@ private fun AddProfileCard(
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
-                onClick = onClick,
-            )
-            .padding(8.dp),
-    ) {
-        Box(
-            modifier = Modifier.size(110.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(100.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    .border(
-                        2.dp,
-                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f),
-                        CircleShape,
-                    ),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Add,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                    modifier = Modifier.size(40.dp),
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Text(
-            text = stringResource(Res.string.compose_profile_add_profile),
-            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontWeight = FontWeight.SemiBold,
-            textAlign = TextAlign.Center,
-        )
-    }
-}
