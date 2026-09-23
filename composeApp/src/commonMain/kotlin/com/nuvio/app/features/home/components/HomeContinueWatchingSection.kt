@@ -53,6 +53,9 @@ import coil3.compose.AsyncImage
 import com.nuvio.app.core.ui.DisintegratingContainer
 import com.nuvio.app.core.ui.LocalTvLayoutProfile
 import com.nuvio.app.core.ui.NuvioCardDepthSurface
+import com.nuvio.app.core.ui.CardDepthStyleUiState
+import com.nuvio.app.core.ui.PosterCardStyleUiState
+import com.nuvio.app.core.ui.rememberCardDepthStyleUiState
 import com.nuvio.app.core.ui.NuvioProgressBar
 import com.nuvio.app.core.ui.NuvioShelfSection
 import com.nuvio.app.core.ui.NuvioTokens
@@ -317,6 +320,8 @@ private fun HomeContinueWatchingSectionContent(
         HomeCatalogSettingsRepository.snapshot()
         HomeCatalogSettingsRepository.uiState
     }.collectAsStateWithLifecycle()
+    val posterCardStyle = rememberPosterCardStyleUiState()
+    val cardDepthStyle = rememberCardDepthStyleUiState()
 
     key(dataSourceKey) {
         val disintegration = remember {
@@ -356,6 +361,8 @@ private fun HomeContinueWatchingSectionContent(
                         showReadyBadge = showReadyBadge,
                         onClick = onClick,
                         onLongClick = onLongClick,
+                        posterCardStyle = posterCardStyle,
+                        cardDepthStyle = cardDepthStyle,
                     )
                     ContinueWatchingSectionStyle.Wide -> ContinueWatchingWideCard(
                         item = item,
@@ -374,6 +381,8 @@ private fun HomeContinueWatchingSectionContent(
                         showReadyBadge = showReadyBadge,
                         onClick = onClick,
                         onLongClick = onLongClick,
+                        posterCardStyle = posterCardStyle,
+                        cardDepthStyle = cardDepthStyle,
                     )
                 }
             }
@@ -664,8 +673,10 @@ private fun ContinueWatchingCard(
     showReadyBadge: Boolean,
     onClick: (() -> Unit)?,
     onLongClick: (() -> Unit)?,
+    posterCardStyle: PosterCardStyleUiState,
+    cardDepthStyle: CardDepthStyleUiState,
 ) {
-    val posterCardStyle = rememberPosterCardStyleUiState()
+
     val cardMetrics = remember(posterCardStyle.widthDp, posterCardStyle.cornerRadiusDp) {
         continueWatchingLandscapeCardMetrics(
             basePosterWidthDp = posterCardStyle.widthDp,
@@ -1039,6 +1050,7 @@ private fun ContinueWatchingPosterCard(
                 .nuvioCardDepth(
                     shape = RoundedCornerShape(layout.cardRadius),
                     surface = NuvioCardDepthSurface.ContinueWatching,
+                    stateOverride = cardDepthStyle,
                 )
                 .posterCardClickable(
                     onClick = onClick,
