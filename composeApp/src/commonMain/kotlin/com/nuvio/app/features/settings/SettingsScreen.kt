@@ -232,7 +232,6 @@ fun SettingsScreen(
             HomeCatalogSettingsRepository.snapshot()
             HomeCatalogSettingsRepository.uiState
         }.collectAsStateWithLifecycle()
-        val collections by CollectionRepository.collections.collectAsStateWithLifecycle()
         val metaScreenSettingsUiState by remember {
             MetaScreenSettingsRepository.ensureLoaded()
             MetaScreenSettingsRepository.uiState
@@ -262,8 +261,10 @@ fun SettingsScreen(
             CollectionRepository.initialize()
         }
 
-        LaunchedEffect(collections) {
-            HomeCatalogSettingsRepository.syncCollections(collections)
+        LaunchedEffect(Unit) {
+            CollectionRepository.collections.collect { collections ->
+                HomeCatalogSettingsRepository.syncCollections(collections)
+            }
         }
 
         val initialPage = remember(initialPageName) {
