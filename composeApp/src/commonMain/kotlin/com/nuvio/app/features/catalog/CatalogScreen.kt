@@ -27,6 +27,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalPlatformContext
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -49,6 +50,7 @@ import com.nuvio.app.core.network.NetworkCondition
 import com.nuvio.app.core.network.NetworkStatusRepository
 import com.nuvio.app.core.ui.NuvioNetworkOfflineCard
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
 import com.nuvio.app.core.format.formatReleaseDateForDisplay
 import com.nuvio.app.core.ui.NuvioBackButton
 import com.nuvio.app.core.ui.NuvioCardDepthSurface
@@ -110,6 +112,24 @@ fun CatalogScreen(
     )
     var headerHeightPx by remember { mutableIntStateOf(0) }
     var observedOfflineState by remember { mutableStateOf(false) }
+    val libraryWatchedItems = remember(uiState.items, watchedUiState.watchedKeys, fullyWatchedSeriesKeys) {
+        if (target is CatalogTarget.Library) uiState.items.filter { item -> WatchingState.isPosterWatched(watchedUiState.watchedKeys, item, fullyWatchedSeriesKeys) } else emptyList()
+    }
+    val libraryUnwatchedItems = remember(uiState.items, watchedUiState.watchedKeys, fullyWatchedSeriesKeys) {
+        if (target is CatalogTarget.Library) uiState.items.filterNot { item -> WatchingState.isPosterWatched(watchedUiState.watchedKeys, item, fullyWatchedSeriesKeys) } else emptyList()
+    }
+    val visibleCatalogItems = remember(uiState.items, libraryWatchedItems, libraryUnwatchedItems, selectedLibraryFilter, target) {
+        if (target is CatalogTarget.Library) when (selectedLibraryFilter) {
+            LibraryFilter.All -> uiState.items
+            LibraryFilter.Watched -> libraryWatchedItems
+            LibraryFilter.Unwatched -> libraryUnwatchedItems
+        } else uiState.items
+    }
+    val visibleCatalogItemsWithKeys = remember(visibleCatalogItems) {
+        visibleCatalogItems.withDuplicateSafeLazyKeys { item -> item.stableKey() }
+    }
+    val watchedLibraryCount = libraryWatchedItems.size
+    val unwatchedLibraryCount = libraryUnwatchedItems.size
 
     LaunchedEffect(target) {
         if (target is CatalogTarget.Library) {
@@ -211,63 +231,23 @@ fun CatalogScreen(
                         )
                     }
                 } else {
-                    if (target is CatalogTarget.Library) {
-                        val watchedItems = uiState.items.filter { item ->
-                            WatchingState.isPosterWatched(
+                    items(
+                        items = visibleCatalogItemsWithKeys,
+                        key = { item -> item.lazyKey },
+                    ) { keyedItem ->
+                        val item = keyedItem.value
+                        CatalogPosterTile(
+                            item = item,
+                            cornerRadiusDp = posterCardStyle.cornerRadiusDp,
+                            hideLabels = posterCardStyle.hideLabelsEnabled,
+                            isWatched = WatchingState.isPosterWatched(
                                 watchedKeys = watchedUiState.watchedKeys,
                                 item = item,
                                 fullyWatchedSeriesKeys = fullyWatchedSeriesKeys,
-                            )
-                        }
-                        val unwatchedItems = uiState.items.filterNot { item ->
-                            WatchingState.isPosterWatched(
-                                watchedKeys = watchedUiState.watchedKeys,
-                                item = item,
-                                fullyWatchedSeriesKeys = fullyWatchedSeriesKeys,
-                            )
-                        }
-                        val filteredItems = when (selectedLibraryFilter) {
-                            LibraryFilter.All -> uiState.items
-                            LibraryFilter.Watched -> watchedItems
-                            LibraryFilter.Unwatched -> unwatchedItems
-                        }
-                        items(
-                            items = filteredItems.withDuplicateSafeLazyKeys { item -> item.stableKey() },
-                            key = { item -> item.lazyKey },
-                        ) { keyedItem ->
-                            val item = keyedItem.value
-                            CatalogPosterTile(
-                                item = item,
-                                cornerRadiusDp = posterCardStyle.cornerRadiusDp,
-                                hideLabels = posterCardStyle.hideLabelsEnabled,
-                                isWatched = WatchingState.isPosterWatched(
-                                    watchedKeys = watchedUiState.watchedKeys,
-                                    item = item,
-                                    fullyWatchedSeriesKeys = fullyWatchedSeriesKeys,
-                                ),
-                                onClick = onPosterClick?.let { { it(item) } },
-                                onLongClick = onPosterLongClick?.let { { it(item) } },
-                            )
-                        }
-                    } else {
-                        items(
-                            items = uiState.items.withDuplicateSafeLazyKeys { item -> item.stableKey() },
-                            key = { item -> item.lazyKey },
-                        ) { keyedItem ->
-                            val item = keyedItem.value
-                            CatalogPosterTile(
-                                item = item,
-                                cornerRadiusDp = posterCardStyle.cornerRadiusDp,
-                                hideLabels = posterCardStyle.hideLabelsEnabled,
-                                isWatched = WatchingState.isPosterWatched(
-                                    watchedKeys = watchedUiState.watchedKeys,
-                                    item = item,
-                                    fullyWatchedSeriesKeys = fullyWatchedSeriesKeys,
-                                ),
-                                onClick = onPosterClick?.let { { it(item) } },
-                                onLongClick = onPosterLongClick?.let { { it(item) } },
-                            )
-                        }
+                            ),
+                            onClick = onPosterClick?.let { { it(item) } },
+                            onLongClick = onPosterLongClick?.let { { it(item) } },
+                        )
                     }
                     if (uiState.isLoading) {
                         item(span = { GridItemSpan(maxLineSpan) }) {
@@ -286,13 +266,9 @@ fun CatalogScreen(
                 onBack = onBack,
                 onLibraryFilterSelected = { selectedLibraryFilterName = it.name },
                 allLabel = "$libraryGroupAllTitle (${uiState.items.size})",
-                watchedLabel = "$libraryGroupWatchedTitle (${
-                    uiState.items.count {
-                        WatchingState.isPosterWatched(
-                            watchedKeys = watchedUiState.watchedKeys,
-                            item = it,
-                            fullyWatchedSeriesKeys = fullyWatchedSeriesKeys,
-                        )
+                watchedLabel = "$libraryGroupWatchedTitle ($watchedLibraryCount)",
+                unwatchedLabel = "$libraryGroupUnwatchedTitle ($unwatchedLibraryCount)",
+            )
                     }
                 })",
                 unwatchedLabel = "$libraryGroupUnwatchedTitle (${
@@ -390,6 +366,16 @@ private fun CatalogPosterTile(
     onClick: (() -> Unit)? = null,
     onLongClick: (() -> Unit)? = null,
 ) {
+    val context = LocalPlatformContext.current
+    val imageRequest = remember(context, item.poster) {
+        item.poster?.let { posterUrl ->
+            ImageRequest.Builder(context)
+                .data(posterUrl)
+                .crossfade(false)
+                .build()
+        }
+    }
+
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -412,7 +398,7 @@ private fun CatalogPosterTile(
         ) {
             if (item.poster != null) {
                 AsyncImage(
-                    model = item.poster,
+                    model = imageRequest,
                     contentDescription = item.name,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop,
