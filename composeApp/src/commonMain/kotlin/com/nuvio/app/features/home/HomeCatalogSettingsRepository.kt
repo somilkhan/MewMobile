@@ -38,6 +38,7 @@ data class HomeCatalogSettingsUiState(
     val showCatalogType: Boolean = true,
     val hideUnreleasedContent: Boolean = false,
     val hideCatalogUnderline: Boolean = false,
+    val cloudStreamProviderId: String? = null,
     val items: List<HomeCatalogSettingsItem> = emptyList(),
 ) {
     val signature: String
@@ -76,6 +77,7 @@ internal data class HomeCatalogSettingsSnapshot(
     val showCatalogType: Boolean,
     val hideUnreleasedContent: Boolean,
     val hideCatalogUnderline: Boolean,
+    val cloudStreamProviderId: String?,
     val preferences: Map<String, HomeCatalogPreference>,
 )
 
@@ -138,6 +140,7 @@ object HomeCatalogSettingsRepository {
     private var showCatalogType = true
     private var hideUnreleasedContent = false
     private var hideCatalogUnderline = false
+    private var cloudStreamProviderId: String? = null
 
     fun onProfileChanged() {
         hasLoaded = false
@@ -148,6 +151,7 @@ object HomeCatalogSettingsRepository {
         showCatalogType = true
         hideUnreleasedContent = false
         hideCatalogUnderline = false
+        cloudStreamProviderId = null
         definitions = emptyList()
         collectionDefinitions = emptyList()
         _uiState.value = HomeCatalogSettingsUiState()
@@ -164,6 +168,7 @@ object HomeCatalogSettingsRepository {
         showCatalogType = true
         hideUnreleasedContent = false
         hideCatalogUnderline = false
+        cloudStreamProviderId = null
         _uiState.value = HomeCatalogSettingsUiState()
     }
 
@@ -201,6 +206,7 @@ object HomeCatalogSettingsRepository {
             showCatalogType = showCatalogType,
             hideUnreleasedContent = hideUnreleasedContent,
             hideCatalogUnderline = hideCatalogUnderline,
+            cloudStreamProviderId = cloudStreamProviderId,
             preferences = currentPreferences.mapValues { (_, value) ->
                 HomeCatalogPreference(
                     customTitle = value.customTitle,
@@ -210,6 +216,19 @@ object HomeCatalogSettingsRepository {
                 )
             },
         )
+    }
+
+    fun selectedCloudStreamProviderId(): String? {
+        ensureLoaded()
+        return cloudStreamProviderId
+    }
+
+    fun setCloudStreamProviderId(providerId: String?) {
+        ensureLoaded()
+        val normalized = providerId?.trim()?.takeIf { it.isNotEmpty() }
+        if (cloudStreamProviderId == normalized) return
+        cloudStreamProviderId = normalized
+        persist()
     }
 
     fun setHeroEnabled(enabled: Boolean) {
@@ -351,6 +370,7 @@ object HomeCatalogSettingsRepository {
             showCatalogType = parsedPayload.showCatalogType
             hideUnreleasedContent = parsedPayload.hideUnreleasedContent
             hideCatalogUnderline = parsedPayload.hideCatalogUnderline
+            cloudStreamProviderId = parsedPayload.cloudStreamProviderId
             preferences = parsedPayload.items.associateBy { it.key }
             publish()
             return
@@ -470,6 +490,7 @@ object HomeCatalogSettingsRepository {
                     showCatalogType = showCatalogType,
                     hideUnreleasedContent = hideUnreleasedContent,
                     hideCatalogUnderline = hideCatalogUnderline,
+                    cloudStreamProviderId = cloudStreamProviderId,
                     items = currentPreferences.values.sortedBy { it.order },
                 ),
             ),
