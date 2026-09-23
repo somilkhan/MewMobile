@@ -998,6 +998,10 @@ fun HomeScreen(
     val sectionsMap = remember(homeUiState.sections) {
         homeUiState.sections.associateBy(HomeCatalogSection::key)
     }
+    val cloudStreamHomeSections = remember(homeUiState.sections) {
+        homeUiState.sections
+            .filter { it.key.startsWith("cloudstream:") && it.items.isNotEmpty() }
+    }
     val enabledHomeItems = remember(homeSettingsUiState.items) {
         homeSettingsUiState.items.filter { it.enabled }
     }
@@ -1336,6 +1340,23 @@ fun HomeScreen(
                     }
 
                     else -> {
+                        cloudStreamHomeSections.forEach { section ->
+                            item(key = section.key) {
+                                HomeCatalogRowSection(
+                                    section = section,
+                                    entries = section.items.take(HOME_CATALOG_PREVIEW_LIMIT),
+                                    modifier = Modifier.padding(bottom = 12.dp),
+                                    sectionPadding = homeSectionPadding,
+                                    onViewAllClick = if (section.canOpenCatalog(HOME_CATALOG_PREVIEW_LIMIT)) {
+                                        onCatalogClick?.let { { it(section) } }
+                                    } else {
+                                        null
+                                    },
+                                    onPosterClick = onPosterClick,
+                                )
+                            }
+                        }
+
                         enabledHomeItems.forEach { settingsItem ->
                             if (settingsItem.isCollection) {
                                 val collection = collectionsMap[settingsItem.key]
