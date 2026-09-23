@@ -64,11 +64,13 @@ internal actual object CloudStreamPlatformRuntime {
     private val loaded = linkedMapOf<String, LoadedPlugin>()
     private var appContext: Context? = null
     private var activityReference: WeakReference<Activity>? = null
+    private var hostInitialized = false
 
     actual fun initialize(context: Any?) {
         val androidContext = context as? Context ?: return
         appContext = androidContext.applicationContext
         activityReference = (androidContext as? Activity)?.let(::WeakReference)
+        hostInitialized = false
     }
 
     actual suspend fun provider(plugin: CloudStreamPluginItem): CloudStreamProvider? {
@@ -95,6 +97,7 @@ internal actual object CloudStreamPlatformRuntime {
             }
         }
         plugins.forEach(LoadedPlugin::unload)
+        hostInitialized = false
         PluginManager.clear()
     }
 
@@ -207,10 +210,13 @@ internal actual object CloudStreamPlatformRuntime {
         CloudStreamApp.context = context
         setContext(WeakReference(context))
 
+        if (hostInitialized) return
+
         // CloudStream normally initializes NiceHttp from its Application lifecycle.
         // Mew does not run that Application, so initialize the shared client explicitly
         // before any third-party extension can call app.get().
         app.initClient(context)
+        hostInitialized = true
         RuntimeDiagnostics.recordLog("CloudStream HTTP client initialized")
 
     }
