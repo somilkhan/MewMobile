@@ -84,8 +84,7 @@ fun ProfileSelectionScreen(
     var pinDialogProfile by remember { mutableStateOf<NuvioProfile?>(null) }
     var isEditMode by remember { mutableStateOf(false) }
 
-    val titleAlpha = remember { Animatable(0f) }
-    val titleOffset = remember { Animatable(20f) }
+    val titleProgress = remember { Animatable(0f) }
     val manageAlpha = remember { Animatable(0f) }
     val onProfileClick: (NuvioProfile) -> Unit = { profile ->
         routeProfileSelection(
@@ -108,8 +107,7 @@ fun ProfileSelectionScreen(
     }
 
     LaunchedEffect(Unit) {
-        launch { titleAlpha.animateTo(1f, tween(600, easing = FastOutSlowInEasing)) }
-        launch { titleOffset.animateTo(0f, tween(600, easing = FastOutSlowInEasing)) }
+        titleProgress.animateTo(1f, tween(600, easing = FastOutSlowInEasing))
         delay(300)
         manageAlpha.animateTo(1f, tween(500))
     }
@@ -166,8 +164,8 @@ fun ProfileSelectionScreen(
             MemberBrandWordmark(
                 height = if (isTabletLayout) 42.dp else 34.dp,
                 modifier = Modifier.graphicsLayer {
-                    alpha = titleAlpha.value
-                    translationY = titleOffset.value
+                    alpha = titleProgress.value
+                    translationY = 20f * (1f - titleProgress.value)
                 },
             )
 
