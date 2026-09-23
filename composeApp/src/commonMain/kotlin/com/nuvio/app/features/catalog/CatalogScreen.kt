@@ -144,14 +144,29 @@ fun CatalogScreen(
         )
     }
 
+    // Persist the exact position, but do not observe pixel-level offset changes on every frame.
+    // The item index is the hot-path signal; the final offset is captured when scrolling settles.
     LaunchedEffect(gridState, target, homeCatalogSettingsUiState.hideUnreleasedContent) {
-        snapshotFlow { gridState.firstVisibleItemIndex to gridState.firstVisibleItemScrollOffset }
+        snapshotFlow { gridState.firstVisibleItemIndex }
             .distinctUntilChanged()
-            .collect { (index, offset) ->
+            .collect { index ->
                 CatalogRepository.saveScrollPosition(
                     target = target,
                     firstVisibleItemIndex = index,
-                    firstVisibleItemScrollOffset = offset,
+                    firstVisibleItemScrollOffset = gridState.firstVisibleItemScrollOffset,
+                )
+            }
+    }
+
+    LaunchedEffect(gridState, target, homeCatalogSettingsUiState.hideUnreleasedContent) {
+        snapshotFlow { gridState.isScrollInProgress }
+            .distinctUntilChanged()
+            .filter { isScrolling -> !isScrolling }
+            .collect {
+                CatalogRepository.saveScrollPosition(
+                    target = target,
+                    firstVisibleItemIndex = gridState.firstVisibleItemIndex,
+                    firstVisibleItemScrollOffset = gridState.firstVisibleItemScrollOffset,
                 )
             }
     }
