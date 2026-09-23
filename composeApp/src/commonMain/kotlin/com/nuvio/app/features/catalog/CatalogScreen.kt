@@ -269,21 +269,8 @@ fun CatalogScreen(
                 watchedLabel = "$libraryGroupWatchedTitle ($watchedLibraryCount)",
                 unwatchedLabel = "$libraryGroupUnwatchedTitle ($unwatchedLibraryCount)",
             )
-                    }
-                })",
-                unwatchedLabel = "$libraryGroupUnwatchedTitle (${
-                    uiState.items.count {
-                        !WatchingState.isPosterWatched(
-                            watchedKeys = watchedUiState.watchedKeys,
-                            item = it,
-                            fullyWatchedSeriesKeys = fullyWatchedSeriesKeys,
-                        )
-                    }
-                })",
-            )
         }
     }
-}
 
 @Composable
 private fun CatalogHeader(
