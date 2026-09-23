@@ -1352,7 +1352,10 @@ fun HomeScreen(
                                     } else {
                                         null
                                     },
+                                    watchedKeys = watchedUiState.watchedKeys,
+                                    fullyWatchedSeriesKeys = fullyWatchedSeriesKeys,
                                     onPosterClick = onPosterClick,
+                                    onPosterLongClick = onPosterLongClick,
                                 )
                             }
                         }
