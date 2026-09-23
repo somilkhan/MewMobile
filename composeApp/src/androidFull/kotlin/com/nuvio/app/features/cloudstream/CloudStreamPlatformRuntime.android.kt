@@ -68,7 +68,12 @@ internal actual object CloudStreamPlatformRuntime {
 
     actual fun initialize(context: Any?) {
         val androidContext = context as? Context ?: return
-        appContext = androidContext.applicationContext
+        val applicationContext = androidContext.applicationContext
+        if (appContext === applicationContext) {
+            activityReference = (androidContext as? Activity)?.let(::WeakReference)
+            return
+        }
+        appContext = applicationContext
         activityReference = (androidContext as? Activity)?.let(::WeakReference)
         hostInitialized = false
     }
