@@ -28,8 +28,9 @@ fun Modifier.nuvioCardDepth(
     shape: Shape,
     surface: NuvioCardDepthSurface,
     fallbackBorderAlpha: Float = 0f,
+    stateOverride: CardDepthStyleUiState? = null,
 ): Modifier {
-    val state = rememberCardDepthStyleUiState()
+    val state = stateOverride ?: rememberCardDepthStyleUiState()
     if (!state.isEnabledFor(surface)) {
         return if (fallbackBorderAlpha > 0f) {
             border(
