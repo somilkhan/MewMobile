@@ -206,6 +206,7 @@ fun ProfileSelectionScreen(
                                 val profile = profiles[currentIndex]
                                 ProfileAvatarCard(
                                     profile = profile,
+                                    avatars = avatars,
                                     isEditMode = isEditMode,
                                     animDelay = currentIndex * 80,
                                     onClick = {
