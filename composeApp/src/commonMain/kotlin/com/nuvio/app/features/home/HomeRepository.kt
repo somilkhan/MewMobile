@@ -347,8 +347,8 @@ object HomeRepository {
         val settings = TmdbSettingsRepository.snapshot()
         if (!settings.shouldLocalizeHeroArtwork()) return items
 
-        val localizedItems = items.mapNotNull { item ->
-            localizedHeroArtworkCache[localizedHeroArtworkCacheKey(item, settings)]
+        val localizedItems = items.map { item ->
+            localizedHeroArtworkCache[localizedHeroArtworkCacheKey(item, settings)] ?: item
         }
         val missingItems = items.filterNot { item ->
             localizedHeroArtworkCache.containsKey(localizedHeroArtworkCacheKey(item, settings))
