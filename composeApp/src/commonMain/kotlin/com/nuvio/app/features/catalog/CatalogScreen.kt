@@ -32,6 +32,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -155,12 +156,16 @@ fun CatalogScreen(
             }
     }
 
+    val shouldLoadMore = remember(gridState) {
+        derivedStateOf {
+            val layoutInfo = gridState.layoutInfo
+            val lastVisible = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
+            lastVisible >= layoutInfo.totalItemsCount - 6
+        }
+    }
+
     LaunchedEffect(gridState, uiState.canLoadMore, uiState.isLoading) {
-        snapshotFlow { gridState.layoutInfo }
-            .map { layoutInfo ->
-                val lastVisible = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
-                lastVisible >= layoutInfo.totalItemsCount - 6
-            }
+        snapshotFlow { shouldLoadMore.value }
             .distinctUntilChanged()
             .filter { it && uiState.canLoadMore && !uiState.isLoading }
             .collect {
