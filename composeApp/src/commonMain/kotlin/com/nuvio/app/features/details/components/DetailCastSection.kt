@@ -36,6 +36,8 @@ import coil3.compose.AsyncImage
 import coil3.compose.LocalPlatformContext
 import coil3.request.ImageRequest
 import com.nuvio.app.core.ui.NuvioCardDepthSurface
+import com.nuvio.app.core.ui.CardDepthStyleUiState
+import com.nuvio.app.core.ui.rememberCardDepthStyleUiState
 import com.nuvio.app.core.ui.nuvioHorizontalScrollBleed
 import com.nuvio.app.core.ui.nuvioCardDepth
 import com.nuvio.app.core.ui.nuvioKeyboardFocusIndicator
@@ -64,6 +66,7 @@ fun DetailCastSection(
     ) {
         BoxWithConstraints {
             val sizing = castSectionSizing(maxWidth.value)
+            val cardDepthStyle = rememberCardDepthStyleUiState()
 
             LazyRow(
                 modifier = Modifier
@@ -83,6 +86,7 @@ fun DetailCastSection(
                         person = person,
                         sharedTransitionKey = sharedTransitionKey,
                         sizing = sizing,
+                        cardDepthStyle = cardDepthStyle,
                         sharedTransitionScope = sharedTransitionScope,
                         animatedVisibilityScope = animatedVisibilityScope,
                         onClick = if (onCastClick != null && person.tmdbId != null && person.tmdbId > 0) {
@@ -104,6 +108,7 @@ private fun CastItem(
     modifier: Modifier = Modifier,
     sharedTransitionKey: String? = null,
     sizing: CastSectionSizing,
+    cardDepthStyle: CardDepthStyleUiState,
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null,
     onClick: (() -> Unit)? = null,
@@ -160,6 +165,7 @@ private fun CastItem(
                 .nuvioCardDepth(
                     shape = CircleShape,
                     surface = NuvioCardDepthSurface.Cast,
+                    stateOverride = cardDepthStyle,
                 ),
             contentAlignment = Alignment.Center,
         ) {
