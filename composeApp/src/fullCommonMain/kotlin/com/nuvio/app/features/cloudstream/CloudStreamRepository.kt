@@ -8,6 +8,7 @@ import com.nuvio.app.features.plugins.currentEpochMillis
 import com.nuvio.app.core.diagnostics.RuntimeDiagnostics
 import com.nuvio.app.features.profiles.ProfileRepository
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
@@ -19,6 +20,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.serialization.encodeToString
@@ -38,6 +40,8 @@ actual object CloudStreamRepository {
     private var initialized = false
     private var currentProfileId = 1
     private val refreshJobs = mutableMapOf<String, Job>()
+    private val mainPageRequestMutex = Mutex()
+    private val mainPageRequests = mutableMapOf<String, Deferred<Result<List<Pair<String, List<CloudStreamSearchItem>>>>>>()
     private const val REPOSITORY_DISCOVERY_CONCURRENCY = 6
     private const val PROVIDER_REQUEST_CONCURRENCY = 4
 
@@ -370,12 +374,40 @@ actual object CloudStreamRepository {
         providerId: String,
         page: Int,
     ): Result<List<Pair<String, List<CloudStreamSearchItem>>>> {
-        RuntimeDiagnostics.recordLog("cs-mainpage-start id=$providerId page=${page.coerceAtLeast(1)}")
-        return providerResult(providerId) { getMainPage(page.coerceAtLeast(1)) }
-            .onSuccess { sections -> RuntimeDiagnostics.recordLog("cs-mainpage-success id=$providerId sections=${sections.size} items=${sections.sumOf { it.second.size }}") }
-            .onFailure { error -> RuntimeDiagnostics.recordLog("cs-mainpage-failure id=$providerId error=${error.message?.take(160)}") }
-    }
+        val normalizedPage = page.coerceAtLeast(1)
+        val requestKey = providerId + ":" + normalizedPage
+        RuntimeDiagnostics.recordLog("cs-mainpage-start id=$providerId page=$normalizedPage")
 
+        val request = mainPageRequestMutex.withLock {
+            mainPageRequests[requestKey]?.takeIf { it.isActive || it.isCompleted }
+                ?: scope.async(start = CoroutineStart.LAZY) {
+                    providerResult(providerId) { getMainPage(normalizedPage) }
+                }.also { deferred ->
+                    mainPageRequests[requestKey] = deferred
+                    deferred.invokeOnCompletion {
+                        scope.launch {
+                            mainPageRequestMutex.withLock {
+                                if (mainPageRequests[requestKey] === deferred) {
+                                    mainPageRequests.remove(requestKey)
+                                }
+                            }
+                        }
+                    }
+                }
+        }
+
+        return request.await()
+            .onSuccess { sections ->
+                RuntimeDiagnostics.recordLog(
+                    "cs-mainpage-success id=$providerId sections=${sections.size} items=${sections.sumOf { it.second.size }}",
+                )
+            }
+            .onFailure { error ->
+                RuntimeDiagnostics.recordLog(
+                    "cs-mainpage-failure id=$providerId error=${error.message?.take(160)}",
+                )
+            }
+    }
     actual suspend fun search(
         query: String,
         providerId: String?,
