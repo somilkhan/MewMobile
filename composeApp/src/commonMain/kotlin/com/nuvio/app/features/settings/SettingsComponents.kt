@@ -265,7 +265,11 @@ internal fun SettingsNavigationRow(
     val verticalPadding = if (isTablet) 16.dp else 14.dp
     val horizontalPadding = if (isTablet) 20.dp else 16.dp
     val highlightShape = RoundedCornerShape(if (isTablet) NuvioTokens.Radius.lg else NuvioTokens.Radius.md)
-    val highlightBrush = rememberAnimatedAccentBrush() ?: SolidColor(tokens.colors.accent)
+    val highlightBrush = if (highlighted) {
+        rememberAnimatedAccentBrush() ?: SolidColor(tokens.colors.accent)
+    } else {
+        null
+    }
 
     Row(
         modifier = Modifier
@@ -274,7 +278,7 @@ internal fun SettingsNavigationRow(
                 if (highlighted) {
                     Modifier
                         .background(tokens.colors.accent.copy(alpha = 0.08f), highlightShape)
-                        .border(tokens.borders.hairline, highlightBrush, highlightShape)
+                        .border(tokens.borders.hairline, highlightBrush ?: SolidColor(tokens.colors.accent), highlightShape)
                 } else {
                     Modifier
                 },
@@ -353,7 +357,11 @@ internal fun SettingsSwitchRow(
     val verticalPadding = if (isTablet) 16.dp else 14.dp
     val horizontalPadding = if (isTablet) 20.dp else 16.dp
     val highlightShape = RoundedCornerShape(if (isTablet) NuvioTokens.Radius.lg else NuvioTokens.Radius.md)
-    val highlightBrush = rememberAnimatedAccentBrush() ?: SolidColor(tokens.colors.accent)
+    val highlightBrush = if (highlighted) {
+        rememberAnimatedAccentBrush() ?: SolidColor(tokens.colors.accent)
+    } else {
+        null
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -414,7 +422,7 @@ private fun SettingsGradientSwitch(
 ) {
     val tokens = MaterialTheme.nuvio
     val trackShape = RoundedCornerShape(999.dp)
-    val trackBrush = rememberAnimatedAccentBrush().takeIf { checked && enabled }
+    val trackBrush = if (checked && enabled) rememberAnimatedAccentBrush() else null
     val thumbOffset by animateDpAsState(
         targetValue = if (checked) 20.dp else 0.dp,
         animationSpec = tween(durationMillis = 180),
