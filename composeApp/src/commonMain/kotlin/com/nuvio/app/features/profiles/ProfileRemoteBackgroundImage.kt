@@ -41,8 +41,8 @@ fun ProfileRemoteBackgroundImage(
     val density = LocalDensity.current
     val targetWidthPx = targetWidth?.let { with(density) { it.roundToPx() } }?.coerceAtLeast(1)
     val targetHeightPx = targetHeight?.let { with(density) { it.roundToPx() } }?.coerceAtLeast(1)
-    val memoryCacheKey = "profile-background:${profileIndex ?: 0}:$imageUrl:${foregroundGeneration % 2}"
-    val previousMemoryCacheKey = "profile-background:${profileIndex ?: 0}:$imageUrl:${(foregroundGeneration + 1) % 2}"
+    val memoryCacheKey = "profile-background:${profileIndex ?: 0}:$imageUrl:${targetWidthPx ?: 0}x${targetHeightPx ?: 0}:${foregroundGeneration % 2}"
+    val previousMemoryCacheKey = "profile-background:${profileIndex ?: 0}:$imageUrl:${targetWidthPx ?: 0}x${targetHeightPx ?: 0}:${(foregroundGeneration + 1) % 2}"
     val request = remember(context, imageUrl, foregroundGeneration) {
         ImageRequest.Builder(context)
             .data(imageUrl)
