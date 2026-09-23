@@ -55,6 +55,8 @@ import coil3.request.ImageRequest
 import com.nuvio.app.core.format.formatReleaseDateForDisplay
 import com.nuvio.app.core.ui.NuvioBackButton
 import com.nuvio.app.core.ui.NuvioCardDepthSurface
+import com.nuvio.app.core.ui.CardDepthStyleUiState
+import com.nuvio.app.core.ui.rememberCardDepthStyleUiState
 import com.nuvio.app.core.ui.NuvioPosterWatchedOverlay
 import com.nuvio.app.core.ui.nuvioCardDepth
 import com.nuvio.app.core.ui.rememberPosterCardStyleUiState
@@ -86,6 +88,7 @@ fun CatalogScreen(
     val uiState by CatalogRepository.uiState.collectAsStateWithLifecycle()
     val homeCatalogSettingsUiState by HomeCatalogSettingsRepository.uiState.collectAsStateWithLifecycle()
     val posterCardStyle = rememberPosterCardStyleUiState()
+    val cardDepthStyle = rememberCardDepthStyleUiState()
     val networkStatusUiState by NetworkStatusRepository.uiState.collectAsStateWithLifecycle()
     val watchedUiState by remember {
         WatchedRepository.ensureLoaded()
@@ -266,6 +269,7 @@ fun CatalogScreen(
                                 item = item,
                                 fullyWatchedSeriesKeys = fullyWatchedSeriesKeys,
                             ),
+                            cardDepthStyle = cardDepthStyle,
                             onClick = onPosterClick?.let { { it(item) } },
                             onLongClick = onPosterLongClick?.let { { it(item) } },
                         )
@@ -372,6 +376,7 @@ private fun CatalogPosterTile(
     cornerRadiusDp: Int,
     hideLabels: Boolean,
     isWatched: Boolean,
+    cardDepthStyle: CardDepthStyleUiState,
     onClick: (() -> Unit)? = null,
     onLongClick: (() -> Unit)? = null,
 ) {
@@ -397,6 +402,7 @@ private fun CatalogPosterTile(
                 .nuvioCardDepth(
                     shape = RoundedCornerShape(cornerRadiusDp.dp),
                     surface = NuvioCardDepthSurface.Posters,
+                    stateOverride = cardDepthStyle,
                 )
                 .posterCardClickable(
                     onClick = onClick,
