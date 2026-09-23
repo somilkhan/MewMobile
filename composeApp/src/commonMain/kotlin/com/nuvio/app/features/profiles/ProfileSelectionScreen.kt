@@ -344,15 +344,11 @@ private fun ProfileAvatarCard(
         }
     }
 
-    val animAlpha = remember { Animatable(0f) }
-    val animScale = remember { Animatable(0.85f) }
-    val animOffset = remember { Animatable(30f) }
+    val animProgress = remember { Animatable(0f) }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(animDelay) {
         delay(animDelay.toLong() + 150)
-        launch { animAlpha.animateTo(1f, tween(450, easing = FastOutSlowInEasing)) }
-        launch { animScale.animateTo(1f, tween(500, easing = FastOutSlowInEasing)) }
-        launch { animOffset.animateTo(0f, tween(500, easing = FastOutSlowInEasing)) }
+        animProgress.animateTo(1f, tween(500, easing = FastOutSlowInEasing))
     }
 
     val interactionSource = remember { MutableInteractionSource() }
@@ -364,10 +360,11 @@ private fun ProfileAvatarCard(
         modifier = Modifier
             .width(150.dp)
             .graphicsLayer {
-                alpha = animAlpha.value
-                scaleX = animScale.value * pressScale
-                scaleY = animScale.value * pressScale
-                translationY = animOffset.value
+                alpha = animProgress.value
+                val scale = 0.85f + (0.15f * animProgress.value)
+                scaleX = scale * pressScale
+                scaleY = scale * pressScale
+                translationY = 30f * (1f - animProgress.value)
             }
             .clip(RoundedCornerShape(20.dp))
             .nuvioKeyboardFocusIndicator(RoundedCornerShape(20.dp))
@@ -493,15 +490,11 @@ private fun AddProfileCard(
     animDelay: Int,
     onClick: () -> Unit,
 ) {
-    val animAlpha = remember { Animatable(0f) }
-    val animScale = remember { Animatable(0.85f) }
-    val animOffset = remember { Animatable(30f) }
+    val animProgress = remember { Animatable(0f) }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(animDelay) {
         delay(animDelay.toLong() + 150)
-        launch { animAlpha.animateTo(1f, tween(450, easing = FastOutSlowInEasing)) }
-        launch { animScale.animateTo(1f, tween(500, easing = FastOutSlowInEasing)) }
-        launch { animOffset.animateTo(0f, tween(500, easing = FastOutSlowInEasing)) }
+        animProgress.animateTo(1f, tween(500, easing = FastOutSlowInEasing))
     }
 
     val interactionSource = remember { MutableInteractionSource() }
@@ -513,10 +506,11 @@ private fun AddProfileCard(
         modifier = Modifier
             .width(150.dp)
             .graphicsLayer {
-                alpha = animAlpha.value
-                scaleX = animScale.value * pressScale
-                scaleY = animScale.value * pressScale
-                translationY = animOffset.value
+                alpha = animProgress.value
+                val scale = 0.85f + (0.15f * animProgress.value)
+                scaleX = scale * pressScale
+                scaleY = scale * pressScale
+                translationY = 30f * (1f - animProgress.value)
             }
             .clip(RoundedCornerShape(20.dp))
             .nuvioKeyboardFocusIndicator(RoundedCornerShape(20.dp))
