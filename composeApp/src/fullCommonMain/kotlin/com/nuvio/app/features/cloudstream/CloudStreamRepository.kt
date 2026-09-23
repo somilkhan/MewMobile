@@ -40,8 +40,9 @@ actual object CloudStreamRepository {
     private var initialized = false
     private var currentProfileId = 1
     private val refreshJobs = mutableMapOf<String, Job>()
-    private val mainPageRequestMutex = Mutex()
-    private val mainPageRequests = mutableMapOf<String, Deferred<Result<List<Pair<String, List<CloudStreamSearchItem>>>>>>()
+    private val mainPageRequestMutex = Any()
+    private val mainPageRequests =
+        mutableMapOf<String, Deferred<Result<List<Pair<String, List<CloudStreamSearchItem>>>>>>()
     private const val REPOSITORY_DISCOVERY_CONCURRENCY = 6
     private const val PROVIDER_REQUEST_CONCURRENCY = 4
 
@@ -58,6 +59,7 @@ actual object CloudStreamRepository {
     actual fun onProfileChanged(profileId: Int) {
         refreshJobs.values.forEach { it.cancel() }
         refreshJobs.clear()
+        cancelInFlightMainPageRequests()
         CloudStreamPlatformRuntime.clear()
         currentProfileId = profileId.coerceAtLeast(1)
         CloudStreamPlatformStorage.setActiveProfile(currentProfileId)
@@ -71,6 +73,7 @@ actual object CloudStreamRepository {
         initialized = false
         currentProfileId = 1
         _uiState.value = CloudStreamUiState()
+        cancelInFlightMainPageRequests()
         CloudStreamPlatformRuntime.clear()
         CloudStreamPlatformStorage.clearPackages()
         CloudStreamPlatformStorage.clearAllState()
@@ -378,18 +381,16 @@ actual object CloudStreamRepository {
         val requestKey = providerId + ":" + normalizedPage
         RuntimeDiagnostics.recordLog("cs-mainpage-start id=$providerId page=$normalizedPage")
 
-        val request = mainPageRequestMutex.withLock {
+        val request = synchronized(mainPageRequestMutex) {
             mainPageRequests[requestKey]?.takeIf { it.isActive || it.isCompleted }
                 ?: scope.async(start = CoroutineStart.LAZY) {
                     providerResult(providerId) { getMainPage(normalizedPage) }
                 }.also { deferred ->
                     mainPageRequests[requestKey] = deferred
                     deferred.invokeOnCompletion {
-                        scope.launch {
-                            mainPageRequestMutex.withLock {
-                                if (mainPageRequests[requestKey] === deferred) {
-                                    mainPageRequests.remove(requestKey)
-                                }
+                        synchronized(mainPageRequestMutex) {
+                            if (mainPageRequests[requestKey] === deferred) {
+                                mainPageRequests.remove(requestKey)
                             }
                         }
                     }
@@ -408,6 +409,13 @@ actual object CloudStreamRepository {
                 )
             }
     }
+    private fun cancelInFlightMainPageRequests() {
+        val requests = synchronized(mainPageRequestMutex) {
+            mainPageRequests.values.toList().also { mainPageRequests.clear() }
+        }
+        requests.forEach { it.cancel() }
+    }
+
     actual suspend fun search(
         query: String,
         providerId: String?,
