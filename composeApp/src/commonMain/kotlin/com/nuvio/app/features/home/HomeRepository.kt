@@ -27,6 +27,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
@@ -149,7 +150,7 @@ object HomeRepository {
         activeJob?.cancel()
         _uiState.update { it.copy(isLoading = true, errorMessage = null) }
         activeJob = scope.launch {
-            val cloudResult = loadCloudSections(cloudPlugins)
+            val cloudResult = loadCloudSections(cloudPlugins, requestKey)
             if (activeRequestKey != requestKey) return@launch
             cachedCloudSections = cloudResult.sections
             val prioritizedRequests = prioritizeDefinitions(
@@ -482,22 +483,25 @@ object HomeRepository {
 
     private suspend fun loadCloudSections(
         plugins: List<CloudStreamPluginItem>,
+        requestKey: String,
     ): CloudHomeSectionsResult {
         val sections = mutableListOf<HomeCatalogSection>()
         var firstError: String? = null
+        val scanPlugins = plugins.take(HOME_CLOUDSTREAM_PROVIDER_SCAN_LIMIT)
         withTimeoutOrNull(HOME_CLOUDSTREAM_TOTAL_PREVIEW_TIMEOUT_MS) {
             val gate = Semaphore(HOME_CLOUDSTREAM_PROVIDER_CONCURRENCY)
-            val results = coroutineScope {
-                plugins.take(HOME_CLOUDSTREAM_PROVIDER_SCAN_LIMIT).map { plugin ->
-                    async {
-                        gate.withPermit {
-                            val result = withTimeoutOrNull(HOME_CLOUDSTREAM_PROVIDER_TIMEOUT_MS) {
+            val resultChannel = Channel<Pair<CloudStreamPluginItem, CloudHomeProviderResult>>(Channel.BUFFERED)
+            coroutineScope {
+                scanPlugins.forEach { plugin ->
+                    launch {
+                        val result = gate.withPermit {
+                            val mainPage = withTimeoutOrNull(HOME_CLOUDSTREAM_PROVIDER_TIMEOUT_MS) {
                                 CloudStreamRepository.getMainPage(plugin.metadata.id.value, page = 1)
                             }
-                            if (result == null) {
-                                plugin to CloudHomeProviderResult(emptyList(), "${plugin.metadata.name} timed out")
+                            if (mainPage == null) {
+                                CloudHomeProviderResult(emptyList(), "${plugin.metadata.name} timed out")
                             } else {
-                                plugin to result.fold(
+                                mainPage.fold(
                                     onSuccess = { categories ->
                                         val providerSections = categories.mapNotNull { (categoryName, items) ->
                                             if (items.isEmpty()) return@mapNotNull null
@@ -520,25 +524,30 @@ object HomeRepository {
                                         }
                                         CloudHomeProviderResult(providerSections, null)
                                     },
-                                    onFailure = { error ->
-                                        CloudHomeProviderResult(emptyList(), error.message)
-                                    },
+                                    onFailure = { error -> CloudHomeProviderResult(emptyList(), error.message) },
                                 )
                             }
                         }
+                        resultChannel.send(plugin to result)
                     }
-                }.awaitAll()
+                }
+                repeat(scanPlugins.size) {
+                    val (_, result) = resultChannel.receive()
+                    if (sections.size < HOME_CLOUDSTREAM_SECTION_PREVIEW_LIMIT) {
+                        val remaining = HOME_CLOUDSTREAM_SECTION_PREVIEW_LIMIT - sections.size
+                        sections += result.sections.take(remaining)
+                    }
+                    if (firstError == null) firstError = result.errorMessage
+                    if (sections.isNotEmpty() && activeRequestKey == requestKey) {
+                        cachedCloudSections = sections.toList()
+                        publishCurrentState(isLoading = true, requestKey = requestKey)
+                    }
+                }
             }
-            for ((plugin, result) in results) {
-                if (sections.size >= HOME_CLOUDSTREAM_SECTION_PREVIEW_LIMIT) break
-                val remaining = HOME_CLOUDSTREAM_SECTION_PREVIEW_LIMIT - sections.size
-                sections += result.sections.take(remaining)
-                if (firstError == null) firstError = result.errorMessage
-            }
+            resultChannel.close()
         }
         return CloudHomeSectionsResult(sections = sections, errorMessage = firstError)
     }
-
     private fun ensureCollectionHeroFallback(
         addons: List<ManagedAddon>,
         force: Boolean,
