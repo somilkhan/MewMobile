@@ -326,6 +326,7 @@ object SearchRepository {
                     catalogId = plugin.metadata.id.value,
                     catalogName = plugin.metadata.name,
                     supportsPagination = false,
+                    cloudStreamProviderId = plugin.metadata.id.value,
                 )
             }
         } else { buildDiscoverSources(activeAddons) }
