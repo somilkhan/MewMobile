@@ -180,8 +180,8 @@ fun ProfileSelectionScreen(
                 color = MaterialTheme.colorScheme.onBackground,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.graphicsLayer {
-                    alpha = titleAlpha.value
-                    translationY = titleOffset.value
+                    alpha = titleProgress.value
+                    translationY = 20f * (1f - titleProgress.value)
                 },
             )
 
