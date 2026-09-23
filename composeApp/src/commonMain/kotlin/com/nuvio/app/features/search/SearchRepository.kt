@@ -276,9 +276,7 @@ object SearchRepository {
         )
     }
 
-    private companion object {
-        private const val SEARCH_CATALOG_CONCURRENCY = 6
-    }
+    private const val SEARCH_CATALOG_CONCURRENCY = 6
 
     private fun searchTmdbOnly(query: String, fallbackReason: SearchEmptyStateReason) {
         activeJob?.cancel()
@@ -328,7 +326,6 @@ object SearchRepository {
                     catalogId = plugin.metadata.id.value,
                     catalogName = plugin.metadata.name,
                     supportsPagination = false,
-                    cloudStreamProviderId = plugin.metadata.id.value,
                 )
             }
         } else { buildDiscoverSources(activeAddons) }
@@ -566,11 +563,21 @@ object SearchRepository {
             runCatching {
                 if (cloudStreamProviderId != null) {
                     val sections = CloudStreamRepository.getMainPage(cloudStreamProviderId, requestedSkip / 20 + 1).getOrThrow()
-                    CatalogPage(items = sections.flatMap { it.second }.map { it.toMetaPreview() }, rawItemCount = sections.sumOf { it.second.size }, nextSkip = null)
+                    CatalogPage(
+                        items = sections.flatMap { it.second }.map { it.toMetaPreview() },
+                        rawItemCount = sections.sumOf { it.second.size },
+                        nextSkip = null,
+                    )
                 } else {
-                    fetchCatalogPage(manifestUrl = selectedCatalog.manifestUrl, type = selectedCatalog.type, catalogId = selectedCatalog.catalogId, genre = current.selectedGenre, skip = requestedSkip.takeIf { it > 0 }).withUnreleasedFilter()
+                    fetchCatalogPage(
+                        manifestUrl = selectedCatalog.manifestUrl,
+                        type = selectedCatalog.type,
+                        catalogId = selectedCatalog.catalogId,
+                        genre = current.selectedGenre,
+                        skip = requestedSkip.takeIf { it > 0 },
+                    ).withUnreleasedFilter()
                 }
-            }            }.fold(
+            }.fold(
                 onSuccess = { page ->
                     val latest = _discoverUiState.value
                     if (latest.selectedCatalogKey != selectedCatalog.key || latest.selectedGenre != current.selectedGenre) {
