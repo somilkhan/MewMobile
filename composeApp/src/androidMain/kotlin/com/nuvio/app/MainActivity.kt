@@ -102,7 +102,6 @@ class MainActivity : AppCompatActivity() {
         ThemeSettingsStorage.initialize(applicationContext)
         AppIconPlatform.initialize(applicationContext)
         NuvioEnhancedSettingsStorage.initialize(applicationContext)
-        NuvioEnhancedSettingsRepository.ensureLoaded()
         SentrySettingsStorage.initialize(applicationContext)
         SentryInitializer.start(application)
         super.onCreate(savedInstanceState)
