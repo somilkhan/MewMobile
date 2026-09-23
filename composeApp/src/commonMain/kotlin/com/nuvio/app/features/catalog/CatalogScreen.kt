@@ -234,6 +234,7 @@ fun CatalogScreen(
                     items(
                         items = visibleCatalogItemsWithKeys,
                         key = { item -> item.lazyKey },
+                        contentType = { "catalog-poster" },
                     ) { keyedItem ->
                         val item = keyedItem.value
                         CatalogPosterTile(
