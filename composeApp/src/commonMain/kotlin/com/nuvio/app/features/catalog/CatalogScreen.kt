@@ -271,6 +271,7 @@ fun CatalogScreen(
             )
         }
     }
+}
 
 @Composable
 private fun CatalogHeader(
