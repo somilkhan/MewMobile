@@ -135,6 +135,8 @@ fun ProfileSelectionScreen(
             imageUrl = effectiveBackground.customImageUrl,
             profileIndex = backgroundProfile?.profileIndex,
             modifier = Modifier.fillMaxSize(),
+            targetWidth = maxWidth,
+            targetHeight = maxHeight,
         )
         if (effectiveBackground.customImageUrl != null) {
             Box(
