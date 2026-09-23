@@ -333,6 +333,7 @@ fun DetailSeriesContent(
                             fallbackImage = meta.background ?: meta.poster,
                             progressByVideoId = progressByVideoId,
                             episodeRatings = episodeRatings,
+                            cardDepthStyle = cardDepthStyle,
                             blurUnwatchedEpisodes = blurUnwatchedEpisodes,
                             showEpisodeRatings = showEpisodeRatings,
                             onEpisodeClick = onEpisodeClick,
