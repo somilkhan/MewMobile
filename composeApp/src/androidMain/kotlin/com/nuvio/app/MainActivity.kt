@@ -63,7 +63,6 @@ import com.nuvio.app.features.settings.SentrySettingsStorage
 import com.nuvio.app.features.settings.AppIconPlatform
 import com.nuvio.app.features.settings.ThemeSettingsStorage
 import com.nuvio.app.features.settings.NuvioEnhancedBackupFileBridge
-import com.nuvio.app.features.settings.NuvioEnhancedSettingsRepository
 import com.nuvio.app.features.settings.NuvioEnhancedSettingsStorage
 import com.nuvio.app.features.simkl.SimklAuthStorage
 import com.nuvio.app.features.anime.AnimeTrackingAuthStorage
