@@ -56,6 +56,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil3.compose.LocalPlatformContext
+import coil3.request.ImageRequest
 import coil3.compose.AsyncImage
 import com.nuvio.app.core.auth.AuthRepository
 import com.nuvio.app.core.auth.AuthState
@@ -77,6 +79,7 @@ fun ProfileSelectionScreen(
 ) {
     val authState by AuthRepository.state.collectAsStateWithLifecycle()
     val profileState by ProfileRepository.state.collectAsStateWithLifecycle()
+    val avatars by AvatarRepository.avatars.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     var pinDialogProfile by remember { mutableStateOf<NuvioProfile?>(null) }
     var isEditMode by remember { mutableStateOf(false) }
@@ -96,7 +99,6 @@ fun ProfileSelectionScreen(
 
     LaunchedEffect(Unit) {
         AvatarRepository.fetchAvatars()
-        AvatarRepository.refreshAvatars()
     }
 
     LaunchedEffect(authState) {
@@ -240,6 +242,7 @@ fun ProfileSelectionScreen(
                                         val profile = profiles[currentIndex]
                                         ProfileAvatarCard(
                                             profile = profile,
+                                            avatars = avatars,
                                             isEditMode = isEditMode,
                                             animDelay = currentIndex * 80,
                                             onClick = {
@@ -316,6 +319,7 @@ fun ProfileSelectionScreen(
 @Composable
 private fun ProfileAvatarCard(
     profile: NuvioProfile,
+    avatars: List<AvatarCatalogItem>,
     isEditMode: Boolean,
     animDelay: Int,
     onClick: () -> Unit,
@@ -323,12 +327,21 @@ private fun ProfileAvatarCard(
     val avatarColor = remember(profile.avatarColorHex) {
         parseHexColor(profile.avatarColorHex)
     }
-    val avatars by AvatarRepository.avatars.collectAsStateWithLifecycle()
     val avatarItem = remember(profile.avatarId, avatars) {
         profile.avatarId?.let { id -> avatars.find { it.id == id } }
     }
     val avatarImageUrl = remember(profile.avatarUrl, avatarItem) {
         profileAvatarImageUrl(profile, avatarItem)
+    }
+    val imageRequest = remember(avatarImageUrl) {
+        avatarImageUrl?.let {
+            ImageRequest.Builder(LocalPlatformContext.current)
+                .data(it)
+                .size(220)
+                .memoryCacheKey("profile-avatar:$it")
+                .diskCacheKey("profile-avatar:$it")
+                .build()
+        }
     }
 
     val animAlpha = remember { Animatable(0f) }
@@ -398,7 +411,7 @@ private fun ProfileAvatarCard(
             ) {
                 if (avatarImageUrl != null) {
                     AsyncImage(
-                        model = avatarImageUrl,
+                        model = imageRequest,
                         contentDescription = avatarItem?.displayName ?: profile.name,
                         modifier = Modifier.size(100.dp).clip(CircleShape),
                         contentScale = ContentScale.Crop,
