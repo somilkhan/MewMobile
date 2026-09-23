@@ -57,10 +57,18 @@ object HomeRepository {
     private val _selectedCloudStreamProviderId = MutableStateFlow<String?>(null)
     val selectedCloudStreamProviderId: StateFlow<String?> = _selectedCloudStreamProviderId.asStateFlow()
 
+    private fun restoreSelectedCloudStreamProvider() {
+        val stored = HomeCatalogSettingsRepository.selectedCloudStreamProviderId()
+        if (_selectedCloudStreamProviderId.value != stored) {
+            _selectedCloudStreamProviderId.value = stored
+        }
+    }
+
     fun setSelectedCloudStreamProvider(providerId: String?) {
         val normalized = providerId?.trim()?.takeIf { it.isNotEmpty() }
         if (_selectedCloudStreamProviderId.value == normalized) return
         _selectedCloudStreamProviderId.value = normalized
+        HomeCatalogSettingsRepository.setCloudStreamProviderId(normalized)
         refresh(AddonRepository.uiState.value.addons.enabledAddons(), force = true)
     }
 
@@ -80,6 +88,8 @@ object HomeRepository {
     private var lastErrorMessage: String? = null
 
     fun refresh(addons: List<ManagedAddon>, force: Boolean = false) {
+        HomeCatalogSettingsRepository.snapshot()
+        restoreSelectedCloudStreamProvider()
         CloudStreamRepository.initialize()
         val cloudState = CloudStreamRepository.uiState.value
         val selectedProviderId = _selectedCloudStreamProviderId.value
@@ -234,6 +244,7 @@ object HomeRepository {
 
     fun clear() {
         activeJob?.cancel()
+        _selectedCloudStreamProviderId.value = null
         activeJob = null
         activeRequestKey = null
         completedRequestKey = null
