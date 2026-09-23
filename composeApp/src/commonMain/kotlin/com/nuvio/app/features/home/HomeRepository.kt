@@ -304,9 +304,22 @@ object HomeRepository {
         } else {
             emptyList()
         }
-        lastPublishedCatalogHeroEmpty = snapshot.heroEnabled && catalogHeroItems.isEmpty()
+        val cloudStreamHeroItems = if (snapshot.heroEnabled) {
+            val heroRandom = Random((requestKey?.hashCode() ?: 0).absoluteValue + 2)
+            cachedCloudSections
+                .flatMap { section -> section.items }
+                .distinctBy { item -> "\${item.type}:\${item.id}" }
+                .shuffled(heroRandom)
+                .take(HOME_HERO_ITEM_LIMIT)
+        } else {
+            emptyList()
+        }
+        lastPublishedCatalogHeroEmpty =
+            snapshot.heroEnabled && catalogHeroItems.isEmpty() && cloudStreamHeroItems.isEmpty()
         val resolvedHeroItems = if (snapshot.heroEnabled) {
-            catalogHeroItems.ifEmpty { cachedCollectionHeroItems }
+            catalogHeroItems
+                .ifEmpty { cloudStreamHeroItems }
+                .ifEmpty { cachedCollectionHeroItems }
         } else {
             emptyList()
         }
