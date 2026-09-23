@@ -66,6 +66,8 @@ import com.nuvio.app.core.format.formatReleaseDateForDisplay
 import com.nuvio.app.core.i18n.localizedSeasonEpisodeCode
 import com.nuvio.app.core.ui.NuvioAnimatedWatchedBadge
 import com.nuvio.app.core.ui.NuvioCardDepthSurface
+import com.nuvio.app.core.ui.CardDepthStyleUiState
+import com.nuvio.app.core.ui.rememberCardDepthStyleUiState
 import com.nuvio.app.core.ui.NuvioProgressBar
 import com.nuvio.app.core.ui.LocalTvLayoutProfile
 import com.nuvio.app.core.ui.TvLayoutProfile
@@ -139,6 +141,8 @@ fun DetailSeriesContent(
         }
         return
     }
+
+    val cardDepthStyle = rememberCardDepthStyleUiState()
 
     val groupedEpisodes = remember(meta.videos) {
         log.d { "videos count=${meta.videos.size}, type=${meta.type}" }
@@ -309,6 +313,7 @@ fun DetailSeriesContent(
                             fallbackImage = meta.background ?: meta.poster,
                             progressByVideoId = progressByVideoId,
                             episodeRatings = episodeRatings,
+                            cardDepthStyle = cardDepthStyle,
                             blurUnwatchedEpisodes = blurUnwatchedEpisodes,
                             showEpisodeRatings = showEpisodeRatings,
                             preferredEpisodeNumber = preferredEpisodeNumberForSeason(
@@ -633,6 +638,7 @@ private fun EpisodeHorizontalRow(
     fallbackImage: String?,
     progressByVideoId: Map<String, WatchProgressEntry>,
     episodeRatings: Map<Pair<Int, Int>, Double>,
+    cardDepthStyle: CardDepthStyleUiState,
     blurUnwatchedEpisodes: Boolean,
     showEpisodeRatings: Boolean,
     preferredEpisodeNumber: Int? = null,
@@ -702,6 +708,7 @@ private fun EpisodeHorizontalRow(
                 blurUnwatchedEpisodes = blurUnwatchedEpisodes,
                 showEpisodeRatings = showEpisodeRatings,
                 metrics = rowMetrics,
+                cardDepthStyle = cardDepthStyle,
                 onClick = { onEpisodeClick?.invoke(episode) },
                 onLongPress = { onEpisodeLongPress?.invoke(episode) },
             )
@@ -719,6 +726,7 @@ private fun EpisodeHorizontalColumn(
     fallbackImage: String?,
     progressByVideoId: Map<String, WatchProgressEntry>,
     episodeRatings: Map<Pair<Int, Int>, Double>,
+    cardDepthStyle: CardDepthStyleUiState,
     blurUnwatchedEpisodes: Boolean,
     showEpisodeRatings: Boolean,
     onEpisodeClick: ((MetaVideo) -> Unit)?,
@@ -757,6 +765,7 @@ private fun EpisodeHorizontalColumn(
                 blurUnwatchedEpisodes = blurUnwatchedEpisodes,
                 showEpisodeRatings = showEpisodeRatings,
                 metrics = metrics,
+                cardDepthStyle = cardDepthStyle,
                 fullWidth = true,
                 onClick = { onEpisodeClick?.invoke(episode) },
                 onLongPress = { onEpisodeLongPress?.invoke(episode) },
@@ -776,6 +785,7 @@ private fun EpisodeHorizontalCard(
     blurUnwatchedEpisodes: Boolean,
     showEpisodeRatings: Boolean,
     metrics: EpisodeHorizontalCardMetrics,
+    cardDepthStyle: CardDepthStyleUiState,
     fullWidth: Boolean = false,
     onClick: (() -> Unit)? = null,
     onLongPress: (() -> Unit)? = null,
@@ -804,6 +814,7 @@ private fun EpisodeHorizontalCard(
                 shape = cardShape,
                 surface = NuvioCardDepthSurface.EpisodeCards,
                 fallbackBorderAlpha = 0.12f,
+                stateOverride = cardDepthStyle,
             )
             .posterCardClickable(
                 onClick = onClick,
