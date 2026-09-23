@@ -55,6 +55,8 @@ data class HomeCatalogSettingsUiState(
             append('|')
             append(hideCatalogUnderline)
             append('|')
+            append(cloudStreamProviderId.orEmpty())
+            append('|')
             append(
                 items.joinToString(separator = "|") { item ->
                     "${item.key}:${item.order}:${item.enabled}:${item.heroSourceEnabled}:${item.customTitle}"
@@ -317,6 +319,7 @@ object HomeCatalogSettingsRepository {
         showCatalogType = true
         hideUnreleasedContent = false
         hideCatalogUnderline = false
+        cloudStreamProviderId = null
         preferences = emptyMap()
         normalizePreferences()
         publish()
