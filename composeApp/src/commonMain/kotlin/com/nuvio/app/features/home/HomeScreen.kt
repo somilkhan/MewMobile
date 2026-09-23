@@ -1447,66 +1447,30 @@ fun HomeScreen(
 
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(28.dp))
-                            .background(Color.Black.copy(alpha = 0.30f))
+                            .size(56.dp)
+                            .clip(CircleShape)
+                            .background(Color.Black.copy(alpha = 0.34f))
                             .border(
                                 width = 1.dp,
-                                color = Color.White.copy(alpha = 0.16f),
-                                shape = RoundedCornerShape(28.dp),
+                                color = Color.White.copy(alpha = 0.18f),
+                                shape = CircleShape,
                             )
-                            .padding(horizontal = 6.dp, vertical = 6.dp)
                             .clickable { cloudStreamProviderMenuExpanded = true },
+                        contentAlignment = androidx.compose.ui.Alignment.Center,
                     ) {
                         Box(
                             modifier = Modifier
                                 .matchParentSize()
-                                .padding(8.dp)
-                                .blur(18.dp)
-                                .clip(RoundedCornerShape(24.dp))
+                                .padding(2.dp)
+                                .blur(14.dp)
+                                .clip(CircleShape)
                                 .background(Color.White.copy(alpha = 0.10f))
                         )
-
-                        Row(
-                            modifier = Modifier.padding(horizontal = 4.dp),
-                            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(44.dp)
-                                    .clip(CircleShape)
-                                    .background(Color.White.copy(alpha = 0.12f))
-                                    .border(
-                                        width = 1.dp,
-                                        color = Color.White.copy(alpha = 0.18f),
-                                        shape = CircleShape,
-                                    ),
-                                contentAlignment = androidx.compose.ui.Alignment.Center,
-                            ) {
-                                Text(
-                                    text = "◈",
-                                    color = Color.White.copy(alpha = 0.94f),
-                                    style = MaterialTheme.typography.titleMedium,
-                                )
-                            }
-
-                            Text(
-                                text = sourceLabel,
-                                modifier = Modifier
-                                    .padding(horizontal = 10.dp)
-                                    .widthIn(max = 116.dp),
-                                maxLines = 1,
-                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                                color = Color.White.copy(alpha = 0.96f),
-                                style = MaterialTheme.typography.labelLarge,
-                            )
-
-                            Text(
-                                text = "⌄",
-                                modifier = Modifier.padding(end = 7.dp),
-                                color = Color.White.copy(alpha = 0.68f),
-                                style = MaterialTheme.typography.titleMedium,
-                            )
-                        }
+                        Text(
+                            text = "◈",
+                            color = Color.White.copy(alpha = 0.96f),
+                            style = MaterialTheme.typography.titleMedium,
+                        )
                     }
                 }
             }
