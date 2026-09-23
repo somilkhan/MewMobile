@@ -111,6 +111,7 @@ private data class StoredHomeCatalogSettingsPayload(
     val showCatalogType: Boolean = true,
     val hideUnreleasedContent: Boolean = false,
     val hideCatalogUnderline: Boolean = false,
+    val cloudStreamProviderId: String? = null,
     val items: List<StoredHomeCatalogPreference> = emptyList(),
 )
 
@@ -475,6 +476,7 @@ object HomeCatalogSettingsRepository {
             showCatalogType = showCatalogType,
             hideUnreleasedContent = hideUnreleasedContent,
             hideCatalogUnderline = hideCatalogUnderline,
+            cloudStreamProviderId = cloudStreamProviderId,
             items = items,
         )
     }
