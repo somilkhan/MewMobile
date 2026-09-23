@@ -36,6 +36,7 @@ object AvatarRepository {
 
     suspend fun refreshAvatars() {
         hydrateFromCacheIfNeeded()
+        if (!loaded) return
         doFetch()
     }
 
