@@ -36,7 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
@@ -734,9 +734,7 @@ private fun ContinueWatchingCard(
                 modifier = Modifier
                     .fillMaxSize()
                     .then(if (shouldBlurArtwork) Modifier.blur(18.dp) else Modifier)
-                    .drawWithContent {
-                        drawContent()
-
+                    .drawWithCache {
                         val startY = size.height * 0.45f
                         val gradient = Brush.verticalGradient(
                             colorStops = arrayOf(
@@ -747,12 +745,14 @@ private fun ContinueWatchingCard(
                             startY = startY,
                             endY = size.height,
                         )
-
-                        drawRect(
-                            brush = gradient,
-                            topLeft = Offset(-2f, startY),
-                            size = Size(size.width + 4f, (size.height - startY) + 4f),
-                        )
+                        onDrawWithContent {
+                            drawContent()
+                            drawRect(
+                                brush = gradient,
+                                topLeft = Offset(-2f, startY),
+                                size = Size(size.width + 4f, (size.height - startY) + 4f),
+                            )
+                        }
                     },
                 contentScale = ContentScale.Crop,
             )
