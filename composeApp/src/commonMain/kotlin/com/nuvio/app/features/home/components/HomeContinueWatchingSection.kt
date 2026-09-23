@@ -1035,6 +1035,8 @@ private fun ContinueWatchingPosterCard(
     showReadyBadge: Boolean,
     onClick: (() -> Unit)?,
     onLongClick: (() -> Unit)?,
+    posterCardStyle: PosterCardStyleUiState,
+    cardDepthStyle: CardDepthStyleUiState,
 ) {
     val imageUrl = item.continueWatchingPosterArtworkUrl(useEpisodeThumbnails)
     Column(
