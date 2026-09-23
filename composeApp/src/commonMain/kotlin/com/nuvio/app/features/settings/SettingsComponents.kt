@@ -369,7 +369,7 @@ internal fun SettingsSwitchRow(
                 if (highlighted) {
                     Modifier
                         .background(tokens.colors.accent.copy(alpha = 0.08f), highlightShape)
-                        .border(tokens.borders.hairline, highlightBrush, highlightShape)
+                        .border(tokens.borders.hairline, highlightBrush ?: SolidColor(tokens.colors.accent), highlightShape)
                 } else {
                     Modifier
                 },
