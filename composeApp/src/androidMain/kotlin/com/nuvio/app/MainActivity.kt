@@ -12,6 +12,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.SystemBarStyle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.lifecycle.lifecycleScope
 import com.nuvio.app.core.auth.AuthStorage
 import com.nuvio.app.core.diagnostics.CrashDiagnostics
 import com.nuvio.app.core.diagnostics.SentryInitializer
@@ -85,6 +86,8 @@ import com.nuvio.app.features.watchprogress.ContinueWatchingEnrichmentStorage
 import com.nuvio.app.features.watchprogress.ContinueWatchingPreferencesStorage
 import com.nuvio.app.features.watchprogress.ResumePromptStorage
 import com.nuvio.app.features.watchprogress.WatchProgressStorage
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -198,7 +201,11 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        DownloadsRepository.removeMissingCompletedDownloads()
+        // File/content-URI existence checks can block on filesystem or provider I/O.
+        // Keep resume responsive by running the cleanup off the main thread.
+        lifecycleScope.launch(Dispatchers.IO) {
+            DownloadsRepository.removeMissingCompletedDownloads()
+        }
     }
 
     override fun onUserLeaveHint() {
