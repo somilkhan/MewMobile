@@ -112,7 +112,10 @@ object HomeRepository {
             append(selectedProviderId.orEmpty())
         }
 
-        if (!force && activeRequestKey == requestKey && _uiState.value.isLoading) return
+        // Never tear down an identical in-flight Home request just because another
+        // state observer asks for a forced refresh. Doing so restarts every CloudStream
+        // MainPage call and can repeatedly reload/initialize extension work.
+        if (activeRequestKey == requestKey && _uiState.value.isLoading) return
 
         if (
             !force &&
