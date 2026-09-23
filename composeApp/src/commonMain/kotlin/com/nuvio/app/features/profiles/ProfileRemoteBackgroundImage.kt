@@ -7,6 +7,8 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.layout.ContentScale
 import coil3.compose.AsyncImage
@@ -24,6 +26,8 @@ fun ProfileRemoteBackgroundImage(
     modifier: Modifier = Modifier,
     alpha: Float = 1f,
     contentScale: ContentScale = ContentScale.Crop,
+    targetWidth: Dp? = null,
+    targetHeight: Dp? = null,
 ) {
     if (imageUrl == null) {
         LaunchedEffect(Unit) {
@@ -34,6 +38,9 @@ fun ProfileRemoteBackgroundImage(
 
     var foregroundGeneration by remember(imageUrl) { mutableIntStateOf(0) }
     val context = LocalPlatformContext.current
+    val density = LocalDensity.current
+    val targetWidthPx = targetWidth?.let { with(density) { it.roundToPx() } }?.coerceAtLeast(1)
+    val targetHeightPx = targetHeight?.let { with(density) { it.roundToPx() } }?.coerceAtLeast(1)
     val memoryCacheKey = "profile-background:${profileIndex ?: 0}:$imageUrl:${foregroundGeneration % 2}"
     val previousMemoryCacheKey = "profile-background:${profileIndex ?: 0}:$imageUrl:${(foregroundGeneration + 1) % 2}"
     val request = remember(context, imageUrl, foregroundGeneration) {
@@ -41,6 +48,11 @@ fun ProfileRemoteBackgroundImage(
             .data(imageUrl)
             .memoryCacheKey(memoryCacheKey)
             .diskCacheKey("profile-background:$imageUrl")
+            .apply {
+                if (targetWidthPx != null && targetHeightPx != null) {
+                    size(targetWidthPx, targetHeightPx)
+                }
+            }
             .apply {
                 if (foregroundGeneration > 0) placeholderMemoryCacheKey(previousMemoryCacheKey)
             }
