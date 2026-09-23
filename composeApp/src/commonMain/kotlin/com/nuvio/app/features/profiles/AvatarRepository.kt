@@ -7,6 +7,8 @@ import io.github.jan.supabase.postgrest.rpc
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
@@ -40,20 +42,23 @@ object AvatarRepository {
         doFetch()
     }
 
-    private fun hydrateFromCacheIfNeeded() {
+    private suspend fun hydrateFromCacheIfNeeded() {
         if (cacheHydrated) return
         cacheHydrated = true
 
-        val payload = AvatarStorage.loadPayload().orEmpty().trim()
+        val payload = withContext(Dispatchers.Default) {
+            AvatarStorage.loadPayload().orEmpty().trim()
+        }
         if (payload.isEmpty()) return
 
-        val stored = runCatching {
-            json.decodeFromString<StoredAvatarCatalogPayload>(payload)
-        }.getOrNull() ?: return
-
-        val items = stored.items
-            .filter { it.isActive }
-            .sortedWith(compareBy({ it.category }, { it.sortOrder }))
+        val items = withContext(Dispatchers.Default) {
+            val stored = runCatching {
+                json.decodeFromString<StoredAvatarCatalogPayload>(payload)
+            }.getOrNull() ?: return@withContext emptyList()
+            stored.items
+                .filter { it.isActive }
+                .sortedWith(compareBy({ it.category }, { it.sortOrder }))
+        }
         if (items.isEmpty()) return
 
         _avatars.value = items
@@ -65,17 +70,21 @@ object AvatarRepository {
         fetchInFlight = true
         runCatching {
             val result = SupabaseProvider.client.postgrest.rpc("get_avatar_catalog")
-            val items = result.decodeList<AvatarCatalogItem>()
-            val activeItems = items.filter { it.isActive }.sortedWith(
-                compareBy({ it.category }, { it.sortOrder }),
-            )
+            val activeItems = withContext(Dispatchers.Default) {
+                val items = result.decodeList<AvatarCatalogItem>()
+                items.filter { it.isActive }.sortedWith(
+                    compareBy({ it.category }, { it.sortOrder }),
+                )
+            }
             _avatars.value = activeItems
             loaded = true
-            AvatarStorage.savePayload(
-                json.encodeToString(
-                    StoredAvatarCatalogPayload(items = activeItems),
-                ),
-            )
+            withContext(Dispatchers.Default) {
+                AvatarStorage.savePayload(
+                    json.encodeToString(
+                        StoredAvatarCatalogPayload(items = activeItems),
+                    ),
+                )
+            }
         }.onFailure { e ->
             log.e(e) { "Failed to fetch avatar catalog" }
         }.also {
