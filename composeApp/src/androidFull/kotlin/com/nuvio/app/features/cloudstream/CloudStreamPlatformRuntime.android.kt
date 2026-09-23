@@ -102,7 +102,8 @@ internal actual object CloudStreamPlatformRuntime {
             }
         }
         plugins.forEach(LoadedPlugin::unload)
-        // The shared CloudStream HTTP client belongs to the host process, not the plugin registry.\n        // Clearing/unloading plugins must not force the next provider load to recreate it.\n        PluginManager.clear()
+        // The shared CloudStream HTTP client belongs to the host process, not the plugin registry.
+        // Clearing/unloading plugins must not force the next provider load to recreate it.\n        PluginManager.clear()
     }
 
     private fun loadPlugin(item: CloudStreamPluginItem): LoadedPlugin {
