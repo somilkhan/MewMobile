@@ -308,7 +308,7 @@ object HomeRepository {
             val heroRandom = Random((requestKey?.hashCode() ?: 0).absoluteValue + 2)
             cachedCloudSections
                 .flatMap { section -> section.items }
-                .distinctBy { item -> "\${item.type}:\${item.id}" }
+                .distinctBy { item -> "${item.type}:${item.id}" }
                 .shuffled(heroRandom)
                 .take(HOME_HERO_ITEM_LIMIT)
         } else {
