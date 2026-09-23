@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
@@ -28,6 +29,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -1450,18 +1452,15 @@ fun HomeScreen(
                                 shape = RoundedCornerShape(28.dp),
                             )
                             .padding(horizontal = 6.dp, vertical = 6.dp)
-                            .pointerInput(Unit) {
-                                detectTapGestures(
-                                    onTap = { cloudStreamProviderMenuExpanded = true },
-                                )
-                            },
+                            .clickable { cloudStreamProviderMenuExpanded = true },
                     ) {
                         Box(
                             modifier = Modifier
                                 .matchParentSize()
-                                .padding(2.dp)
+                                .padding(8.dp)
+                                .blur(18.dp)
                                 .clip(RoundedCornerShape(24.dp))
-                                .background(Color.White.copy(alpha = 0.06f))
+                                .background(Color.White.copy(alpha = 0.10f))
                         )
 
                         Row(
