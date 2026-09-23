@@ -423,16 +423,20 @@ internal fun HomeHeroSection(
                 }
             }
         }
-        val cinematicMotion = rememberInfiniteTransition(label = "heroCinematicMotion")
-        val cinematicPulse by cinematicMotion.animateFloat(
-            initialValue = 0f,
-            targetValue = 1f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(durationMillis = 8200, easing = LinearEasing),
-                repeatMode = RepeatMode.Reverse,
-            ),
-            label = "heroCinematicPulse",
-        )
+        val cinematicPulse = if (motionPreviewEnabled) {
+            val cinematicMotion = rememberInfiniteTransition(label = "heroCinematicMotion")
+            cinematicMotion.animateFloat(
+                initialValue = 0f,
+                targetValue = 1f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(durationMillis = 8200, easing = LinearEasing),
+                    repeatMode = RepeatMode.Reverse,
+                ),
+                label = "heroCinematicPulse",
+            ).value
+        } else {
+            0.5f
+        }
 
         Box(
             modifier = Modifier
