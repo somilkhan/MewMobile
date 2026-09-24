@@ -778,40 +778,39 @@ fun App(
                     )
                 }
                 AppGateScreen.Main.name -> {
-                    MainAppContent(
-                        initialTab = initialTab,
-                        initialRoute = initialRoute,
-                        useNativeNavigation = useNativeNavigation,
-                        useNativeTabBar = useNativeTabBar,
-                        useTabletFloatingTabBar = useTabletFloatingTabBar,
-                        ownsAppRuntime = ownsAppRuntime,
-                        onNavigate = onNavigate,
-                        onGoBack = onGoBack,
-                        onReplace = onReplace,
-                        onActivate = onActivate,
-                        onTabTitles = onTabTitles,
-                        onRootContentReady = { ready ->
-                            onAppReady?.invoke(
-                                ready && gateScreen == AppGateScreen.Main.name,
-                            )
-                        },
-                        onSwitchProfile = {
-                            autoSkipProfileSelection = false
-                            gateScreen = AppGateScreen.ProfileSelection.name
-                        },
-                    )
+                    if (!onboardingSettings.onboardingCompleted) {
+                        MewOnboardingScreen(
+                            onComplete = MewOnboardingRepository::complete,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    } else {
+                        MainAppContent(
+                            initialTab = initialTab,
+                            initialRoute = initialRoute,
+                            useNativeNavigation = useNativeNavigation,
+                            useNativeTabBar = useNativeTabBar,
+                            useTabletFloatingTabBar = useTabletFloatingTabBar,
+                            ownsAppRuntime = ownsAppRuntime,
+                            onNavigate = onNavigate,
+                            onGoBack = onGoBack,
+                            onReplace = onReplace,
+                            onActivate = onActivate,
+                            onTabTitles = onTabTitles,
+                            onRootContentReady = { ready ->
+                                onAppReady?.invoke(
+                                    ready && gateScreen == AppGateScreen.Main.name,
+                                )
+                            },
+                            onSwitchProfile = {
+                                autoSkipProfileSelection = false
+                                gateScreen = AppGateScreen.ProfileSelection.name
+                            },
+                        )
+                    }
                 }
             }
         }
 
-        if (gateScreen == AppGateScreen.Main.name && !onboardingSettings.onboardingCompleted) {
-            MewOnboardingScreen(
-                onComplete = MewOnboardingRepository::complete,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .zIndex(100f),
-            )
-        }
         }
     }
 }
