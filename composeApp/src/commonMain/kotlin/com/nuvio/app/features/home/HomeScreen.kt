@@ -145,6 +145,7 @@ fun HomeScreen(
     onContinueWatchingClick: ((ContinueWatchingItem) -> Unit)? = null,
     onContinueWatchingLongPress: ((ContinueWatchingItem) -> Unit)? = null,
     onFolderClick: ((collectionId: String, folderId: String) -> Unit)? = null,
+    onOpenDiscoveryClick: (() -> Unit)? = null,
     onFirstCatalogRendered: (() -> Unit)? = null,
 ) {
     LaunchedEffect(Unit) {
@@ -1317,6 +1318,10 @@ fun HomeScreen(
                                 modifier = Modifier.padding(horizontal = 16.dp),
                                 title = stringResource(Res.string.compose_search_empty_no_active_addons_title),
                                 message = stringResource(Res.string.home_empty_no_active_addons_message),
+                                actionLabel = onOpenDiscoveryClick?.let {
+                                    stringResource(Res.string.home_empty_open_discovery)
+                                },
+                                onActionClick = onOpenDiscoveryClick,
                             )
                         }
                     }
@@ -1354,6 +1359,10 @@ fun HomeScreen(
                                     title = stringResource(Res.string.home_empty_no_rows_title),
                                     message = homeUiState.errorMessage
                                         ?: stringResource(Res.string.home_empty_no_rows_message),
+                                    actionLabel = onOpenDiscoveryClick?.let {
+                                        stringResource(Res.string.home_empty_open_discovery)
+                                    },
+                                    onActionClick = onOpenDiscoveryClick,
                                 )
                             }
                         }
