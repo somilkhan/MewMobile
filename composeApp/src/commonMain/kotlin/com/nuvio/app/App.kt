@@ -110,7 +110,6 @@ import com.nuvio.app.core.sync.ProfileSettingsSync
 import com.nuvio.app.core.sync.ProviderCredentialSync
 import com.nuvio.app.core.sync.SyncManager
 import com.nuvio.app.core.ui.LocalNuvioNavBarScrollState
-import com.nuvio.app.core.ui.LocalScreenActive
 import com.nuvio.app.core.ui.NuvioNavigationBar
 import com.nuvio.app.core.ui.NuvioClassicNavigationBar
 import com.nuvio.app.core.ui.NuvioNavBarScrollState
