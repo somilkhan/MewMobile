@@ -2159,7 +2159,6 @@ private fun MainAppContent(
                                     AppTabHost(
                                         modifier = Modifier
                                             .fillMaxSize()
-                                            .then(if (navBarStyleSetting != NavBarStyle.CLASSIC) Modifier.hazeSource(state = navBarHazeState) else Modifier)
                                             .then(if (navBarStyleSetting == NavBarStyle.ADAPTIVE) Modifier.nestedScroll(navBarScrollState.nestedScrollConnection) else Modifier)
                                             .padding(innerPadding)
                                             .padding(start = if (useTvLayout) 80.dp else 0.dp),
@@ -2367,7 +2366,7 @@ private fun MainAppContent(
                                     NuvioNavigationBar(
                                         modifier = Modifier.align(Alignment.BottomCenter),
                                         scrollState = navBarScrollState,
-                                        hazeState = navBarHazeState,
+                                        hazeState = null,
                                     ) {
                                         NavItem(
                                             selected = selectedTab == AppScreenTab.Home,
