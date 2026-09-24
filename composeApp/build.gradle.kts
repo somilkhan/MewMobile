@@ -455,7 +455,7 @@ val generateRuntimeConfigs = tasks.register<GenerateRuntimeConfigsTask>("generat
     traktRedirectUri.set(runtimeConfigValue("TRAKT_REDIRECT_URI", fallback = "nuvioenhanced://auth/trakt"))
     simklClientId.set(runtimeConfigValue("SIMKL_CLIENT_ID"))
     simklRedirectUri.set(runtimeConfigValue("SIMKL_REDIRECT_URI", fallback = "nuvioenhanced://auth/simkl"))
-    simklAppName.set(runtimeConfigValue("SIMKL_APP_NAME", fallback = "nuvio"))
+    simklAppName.set(runtimeConfigValue("SIMKL_APP_NAME", fallback = "Mew"))
     aniListClientId.set(runtimeConfigValue("ANILIST_CLIENT_ID"))
     aniListRedirectUri.set(runtimeConfigValue("ANILIST_REDIRECT_URI", fallback = "nuvioenhanced://auth/anilist"))
     malClientId.set(runtimeConfigValue("MAL_CLIENT_ID"))
@@ -465,10 +465,10 @@ val generateRuntimeConfigs = tasks.register<GenerateRuntimeConfigsTask>("generat
         runtimeConfigValue(
             "NUVIO_UPDATE_GITHUB_OWNER",
             "GITHUB_REPOSITORY_OWNER",
-            fallback = "AKRusso",
+            fallback = "somilkhan",
         )
     )
-    updateGithubRepo.set(runtimeConfigValue("NUVIO_UPDATE_GITHUB_REPO", fallback = "NuvioMobile-Enhanced"))
+    updateGithubRepo.set(runtimeConfigValue("NUVIO_UPDATE_GITHUB_REPO", fallback = "MewMobile"))
 }
 
 tasks.withType<KotlinCompilationTask<*>>().configureEach {
