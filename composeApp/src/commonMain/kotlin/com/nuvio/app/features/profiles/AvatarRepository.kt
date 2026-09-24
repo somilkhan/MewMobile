@@ -46,9 +46,7 @@ object AvatarRepository {
         if (cacheHydrated) return
         cacheHydrated = true
 
-        val payload = withContext(Dispatchers.Default) {
-            AvatarStorage.loadPayload().orEmpty().trim()
-        }
+        val payload = AvatarStorage.loadPayload().orEmpty().trim()
         if (payload.isEmpty()) return
 
         val items = withContext(Dispatchers.Default) {
@@ -78,13 +76,11 @@ object AvatarRepository {
             }
             _avatars.value = activeItems
             loaded = true
-            withContext(Dispatchers.Default) {
-                AvatarStorage.savePayload(
-                    json.encodeToString(
-                        StoredAvatarCatalogPayload(items = activeItems),
-                    ),
-                )
-            }
+            AvatarStorage.savePayload(
+                json.encodeToString(
+                    StoredAvatarCatalogPayload(items = activeItems),
+                ),
+            )
         }.onFailure { e ->
             log.e(e) { "Failed to fetch avatar catalog" }
         }.also {
