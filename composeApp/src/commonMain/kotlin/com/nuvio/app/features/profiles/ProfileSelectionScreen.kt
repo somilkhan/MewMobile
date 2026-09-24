@@ -335,15 +335,13 @@ private fun ProfileAvatarCard(
         profileAvatarImageUrl(profile, avatarItem)
     }
     val context = LocalPlatformContext.current
-    val imageRequest = remember(context, avatarImageUrl) {
-        avatarImageUrl?.let {
-            ImageRequest.Builder(context)
-                .data(it)
-                .size(220)
-                .memoryCacheKey("profile-avatar:$it")
-                .diskCacheKey("profile-avatar:$it")
-                .build()
-        }
+    val imageRequest = avatarImageUrl?.let {
+        ImageRequest.Builder(context)
+            .data(it)
+            .size(220)
+            .memoryCacheKey("profile-avatar:$it")
+            .diskCacheKey("profile-avatar:$it")
+            .build()
     }
 
     val animProgress = remember { Animatable(0f) }
