@@ -122,7 +122,6 @@ private fun SourceSetupRow(
             onClick = onClick,
             modifier = Modifier.fillMaxWidth(),
         )
-        }
         Text(
             text = url,
             style = MaterialTheme.typography.labelSmall,
