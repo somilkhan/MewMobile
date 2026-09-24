@@ -425,12 +425,28 @@ jobs:
             fi
           done
 
+      - name: Prepare MewMobile release assets
+        if: inputs.mode != 'dry-run'
+        env:
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -euo pipefail
+          rm -rf release-assets
+          mkdir -p release-assets
+          for apk in androidApp/build/outputs/apk/full/release/*.apk; do
+            base="$(basename "${apk}" .apk)"
+            suffix="${base#androidApp-full-}"
+            suffix="${suffix%-release}"
+            cp "${apk}" "release-assets/MewMobile-v${RELEASE_VERSION}-stable-${suffix}.apk"
+          done
+          test -f "release-assets/MewMobile-v${RELEASE_VERSION}-stable-universal.apk"
+
       - name: Upload build artifacts
         if: inputs.mode != 'dry-run'
         uses: actions/upload-artifact@v6
         with:
           name: mewmobile-${{ steps.release.outputs.version }}-full-release
-          path: androidApp/build/outputs/apk/full/release/*.apk
+          path: release-assets/*.apk
           if-no-files-found: error
 
       - name: Download sideload IPA artifact
@@ -449,7 +465,7 @@ jobs:
           RELEASE_BRANCH: ${{ github.ref_name }}
           INCLUDE_IOS: ${{ inputs.include_ios }}
         run: |
-          mapfile -t release_apks < <(find androidApp/build/outputs/apk/full/release -maxdepth 1 -type f -name '*.apk' -print | sort)
+          mapfile -t release_apks < <(find release-assets -maxdepth 1 -type f -name '*.apk' -print | sort)
           if (( ${#release_apks[@]} == 0 )); then
             echo "No release APKs were produced." >&2
             exit 1
@@ -481,6 +497,6 @@ jobs:
         run: |
           gh release upload \
             "${RELEASE_TAG}" \
-            androidApp/build/outputs/apk/full/release/androidApp-full-universal-release.apk \
+            release-assets/MewMobile-v${RELEASE_TAG#v}-stable-universal.apk \
             --repo "${GITHUB_REPOSITORY}" \
             --clobber
