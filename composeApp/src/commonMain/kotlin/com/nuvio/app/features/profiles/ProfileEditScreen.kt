@@ -120,17 +120,17 @@ private fun ProfileCreateScreen(
             NuvioSurfaceCard {
                 Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     Text(
-                        text = stringResource(Res.string.profile_name),
+                        text = stringResource(Res.string.profile_name_placeholder),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                     )
                     NuvioInputField(
                         value = name,
                         onValueChange = { name = it },
-                        placeholder = stringResource(Res.string.profile_name),
+                        placeholder = stringResource(Res.string.profile_name_placeholder),
                     )
                     Text(
-                        text = stringResource(Res.string.profile_primary_addons_description),
+                        text = stringResource(Res.string.profile_use_primary_addons_description),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -140,7 +140,7 @@ private fun ProfileCreateScreen(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
-                            text = stringResource(Res.string.profile_primary_addons),
+                            text = stringResource(Res.string.profile_use_primary_addons),
                             style = MaterialTheme.typography.titleSmall,
                         )
                         Switch(
