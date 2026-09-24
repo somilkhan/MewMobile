@@ -113,7 +113,6 @@ fun ProfileEditScreen(
     val avatars by AvatarRepository.avatars.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) {
         AvatarRepository.fetchAvatars()
-        AvatarRepository.refreshAvatars()
     }
     LaunchedEffect(isNew, avatars, selectedAvatarId, avatarUrl, currentProfile?.avatarId, currentProfile?.avatarUrl) {
         if (
