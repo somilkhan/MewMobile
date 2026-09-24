@@ -591,9 +591,13 @@ fun MetaDetailsScreen(
                     seriesAction?.seasonNumber,
                     seriesAction?.episodeNumber,
                     seriesAction?.episodeTitle,
+                    deferredMetaWorkAllowed,
                 ) {
                     if (!nuvioEnhancedSettings.backgroundStreamPrefetchEnabled) return@LaunchedEffect
-                    if (offlineDetailsMode) return@LaunchedEffect
+                    if (offlineDetailsMode || !deferredMetaWorkAllowed) return@LaunchedEffect
+                    // Keep first-paint work isolated from stream-provider fan-out. Prefetch only
+                    // after the detail UI has had a short idle window to establish a stable frame cadence.
+                    delay(750)
                     val hasEpisodesForPrefetch = meta.type == "series" || meta.videos.any { it.season != null || it.episode != null }
                     val targetVideoId = if (hasEpisodesForPrefetch && seriesAction != null) {
                         seriesStreamVideoId ?: seriesAction.videoId
