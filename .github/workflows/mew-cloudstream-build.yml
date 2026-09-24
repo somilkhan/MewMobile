@@ -1,4 +1,4 @@
-name: Mew CloudStream Build
+name: MewMobile Beta Build
 
 on:
   push:
@@ -32,6 +32,6 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: mew-cloudstream-full-debug
+          name: mewmobile-beta-full-debug
           path: androidApp/build/outputs/apk/full/debug/*.apk
           if-no-files-found: error
