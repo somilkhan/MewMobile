@@ -1,0 +1,117 @@
+name: Build MewMobile Beta
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Create a GitHub prerelease after a successful signed build
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mewmobile-beta-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build MewMobile beta
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_PROPERTIES_BASE64: ${{ secrets.MEW_LOCAL_PROPERTIES_BASE64 || secrets.NUVIO_LOCAL_PROPERTIES_BASE64 }}
+      RELEASE_KEYSTORE_BASE64: ${{ secrets.MEW_RELEASE_KEYSTORE_BASE64 || secrets.NUVIO_RELEASE_KEYSTORE_BASE64 }}
+      SIMKL_CLIENT_ID: ${{ secrets.SIMKL_CLIENT_ID }}
+      ANILIST_CLIENT_ID: ${{ secrets.ANILIST_CLIENT_ID }}
+      MAL_CLIENT_ID: ${{ secrets.MAL_CLIENT_ID }}
+      PREMIUMIZE_CLIENT_ID: ${{ secrets.PREMIUMIZE_CLIENT_ID }}
+      EXPECTED_ANDROID_SIGNING_SHA256: 4d87e3d92c54ae0efcdebb75dd08b8cfca1eace052198ed3b8f3f552533a21e3
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Read version
+        id: release
+        run: |
+          set -euo pipefail
+          version="$(sed -nE 's/^[[:space:]]*MARKETING_VERSION[[:space:]]*=[[:space:]]*([^[:space:]#]+).*$/\1/p' iosApp/Configuration/Version.xcconfig | head -n 1)"
+          test -n "${version}"
+          beta_tag="v${version}-beta.${GITHUB_RUN_NUMBER}"
+          echo "version=${version}" >> "${GITHUB_OUTPUT}"
+          echo "tag=${beta_tag}" >> "${GITHUB_OUTPUT}"
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Configure release signing
+        run: |
+          set -euo pipefail
+          keystore_path="${RUNNER_TEMP}/mewmobile-release.jks"
+          printf '%s' "${RELEASE_KEYSTORE_BASE64}" | base64 --decode > "${keystore_path}"
+          printf '%s' "${RELEASE_PROPERTIES_BASE64}" | base64 --decode > local.properties
+          sed -i -E '/^[[:space:]]*(sdk\.dir|NUVIO_RELEASE_STORE_FILE)[[:space:]]*=/d' local.properties
+          printf '\nNUVIO_RELEASE_STORE_FILE=%s\n' "${keystore_path}" >> local.properties
+          for property_name in SIMKL_CLIENT_ID ANILIST_CLIENT_ID MAL_CLIENT_ID PREMIUMIZE_CLIENT_ID; do
+            property_value="${!property_name-}"
+            if [[ -n "${property_value}" ]]; then
+              sed -i -E "/^[[:space:]]*${property_name}[[:space:]]*=/d" local.properties
+              printf '%s=%s\n' "${property_name}" "${property_value}" >> local.properties
+            fi
+          done
+          for property_name in NUVIO_RELEASE_STORE_PASSWORD NUVIO_RELEASE_KEY_ALIAS NUVIO_RELEASE_KEY_PASSWORD; do
+            grep -Eq "^${property_name}=.+" local.properties
+          done
+
+      - name: Build signed Full release
+        run: ./gradlew :androidApp:assembleFullRelease --stacktrace
+
+      - name: Verify signing certificate and universal APK
+        run: |
+          set -euo pipefail
+          sdk_root="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
+          build_tools_dir="$(find "${sdk_root}/build-tools" -mindepth 1 -maxdepth 1 -type d -print | sort -V | tail -n 1)"
+          apksigner="${build_tools_dir}/apksigner"
+          universal_apk="androidApp/build/outputs/apk/full/release/androidApp-full-universal-release.apk"
+          test -f "${universal_apk}"
+          expected="$(printf '%s' "${EXPECTED_ANDROID_SIGNING_SHA256}" | tr '[:upper:]' '[:lower:]' | tr -d ':[:space:]')"
+          actual="$("${apksigner}" verify --print-certs "${universal_apk}" | sed -n -E 's/^.*certificate SHA-256 digest:[[:space:]]*//p' | head -n 1 | tr '[:upper:]' '[:lower:]' | tr -d ':[:space:]')"
+          test -n "${actual}"
+          test "${actual}" = "${expected}"
+
+      - name: Rename beta artifacts
+        run: |
+          set -euo pipefail
+          mkdir -p release-assets
+          for apk in androidApp/build/outputs/apk/full/release/*.apk; do
+            base="$(basename "${apk}" .apk)"
+            cp "${apk}" "release-assets/MewMobile-v${{ steps.release.outputs.version }}-beta.${{ github.run_number }}-${base}.apk"
+          done
+          test -f "release-assets/MewMobile-v${{ steps.release.outputs.version }}-beta.${{ github.run_number }}-androidApp-full-universal-release.apk"
+
+      - name: Upload beta artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: mewmobile-${{ steps.release.outputs.version }}-beta.${{ github.run_number }}
+          path: release-assets/*.apk
+          if-no-files-found: error
+
+      - name: Publish GitHub prerelease
+        if: inputs.publish
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          gh release create "${RELEASE_TAG}" release-assets/*.apk --repo "${GITHUB_REPOSITORY}" --target "${GITHUB_SHA}" --title "MewMobile ${RELEASE_VERSION} Beta ${{ github.run_number }}" --prerelease --notes "MewMobile beta build for validation. This is a prerelease and is not a Stable release."
