@@ -76,7 +76,7 @@ jobs:
           done
 
       - name: Build signed Full release
-        run: ./gradlew :androidApp:assembleFullRelease --stacktrace
+        run: ./gradlew :androidApp:assembleFullRelease -Pmew.beta=true --stacktrace
 
       - name: Verify signing certificate and universal APK
         run: |
