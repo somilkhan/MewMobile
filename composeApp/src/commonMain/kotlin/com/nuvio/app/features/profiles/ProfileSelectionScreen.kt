@@ -334,9 +334,10 @@ private fun ProfileAvatarCard(
     val avatarImageUrl = remember(profile.avatarUrl, avatarItem) {
         profileAvatarImageUrl(profile, avatarItem)
     }
-    val imageRequest = remember(avatarImageUrl) {
+    val context = LocalPlatformContext.current
+    val imageRequest = remember(context, avatarImageUrl) {
         avatarImageUrl?.let {
-            ImageRequest.Builder(LocalPlatformContext.current)
+            ImageRequest.Builder(context)
                 .data(it)
                 .size(220)
                 .memoryCacheKey("profile-avatar:$it")
