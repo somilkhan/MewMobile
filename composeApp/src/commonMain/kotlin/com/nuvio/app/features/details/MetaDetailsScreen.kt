@@ -1258,8 +1258,7 @@ fun MetaDetailsScreen(
                                     model = backdropUrl,
                                     contentDescription = null,
                                     modifier = Modifier
-                                        .fillMaxSize()
-                                        .blur(30.dp),
+                                        .fillMaxSize(),
                                     contentScale = ContentScale.Crop,
                                 )
                                 Box(
