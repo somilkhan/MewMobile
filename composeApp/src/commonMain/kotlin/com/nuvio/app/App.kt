@@ -3994,6 +3994,66 @@ private fun rememberGuardedPopBackStack(
 }
 
 @Composable
+private fun TabContentHost(
+    selectedTab: AppScreenTab,
+    modifier: Modifier = Modifier,
+    content: @Composable (AppScreenTab) -> Unit,
+) {
+    val layoutState = remember { androidx.compose.ui.layout.SubcomposeLayoutState() }
+    var displayedTab by remember { mutableStateOf(selectedTab) }
+    val currentContent by androidx.compose.runtime.rememberUpdatedState(content)
+    val tabContents = remember {
+        AppScreenTab.entries.associateWith { tab ->
+            @Composable { currentContent(tab) }
+        }
+    }
+
+    LaunchedEffect(selectedTab) {
+        if (selectedTab == displayedTab) return@LaunchedEffect
+
+        val preparation = layoutState.createPausedPrecomposition(
+            selectedTab,
+            tabContents.getValue(selectedTab),
+        )
+        var applied = false
+        try {
+            do {
+                withFrameNanos { }
+                kotlinx.coroutines.yield()
+                val started = kotlin.time.TimeSource.Monotonic.markNow()
+                preparation.resume {
+                    started.elapsedNow() >= kotlin.time.Duration.Companion.milliseconds(2)
+                }
+            } while (!preparation.isComplete)
+
+            kotlinx.coroutines.ensureActive()
+            preparation.apply()
+            applied = true
+            displayedTab = selectedTab
+        } finally {
+            if (!applied) preparation.cancel()
+        }
+    }
+
+    androidx.compose.ui.layout.SubcomposeLayout(
+        state = layoutState,
+        modifier = modifier,
+    ) { constraints ->
+        val placeables = subcompose(
+            displayedTab,
+            tabContents.getValue(displayedTab),
+        ).map { it.measure(constraints) }
+
+        layout(
+            constraints.constrainWidth(placeables.maxOfOrNull { it.width } ?: 0),
+            constraints.constrainHeight(placeables.maxOfOrNull { it.height } ?: 0),
+        ) {
+            placeables.forEach { it.placeRelative(0, 0) }
+        }
+    }
+}
+
+@Composable
 private fun AppTabHost(
     selectedTab: AppScreenTab,
     liveTvEnabled: Boolean,
@@ -4039,9 +4099,12 @@ private fun AppTabHost(
 ) {
     val tabStateHolder = rememberSaveableStateHolder()
 
-    Box(modifier = modifier.fillMaxSize()) {
-        tabStateHolder.SaveableStateProvider(selectedTab.name) {
-            when (selectedTab) {
+    TabContentHost(
+        selectedTab = selectedTab,
+        modifier = modifier.fillMaxSize(),
+    ) { tab ->
+        tabStateHolder.SaveableStateProvider(tab.name) {
+            when (tab) {
                 AppScreenTab.Home -> {
                     HomeScreen(
                         modifier = Modifier.fillMaxSize(),
