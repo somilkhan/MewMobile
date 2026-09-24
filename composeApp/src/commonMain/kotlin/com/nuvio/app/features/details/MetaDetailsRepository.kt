@@ -68,7 +68,7 @@ object MetaDetailsRepository {
     )
 
     private val log = Logger.withTag("MetaDetailsRepo")
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val _uiState = MutableStateFlow(MetaDetailsUiState())
     val uiState: StateFlow<MetaDetailsUiState> = _uiState.asStateFlow()
     private var activeJob: Job? = null
