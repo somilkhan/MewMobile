@@ -1,7 +1,21 @@
 # Changelog
 
-All notable Nuvio Enhanced changes are recorded here. GitHub release notes use the
-same user-facing summary so the in-app updater can display it before download.
+All notable MewMobile changes are recorded here. GitHub release notes use the same
+user-facing summary so the in-app updater can display it before download.
+
+## Unreleased
+
+### Added
+
+- Added a MewMobile first-launch setup guide explaining optional metadata, CloudStream providers, and external integrations.
+- Added a dedicated MewMobile Beta GitHub Actions release path for prerelease validation.
+
+### Changed
+
+- Rebranded visible default-locale and localized product references from Nuvio to MewMobile.
+- Rewrote the project README around MewMobile's external-integration architecture.
+- Updated stable release workflow naming and corrected the iOS artifact handoff name.
+
 
 ## 0.4.14 - 2026-09-06
 
