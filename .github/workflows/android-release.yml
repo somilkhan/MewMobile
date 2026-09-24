@@ -237,15 +237,23 @@ jobs:
           fi
 
           if [[ "${RELEASE_MODE}" != "dry-run" ]]; then
-            required_secrets=(
-              RELEASE_PROPERTIES_BASE64
-              RELEASE_KEYSTORE_BASE64
-            )
             missing=()
-            for secret_name in "${required_secrets[@]}"; do
-              if [[ -z "${!secret_name}" ]]; then
-                missing+=("${secret_name}")
+            if [[ -z "${RELEASE_KEYSTORE_BASE64}" ]]; then
+              missing+=("MEW_RELEASE_KEYSTORE_BASE64")
+            fi
+            if [[ -z "${RELEASE_STORE_PASSWORD}" || -z "${RELEASE_KEY_ALIAS}" || -z "${RELEASE_KEY_PASSWORD}" ]]; then
+              if [[ -z "${RELEASE_PROPERTIES_BASE64}" ]]; then
+                missing+=("MEW_RELEASE_KEYSTORE_PASSWORD/MEW_RELEASE_KEY_ALIAS/MEW_RELEASE_KEY_PASSWORD")
               fi
+            fi
+            if [[ -z "${RELEASE_PROPERTIES_BASE64}" ]]; then
+              echo "No legacy local.properties bundle supplied; release signing will use the Mew signing secrets."
+            fi
+            if (( ${#missing[@]} > 0 )); then
+              printf "Missing required release secrets: %s\n" "${missing[*]}" >&2
+              exit 1
+            fi
+          fi
             done
             if (( ${#missing[@]} > 0 )); then
               printf 'Missing required release secrets: %s\n' "${missing[*]}" >&2
@@ -319,9 +327,12 @@ jobs:
       - name: Configure release properties
         if: inputs.mode != 'dry-run'
         run: |
-          keystore_path="${RUNNER_TEMP}/nuvio-release.jks"
+          keystore_path="${RUNNER_TEMP}/mew-release.jks"
           printf '%s' "${RELEASE_KEYSTORE_BASE64}" | base64 --decode > "${keystore_path}"
-          printf '%s' "${RELEASE_PROPERTIES_BASE64}" | base64 --decode > local.properties
+          : > local.properties
+          if [[ -n "${RELEASE_PROPERTIES_BASE64}" ]]; then
+            printf '%s' "${RELEASE_PROPERTIES_BASE64}" | base64 --decode > local.properties
+          fi
 
           # These paths only apply to the machine where local.properties was encoded.
           sed -i -E '/^[[:space:]]*(sdk\.dir|NUVIO_RELEASE_STORE_FILE)[[:space:]]*=/d' local.properties
