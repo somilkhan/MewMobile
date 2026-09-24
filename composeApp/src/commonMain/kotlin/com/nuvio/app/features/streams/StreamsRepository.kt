@@ -1176,7 +1176,7 @@ object StreamsRepository {
 // Provider count must not be capped: a repository can contain many narrowly scoped
 // providers, and an alphabetical cap silently skipped otherwise valid sources.
 // Keep network and DEX work bounded with a semaphore instead.
-private const val CLOUDSTREAM_STREAM_PROVIDER_CONCURRENCY = 18
+private const val CLOUDSTREAM_STREAM_PROVIDER_CONCURRENCY = 8
 private const val STREAM_PROVIDER_TIMEOUT_MS = 30_000L
 private const val STREAM_TOTAL_TIMEOUT_MS = 45_000L
 private const val DEBRID_AVAILABILITY_TIMEOUT_MS = 15_000L
