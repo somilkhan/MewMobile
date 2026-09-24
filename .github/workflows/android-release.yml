@@ -38,6 +38,7 @@ jobs:
     runs-on: macos-15-intel
     timeout-minutes: 60
     env:
+      MEW_IOS_DISTRIBUTION: full
       NUVIO_IOS_DISTRIBUTION: full
       # The Xcode build script starts Gradle, the Kotlin daemon, and Kotlin/Native together.
       # Keep their heaps below the hosted runner memory limit to avoid a stalled build.
@@ -172,7 +173,7 @@ jobs:
           if-no-files-found: error
 
   release:
-    name: ${{ inputs.mode }} Nuvio release
+    name: ${{ inputs.mode }} MewMobile stable release
     needs: build-ios
     if: ${{ always() && (!inputs.include_ios || inputs.mode == 'dry-run' || inputs.mode == 'attach-universal' || needs.build-ios.result == 'success') }}
     runs-on: ubuntu-latest
@@ -436,7 +437,7 @@ jobs:
         if: inputs.include_ios && (inputs.mode == 'draft' || inputs.mode == 'publish')
         uses: actions/download-artifact@v7
         with:
-          name: nuvio-${{ steps.release.outputs.version }}-ios-full-unsigned
+          name: mewmobile-${{ steps.release.outputs.version }}-ios-full-unsigned
           path: ios-release
 
       - name: Create GitHub release
