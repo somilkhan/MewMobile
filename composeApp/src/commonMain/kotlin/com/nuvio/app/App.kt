@@ -4056,6 +4056,12 @@ private fun AppTabHost(
                         onContinueWatchingClick = onContinueWatchingClick,
                         onContinueWatchingLongPress = onContinueWatchingLongPress,
                         onFolderClick = onFolderClick,
+                        onOpenDiscoveryClick = {
+                            onSettingsPageClick?.invoke(
+                                SettingsPage.ContentDiscovery.name,
+                                stringResource(Res.string.compose_settings_page_content_discovery),
+                            )
+                        },
                         onFirstCatalogRendered = onInitialHomeContentRendered,
                     )
                 }
