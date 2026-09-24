@@ -72,12 +72,12 @@ GitHub Actions builds automatically use the owner of the repository running the
 workflow. A local build can override the update source in `local.properties`:
 
 ```properties
-MEW_UPDATE_GITHUB_OWNER=somilkhan
-MEW_UPDATE_GITHUB_REPO=MewMobile
+NUVIO_UPDATE_GITHUB_OWNER=somilkhan
+NUVIO_UPDATE_GITHUB_REPO=MewMobile
 ```
 
-The updater targets `somilkhan/MewMobile` for Mew releases. Legacy updater
-properties may remain supported for compatibility with existing installations.
+These property names are retained as internal compatibility identifiers; their
+current defaults target `somilkhan/MewMobile` for Mew releases.
 
 The app checks published, non-prerelease GitHub Releases at startup. A release is
 offered only when it contains a compatible APK and has a version newer than the
