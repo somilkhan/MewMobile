@@ -75,6 +75,7 @@ object HomeRepository {
 
     private var activeJob: Job? = null
     private var activeRequestKey: String? = null
+    private var isVisible = true
     private var completedRequestKey: String? = null
     private var currentDefinitions: List<HomeCatalogDefinition> = emptyList()
     private var cachedSections: Map<String, HomeCatalogSection> = emptyMap()
@@ -88,7 +89,22 @@ object HomeRepository {
     private var lastPublishedCatalogHeroEmpty: Boolean = true
     private var lastErrorMessage: String? = null
 
+    fun setVisible(visible: Boolean) {
+        if (isVisible == visible) return
+        isVisible = visible
+        if (!visible) {
+            activeJob?.cancel()
+            activeJob = null
+            activeRequestKey = null
+            localizedHeroArtworkJob?.cancel()
+            localizedHeroArtworkJob = null
+            collectionHeroJob?.cancel()
+            collectionHeroJob = null
+        }
+    }
+
     fun refresh(addons: List<ManagedAddon>, force: Boolean = false) {
+        if (!isVisible) return
         HomeCatalogSettingsRepository.snapshot()
         restoreSelectedCloudStreamProvider()
         CloudStreamRepository.initialize()
@@ -715,10 +731,10 @@ private const val HOME_COLLECTION_HERO_SOURCE_ITEM_LIMIT = 8
 private const val HOME_CATALOG_FETCH_BATCH_SIZE = 4
 private const val HOME_CATALOG_PREVIEW_FETCH_LIMIT = 18
 private const val HOME_CATALOG_PUBLISH_INTERVAL = 2
-private const val HOME_CLOUDSTREAM_PROVIDER_SCAN_LIMIT = 18
-private const val HOME_CLOUDSTREAM_SECTION_PREVIEW_LIMIT = 8
+private const val HOME_CLOUDSTREAM_PROVIDER_SCAN_LIMIT = 6
+private const val HOME_CLOUDSTREAM_SECTION_PREVIEW_LIMIT = 6
 private const val HOME_CLOUDSTREAM_PROVIDER_TIMEOUT_MS = 5_000L
-private const val HOME_CLOUDSTREAM_PROVIDER_CONCURRENCY = 4
+private const val HOME_CLOUDSTREAM_PROVIDER_CONCURRENCY = 2
 private const val HOME_CLOUDSTREAM_TOTAL_PREVIEW_TIMEOUT_MS = 15_000L
 private const val HOME_CATALOG_REQUEST_TIMEOUT_MS = 12_000L
 private const val HOME_COLLECTION_HERO_SOURCE_TIMEOUT_MS = 10_000L
