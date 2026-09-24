@@ -479,7 +479,7 @@ fun App(
 ) {
     setSingletonImageLoaderFactory { context ->
         ImageLoader.Builder(context)
-            .crossfade(true)
+            .crossfade(false)
             .diskCachePolicy(CachePolicy.ENABLED)
             .memoryCachePolicy(CachePolicy.ENABLED)
             .components {
@@ -4046,6 +4046,7 @@ private fun AppTabHost(
                 AppScreenTab.Home -> {
                     HomeScreen(
                         modifier = Modifier.fillMaxSize(),
+                        isVisible = rootActionsEnabled,
                         animateCollectionGifs = animateHomeCollectionGifs,
                         scrollToTopRequests = homeScrollToTopRequests,
                         onCatalogClick = onCatalogClick,
