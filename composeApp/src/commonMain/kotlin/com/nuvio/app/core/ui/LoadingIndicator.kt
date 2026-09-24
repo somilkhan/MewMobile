@@ -5,9 +5,8 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -16,7 +15,6 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
@@ -38,37 +36,33 @@ fun NuvioLoadingIndicator(
         contentAlignment = Alignment.Center,
     ) {
         val frame = rememberLoadingIndicatorFrame(active)
+        Canvas(modifier = Modifier.size(size)) {
+            val scale = this.size.minDimension / 600f
+            val center = Offset(this.size.width / 2f, this.size.height / 2f)
+            val currentFrame = frame.value.coerceIn(0f, 60f)
 
-        Spacer(
-            modifier = Modifier
-                .fillMaxSize()
-                .drawWithCache {
-                    val scale = this.size.minDimension / 600f
-                    val center = Offset(this.size.width / 2f, this.size.height / 2f)
-                    val spokes = List(12) { index ->
-                        val angle = (index * 30 - 180) * PI / 180
-                        val cosine = cos(angle).toFloat()
-                        val sine = sin(angle).toFloat()
-                        val start = center + Offset(2f * cosine - 104f * sine, 2f * sine + 104f * cosine) * scale
-                        val end = center + Offset(2f * cosine - 206f * sine, 2f * sine + 206f * cosine) * scale
-                        start to end
-                    }
-                    onDrawBehind {
-                        val currentFrame = frame.value.coerceIn(0f, 60f)
-                        for (index in spokes.lastIndex downTo 0) {
-                            val (start, end) = spokes[index]
-                            drawLine(
-                                color = color,
-                                start = start,
-                                end = end,
-                                strokeWidth = 40f * scale,
-                                cap = StrokeCap.Round,
-                                alpha = loadingSpokeAlpha(index, currentFrame),
-                            )
-                        }
-                    }
-                },
-        )
+            for (index in 11 downTo 0) {
+                val angle = (index * 30 - 180) * PI / 180
+                val cosine = cos(angle).toFloat()
+                val sine = sin(angle).toFloat()
+                val start = center + Offset(
+                    (2f * cosine - 104f * sine) * scale,
+                    (2f * sine + 104f * cosine) * scale,
+                )
+                val end = center + Offset(
+                    (2f * cosine - 206f * sine) * scale,
+                    (2f * sine + 206f * cosine) * scale,
+                )
+                drawLine(
+                    color = color,
+                    start = start,
+                    end = end,
+                    strokeWidth = 40f * scale,
+                    cap = StrokeCap.Round,
+                    alpha = loadingSpokeAlpha(index, currentFrame),
+                )
+            }
+        }
     }
 }
 
@@ -78,7 +72,9 @@ internal fun rememberLoadingIndicatorFrame(active: Boolean): State<Float> =
         rememberInfiniteTransition(label = "loading_indicator").animateFloat(
             initialValue = 0f,
             targetValue = 61f,
-            animationSpec = infiniteRepeatable(tween(durationMillis = 1016, easing = LinearEasing)),
+            animationSpec = infiniteRepeatable(
+                tween(durationMillis = 1016, easing = LinearEasing),
+            ),
             label = "loading_frame",
         )
     } else {
