@@ -198,6 +198,8 @@ import com.nuvio.app.features.livetv.LiveTvIncomingSourceRepository
 import com.nuvio.app.features.livetv.LiveTvRepository
 import com.nuvio.app.features.livetv.LiveTvScreen
 import com.nuvio.app.features.notifications.EpisodeReleaseNotificationsRepository
+import com.nuvio.app.features.onboarding.MewOnboardingRepository
+import com.nuvio.app.features.onboarding.MewOnboardingScreen
 import com.nuvio.app.features.p2p.P2pConsentDialog
 import com.nuvio.app.features.p2p.P2pSettingsRepository
 import com.nuvio.app.features.player.PlayerLaunch
@@ -502,6 +504,10 @@ fun App(
         .collectAsStateWithLifecycle()
     val customThemeSecondColor by remember { ThemeSettingsRepository.customThemeSecondColor }
         .collectAsStateWithLifecycle()
+    val onboardingSettings by remember {
+        MewOnboardingRepository.ensureLoaded()
+        NuvioEnhancedSettingsRepository.uiState
+    }.collectAsStateWithLifecycle()
     NuvioKeyboardInputProvider {
     NuvioTheme(
         appTheme = selectedTheme,
@@ -796,6 +802,15 @@ fun App(
                     )
                 }
             }
+        }
+
+        if (gateScreen == AppGateScreen.Main.name && !onboardingSettings.onboardingCompleted) {
+            MewOnboardingScreen(
+                onComplete = MewOnboardingRepository::complete,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .zIndex(100f),
+            )
         }
         }
     }
