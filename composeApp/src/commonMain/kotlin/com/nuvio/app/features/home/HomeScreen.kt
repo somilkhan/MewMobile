@@ -67,6 +67,7 @@ import com.nuvio.app.features.details.seriesPrimaryAction
 import com.nuvio.app.features.home.components.HomeCatalogRowSection
 import com.nuvio.app.features.home.components.HomeContinueWatchingSection
 import com.nuvio.app.features.home.components.HomeEmptyStateCard
+import com.nuvio.app.features.home.components.HomeSourceSetupCard
 import com.nuvio.app.features.home.components.HomeHeroReservedSpace
 import com.nuvio.app.features.home.components.HomeHeroSection
 import com.nuvio.app.features.home.components.HomeSmartShelfComposerSection
@@ -146,6 +147,8 @@ fun HomeScreen(
     onPosterLongClick: ((MetaPreview) -> Unit)? = null,
     onContinueWatchingClick: ((ContinueWatchingItem) -> Unit)? = null,
     onContinueWatchingLongPress: ((ContinueWatchingItem) -> Unit)? = null,
+    onOpenAddons: (() -> Unit)? = null,
+    onOpenPlugins: (() -> Unit)? = null,
     onFolderClick: ((collectionId: String, folderId: String) -> Unit)? = null,
     onFirstCatalogRendered: (() -> Unit)? = null,
 ) {
@@ -1327,6 +1330,13 @@ fun HomeScreen(
                                 title = stringResource(Res.string.compose_search_empty_no_active_addons_title),
                                 message = stringResource(Res.string.home_empty_no_active_addons_message),
                             )
+                            if (onOpenAddons != null && onOpenPlugins != null) {
+                                HomeSourceSetupCard(
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                                    onOpenAddons = onOpenAddons,
+                                    onOpenPlugins = onOpenPlugins,
+                                )
+                            }
                         }
                     }
 
