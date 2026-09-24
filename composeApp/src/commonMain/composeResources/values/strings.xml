@@ -324,7 +324,7 @@
     <string name="collections_your_collections">Your Collections</string>
     <string name="compose_about_made_with">Made with ❤️ by Tapframe and friends</string>
     <string name="compose_about_version_format">Mew %1$s (%2$s)</string>
-    <string name="compose_about_nuvio_version_format">Based on upstream Nuvio %1$s</string>
+    <string name="compose_about_nuvio_version_format">Based on upstream Mew %1$s</string>
     <string name="compose_action_off">Off</string>
     <string name="compose_action_on">On</string>
     <string name="compose_action_pause">Pause</string>
