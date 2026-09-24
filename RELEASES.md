@@ -38,7 +38,7 @@ For local builds, add these values to `local.properties`:
 ```properties
 SIMKL_CLIENT_ID=your_client_id
 SIMKL_REDIRECT_URI=nuvioenhanced://auth/simkl
-SIMKL_APP_NAME=Nuvio Enhanced
+SIMKL_APP_NAME=Mew
 ```
 
 For GitHub Actions releases, add the repository secret `SIMKL_CLIENT_ID`.
@@ -46,7 +46,7 @@ Simkl authentication uses PKCE and does not embed a client secret in the app.
 
 ## Android signing
 
-An APK can update an existing Nuvio Enhanced installation only when both APKs
+An APK can update an existing Mew installation only when both APKs
 use the same application ID and signing certificate. The established Android
 certificate SHA-256 digest is:
 
@@ -54,9 +54,13 @@ certificate SHA-256 digest is:
 4d87e3d92c54ae0efcdebb75dd08b8cfca1eace052198ed3b8f3f552533a21e3
 ```
 
-The repository owner must configure the original signing material through
-`NUVIO_RELEASE_KEYSTORE_BASE64` and the matching release properties. Never
-commit the keystore or its passwords, and do not send them through chat.
+The repository owner must configure the Mew signing material through
+`MEW_RELEASE_KEYSTORE_BASE64`, `MEW_RELEASE_KEYSTORE_PASSWORD`,
+`MEW_RELEASE_KEY_ALIAS`, and `MEW_RELEASE_KEY_PASSWORD`. Never commit the
+keystore or its passwords, and do not send them through chat.
+
+Legacy `NUVIO_*` signing/update identifiers may remain in compatibility paths
+where changing them would break existing installations or release tooling.
 
 The release workflow verifies every generated APK against this digest before
 uploading artifacts or creating a GitHub Release. A mismatch stops the workflow
@@ -68,9 +72,12 @@ GitHub Actions builds automatically use the owner of the repository running the
 workflow. A local build can override the update source in `local.properties`:
 
 ```properties
-NUVIO_UPDATE_GITHUB_OWNER=AKRusso
-NUVIO_UPDATE_GITHUB_REPO=NuvioMobile-Enhanced
+MEW_UPDATE_GITHUB_OWNER=somilkhan
+MEW_UPDATE_GITHUB_REPO=MewMobile
 ```
+
+The updater targets `somilkhan/MewMobile` for Mew releases. Legacy updater
+properties may remain supported for compatibility with existing installations.
 
 The app checks published, non-prerelease GitHub Releases at startup. A release is
 offered only when it contains a compatible APK and has a version newer than the
@@ -78,7 +85,7 @@ installed app. The GitHub release body is displayed as the in-app changelog.
 
 ## Release checklist
 
-1. Update `CHANGELOG.md`.
+1. Update `CHANGELOG.md` with the current Mew release identity.
 2. Increment `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in
    `iosApp/Configuration/Version.xcconfig`.
 3. Build and test `fullRelease`.
