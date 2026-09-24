@@ -24,7 +24,7 @@ import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.getString
 
 private const val gitHubApiBase = "https://api.github.com"
-private val releaseChannelBranches = listOf("enhanced", "cmp-rewrite")
+private val releaseChannelBranches = listOf("enhanced", "cmp-rewrite", "feature/cloudstream-dynamic-repositories")
 
 data class AppUpdate(
     val tag: String,
@@ -201,7 +201,7 @@ private object AppUpdaterRepository {
     }
 
     private fun GitHubReleaseDto.isInstallableRelease(): Boolean =
-        !draft && !prerelease && chooseBestApkAsset(assets) != null
+        !draft && prerelease == AppVersionConfig.IS_BETA && chooseBestApkAsset(assets) != null
 
     private fun GitHubReleaseDto.matchesRequestedChannel(): Boolean {
         if (releaseChannelBranches.any { channel ->
@@ -449,7 +449,7 @@ class AppUpdaterController internal constructor(
                     - Release notes live behind the info button.
                 """.trimIndent(),
                 releaseUrl = null,
-                assetName = "Nuvio-debug-preview.apk",
+                assetName = "MewMobile-debug-preview.apk",
                 assetUrl = "debug://update-preview",
                 assetSizeBytes = 185L * 1024L * 1024L,
                 buildCode = 999,
