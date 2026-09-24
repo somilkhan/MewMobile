@@ -4136,7 +4136,7 @@ private fun AppTabHost(
                 AppScreenTab.Home -> {
                     HomeScreen(
                         modifier = Modifier.fillMaxSize(),
-                        isVisible = rootActionsEnabled,
+                        isVisible = rootActionsEnabled && tab == AppScreenTab.Home,
                         animateCollectionGifs = animateHomeCollectionGifs,
                         scrollToTopRequests = homeScrollToTopRequests,
                         onCatalogClick = onCatalogClick,
@@ -4188,7 +4188,7 @@ private fun AppTabHost(
                         rootActionRequests = settingsRootActionRequests,
                         requestedPageName = requestedSettingsPageName,
                         onRequestedPageConsumed = onRequestedSettingsPageConsumed,
-                        rootActionsEnabled = rootActionsEnabled,
+                        rootActionsEnabled = rootActionsEnabled && tab == AppScreenTab.Settings,
                         onNavigatePage = onSettingsPageClick,
                         onSwitchProfile = onSwitchProfile,
                         onHomescreenClick = onHomescreenSettingsClick,
