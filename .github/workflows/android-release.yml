@@ -1,4 +1,4 @@
-name: Build Nuvio Release
+name: Build MewMobile Stable Release
 
 on:
   workflow_dispatch:
@@ -28,7 +28,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: nuvio-release-${{ github.ref }}
+  group: mewmobile-stable-release-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -151,7 +151,7 @@ jobs:
 
           staging_directory="${RUNNER_TEMP}/nuvio-ipa-staging"
           output_directory="${GITHUB_WORKSPACE}/iosApp/build/ipa"
-          ipa_name="Nuvio-Enhanced-v${app_version}-Full-unsigned.ipa"
+          ipa_name="MewMobile-v${app_version}-Full-unsigned.ipa"
           rm -rf "${staging_directory}" "${output_directory}"
           mkdir -p "${staging_directory}/Payload" "${output_directory}"
           ditto "${app_directory}" "${staging_directory}/Payload/$(basename "${app_directory}")"
@@ -167,7 +167,7 @@ jobs:
       - name: Upload sideload IPA artifact
         uses: actions/upload-artifact@v6
         with:
-          name: nuvio-${{ steps.release.outputs.version }}-ios-full-unsigned
+          name: mewmobile-${{ steps.release.outputs.version }}-ios-full-unsigned
           path: iosApp/build/ipa/${{ steps.package.outputs.ipa_name }}
           if-no-files-found: error
 
@@ -178,8 +178,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ github.token }}
-      RELEASE_PROPERTIES_BASE64: ${{ secrets.NUVIO_LOCAL_PROPERTIES_BASE64 }}
-      RELEASE_KEYSTORE_BASE64: ${{ secrets.NUVIO_RELEASE_KEYSTORE_BASE64 }}
+      RELEASE_PROPERTIES_BASE64: ${{ secrets.MEW_LOCAL_PROPERTIES_BASE64 || secrets.NUVIO_LOCAL_PROPERTIES_BASE64 }}
+      RELEASE_KEYSTORE_BASE64: ${{ secrets.MEW_RELEASE_KEYSTORE_BASE64 || secrets.NUVIO_RELEASE_KEYSTORE_BASE64 }}
       TRAKT_CLIENT_ID: ${{ secrets.TRAKT_CLIENT_ID }}
       SIMKL_CLIENT_ID: ${{ secrets.SIMKL_CLIENT_ID }}
       ANILIST_CLIENT_ID: ${{ secrets.ANILIST_CLIENT_ID }}
@@ -419,7 +419,7 @@ jobs:
               echo "Signing certificate mismatch for ${apk}." >&2
               echo "Expected: ${expected_digest}" >&2
               echo "Actual:   ${actual_digest}" >&2
-              echo "This APK cannot update an existing Nuvio Enhanced installation." >&2
+              echo "This APK cannot update an existing MewMobile installation." >&2
               exit 1
             fi
           done
@@ -428,7 +428,7 @@ jobs:
         if: inputs.mode != 'dry-run'
         uses: actions/upload-artifact@v6
         with:
-          name: nuvio-${{ steps.release.outputs.version }}-full-release
+          name: mewmobile-${{ steps.release.outputs.version }}-full-release
           path: androidApp/build/outputs/apk/full/release/*.apk
           if-no-files-found: error
 
