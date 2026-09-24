@@ -168,7 +168,7 @@ private object AppUpdaterRepository {
             url = "$gitHubApiBase/repos/${AppUpdateConfig.GITHUB_OWNER}/${AppUpdateConfig.GITHUB_REPO}/releases?per_page=20",
             headers = mapOf(
                 "Accept" to "application/vnd.github+json",
-                "User-Agent" to "NuvioMobile-Enhanced",
+                "User-Agent" to "MewMobile",
             ),
             body = "",
         )
