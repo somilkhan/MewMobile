@@ -440,7 +440,7 @@ class AppUpdaterController internal constructor(
         _uiState.value = AppUpdaterUiState(
             update = AppUpdate(
                 tag = "9.9.9",
-                title = "Nuvio 9.9.9",
+                title = "Mew 9.9.9",
                 notes = """
                     A local preview of the new update experience.
 
@@ -449,7 +449,7 @@ class AppUpdaterController internal constructor(
                     - Release notes live behind the info button.
                 """.trimIndent(),
                 releaseUrl = null,
-                assetName = "Nuvio-debug-preview.apk",
+                assetName = "Mew-debug-preview.apk",
                 assetUrl = "debug://update-preview",
                 assetSizeBytes = 185L * 1024L * 1024L,
                 buildCode = 999,
