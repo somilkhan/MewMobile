@@ -4055,6 +4055,8 @@ private fun AppTabHost(
                         onPosterLongClick = onPosterLongClick,
                         onContinueWatchingClick = onContinueWatchingClick,
                         onContinueWatchingLongPress = onContinueWatchingLongPress,
+                        onOpenAddons = onAddonsSettingsClick,
+                        onOpenPlugins = onPluginsSettingsClick,
                         onFolderClick = onFolderClick,
                         onFirstCatalogRendered = onInitialHomeContentRendered,
                     )
