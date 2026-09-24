@@ -3993,62 +3993,91 @@ private fun rememberGuardedPopBackStack(
     }
 }
 
+private val LocalScreenActive = compositionLocalOf { true }
+
 @Composable
-private fun TabContentHost(
+private fun RootTabHost(
     selectedTab: AppScreenTab,
     modifier: Modifier = Modifier,
+    active: Boolean = true,
+    profileId: Int? = null,
     content: @Composable (AppScreenTab) -> Unit,
 ) {
-    val layoutState = remember { androidx.compose.ui.layout.SubcomposeLayoutState() }
-    var displayedTab by remember { mutableStateOf(selectedTab) }
-    val currentContent by androidx.compose.runtime.rememberUpdatedState(content)
-    val tabContents = remember {
-        AppScreenTab.entries.associateWith { tab ->
-            @Composable { currentContent(tab) }
-        }
+    val parentLifecycleState by LocalLifecycleOwner.current.lifecycle.currentStateAsState()
+    val hostActive = active && parentLifecycleState.isAtLeast(Lifecycle.State.STARTED)
+    val focusManager = LocalFocusManager.current
+
+    DisposableEffect(selectedTab, hostActive, profileId) {
+        onDispose { focusManager.clearFocus(force = true) }
     }
 
-    LaunchedEffect(selectedTab) {
-        if (selectedTab == displayedTab) return@LaunchedEffect
+    key(profileId) {
+        val tabStateHolder = rememberSaveableStateHolder()
+        val visitedTabs = remember { mutableSetOf<AppScreenTab>() }
+        val displayedTabs = remember(selectedTab) { (visitedTabs + selectedTab).toList() }
+        SideEffect { visitedTabs += selectedTab }
 
-        val preparation = layoutState.createPausedPrecomposition(
-            selectedTab,
-            tabContents.getValue(selectedTab),
-        )
-        var applied = false
-        try {
-            do {
-                withFrameNanos { }
-                kotlinx.coroutines.yield()
-                val started = kotlin.time.TimeSource.Monotonic.markNow()
-                preparation.resume {
-                    started.elapsedNow() >= kotlin.time.Duration.Companion.milliseconds(2)
+        androidx.compose.ui.layout.Layout(
+            modifier = modifier.fillMaxSize(),
+            content = {
+                displayedTabs.forEach { tab ->
+                    key(tab) {
+                        RootTabPane(
+                            tab = tab,
+                            active = hostActive && tab == selectedTab,
+                            stateHolder = tabStateHolder,
+                            content = content,
+                        )
+                    }
                 }
-            } while (!preparation.isComplete)
-
-            kotlinx.coroutines.ensureActive()
-            preparation.apply()
-            applied = true
-            displayedTab = selectedTab
-        } finally {
-            if (!applied) preparation.cancel()
+            },
+        ) { measurables, constraints ->
+            val selectedIndex = displayedTabs.indexOf(selectedTab)
+            if (selectedIndex < 0) {
+                layout(constraints.minWidth, constraints.minHeight) {}
+            } else {
+                val placeable = measurables[selectedIndex].measure(constraints)
+                layout(placeable.width, placeable.height) {
+                    placeable.placeRelative(0, 0)
+                }
+            }
         }
     }
+}
 
-    androidx.compose.ui.layout.SubcomposeLayout(
-        state = layoutState,
-        modifier = modifier,
-    ) { constraints ->
-        val placeables = subcompose(
-            displayedTab,
-            tabContents.getValue(displayedTab),
-        ).map { it.measure(constraints) }
+@Composable
+private fun RootTabPane(
+    tab: AppScreenTab,
+    active: Boolean,
+    stateHolder: androidx.compose.runtime.saveable.SaveableStateHolder,
+    content: @Composable (AppScreenTab) -> Unit,
+) {
+    val lifecycleOwner = rememberLifecycleOwner(
+        maxLifecycle = if (active) Lifecycle.State.RESUMED else Lifecycle.State.CREATED,
+    )
 
-        layout(
-            constraints.constrainWidth(placeables.maxOfOrNull { it.width } ?: 0),
-            constraints.constrainHeight(placeables.maxOfOrNull { it.height } ?: 0),
-        ) {
-            placeables.forEach { it.placeRelative(0, 0) }
+    CompositionLocalProvider(
+        LocalLifecycleOwner provides lifecycleOwner,
+        LocalScreenActive provides active,
+    ) {
+        stateHolder.SaveableStateProvider(tab.name) {
+            Box(
+                Modifier.fillMaxSize()
+                    .graphicsLayer()
+                    .focusProperties { canFocus = active }
+                    .pointerInput(active) {
+                        if (!active) {
+                            awaitPointerEventScope {
+                                while (true) {
+                                    awaitPointerEvent(PointerEventPass.Initial).changes.forEach { it.consume() }
+                                }
+                            }
+                        }
+                    }
+                    .then(if (active) Modifier else Modifier.clearAndSetSemantics {}),
+            ) {
+                content(tab)
+            }
         }
     }
 }
@@ -4097,14 +4126,13 @@ private fun AppTabHost(
     onRequestedSettingsPageConsumed: () -> Unit = {},
     onInitialHomeContentRendered: () -> Unit = {},
 ) {
-    val tabStateHolder = rememberSaveableStateHolder()
-
-    TabContentHost(
+    RootTabHost(
         selectedTab = selectedTab,
         modifier = modifier.fillMaxSize(),
+        active = rootActionsEnabled,
+        profileId = ProfileRepository.activeProfileId,
     ) { tab ->
-        tabStateHolder.SaveableStateProvider(tab.name) {
-            when (tab) {
+        when (tab) {
                 AppScreenTab.Home -> {
                     HomeScreen(
                         modifier = Modifier.fillMaxSize(),
