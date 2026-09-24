@@ -744,7 +744,9 @@
     <string name="settings_content_discovery_section_home">HOME</string>
     <string name="settings_content_discovery_get_started">GET STARTED</string>
     <string name="settings_content_discovery_section_sources">SOURCES</string>
+    <string name="settings_content_discovery_metadata_title">Metadata (optional)</string>
     <string name="settings_content_discovery_metadata_description">Optional metadata enrichment. TMDB is not required for CloudStream providers.</string>
+    <string name="settings_content_discovery_providers_title">CloudStream providers</string>
     <string name="settings_content_discovery_providers_description">Add external CloudStream repositories and enable providers that can work independently of TMDB.</string>
     <string name="settings_content_discovery_addons_description">Install, remove, refresh, and sort your content sources.</string>
     <string name="settings_content_discovery_addons_description_appstore">Add and manage the addons you use with Mew.</string>
