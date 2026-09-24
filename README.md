@@ -126,6 +126,16 @@ Credentials and private configuration must never be committed to Git.
 
 For CI, keep signing material, API credentials, and other private values in **GitHub Actions repository secrets**. Public client configuration may be embedded only when it is explicitly designed to be public.
 
+### Stable release secrets
+
+The stable Android workflow supports these repository secrets:
+
+- `MEW_RELEASE_KEYSTORE_BASE64` — base64-encoded signing keystore.
+- `MEW_LOCAL_PROPERTIES_BASE64` — base64-encoded release `local.properties` containing the keystore alias/password configuration.
+- Existing third-party client IDs remain separate secrets (for example `SIMKL_CLIENT_ID`, `ANILIST_CLIENT_ID`, `MAL_CLIENT_ID`, and `PREMIUMIZE_CLIENT_ID`).
+
+Never commit the keystore, passwords, API keys, tokens, or the decoded `local.properties` file. The workflow also accepts the legacy `NUVIO_*` signing secret names as a temporary compatibility fallback.
+
 ## Repository configuration
 
 The repository's release/update configuration points to:
