@@ -38,7 +38,7 @@ For local builds, add these values to `local.properties`:
 ```properties
 SIMKL_CLIENT_ID=your_client_id
 SIMKL_REDIRECT_URI=nuvioenhanced://auth/simkl
-SIMKL_APP_NAME=Nuvio Enhanced
+SIMKL_APP_NAME=MewMobile
 ```
 
 For GitHub Actions releases, add the repository secret `SIMKL_CLIENT_ID`.
@@ -46,7 +46,7 @@ Simkl authentication uses PKCE and does not embed a client secret in the app.
 
 ## Android signing
 
-An APK can update an existing Nuvio Enhanced installation only when both APKs
+An APK can update an existing MewMobile installation only when both APKs
 use the same application ID and signing certificate. The established Android
 certificate SHA-256 digest is:
 
@@ -68,8 +68,8 @@ GitHub Actions builds automatically use the owner of the repository running the
 workflow. A local build can override the update source in `local.properties`:
 
 ```properties
-NUVIO_UPDATE_GITHUB_OWNER=AKRusso
-NUVIO_UPDATE_GITHUB_REPO=NuvioMobile-Enhanced
+NUVIO_UPDATE_GITHUB_OWNER=somilkhan
+NUVIO_UPDATE_GITHUB_REPO=MewMobile
 ```
 
 The app checks published, non-prerelease GitHub Releases at startup. A release is
