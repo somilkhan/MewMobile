@@ -110,10 +110,10 @@ fun ProfileEditScreen(
     var showGifSearch by remember { mutableStateOf(false) }
     val authState by AuthRepository.state.collectAsStateWithLifecycle()
 
+    // Profile creation must not depend on remote avatar-catalog initialization.
+    // The editor can render and create a profile with the built-in fallback avatar
+    // while the catalog is loaded elsewhere or on a later screen.
     val avatars by AvatarRepository.avatars.collectAsStateWithLifecycle()
-    LaunchedEffect(Unit) {
-        AvatarRepository.fetchAvatars()
-    }
     LaunchedEffect(isNew, avatars, selectedAvatarId, avatarUrl, currentProfile?.avatarId, currentProfile?.avatarUrl) {
         if (
             avatarUrl.isBlank() &&
