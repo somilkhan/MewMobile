@@ -465,10 +465,10 @@ val generateRuntimeConfigs = tasks.register<GenerateRuntimeConfigsTask>("generat
         runtimeConfigValue(
             "NUVIO_UPDATE_GITHUB_OWNER",
             "GITHUB_REPOSITORY_OWNER",
-            fallback = "AKRusso",
+            fallback = "somilkhan",
         )
     )
-    updateGithubRepo.set(runtimeConfigValue("NUVIO_UPDATE_GITHUB_REPO", fallback = "NuvioMobile-Enhanced"))
+    updateGithubRepo.set(runtimeConfigValue("NUVIO_UPDATE_GITHUB_REPO", fallback = "MewMobile"))
 }
 
 tasks.withType<KotlinCompilationTask<*>>().configureEach {
