@@ -75,6 +75,126 @@ import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
+@Composable
+private fun ProfileCreateScreen(
+    onBack: () -> Unit,
+    onSaved: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val scope = rememberCoroutineScope()
+    var name by rememberSaveable { mutableStateOf("") }
+    var usesPrimaryAddons by rememberSaveable { mutableStateOf(false) }
+    var isSaving by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    val genericSaveErrorMessage = stringResource(Res.string.profile_save_failed)
+
+    Surface(
+        modifier = modifier,
+        color = MaterialTheme.colorScheme.background,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp, vertical = 28.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp),
+        ) {
+            IconButton(onClick = onBack) {
+                Icon(
+                    imageVector = Icons.Rounded.Close,
+                    contentDescription = null,
+                )
+            }
+
+            Text(
+                text = stringResource(Res.string.profile_edit_add_title),
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                text = stringResource(Res.string.profile_new),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            NuvioSurfaceCard {
+                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Text(
+                        text = stringResource(Res.string.profile_name),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    NuvioInputField(
+                        value = name,
+                        onValueChange = { name = it },
+                        placeholder = stringResource(Res.string.profile_name),
+                    )
+                    Text(
+                        text = stringResource(Res.string.profile_primary_addons_description),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = stringResource(Res.string.profile_primary_addons),
+                            style = MaterialTheme.typography.titleSmall,
+                        )
+                        Switch(
+                            checked = usesPrimaryAddons,
+                            onCheckedChange = { usesPrimaryAddons = it },
+                        )
+                    }
+                }
+            }
+
+            errorMessage?.let { message ->
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+
+            NuvioPrimaryButton(
+                text = if (isSaving) {
+                    stringResource(Res.string.profile_saving)
+                } else {
+                    stringResource(Res.string.profile_create_profile)
+                },
+                enabled = name.isNotBlank() && !isSaving,
+                onClick = {
+                    isSaving = true
+                    errorMessage = null
+                    scope.launch {
+                        val result = runCatching {
+                            ProfileRepository.createProfile(
+                                name = name.trim(),
+                                avatarColorHex = PROFILE_COLORS.first(),
+                                usesPrimaryAddons = usesPrimaryAddons,
+                            )
+                        }.getOrElse { throwable ->
+                            ProfileMutationResult(
+                                success = false,
+                                message = throwable.message ?: genericSaveErrorMessage,
+                            )
+                        }
+                        if (result.success) {
+                            onSaved()
+                        } else {
+                            errorMessage = result.message ?: genericSaveErrorMessage
+                        }
+                        isSaving = false
+                    }
+                },
+            )
+        }
+    }
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ProfileEditScreen(
@@ -83,7 +203,16 @@ fun ProfileEditScreen(
     onSaved: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val isNew = profile == null
+    if (profile == null) {
+        ProfileCreateScreen(
+            onBack = onBack,
+            onSaved = onSaved,
+            modifier = modifier,
+        )
+        return
+    }
+
+    val isNew = false
     val scope = rememberCoroutineScope()
     val profileState by ProfileRepository.state.collectAsStateWithLifecycle()
     val currentProfile = remember(profile?.profileIndex, profileState.profiles, profile) {
