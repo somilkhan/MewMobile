@@ -2,6 +2,7 @@ package com.nuvio.app.features.onboarding
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -36,6 +37,9 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.nuvio.app.core.ui.nuvio
+import nuvio.composeapp.generated.resources.Res
+import nuvio.composeapp.generated.resources.mewmobile_onboarding_logo
+import org.jetbrains.compose.resources.painterResource
 
 private const val TmdbManifest = "https://tmdb.elfhosted.com/manifest.json"
 private const val ProviderManifest = "https://raw.githubusercontent.com/phisher98/phisher-nuvio-providers/refs/heads/main/manifest.json"
@@ -61,6 +65,11 @@ internal fun MewOnboardingScreen(
                 .padding(horizontal = 24.dp, vertical = 28.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
+            Image(
+                painter = painterResource(Res.drawable.mewmobile_onboarding_logo),
+                contentDescription = "MewMobile",
+                modifier = Modifier.fillMaxWidth().height(96.dp),
+            )
             Text(
                 "MewMobile",
                 style = androidx.compose.material3.MaterialTheme.typography.displaySmall,
