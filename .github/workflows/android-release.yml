@@ -418,7 +418,7 @@ jobs:
           key_alias="$(grep '^NUVIO_RELEASE_KEY_ALIAS=' local.properties | tail -n 1 | cut -d= -f2-)"
           key_password="$(grep '^NUVIO_RELEASE_KEY_PASSWORD=' local.properties | tail -n 1 | cut -d= -f2-)"
           expected_digest="$(
-            keytool -list -v -keystore "${keystore_path}" -alias "${key_alias}" -storepass "${store_password}" -keypass "${key_password}" |
+            keytool -list -v -keystore "${RUNNER_TEMP}/mew-release.jks" -alias "${key_alias}" -storepass "${store_password}" -keypass "${key_password}" |
               sed -n -E 's/^.*SHA256:[[:space:]]*//p' |
               head -n 1 |
               tr '[:upper:]' '[:lower:]' |
