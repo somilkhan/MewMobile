@@ -50,6 +50,7 @@ internal data class NuvioEnhancedSettingsUiState(
     val releaseRadarContentFilter: NuvioReleaseRadarContentFilter = NuvioReleaseRadarContentFilter.All,
     val featureHighlightsEnabled: Boolean = true,
     val discordWelcomeSeen: Boolean = false,
+    val onboardingCompleted: Boolean = false,
     val seenFeatureIds: Set<String> = emptySet(),
 ) {
     fun isNew(feature: NuvioEnhancedFeature): Boolean =
@@ -186,6 +187,7 @@ private data class StoredNuvioEnhancedSettings(
     val releaseRadarContentFilter: NuvioReleaseRadarContentFilter = NuvioReleaseRadarContentFilter.All,
     val featureHighlightsEnabled: Boolean = true,
     val discordWelcomeSeen: Boolean = false,
+    val onboardingCompleted: Boolean = false,
     val seenFeatureIds: Set<String> = previouslyReleasedFeatureIds,
 )
 
@@ -421,6 +423,10 @@ internal object NuvioEnhancedSettingsRepository {
         copy(discordWelcomeSeen = true)
     }
 
+    fun markOnboardingCompleted() = update {
+        copy(onboardingCompleted = true)
+    }
+
     fun markFeatureSeen(feature: NuvioEnhancedFeature) {
         ensureLoaded()
         if (feature.id in stored.seenFeatureIds) return
@@ -486,6 +492,7 @@ internal object NuvioEnhancedSettingsRepository {
             releaseRadarContentFilter = stored.releaseRadarContentFilter,
             featureHighlightsEnabled = stored.featureHighlightsEnabled,
             discordWelcomeSeen = stored.discordWelcomeSeen,
+            onboardingCompleted = stored.onboardingCompleted,
             seenFeatureIds = stored.seenFeatureIds,
         )
     }
