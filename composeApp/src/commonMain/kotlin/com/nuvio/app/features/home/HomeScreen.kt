@@ -136,6 +136,7 @@ import kotlin.math.abs
 @Composable
 fun HomeScreen(
     modifier: Modifier = Modifier,
+    isVisible: Boolean = true,
     animateCollectionGifs: Boolean = true,
     scrollToTopRequests: Flow<Unit> = emptyFlow(),
     onCatalogClick: ((HomeCatalogSection) -> Unit)? = null,
@@ -153,6 +154,13 @@ fun HomeScreen(
         ContinueWatchingPreferencesRepository.ensureLoaded()
         WatchedRepository.ensureLoaded()
         WatchProgressRepository.ensureLoaded()
+    }
+
+    LaunchedEffect(isVisible) {
+        HomeRepository.setVisible(isVisible)
+        if (isVisible) {
+            HomeRepository.refresh(AddonRepository.uiState.value.addons.enabledAddons())
+        }
     }
 
     LaunchedEffect(Unit) {
@@ -704,8 +712,8 @@ fun HomeScreen(
             "cloudstream:${cloudStreamUiState.registryRevision}:${cloudStreamUiState.plugins.count { it.isRunnable }}"
     }
 
-    LaunchedEffect(activeProfileId, catalogRefreshKey) {
-        if (catalogRefreshKey.isEmpty()) return@LaunchedEffect
+    LaunchedEffect(activeProfileId, catalogRefreshKey, isVisible) {
+        if (!isVisible || catalogRefreshKey.isEmpty()) return@LaunchedEffect
         HomeCatalogSettingsRepository.syncCatalogs(enabledAddons)
         HomeRepository.refresh(enabledAddons)
     }
