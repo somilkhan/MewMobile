@@ -7,6 +7,9 @@ import nuvio.composeapp.generated.resources.compose_settings_page_addons
 import nuvio.composeapp.generated.resources.compose_settings_page_cloudstream
 import nuvio.composeapp.generated.resources.compose_settings_page_plugins
 import nuvio.composeapp.generated.resources.settings_content_discovery_addons_description
+import nuvio.composeapp.generated.resources.settings_content_discovery_get_started
+import nuvio.composeapp.generated.resources.settings_content_discovery_metadata_description
+import nuvio.composeapp.generated.resources.settings_content_discovery_providers_description
 import nuvio.composeapp.generated.resources.settings_content_discovery_addons_description_appstore
 import nuvio.composeapp.generated.resources.settings_content_discovery_cloudstream_description
 import nuvio.composeapp.generated.resources.settings_content_discovery_plugins_description
@@ -21,6 +24,31 @@ internal fun LazyListScope.contentDiscoveryContent(
     onPluginsClick: () -> Unit,
     onCloudStreamClick: () -> Unit,
 ) {
+    item {
+        SettingsSection(
+            title = stringResource(Res.string.settings_content_discovery_get_started),
+            isTablet = isTablet,
+        ) {
+            SettingsGroup(isTablet = isTablet) {
+                SettingsNavigationRow(
+                    title = stringResource(Res.string.compose_settings_page_addons),
+                    description = stringResource(Res.string.settings_content_discovery_metadata_description),
+                    isTablet = isTablet,
+                    onClick = onAddonsClick,
+                )
+                if (showCloudStreamEntry) {
+                    SettingsGroupDivider(isTablet = isTablet)
+                    SettingsNavigationRow(
+                        title = stringResource(Res.string.compose_settings_page_cloudstream),
+                        description = stringResource(Res.string.settings_content_discovery_providers_description),
+                        isTablet = isTablet,
+                        onClick = onCloudStreamClick,
+                    )
+                }
+            }
+        }
+    }
+
     item {
         SettingsSection(
             title = stringResource(Res.string.settings_content_discovery_section_sources),
