@@ -457,7 +457,7 @@ jobs:
         if: inputs.include_ios && (inputs.mode == 'draft' || inputs.mode == 'publish')
         uses: actions/download-artifact@v7
         with:
-          name: nuvio-${{ steps.release.outputs.version }}-ios-full-unsigned
+          name: mew-${{ steps.release.outputs.version }}-ios-full-unsigned
           path: ios-release
 
       - name: Create GitHub release
