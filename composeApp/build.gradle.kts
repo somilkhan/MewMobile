@@ -26,6 +26,9 @@ abstract class GenerateRuntimeConfigsTask : DefaultTask() {
     abstract val appVersionCode: Property<Int>
 
     @get:Input
+    abstract val appBetaChannel: Property<Boolean>
+
+    @get:Input
     abstract val nuvioVersionName: Property<String>
 
     @get:Input
@@ -274,6 +277,7 @@ abstract class GenerateRuntimeConfigsTask : DefaultTask() {
                 |object AppVersionConfig {
                 |    const val VERSION_NAME = "${appVersionName.get()}"
                 |    const val VERSION_CODE = ${appVersionCode.get()}
+                |    const val IS_BETA = ${appBetaChannel.get()}
                 |    const val NUVIO_VERSION_NAME = "${nuvioVersionName.get()}"
                 |}
                 """.trimMargin()
@@ -417,6 +421,7 @@ val generateRuntimeConfigs = tasks.register<GenerateRuntimeConfigsTask>("generat
     localPropertiesFile.set(rootProject.layout.projectDirectory.file("local.properties"))
     appVersionName.set(releaseAppVersionName)
     appVersionCode.set(releaseAppVersionCode)
+    appBetaChannel.set(providers.gradleProperty("mew.beta").map { it.toBoolean() }.orElse(false))
     nuvioVersionName.set("0.4.11")
     supabaseUrl.set(runtimeConfigValue("NUVIO_SUPABASE_URL", "SUPABASE_URL", fallback = publicNuvioApiUrl))
     supabaseAnonKey.set(runtimeConfigValue("NUVIO_SUPABASE_ANON_KEY", "SUPABASE_ANON_KEY", fallback = publicNuvioApiKey))
