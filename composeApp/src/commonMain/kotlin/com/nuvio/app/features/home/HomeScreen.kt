@@ -1176,7 +1176,7 @@ fun HomeScreen(
                 listState = homeListState,
             ) {
                 if (showHeroSlot) {
-                    item {
+                    item(key = "home_hero", contentType = "hero") {
                         when {
                             showHeroSkeleton -> HomeSkeletonHero(
                                 modifier = Modifier,
@@ -1248,7 +1248,7 @@ fun HomeScreen(
                 }
 
                 if (continueWatchingPreferences.isVisible && continueWatchingItems.isNotEmpty()) {
-                    item(key = HOME_CONTINUE_WATCHING_SECTION_KEY) {
+                    item(key = HOME_CONTINUE_WATCHING_SECTION_KEY, contentType = "continue_watching") {
                         HomeContinueWatchingSection(
                             items = continueWatchingItems,
                             dataSourceKey = ContinueWatchingDataSourceKey(
@@ -1274,7 +1274,7 @@ fun HomeScreen(
                 }
 
                 if (continueWatchingPreferences.isVisible && upcomingItems.isNotEmpty()) {
-                    item(key = HOME_UPCOMING_SECTION_KEY) {
+                    item(key = HOME_UPCOMING_SECTION_KEY, contentType = "continue_watching") {
                         HomeContinueWatchingSection(
                             items = upcomingItems,
                             dataSourceKey = ContinueWatchingDataSourceKey(
@@ -1300,7 +1300,7 @@ fun HomeScreen(
                 }
 
                 if (smartShelves.isNotEmpty()) {
-                    item(key = HOME_SMART_SHELVES_SECTION_KEY) {
+                    item(key = HOME_SMART_SHELVES_SECTION_KEY, contentType = "smart_shelves") {
                         HomeSmartShelfComposerSection(
                             shelves = smartShelves,
                             modifier = Modifier.padding(bottom = 12.dp),
@@ -1312,7 +1312,7 @@ fun HomeScreen(
 
                 when {
                     !hasActiveAddons && !hasRenderableCollectionRows && !hasPremiumHomeRows -> {
-                        item {
+                        item(key = "home_empty", contentType = "empty") {
                             HomeEmptyStateCard(
                                 modifier = Modifier.padding(horizontal = 16.dp),
                                 title = stringResource(Res.string.compose_search_empty_no_active_addons_title),
@@ -1322,7 +1322,11 @@ fun HomeScreen(
                     }
 
                     homeUiState.isLoading && homeUiState.sections.isEmpty() && !hasRenderableCollectionRows && !hasPremiumHomeRows -> {
-                        items(3) {
+                        items(
+                            count = 3,
+                            key = { "home_skeleton_$it" },
+                            contentType = { "skeleton" },
+                        ) {
                             HomeSkeletonRow(
                                 modifier = Modifier.padding(horizontal = 16.dp),
                                 showHeaderAccent = !homeSettingsUiState.hideCatalogUnderline,
@@ -1357,7 +1361,7 @@ fun HomeScreen(
 
                     else -> {
                         cloudStreamHomeSections.forEach { section ->
-                            item(key = section.key) {
+                            item(key = section.key, contentType = "catalog") {
                                 HomeCatalogRowSection(
                                     section = section,
                                     entries = section.items.take(HOME_CATALOG_PREVIEW_LIMIT),
@@ -1380,7 +1384,7 @@ fun HomeScreen(
                             if (settingsItem.isCollection) {
                                 val collection = collectionsMap[settingsItem.key]
                                 if (collection != null) {
-                                    item(key = settingsItem.key) {
+                                    item(key = settingsItem.key, contentType = "collection") {
                                         HomeCollectionRowSection(
                                             collection = collection,
                                             modifier = Modifier.padding(bottom = 12.dp),
@@ -1393,7 +1397,7 @@ fun HomeScreen(
                             } else {
                                 val section = sectionsMap[settingsItem.key]
                                 if (section != null && section.items.isNotEmpty()) {
-                                    item(key = settingsItem.key) {
+                                    item(key = settingsItem.key, contentType = "catalog") {
                                         HomeCatalogRowSection(
                                             section = section,
                                             entries = section.items.take(HOME_CATALOG_PREVIEW_LIMIT),
