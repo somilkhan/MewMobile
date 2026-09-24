@@ -4037,6 +4037,8 @@ private fun AppTabHost(
     onRequestedSettingsPageConsumed: () -> Unit = {},
     onInitialHomeContentRendered: () -> Unit = {},
 ) {
+    val contentDiscoveryTitle = stringResource(Res.string.compose_settings_page_content_discovery)
+
     RootTabHost(
         selectedTab = selectedTab,
         modifier = modifier.fillMaxSize(),
@@ -4059,7 +4061,7 @@ private fun AppTabHost(
                         onOpenDiscoveryClick = {
                             onSettingsPageClick?.invoke(
                                 SettingsPage.ContentDiscovery.name,
-                                stringResource(Res.string.compose_settings_page_content_discovery),
+                                contentDiscoveryTitle,
                             )
                         },
                         onFirstCatalogRendered = onInitialHomeContentRendered,
