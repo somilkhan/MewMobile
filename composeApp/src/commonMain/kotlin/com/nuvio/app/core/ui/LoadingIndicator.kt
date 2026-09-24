@@ -37,7 +37,7 @@ fun NuvioLoadingIndicator(
     ) {
         val frame = rememberLoadingIndicatorFrame(active)
         Canvas(modifier = Modifier.size(size)) {
-            val scale = this.size.minDimension / 600f
+            val scale = minOf(this.size.width, this.size.height) / 600f
             val center = Offset(this.size.width / 2f, this.size.height / 2f)
             val currentFrame = frame.value.coerceIn(0f, 60f)
 
