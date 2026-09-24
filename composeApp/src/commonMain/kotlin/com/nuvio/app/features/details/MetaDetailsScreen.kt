@@ -316,6 +316,7 @@ fun MetaDetailsScreen(
             return@LaunchedEffect
         }
         if (!deferredMetaWorkAllowed) return@LaunchedEffect
+        delay(150)
         isCommentsLoading = true
         commentsError = null
         try {
@@ -337,6 +338,7 @@ fun MetaDetailsScreen(
             return@LaunchedEffect
         }
         if (!deferredMetaWorkAllowed) return@LaunchedEffect
+        delay(300)
         if (metaForRatings == null || !metaForRatings.isSeriesLikeForEpisodeRatings()) {
             episodeImdbRatings = emptyMap()
             episodeTmdbRatings = emptyMap()
@@ -806,6 +808,7 @@ fun MetaDetailsScreen(
                     ) {
                         return@LaunchedEffect
                     }
+                    delay(450)
                     TmdbMetadataService.fetchCompanyBranding(
                         meta = meta,
                         fallbackItemId = id,
@@ -836,6 +839,7 @@ fun MetaDetailsScreen(
                     ) {
                         return@LaunchedEffect
                     }
+                    delay(450)
                     cinematicWatchProviders = TmdbMetadataService.fetchWatchProviders(
                         meta = meta,
                         fallbackItemId = id,
