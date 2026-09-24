@@ -4120,7 +4120,6 @@ private fun AppTabHost(
             }
         }
     }
-}
 
 @Composable
 private fun TabletFloatingTopBar(
