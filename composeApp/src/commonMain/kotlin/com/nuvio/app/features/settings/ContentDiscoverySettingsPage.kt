@@ -9,6 +9,8 @@ import nuvio.composeapp.generated.resources.compose_settings_page_plugins
 import nuvio.composeapp.generated.resources.settings_content_discovery_addons_description
 import nuvio.composeapp.generated.resources.settings_content_discovery_get_started
 import nuvio.composeapp.generated.resources.settings_content_discovery_metadata_description
+import nuvio.composeapp.generated.resources.settings_content_discovery_metadata_title
+import nuvio.composeapp.generated.resources.settings_content_discovery_providers_title
 import nuvio.composeapp.generated.resources.settings_content_discovery_providers_description
 import nuvio.composeapp.generated.resources.settings_content_discovery_addons_description_appstore
 import nuvio.composeapp.generated.resources.settings_content_discovery_cloudstream_description
@@ -31,7 +33,7 @@ internal fun LazyListScope.contentDiscoveryContent(
         ) {
             SettingsGroup(isTablet = isTablet) {
                 SettingsNavigationRow(
-                    title = stringResource(Res.string.compose_settings_page_addons),
+                    title = stringResource(Res.string.settings_content_discovery_metadata_title),
                     description = stringResource(Res.string.settings_content_discovery_metadata_description),
                     isTablet = isTablet,
                     onClick = onAddonsClick,
@@ -39,7 +41,7 @@ internal fun LazyListScope.contentDiscoveryContent(
                 if (showCloudStreamEntry) {
                     SettingsGroupDivider(isTablet = isTablet)
                     SettingsNavigationRow(
-                        title = stringResource(Res.string.compose_settings_page_cloudstream),
+                        title = stringResource(Res.string.settings_content_discovery_providers_title),
                         description = stringResource(Res.string.settings_content_discovery_providers_description),
                         isTablet = isTablet,
                         onClick = onCloudStreamClick,
