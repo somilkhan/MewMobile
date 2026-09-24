@@ -1,119 +1,97 @@
-<div align="center">
+# MewMobile
 
-  <h1>MewMobile</h1>
+MewMobile is a modern Android media client built around flexible external integrations, with CloudStream compatibility as a core source layer.
 
-  <p><strong>A community fork of NuvioMobile focused on a cleaner Mew experience, CloudStream compatibility, performance, and user-controlled sources.</strong></p>
-
-  <p>
-    <a href="https://github.com/somilkhan/MewMobile/releases"><img src="https://img.shields.io/github/v/release/somilkhan/MewMobile?style=for-the-badge&label=Latest%20Release" alt="Latest release" /></a>
-    <a href="https://github.com/somilkhan/MewMobile/actions"><img src="https://img.shields.io/github/actions/workflow/status/somilkhan/MewMobile/mew-cloudstream-build.yml?style=for-the-badge&label=Android%20Build" alt="Android build status" /></a>
-    <a href="https://github.com/somilkhan/MewMobile/blob/enhanced/LICENSE"><img src="https://img.shields.io/github/license/somilkhan/MewMobile?style=for-the-badge" alt="GPL-3.0 license" /></a>
-  </p>
-
-  <p>
-    <a href="#what-is-mewmobile">What is MewMobile</a> |
-    <a href="#getting-started">Getting started</a> |
-    <a href="#discovery-setup">Discovery setup</a> |
-    <a href="#builds">Builds</a> |
-    <a href="#development">Development</a>
-  </p>
-
-</div>
-
-## What is MewMobile
-
-MewMobile is an independent community fork of [NuvioMobile](https://github.com/NuvioMedia/NuvioMobile).
-
-The project keeps the upstream client architecture while focusing on:
-
-- **Mew branding and UX** rather than the upstream product identity.
-- **CloudStream compatibility** as a first-class source layer.
-- **Optional TMDB enrichment** — TMDB is not required for CloudStream content to work.
-- **User-controlled addons and plugins** instead of a built-in all-in-one source bundle.
-- **Performance and frame pacing** across Home, navigation, Details, image loading, and background work.
-- **Android-first testing** with release builds suitable for beta and stable distribution.
-
-MewMobile does not host media or provide media itself. Users add and control their own compatible sources.
-
-## Getting started
-
-MewMobile is intentionally source-driven. After installation, add at least one content source before expecting Home or Search to populate.
-
-### Recommended first setup
-
-**1. Metadata / catalogs**
-
-Install a compatible metadata/catalog addon from the Addons section:
-
-- [TMDB addon configuration](https://tmdb.elfhosted.com/configure)
-
-**2. CloudStream providers / plugins**
-
-Open the Plugins section and add the provider repository:
-
-- [Phisher98 Nuvio providers repository](https://raw.githubusercontent.com/phisher98/phisher-nuvio-providers/refs/heads/main/manifest.json)
-
-**3. Enable the sources**
-
-After installation, enable the addon/plugin and return to Home. MewMobile keeps these source layers separate:
-
-| Layer | Purpose |
-| --- | --- |
-| Addons | Catalogs, metadata, streams, subtitles and other Stremio-compatible resources |
-| CloudStream plugins | Provider/search/home/details/episode/playback sources through the CloudStream compatibility layer |
-| TMDB enrichment | Optional metadata enrichment; not a prerequisite for CloudStream content |
-
-> **Important:** MewMobile does not ship a built-in AIO source bundle. Add the sources you actually want to use.
-
-## Discovery setup
-
-The recommended onboarding flow is intentionally simple:
-
-**Discovery → Addons → install metadata source → Plugins → install provider repository → enable sources**
-
-The UI should explain this progressively rather than presenting users with an empty Home and no indication of what to do next.
-
-### Useful source URLs
-
-- TMDB addon: [configure/install page](https://tmdb.elfhosted.com/configure)
-- CloudStream provider repository: [manifest.json](https://raw.githubusercontent.com/phisher98/phisher-nuvio-providers/refs/heads/main/manifest.json)
-
-Source availability can change independently of MewMobile. A failed third-party source should not be interpreted as an MewMobile application failure without checking the source itself.
+MewMobile does not bundle an all-in-one provider system or host media. You choose the addons, plugins, repositories, metadata services, and playback integrations you want to use.
 
 ## Features
 
-- CloudStream-compatible provider loading.
-- Dynamic CloudStream plugin/repository support.
-- Optional TMDB enrichment.
-- Stremio-compatible addon installation.
-- Search, Home, Details, episodes and playback through supported sources.
-- Multiple player backends.
-- Profiles, library, watch progress and tracking integrations inherited from the upstream architecture.
-- Performance-focused Compose and image-loading optimizations.
-- Runtime diagnostics for network, metadata, streams and plugin activity.
+- CloudStream provider compatibility and dynamic repositories.
+- External Stremio-compatible addon support.
+- Optional TMDB metadata/catalog enrichment.
+- Search, Home/catalog browsing, Details, episodes, and playback through supported integrations.
+- External plugin and repository architecture.
+- Multiple playback integrations where supported by the current build.
+- Android-focused performance and diagnostics work.
 
-## Builds
+## Architecture
 
-MewMobile is developed with separate **beta** and **stable** distribution tracks.
+```
+MewMobile
+├── UI
+├── Metadata
+├── CloudStream compatibility
+├── External addons
+├── External repositories / plugins
+└── Playback
+```
 
-### Beta
+Integrations remain external. MewMobile does not silently bundle or inject third-party providers.
 
-Beta builds are for testing the newest MewMobile changes before a stable release.
+### TMDB vs CloudStream
 
-### Stable
+**TMDB addon**
 
-Stable builds are release builds intended for regular use after validation.
+Optional metadata and catalog enrichment. Installing TMDB is not required for CloudStream providers to work.
 
-Release artifacts are produced by GitHub Actions. Do not treat a CI build as proof of device-level performance; physical-device verification remains a separate validation step.
+**CloudStream plugins / repositories**
+
+Provider and source integrations exposed through MewMobile's CloudStream compatibility layer. They can provide content independently of TMDB.
+
+**Stremio/Nuvio addons**
+
+External addon integrations. They remain separate from the CloudStream plugin system.
+
+## Getting started
+
+On first launch, MewMobile explains the integration model and points you to Discovery.
+
+Typical setup:
+
+1. Open **Discovery → Addons** when you want metadata/catalog integrations.
+2. Open **Discovery → Plugins** when you want provider repositories.
+3. Open **Discovery → CloudStream** to manage CloudStream repositories and extensions.
+4. Return to Home after enabling the integrations you want.
+
+### Optional TMDB metadata
+
+TMDB manifest:
+
+https://tmdb.elfhosted.com/manifest.json
+
+### CloudStream provider repository
+
+Provider repository manifest:
+
+https://raw.githubusercontent.com/phisher98/phisher-nuvio-providers/refs/heads/main/manifest.json
+
+These are external sources. Their availability and contents are independent of MewMobile.
+
+## No built-in AIO
+
+MewMobile intentionally does not include:
+
+- a bundled AIO provider;
+- a hidden provider database;
+- automatic third-party provider injection;
+- a mandatory TMDB dependency.
+
+The application provides the client and compatibility layers; users choose their external integrations.
 
 ## Development
 
 MewMobile is a Kotlin Multiplatform / Compose Multiplatform project.
 
-### Android debug build
+### Android debug
 
 ```bash
 ./gradlew :androidApp:assembleFullDebug -Pnuvio.android.distribution=full
+```
+
+### Android release
+
+```bash
+./gradlew :androidApp:assembleFullRelease
 ```
 
 ### Validation
@@ -122,55 +100,59 @@ MewMobile is a Kotlin Multiplatform / Compose Multiplatform project.
 ./gradlew allTests :androidApp:lintFullDebug
 ```
 
-Credentials and private configuration must never be committed to Git.
+Keep private credentials, signing material, and API secrets out of Git.
 
-For CI, keep signing material, API credentials, and other private values in **GitHub Actions repository secrets**. Public client configuration may be embedded only when it is explicitly designed to be public.
+## Builds and releases
 
-### Stable release secrets
+MewMobile uses separate beta and stable release tracks.
 
-The stable Android workflow supports these repository secrets:
+**Beta**
 
-- `MEW_RELEASE_KEYSTORE_BASE64` — base64-encoded signing keystore.
-- `MEW_LOCAL_PROPERTIES_BASE64` — base64-encoded release `local.properties` containing the keystore alias/password configuration.
-- Existing third-party client IDs remain separate secrets (for example `SIMKL_CLIENT_ID`, `ANILIST_CLIENT_ID`, `MAL_CLIENT_ID`, and `PREMIUMIZE_CLIENT_ID`).
+- Prerelease builds for validation.
+- Intended for testing current changes.
+- Must not overwrite or replace stable releases.
 
-Never commit the keystore, passwords, API keys, tokens, or the decoded `local.properties` file. The workflow also accepts the legacy `NUVIO_*` signing secret names as a temporary compatibility fallback.
+**Stable**
 
-## Repository configuration
+- Production release track.
+- Manually validated before publication.
+- Signed APKs include the universal artifact and ABI variants produced by the Android build.
 
-The repository's release/update configuration points to:
+Release infrastructure also validates the Android signing certificate so an incorrectly signed APK cannot silently replace an existing installation.
 
-- Repository owner: `somilkhan`
-- Repository: `MewMobile`
-- Development branch: `feature/cloudstream-dynamic-repositories`
-- Base branch: `enhanced`
+## Updates
 
-The in-app update checker must use the MewMobile repository, not the upstream or an unrelated Enhanced fork.
+The in-app updater is intended to consume releases from:
 
-## Attribution
+https://github.com/somilkhan/MewMobile
 
-MewMobile is an independent fork and is not an official NuvioMedia product.
+Release asset naming and channel filtering must remain compatible with the updater implementation.
 
-Original project:
+## Security
 
-- [NuvioMobile](https://github.com/NuvioMedia/NuvioMobile)
-- [NuvioMedia](https://github.com/NuvioMedia)
+CI-only credentials belong in GitHub Actions repository secrets.
 
-MewMobile retains the original project's applicable GPL-3.0 licensing and attribution requirements. Fork-specific changes are maintained in this repository's history.
+Never commit:
+
+- release keystores or passwords;
+- private API credentials;
+- access tokens;
+- signing keys;
+- decoded CI `local.properties`.
+
+An Android application cannot keep a secret private once it is compiled into an APK. Credentials that genuinely require server-side secrecy must be handled by a trusted backend boundary.
+
+## Credits
+
+MewMobile is maintained independently and retains required upstream attribution.
+
+Upstream project:
+
+https://github.com/NuvioMedia/NuvioMobile
+
+MewMobile preserves applicable upstream licenses and attribution requirements. See the repository license for the authoritative terms.
 
 ## Responsible use
 
-MewMobile is a client application. It does not host or distribute media.
+MewMobile is a client application and does not host or distribute media. Use external addons, plugins, catalogs, and streams only when you are authorized to access the underlying services and content.
 
-Use addons, plugins, catalogs and streams only when you are authorized to access the underlying content and services. Third-party sources are independent of MewMobile and may have their own terms, availability and legal requirements.
-
-## Contributing
-
-When submitting a change:
-
-1. Keep the change focused.
-2. Inspect the real execution path before changing behavior.
-3. Preserve CloudStream and addon compatibility.
-4. Avoid hard-coded secrets.
-5. Run the relevant build/tests.
-6. Clearly distinguish implemented, built, tested and device-verified work.
