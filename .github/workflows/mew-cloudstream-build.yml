@@ -23,11 +23,48 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+      - name: Restore stable Mew debug keystore
+        env:
+          MEW_DEBUG_KEYSTORE_BASE64: ${{ secrets.MEW_DEBUG_KEYSTORE_BASE64 }}
+          MEW_DEBUG_KEYSTORE_PASSWORD: ${{ secrets.MEW_DEBUG_KEYSTORE_PASSWORD }}
+          MEW_DEBUG_KEY_ALIAS: ${{ secrets.MEW_DEBUG_KEY_ALIAS }}
+          MEW_DEBUG_KEY_PASSWORD: ${{ secrets.MEW_DEBUG_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$MEW_DEBUG_KEYSTORE_BASE64"
+          test -n "$MEW_DEBUG_KEYSTORE_PASSWORD"
+          test -n "$MEW_DEBUG_KEY_ALIAS"
+          test -n "$MEW_DEBUG_KEY_PASSWORD"
+          mkdir -p "$RUNNER_TEMP/mew-debug"
+          printf '%s' "$MEW_DEBUG_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/mew-debug/mew-debug.keystore"
+          chmod 600 "$RUNNER_TEMP/mew-debug/mew-debug.keystore"
+
       - name: Prepare Gradle local properties
         run: touch local.properties
 
       - name: Build Android Full debug
+        env:
+          MEW_DEBUG_KEYSTORE_FILE: ${{ runner.temp }}/mew-debug/mew-debug.keystore
+          MEW_DEBUG_KEYSTORE_PASSWORD: ${{ secrets.MEW_DEBUG_KEYSTORE_PASSWORD }}
+          MEW_DEBUG_KEY_ALIAS: ${{ secrets.MEW_DEBUG_KEY_ALIAS }}
+          MEW_DEBUG_KEY_PASSWORD: ${{ secrets.MEW_DEBUG_KEY_PASSWORD }}
         run: ./gradlew :androidApp:assembleFullDebug -Pnuvio.android.distribution=full --stacktrace
+
+      - name: Verify debug APK signing
+        env:
+          MEW_DEBUG_KEYSTORE_FILE: ${{ runner.temp }}/mew-debug/mew-debug.keystore
+          MEW_DEBUG_KEYSTORE_PASSWORD: ${{ secrets.MEW_DEBUG_KEYSTORE_PASSWORD }}
+          MEW_DEBUG_KEY_ALIAS: ${{ secrets.MEW_DEBUG_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          APK="$(find androidApp/build/outputs/apk/full/debug -name '*.apk' -print -quit)"
+          KEYSTORE_SHA="$(keytool -list -v -keystore "$MEW_DEBUG_KEYSTORE_FILE" -storepass "$MEW_DEBUG_KEYSTORE_PASSWORD" -alias "$MEW_DEBUG_KEY_ALIAS" | awk -F': ' '/SHA256:/{print $2; exit}')"
+          APKSIGNER="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)/apksigner"
+          APK_SHA="$("$APKSIGNER" verify --print-certs "$APK" | awk -F': ' '/Signer #1 certificate SHA-256 digest:/{print $2; exit}')"
+          test -n "$KEYSTORE_SHA"
+          test -n "$APK_SHA"
+          test "$KEYSTORE_SHA" = "$APK_SHA"
+          echo "Debug APK certificate SHA-256: $APK_SHA"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
