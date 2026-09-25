@@ -15,5 +15,6 @@ internal expect object CloudStreamPlatformRuntime {
     fun initialize(context: Any?)
     suspend fun provider(plugin: CloudStreamPluginItem): CloudStreamProvider?
     fun unload(pluginId: String)
+    suspend fun removeNativeRepository(url: String)
     fun clear()
 }
