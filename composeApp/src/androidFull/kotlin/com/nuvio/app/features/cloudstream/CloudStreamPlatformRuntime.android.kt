@@ -30,7 +30,6 @@ import com.lagradost.cloudstream3.plugins.BasePlugin
 import com.lagradost.cloudstream3.plugins.Plugin
 import com.lagradost.cloudstream3.plugins.PluginData
 import com.lagradost.cloudstream3.plugins.PluginManager
-import com.lagradost.cloudstream3.plugins.RepositoryManager
 import com.lagradost.cloudstream3.network.initClient
 import com.lagradost.cloudstream3.syncproviders.SyncIdName
 import com.lagradost.cloudstream3.utils.ExtractorLink
@@ -106,7 +105,6 @@ internal actual object CloudStreamPlatformRuntime {
         // The shared CloudStream HTTP client belongs to the host process, not the plugin registry.
         // Clearing/unloading plugins must not force the next provider load to recreate it.
         PluginManager.clear()
-        RepositoryManager.clearRepositoryEventBridge()
     }
 
     private fun loadPlugin(item: CloudStreamPluginItem): LoadedPlugin {
@@ -224,9 +222,6 @@ internal actual object CloudStreamPlatformRuntime {
         // Mew does not run that Application, so initialize the shared client explicitly
         // before any third-party extension can call app.get().
         app.initClient(context)
-        RepositoryManager.onRepositoryAdded = { repository ->
-            importDynamicRepository(repository.url)
-        }
         hostInitialized = true
         RuntimeDiagnostics.recordLog("CloudStream HTTP client initialized")
 
