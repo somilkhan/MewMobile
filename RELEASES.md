@@ -44,6 +44,21 @@ SIMKL_APP_NAME=Mew
 For GitHub Actions releases, add the repository secret `SIMKL_CLIENT_ID`.
 Simkl authentication uses PKCE and does not embed a client secret in the app.
 
+## Android debug signing
+
+For local debug builds, use the same dedicated Mew debug keystore as CI so a local APK can update a CI debug APK without uninstalling. Keep the keystore under the ignored `keystore/` directory and never commit it.
+
+Add these entries to the local, ignored `local.properties` file:
+
+```properties
+MEW_DEBUG_KEYSTORE_FILE=keystore/mew-debug.keystore
+MEW_DEBUG_KEYSTORE_PASSWORD=your_debug_keystore_password
+MEW_DEBUG_KEY_ALIAS=your_debug_key_alias
+MEW_DEBUG_KEY_PASSWORD=your_debug_key_password
+```
+
+The Gradle configuration reads these values from `local.properties` (environment variables take precedence). CI restores the same keystore from GitHub Actions secrets and verifies the generated APK certificate before uploading it.
+
 ## Android signing
 
 An APK can update an existing Mew installation only when both APKs
