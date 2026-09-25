@@ -58,14 +58,13 @@ jobs:
         run: |
           set -euo pipefail
           APK="$(find androidApp/build/outputs/apk/full/debug -name '*.apk' -print -quit)"
-          KEYSTORE_SHA="$(keytool -list -v -keystore "$MEW_DEBUG_KEYSTORE_FILE" -storepass "$MEW_DEBUG_KEYSTORE_PASSWORD" -alias "$MEW_DEBUG_KEY_ALIAS" | awk -F': ' '/SHA256:/{print $2; exit}')"
+          KEYSTORE_SHA="$(keytool -list -v -keystore "$MEW_DEBUG_KEYSTORE_FILE" -storepass "$MEW_DEBUG_KEYSTORE_PASSWORD" -alias "$MEW_DEBUG_KEY_ALIAS" | awk -F': ' '/Certificate fingerprint \(SHA-256\):/{print $2; exit}' | tr -d '[:space:]')"
           APKSIGNER="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)/apksigner"
-          APK_SHA="$("$APKSIGNER" verify --print-certs "$APK" | awk -F': ' '/Signer #1 certificate SHA-256 digest:/{print $2; exit}')"
+          APK_SHA="$("$APKSIGNER" verify --print-certs "$APK" 2>&1 | awk -F': ' '/Signer #1 certificate SHA-256 digest:/{print $2; exit}' | tr -d '[:space:]')"
           test -n "$KEYSTORE_SHA"
           test -n "$APK_SHA"
           test "$KEYSTORE_SHA" = "$APK_SHA"
           echo "Debug APK certificate SHA-256: $APK_SHA"
-
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
