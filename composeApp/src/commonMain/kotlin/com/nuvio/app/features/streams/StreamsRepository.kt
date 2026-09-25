@@ -436,6 +436,10 @@ object StreamsRepository {
                 providerTasks = totalTasks,
             )
             val cloudStreamSemaphore = Semaphore(CLOUDSTREAM_STREAM_PROVIDER_CONCURRENCY)
+            // Plugin repositories can expose dozens of scrapers. Launching every scraper at once
+            // creates a large burst of network/DEX work and competes with the UI thread during
+            // stream-screen entry. Keep the full provider set available, but bound execution.
+            val pluginScraperSemaphore = Semaphore(PLUGIN_SCRAPER_CONCURRENCY)
 
             val installedAddonNames = installedAddonOrder.toSet()
             val installedAddonIds = streamAddons.map { it.addonId }.toSet()
@@ -741,7 +745,8 @@ object StreamsRepository {
                 providerGroup.scrapers.forEach { scraper ->
                     launch {
                         val scraperResult = withTimeoutOrNull(STREAM_PROVIDER_TIMEOUT_MS) {
-                            PluginRepository.executeScraper(
+                            pluginScraperSemaphore.withPermit {
+                                PluginRepository.executeScraper(
                                 scraper = scraper,
                                 tmdbId = pluginContentId(
                                     videoId = videoId,
@@ -751,7 +756,8 @@ object StreamsRepository {
                                 mediaType = type,
                                 season = season,
                                 episode = episode,
-                            )
+                                )
+                            }
                         }
                         val completion = (scraperResult ?: Result.failure(Throwable("${scraper.name} timed out"))).fold(
                             onSuccess = { results ->
@@ -1177,6 +1183,7 @@ object StreamsRepository {
 // providers, and an alphabetical cap silently skipped otherwise valid sources.
 // Keep network and DEX work bounded with a semaphore instead.
 private const val CLOUDSTREAM_STREAM_PROVIDER_CONCURRENCY = 8
+private const val PLUGIN_SCRAPER_CONCURRENCY = 8
 private const val STREAM_PROVIDER_TIMEOUT_MS = 30_000L
 private const val STREAM_TOTAL_TIMEOUT_MS = 45_000L
 private const val DEBRID_AVAILABILITY_TIMEOUT_MS = 15_000L
