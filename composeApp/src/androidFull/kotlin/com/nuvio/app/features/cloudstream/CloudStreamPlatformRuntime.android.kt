@@ -81,13 +81,14 @@ internal actual object CloudStreamPlatformRuntime {
     actual suspend fun provider(plugin: CloudStreamPluginItem): CloudStreamProvider? {
         if (plugin.compatibility.runtimeKind != CloudStreamRuntimeKind.AndroidDex) return null
         return withContext(Dispatchers.IO) {
-            loadMutex.withLock {
-                val loadedPlugin = synchronized(loadedLock) {
+            val loadedPlugin = loadMutex.withLock {
+                synchronized(loadedLock) {
                     loaded[plugin.metadata.id.value]
                         ?: loadPlugin(plugin).also { loaded[plugin.metadata.id.value] = it }
                 }
-                loadedPlugin.provider
             }
+            syncNativeRepositories()
+            loadedPlugin.provider
         }
     }
 
@@ -225,6 +226,31 @@ internal actual object CloudStreamPlatformRuntime {
         hostInitialized = true
         RuntimeDiagnostics.recordLog("CloudStream HTTP client initialized")
 
+    }
+
+    /**
+     * CloudStream's RepositoryManager persists repositories registered by extensions, but the
+     * upstream API does not expose a repository-added callback. Read that native registry after
+     * plugin loading and reconcile only repositories Mew does not already own.
+     */
+    private suspend fun syncNativeRepositories() {
+        val nativeRepositories = runCatching { RepositoryManager.getRepositories().toList() }
+            .getOrElse { error ->
+                log.w(error) { "[CS-DYN] native repository registry read failed" }
+                return
+            }
+        val knownUrls = CloudStreamRepository.uiState.value.repositories
+            .asSequence()
+            .map { it.manifest.sourceUrl.trim() }
+            .filter(String::isNotBlank)
+            .toHashSet()
+
+        nativeRepositories
+            .asSequence()
+            .map { it.url.trim() to it }
+            .filter { (url, _) -> url.isNotBlank() && url !in knownUrls }
+            .distinctBy { (url, _) -> url }
+            .forEach { (url, _) -> importDynamicRepository(url) }
     }
 
     private suspend fun importDynamicRepository(url: String) {
