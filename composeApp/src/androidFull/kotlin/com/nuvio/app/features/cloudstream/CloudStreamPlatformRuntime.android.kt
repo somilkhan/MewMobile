@@ -92,6 +92,21 @@ internal actual object CloudStreamPlatformRuntime {
         }
     }
 
+    actual suspend fun removeNativeRepository(url: String) {
+        val context = appContext ?: return
+        val normalized = url.trim()
+        if (normalized.isBlank()) return
+        runCatching {
+            RepositoryManager.getRepositories()
+                .firstOrNull { it.url.trim() == normalized }
+                ?.let { repository ->
+                    RepositoryManager.removeRepository(context, repository)
+                }
+        }.onFailure { error ->
+            log.w(error) { "[CS-DYN] native repository removal failed url=$normalized" }
+        }
+    }
+
     actual fun unload(pluginId: String) {
         synchronized(loadedLock) { loaded.remove(pluginId) }?.unload()
     }
