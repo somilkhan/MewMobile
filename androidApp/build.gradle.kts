@@ -36,6 +36,10 @@ val legacyUpdateCompatSigning = envOrLocalProperty("NUVIO_LEGACY_UPDATE_COMPAT_S
     ?.toBooleanStrictOrNull()
     ?: true
 val legacyUpdateCompatKeystore = file("${System.getProperty("user.home")}/.android/debug.keystore")
+val debugStoreFile = envOrLocalProperty("MEW_DEBUG_KEYSTORE_FILE")?.let(::file)
+val debugStorePassword = envOrLocalProperty("MEW_DEBUG_KEYSTORE_PASSWORD")
+val debugKeyAlias = envOrLocalProperty("MEW_DEBUG_KEY_ALIAS")
+val debugKeyPassword = envOrLocalProperty("MEW_DEBUG_KEY_PASSWORD")
 val sentryAuthToken = envOrLocalProperty("SENTRY_AUTH_TOKEN")
 val sentryOrg = envOrLocalProperty("SENTRY_ORG")
 val sentryProject = envOrLocalProperty("SENTRY_PROJECT")
@@ -57,6 +61,15 @@ android {
     compileSdkMinor = libs.versions.android.compileSdkMinor.get().toInt()
 
     signingConfigs {
+        create("debugMew") {
+            if (debugStoreFile != null && debugStorePassword != null && debugKeyAlias != null && debugKeyPassword != null && debugStoreFile.exists()) {
+                storeFile = debugStoreFile
+                storePassword = debugStorePassword
+                keyAlias = debugKeyAlias
+                keyPassword = debugKeyPassword
+            }
+        }
+
         create("release") {
             if (legacyUpdateCompatSigning && legacyUpdateCompatKeystore.exists()) {
                 // Build 97 shipped with the Android debug certificate. Keep this signing
@@ -124,6 +137,12 @@ android {
     }
 
     buildTypes {
+        getByName("debug") {
+            if (debugStoreFile != null && debugStorePassword != null && debugKeyAlias != null && debugKeyPassword != null && debugStoreFile.exists()) {
+                signingConfig = signingConfigs.getByName("debugMew")
+            }
+        }
+
         getByName("release") {
             isMinifyEnabled = true
             isShrinkResources = true
