@@ -116,7 +116,10 @@ internal actual object CloudStreamPlatformRuntime {
                 it.name == "addRepository" && it.parameters.size == 2
             } ?: return@runCatching
             addRepository.callSuspend(manager, repository)
+            RuntimeDiagnostics.recordLog("CloudStream native-repository-register-success url=$normalized")
+            log.i { "[CS-DYN] native repository registered url=$normalized" }
         }.onFailure { error ->
+            RuntimeDiagnostics.recordLog("CloudStream native-repository-register-failure url=$normalized error=${error.message?.take(160)}")
             log.w(error) { "[CS-DYN] native repository registration unavailable/failed url=$normalized" }
         }
     }
@@ -127,7 +130,7 @@ internal actual object CloudStreamPlatformRuntime {
         if (normalized.isBlank()) return
         runCatching {
             val managerClass = Class.forName(CLOUDSTREAM_REPOSITORY_MANAGER_CLASS).kotlin
-            val manager = managerClass.objectInstance ?: return@runCatching
+            val manager = managerClass.java.getField("INSTANCE").get(null) ?: return@runCatching
             val repository = managerClass.memberFunctions
                 .firstOrNull { it.name == "getRepositories" && it.parameters.size == 1 }
                 ?.call(manager)
@@ -140,6 +143,8 @@ internal actual object CloudStreamPlatformRuntime {
                 it.name == "removeRepository" && it.parameters.size == 3
             } ?: return@runCatching
             removeRepository.callSuspend(manager, context, repository)
+            RuntimeDiagnostics.recordLog("CloudStream native-repository-remove-success url=$normalized")
+            log.i { "[CS-DYN] native repository removed url=$normalized" }
         }.onFailure { error ->
             log.w(error) { "[CS-DYN] native repository removal unavailable/failed url=$normalized" }
         }
@@ -303,6 +308,9 @@ internal actual object CloudStreamPlatformRuntime {
             log.d(error) { "[CS-DYN] native repository registry unavailable" }
             return
         }
+        RuntimeDiagnostics.recordLog("CloudStream native-repository-registry-count count=${nativeRepositories.size}")
+        log.d { "[CS-DYN] native repository registry count=${nativeRepositories.size}" }
+
         val knownUrls = CloudStreamRepository.uiState.value.repositories
             .asSequence()
             .map { it.manifest.sourceUrl.trim() }
