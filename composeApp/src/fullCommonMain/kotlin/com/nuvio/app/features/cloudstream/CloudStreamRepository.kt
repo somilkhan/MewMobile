@@ -103,6 +103,11 @@ actual object CloudStreamRepository {
                                 .sortedBy { it.metadata.name.lowercase() },
                         )
                     }
+                    CloudStreamPlatformRuntime.registerNativeRepository(
+                        url = manifestUrl,
+                        name = repository.name,
+                        iconUrl = repository.iconUrl,
+                    )
                     persist()
                     AddCloudStreamRepositoryResult.Success(repository)
                 },
