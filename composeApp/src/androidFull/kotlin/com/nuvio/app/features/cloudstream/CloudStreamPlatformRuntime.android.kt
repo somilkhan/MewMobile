@@ -92,6 +92,22 @@ internal actual object CloudStreamPlatformRuntime {
         }
     }
 
+    actual suspend fun registerNativeRepository(url: String, name: String, iconUrl: String?) {
+        val normalized = url.trim()
+        if (normalized.isBlank()) return
+        runCatching {
+            RepositoryManager.addRepository(
+                com.lagradost.cloudstream3.ui.settings.extensions.RepositoryData(
+                    iconUrl = iconUrl,
+                    name = name,
+                    url = normalized,
+                ),
+            )
+        }.onFailure { error ->
+            log.w(error) { "[CS-DYN] native repository registration failed url=$normalized" }
+        }
+    }
+
     actual suspend fun removeNativeRepository(url: String) {
         val context = appContext ?: return
         val normalized = url.trim()
