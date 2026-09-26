@@ -55,7 +55,6 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlin.reflect.full.callSuspend
 import kotlin.reflect.full.memberFunctions
-import kotlin.reflect.full.objectInstance
 
 internal actual object CloudStreamPlatformRuntime {
     actual val supportsAndroidDex: Boolean = true
@@ -106,7 +105,7 @@ internal actual object CloudStreamPlatformRuntime {
         if (normalized.isBlank()) return
         runCatching {
             val managerClass = Class.forName(CLOUDSTREAM_REPOSITORY_MANAGER_CLASS).kotlin
-            val manager = managerClass.objectInstance ?: return@runCatching
+            val manager = managerClass.java.getField("INSTANCE").get(null) ?: return@runCatching
             val dataClass = Class.forName(CLOUDSTREAM_REPOSITORY_DATA_CLASS)
             val repository = dataClass.getDeclaredConstructor(
                 String::class.java,
@@ -288,9 +287,9 @@ internal actual object CloudStreamPlatformRuntime {
      * plugin loading and reconcile only repositories Mew does not already own.
      */
     private suspend fun syncNativeRepositories() {
-        val nativeRepositories = runCatching {
+        val nativeRepositories: List<String> = runCatching {
             val managerClass = Class.forName(CLOUDSTREAM_REPOSITORY_MANAGER_CLASS).kotlin
-            val manager = managerClass.objectInstance ?: return@runCatching emptyList<Any>()
+            val manager = managerClass.java.getField("INSTANCE").get(null) ?: return@runCatching emptyList<String>()
             managerClass.memberFunctions
                 .firstOrNull { it.name == "getRepositories" && it.parameters.size == 1 }
                 ?.call(manager)
