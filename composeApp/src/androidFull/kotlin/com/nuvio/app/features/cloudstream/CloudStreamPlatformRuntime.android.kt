@@ -30,7 +30,6 @@ import com.lagradost.cloudstream3.plugins.BasePlugin
 import com.lagradost.cloudstream3.plugins.Plugin
 import com.lagradost.cloudstream3.plugins.PluginData
 import com.lagradost.cloudstream3.plugins.PluginManager
-import com.lagradost.cloudstream3.plugins.RepositoryManager
 import com.lagradost.cloudstream3.network.initClient
 import com.lagradost.cloudstream3.syncproviders.SyncIdName
 import com.lagradost.cloudstream3.utils.ExtractorLink
@@ -54,6 +53,9 @@ import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import kotlin.reflect.full.callSuspend
+import kotlin.reflect.full.memberFunctions
+import kotlin.reflect.full.objectInstance
 
 internal actual object CloudStreamPlatformRuntime {
     actual val supportsAndroidDex: Boolean = true
@@ -103,15 +105,20 @@ internal actual object CloudStreamPlatformRuntime {
         val normalized = url.trim()
         if (normalized.isBlank()) return
         runCatching {
-            RepositoryManager.addRepository(
-                com.lagradost.cloudstream3.ui.settings.extensions.RepositoryData(
-                    iconUrl = iconUrl,
-                    name = name,
-                    url = normalized,
-                ),
-            )
+            val managerClass = Class.forName(CLOUDSTREAM_REPOSITORY_MANAGER_CLASS).kotlin
+            val manager = managerClass.objectInstance ?: return@runCatching
+            val dataClass = Class.forName(CLOUDSTREAM_REPOSITORY_DATA_CLASS)
+            val repository = dataClass.getDeclaredConstructor(
+                String::class.java,
+                String::class.java,
+                String::class.java,
+            ).newInstance(iconUrl, name, normalized)
+            val addRepository = managerClass.memberFunctions.firstOrNull {
+                it.name == "addRepository" && it.parameters.size == 2
+            } ?: return@runCatching
+            addRepository.callSuspend(manager, repository)
         }.onFailure { error ->
-            log.w(error) { "[CS-DYN] native repository registration failed url=$normalized" }
+            log.w(error) { "[CS-DYN] native repository registration unavailable/failed url=$normalized" }
         }
     }
 
@@ -120,13 +127,22 @@ internal actual object CloudStreamPlatformRuntime {
         val normalized = url.trim()
         if (normalized.isBlank()) return
         runCatching {
-            RepositoryManager.getRepositories()
-                .firstOrNull { it.url.trim() == normalized }
-                ?.let { repository ->
-                    RepositoryManager.removeRepository(context, repository)
+            val managerClass = Class.forName(CLOUDSTREAM_REPOSITORY_MANAGER_CLASS).kotlin
+            val manager = managerClass.objectInstance ?: return@runCatching
+            val repository = managerClass.memberFunctions
+                .firstOrNull { it.name == "getRepositories" && it.parameters.size == 1 }
+                ?.call(manager)
+                ?.let { it as? Array<*> }
+                ?.firstOrNull { entry ->
+                    entry?.javaClass?.getMethod("getUrl")?.invoke(entry)?.toString()?.trim() == normalized
                 }
+                ?: return@runCatching
+            val removeRepository = managerClass.memberFunctions.firstOrNull {
+                it.name == "removeRepository" && it.parameters.size == 3
+            } ?: return@runCatching
+            removeRepository.callSuspend(manager, context, repository)
         }.onFailure { error ->
-            log.w(error) { "[CS-DYN] native repository removal failed url=$normalized" }
+            log.w(error) { "[CS-DYN] native repository removal unavailable/failed url=$normalized" }
         }
     }
 
@@ -272,11 +288,22 @@ internal actual object CloudStreamPlatformRuntime {
      * plugin loading and reconcile only repositories Mew does not already own.
      */
     private suspend fun syncNativeRepositories() {
-        val nativeRepositories = runCatching { RepositoryManager.getRepositories().toList() }
-            .getOrElse { error ->
-                log.w(error) { "[CS-DYN] native repository registry read failed" }
-                return
-            }
+        val nativeRepositories = runCatching {
+            val managerClass = Class.forName(CLOUDSTREAM_REPOSITORY_MANAGER_CLASS).kotlin
+            val manager = managerClass.objectInstance ?: return@runCatching emptyList<Any>()
+            managerClass.memberFunctions
+                .firstOrNull { it.name == "getRepositories" && it.parameters.size == 1 }
+                ?.call(manager)
+                ?.let { it as? Array<*> }
+                ?.mapNotNull { entry ->
+                    val url = entry?.javaClass?.getMethod("getUrl")?.invoke(entry)?.toString()?.trim()
+                    if (url.isNullOrBlank()) null else url
+                }
+                ?: emptyList()
+        }.getOrElse { error ->
+            log.d(error) { "[CS-DYN] native repository registry unavailable" }
+            return
+        }
         val knownUrls = CloudStreamRepository.uiState.value.repositories
             .asSequence()
             .map { it.manifest.sourceUrl.trim() }
@@ -285,10 +312,9 @@ internal actual object CloudStreamPlatformRuntime {
 
         nativeRepositories
             .asSequence()
-            .map { it.url.trim() to it }
-            .filter { (url, _) -> url.isNotBlank() && url !in knownUrls }
-            .distinctBy { (url, _) -> url }
-            .forEach { (url, _) -> importDynamicRepository(url) }
+            .filter { it !in knownUrls }
+            .distinct()
+            .forEach { url -> importDynamicRepository(url) }
     }
 
     private suspend fun importDynamicRepository(url: String) {
@@ -355,6 +381,9 @@ internal actual object CloudStreamPlatformRuntime {
             context.resources.configuration,
         )
     }
+
+    private const val CLOUDSTREAM_REPOSITORY_MANAGER_CLASS = "com.lagradost.cloudstream3.plugins.RepositoryManager"
+    private const val CLOUDSTREAM_REPOSITORY_DATA_CLASS = "com.lagradost.cloudstream3.ui.settings.extensions.RepositoryData"
 
     private const val CINESTREAM_PLUGIN_CLASS = "com.megix.CineStream"
     private const val CINESTREAM_SIMKL_PROVIDER_KEY = "ProviderSimkl"
