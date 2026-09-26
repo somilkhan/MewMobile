@@ -222,7 +222,9 @@ actual object CloudStreamRepository {
             CloudStreamPlatformRuntime.unload(it.metadata.id.value)
             CloudStreamPlatformStorage.deletePackage(it.metadata.id.storageKey)
         }
-        CloudStreamPlatformRuntime.removeNativeRepository(normalizedUrl)
+        scope.launch {
+            CloudStreamPlatformRuntime.removeNativeRepository(normalizedUrl)
+        }
         _uiState.update { current ->
             current.copy(
                 repositories = current.repositories.filterNot { it.manifest.sourceUrl == normalizedUrl },
