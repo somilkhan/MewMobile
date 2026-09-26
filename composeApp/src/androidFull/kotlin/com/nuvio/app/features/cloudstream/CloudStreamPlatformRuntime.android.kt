@@ -81,13 +81,19 @@ internal actual object CloudStreamPlatformRuntime {
     actual suspend fun provider(plugin: CloudStreamPluginItem): CloudStreamProvider? {
         if (plugin.compatibility.runtimeKind != CloudStreamRuntimeKind.AndroidDex) return null
         return withContext(Dispatchers.IO) {
+            var loadedNow = false
             val loadedPlugin = loadMutex.withLock {
                 synchronized(loadedLock) {
                     loaded[plugin.metadata.id.value]
-                        ?: loadPlugin(plugin).also { loaded[plugin.metadata.id.value] = it }
+                        ?: loadPlugin(plugin).also {
+                            loaded[plugin.metadata.id.value] = it
+                            loadedNow = true
+                        }
                 }
             }
-            syncNativeRepositories()
+            if (loadedNow) {
+                syncNativeRepositories()
+            }
             loadedPlugin.provider
         }
     }
