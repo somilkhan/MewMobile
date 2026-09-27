@@ -1,14 +1,25 @@
 package com.nuvio.app.features.settings
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nuvio.app.core.ui.appTheme
+import nuvio.composeapp.generated.resources.Res
+import nuvio.composeapp.generated.resources.mew_logo
 import org.jetbrains.compose.resources.painterResource
 
 @Composable
@@ -21,12 +32,22 @@ internal fun AppBrandWordmark(
         AppIconRepository.ensureLoaded()
         AppIconRepository.state
     }.collectAsStateWithLifecycle()
-    Image(
-        painter = painterResource(
-            icon?.wordmarkResource ?: MaterialTheme.appTheme.wordmarkResource(state.selected),
-        ),
-        contentDescription = contentDescription,
+    Row(
         modifier = modifier,
-        contentScale = ContentScale.Fit,
-    )
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Image(
+            painter = painterResource(Res.drawable.mew_logo),
+            contentDescription = contentDescription,
+            modifier = Modifier.height(IntrinsicSize.Min),
+            contentScale = ContentScale.Fit,
+        )
+        Spacer(modifier = Modifier.width(10.dp))
+        Text(
+            text = "Mew",
+            color = MaterialTheme.colorScheme.onBackground,
+            fontSize = 22.sp,
+            fontWeight = FontWeight.Bold,
+        )
+    }
 }
