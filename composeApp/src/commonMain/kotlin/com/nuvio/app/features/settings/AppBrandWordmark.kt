@@ -3,6 +3,7 @@ package com.nuvio.app.features.settings
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import org.jetbrains.compose.resources.ExperimentalResourceApi
 import coil3.compose.AsyncImage
 import nuvio.composeapp.generated.resources.Res
 
@@ -13,6 +14,7 @@ import nuvio.composeapp.generated.resources.Res
  * intentionally kept as the real Mew SVG asset, while Coil's SVG decoder handles
  * the file on Android and the other supported targets.
  */
+@OptIn(ExperimentalResourceApi::class)
 @Composable
 internal fun AppBrandWordmark(
     modifier: Modifier = Modifier,
