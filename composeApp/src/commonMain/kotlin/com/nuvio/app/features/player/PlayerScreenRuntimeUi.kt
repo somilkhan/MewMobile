@@ -235,9 +235,22 @@ private fun p2pConnectingPhaseLabel(phase: String): String = when (phase) {
     )
 }
 
+internal fun buildInitialPositionRequestKey(
+    playbackIdentity: String,
+    videoId: String?,
+    seasonNumber: Int?,
+    episodeNumber: Int?,
+): String {
+    return "$playbackIdentity:${videoId.orEmpty()}:$seasonNumber:$episodeNumber"
+}
+
 private fun PlayerScreenRuntime.currentInitialPositionRequestKey(): String? {
-    val itemIdentity = "$activePlaybackIdentity:${activeVideoId.orEmpty()}"
-    return "$itemIdentity:${activeInitialPositionMs.coerceAtLeast(0L)}"
+    return buildInitialPositionRequestKey(
+        playbackIdentity = activePlaybackIdentity,
+        videoId = activeVideoId,
+        seasonNumber = activeSeasonNumber,
+        episodeNumber = activeEpisodeNumber,
+    )
 }
 
 @Composable
