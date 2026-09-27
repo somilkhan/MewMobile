@@ -24,9 +24,9 @@ class CloudStreamApp {
             else -> null
         }
 
-        fun <T> getKey(path: String): T? {
+        inline fun <reified T : Any> getKey(path: String): T? {
             val json = sharedPreferences()?.getString(path, null) ?: return null
-            return runCatching { mapper.readValue<T>(json) }.getOrNull()
+            return runCatching { mapper.readValue(json, T::class.java) }.getOrNull()
         }
 
         fun <T : Any> getKeyClass(path: String, valueType: Class<T>): T? {
