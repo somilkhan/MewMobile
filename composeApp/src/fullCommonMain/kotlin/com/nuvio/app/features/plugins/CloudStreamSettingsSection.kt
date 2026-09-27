@@ -580,7 +580,7 @@ private class CloudStreamSettingsCopy private constructor(
         if (turkish) "Üçüncü taraf kod güvenlik uyarısı" else "Third-party code security warning"
     val securityWarningBody: String =
         if (turkish) {
-            "Repository ve eklentiler Nuvio tarafından yönetilmez. Yalnızca güvendiğiniz kaynakları ekleyin. Paket denetlenmeden provider etkinleştirilemez."
+            "Repository ve eklentiler Mew tarafından yönetilmez. Yalnızca güvendiğiniz kaynakları ekleyin. Paket denetlenmeden provider etkinleştirilemez."
         } else {
             "Repositories and plugins are not managed by Mew. Only add sources you trust. A provider cannot be enabled until its package is checked."
         }
