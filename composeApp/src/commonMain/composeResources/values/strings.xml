@@ -2613,7 +2613,7 @@
     <string name="nuvio_enhanced_section_feedback">Feedback</string>
     <string name="nuvio_enhanced_section_discovery">Discovery</string>
     <string name="nuvio_enhanced_section_diagnostics">Diagnostics</string>
-    <string name="nuvio_enhanced_home_features_title">Enhanced intelligence features</string>
+    <string name="nuvio_enhanced_home_features_title">Mew intelligence features</string>
     <string name="nuvio_enhanced_home_features_desc">Master switch for fork-specific intelligence surfaces such as Profile Concierge and Smart Resume signals.</string>
     <string name="nuvio_enhanced_concierge_title">Mew Concierge</string>
     <string name="nuvio_enhanced_concierge_desc">Shows the premium profile intelligence panel with resume, library and release signals.</string>
@@ -2644,7 +2644,7 @@
     <string name="nuvio_enhanced_app_icon_title">App icon</string>
     <string name="nuvio_enhanced_app_icon_desc">Choose a launcher icon for this device. Android closes after applying so the launcher can refresh; iOS may show a system confirmation.</string>
     <string name="nuvio_enhanced_app_icon_default">Default</string>
-    <string name="nuvio_enhanced_app_icon_enhanced">Enhanced</string>
+    <string name="nuvio_enhanced_app_icon_enhanced">Mew</string>
     <string name="nuvio_enhanced_app_icon_monochrome">Monochrome</string>
     <string name="nuvio_enhanced_app_icon_neon">Neon</string>
     <string name="nuvio_enhanced_app_icon_gear">Gear</string>
@@ -2701,7 +2701,7 @@
     <string name="nuvio_enhanced_filter_all">All</string>
     <string name="nuvio_enhanced_filter_episodes">Episodes</string>
     <string name="nuvio_enhanced_filter_movies">Movies</string>
-    <string name="nuvio_enhanced_highlight_title">Highlight new Enhanced settings</string>
+    <string name="nuvio_enhanced_highlight_title">Highlight new Mew settings</string>
     <string name="nuvio_enhanced_highlight_desc">New fork-specific options receive a subtle outline until you use or mark them as seen.</string>
     <string name="nuvio_enhanced_footer_title">Mew</string>
     <string name="nuvio_enhanced_footer_desc">Follow releases on GitHub or join Discord for updates, polls and feature requests.</string>
@@ -2715,7 +2715,7 @@
     <string name="nuvio_discord_welcome_not_now">Not now</string>
     <string name="nuvio_discord_welcome_dont_show_again">Don&apos;t show again</string>
     <string name="nuvio_enhanced_backup_download_title">Download backup</string>
-    <string name="nuvio_enhanced_backup_download_desc">Save a portable JSON backup of profile settings, playback preferences and Enhanced options.</string>
+    <string name="nuvio_enhanced_backup_download_desc">Save a portable JSON backup of profile settings, playback preferences and Mew options.</string>
     <string name="nuvio_enhanced_backup_import_file_title">Import backup file</string>
     <string name="nuvio_enhanced_backup_import_file_desc">Choose a Mew backup JSON file to restore supported settings on this profile.</string>
     <string name="nuvio_enhanced_backup_copy_title">Copy backup JSON</string>
@@ -2731,7 +2731,7 @@
     <string name="nuvio_enhanced_feedback_desc">Send bugs, ideas or user feedback directly to the Mew maintainer.</string>
     <string name="nuvio_enhanced_intro_title">Mew</string>
     <string name="nuvio_enhanced_intro_desc">Fork-only features live here so users can clearly separate official settings from Mew additions.</string>
-    <string name="nuvio_enhanced_mark_all_seen">Mark all Enhanced features as seen</string>
+    <string name="nuvio_enhanced_mark_all_seen">Mark all Mew features as seen</string>
     <string name="nuvio_enhanced_backup_ready_title">Backup ready</string>
     <string name="nuvio_enhanced_backup_ready_desc">The backup was copied to your clipboard. Keep it private because it may include account-linked settings and API keys.</string>
     <string name="nuvio_enhanced_backup_copy_again">Copy again</string>
@@ -2757,7 +2757,7 @@
     <string name="theme_sunset">Sunset</string>
     <string name="theme_custom">Custom</string>
     <string name="settings_appearance_theme_classic">Classic themes</string>
-    <string name="settings_appearance_theme_enhanced">Enhanced themes</string>
+    <string name="settings_appearance_theme_enhanced">Mew themes</string>
     <string name="settings_appearance_theme_custom_first">First color</string>
     <string name="settings_appearance_theme_custom_second">Second color</string>
     <string name="settings_appearance_theme_animation_style">Animation style</string>
@@ -2800,11 +2800,11 @@
     <string name="nuvio_enhanced_category_new">New</string>
     <string name="nuvio_enhanced_section_player_tools">Player &amp; subtitles</string>
     <string name="nuvio_enhanced_subtitle_selector_title">Subtitle selector</string>
-    <string name="nuvio_enhanced_subtitle_selector_desc">Choose between the Enhanced language-grouped selector and the latest core layout.</string>
-    <string name="nuvio_enhanced_subtitle_selector_enhanced">Enhanced</string>
+    <string name="nuvio_enhanced_subtitle_selector_desc">Choose between the Mew language-grouped selector and the latest core layout.</string>
+    <string name="nuvio_enhanced_subtitle_selector_enhanced">Mew</string>
     <string name="nuvio_enhanced_subtitle_selector_nuvio">Mew</string>
     <string name="nuvio_enhanced_audio_selector_title">Audio selector</string>
-    <string name="nuvio_enhanced_audio_selector_desc">Choose between the Enhanced audio selector and the latest Mew layout.</string>
+    <string name="nuvio_enhanced_audio_selector_desc">Choose between the Mew audio selector and the latest Mew layout.</string>
     <string name="nuvio_enhanced_next_episode_button_title">Next Ep button</string>
     <string name="nuvio_enhanced_next_episode_button_desc">Show a Next Ep button when an aired episode is available. This only controls button visibility; provider choice remains linked to Playback &gt; Stream Auto-play, including source scope, allowed addons/plugins, timeout and binge-group rules.</string>
     <string name="community_donation_progress_fee_notice">The displayed amount is before payment and bank fees, so the amount received may be lower.</string>
