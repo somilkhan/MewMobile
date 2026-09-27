@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 200">
+  <g transform="translate(90 100) scale(0.5)">
+    <path d="M-150 175V-30Q-150-170 0-170Q150-170 150-30V175Q115 148 80 175Q40 148 0 175Q-40 148-80 175Q-115 148-150 175Z" fill="#FFFFFF"/>
+    <path d="M-93-62H-30A31.5 31.5 0 0 1-93-62Z" fill="#0B0C0C"/>
+    <path d="M30-62H93A31.5 31.5 0 0 1 30-62Z" fill="#0B0C0C"/>
+    <path d="M-7-24h14l-7 12z" fill="#0B0C0C"/>
+    <path d="M-56 74L-51 18-23 38Q0 30 23 38L51 18 56 74Q60 130 0 135Q-60 130-56 74Z" fill="#0B0C0C"/>
+    <g fill="#FFFFFF"><circle cx="-23" cy="76" r="11"/><circle cx="23" cy="76" r="11"/></g>
+    <g fill="#0B0C0C"><circle cx="-23" cy="76" r="4"/><circle cx="23" cy="76" r="4"/></g>
+    <g fill="#0B0C0C"><rect x="-40" y="140" width="28" height="86" rx="14"/><rect x="12" y="140" width="28" height="86" rx="14"/></g>
+    <path d="M-118 96Q-14 58 78 88Q92 122 48 130Q-52 130-118 130Z" fill="#FFFFFF"/>
+  </g>
+  <text x="185" y="122" font-family="Arial, Helvetica, sans-serif" font-weight="800" font-size="72" letter-spacing="1" fill="#FFFFFF">Mew</text>
+</svg>

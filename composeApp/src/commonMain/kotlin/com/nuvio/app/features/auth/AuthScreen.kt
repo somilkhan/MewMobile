@@ -1035,23 +1035,23 @@ private fun Modifier.authGradientBackground(largeScreen: Boolean): Modifier = dr
     )
     val colorStops = if (largeScreen) {
         arrayOf(
-            0f to Color(0xFF21113B),
-            0.14f to Color(0xFF21113B),
-            0.26f to Color(0xFF1A0E2F),
-            0.36f to Color(0xFF130A23),
-            0.48f to Color(0xFF0A060F),
-            0.60f to Color(0xFF050408),
+            0f to Color(0xFF151515),
+            0.14f to Color(0xFF151515),
+            0.26f to Color(0xFF111111),
+            0.36f to Color(0xFF0C0C0C),
+            0.48f to Color(0xFF070707),
+            0.60f to Color(0xFF030303),
             0.70f to Color.Black,
             1f to Color.Black,
         )
     } else {
         arrayOf(
-            0f to Color(0xFF21113B),
-            0.12f to Color(0xFF21113B),
-            0.24f to Color(0xFF1A0E2F),
-            0.34f to Color(0xFF130A23),
-            0.44f to Color(0xFF0A060F),
-            0.58f to Color(0xFF050408),
+            0f to Color(0xFF151515),
+            0.12f to Color(0xFF151515),
+            0.24f to Color(0xFF111111),
+            0.34f to Color(0xFF0C0C0C),
+            0.44f to Color(0xFF070707),
+            0.58f to Color(0xFF030303),
             0.64f to Color.Black,
             1f to Color.Black,
         )

@@ -2503,7 +2503,7 @@
     <string name="profile_save_failed">Couldn't save the profile. Try again.</string>
     <string name="profile_loading_welcome">Welcome, %1$s!</string>
     <string name="profile_loading_message">One sec, increasing power levels...</string>
-    <string name="profile_loading_enhancing_experience">Enhancing your experience…</string>
+    <string name="profile_loading_enhancing_experience">Loading Mew…</string>
     <string name="profile_gif_search_button">Search GIFs</string>
     <string name="profile_gif_search_description">Search the configured GIF provider and choose a GIF profile image URL.</string>
     <string name="profile_gif_search_empty">Search for a reaction, character or mood to find a GIF profile image.</string>
