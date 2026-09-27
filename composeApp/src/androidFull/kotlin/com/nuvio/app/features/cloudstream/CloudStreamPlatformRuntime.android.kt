@@ -308,6 +308,7 @@ internal actual object CloudStreamPlatformRuntime {
             log.d(error) { "[CS-DYN] native repository registry unavailable" }
             return
         }
+        RuntimeDiagnostics.updateCloudStreamNativeRepositories(nativeRepositories.size)
         RuntimeDiagnostics.recordLog("CloudStream native-repository-registry-count count=${nativeRepositories.size}")
         log.d { "[CS-DYN] native repository registry count=${nativeRepositories.size}" }
 
