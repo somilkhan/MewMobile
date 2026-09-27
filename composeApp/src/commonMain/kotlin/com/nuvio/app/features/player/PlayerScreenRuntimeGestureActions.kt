@@ -177,11 +177,16 @@ internal fun PlayerScreenRuntime.togglePlayback() {
     controlsVisible = true
 }
 
-private fun PlayerScreenRuntime.rememberManualSeekPosition(positionMs: Long) {
-    val durationMs = playbackSnapshot.durationMs.takeIf { it > 0L }
-    val targetPositionMs = positionMs.coerceAtLeast(0L).let { position ->
-        durationMs?.let { position.coerceAtMost(it) } ?: position
+internal fun manualSeekTargetPosition(positionMs: Long, durationMs: Long): Long =
+    positionMs.coerceAtLeast(0L).let { position ->
+        durationMs.takeIf { it > 0L }?.let { position.coerceAtMost(it) } ?: position
     }
+
+private fun PlayerScreenRuntime.rememberManualSeekPosition(positionMs: Long) {
+    val targetPositionMs = manualSeekTargetPosition(
+        positionMs = positionMs,
+        durationMs = playbackSnapshot.durationMs,
+    )
     activeInitialPositionMs = targetPositionMs
     activeInitialProgressFraction = null
     initialSeekApplied = true
