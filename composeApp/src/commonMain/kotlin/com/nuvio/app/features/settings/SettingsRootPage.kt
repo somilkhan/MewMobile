@@ -329,7 +329,7 @@ internal fun LazyListScope.settingsRootContent(
                     .fillMaxWidth()
                     .padding(top = 4.dp)
                     .clickable {
-                        uriHandler.openUri("https://github.com/AKRusso/NuvioMobile-Enhanced")
+                        uriHandler.openUri("https://github.com/somilkhan/MewMobile")
                     },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.primary,
