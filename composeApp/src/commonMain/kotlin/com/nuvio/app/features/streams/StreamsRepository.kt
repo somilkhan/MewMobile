@@ -149,7 +149,7 @@ object StreamsRepository {
         )
         val pluginQualityKey = pluginUiState.excludedQualities.sorted().joinToString(",")
         val stableContentRequestKey = "$type::$videoId::$season::$episode" +
-            "::pluginsGrouped=${pluginUiState.groupStreamsGroupedByRepository}" +
+            "::pluginsGrouped=${pluginUiState.groupStreamsByRepository}" +
             "::pluginQuality=$pluginQualityKey" +
             "::cloudTarget=${cloudStreamSearchRequest?.cacheKey.orEmpty()}"
         val contentRequestKey = "$stableContentRequestKey::cloudstream=$cloudStreamRegistryRevision"
