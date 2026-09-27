@@ -324,7 +324,7 @@ internal fun LazyListScope.settingsRootContent(
                 modifier = Modifier.align(Alignment.CenterHorizontally),
             )
             Text(
-                text = "github.com/AKRusso/NuvioMobile-Enhanced",
+                text = "github.com/somilkhan/MewMobile",
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 4.dp)
