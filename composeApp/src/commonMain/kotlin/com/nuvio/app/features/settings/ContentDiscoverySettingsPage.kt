@@ -23,6 +23,7 @@ internal fun LazyListScope.contentDiscoveryContent(
     showPluginsEntry: Boolean,
     showCloudStreamEntry: Boolean,
     onAddonsClick: () -> Unit,
+    onMetadataClick: () -> Unit,
     onPluginsClick: () -> Unit,
     onCloudStreamClick: () -> Unit,
 ) {
@@ -36,7 +37,7 @@ internal fun LazyListScope.contentDiscoveryContent(
                     title = stringResource(Res.string.settings_content_discovery_metadata_title),
                     description = stringResource(Res.string.settings_content_discovery_metadata_description),
                     isTablet = isTablet,
-                    onClick = onAddonsClick,
+                    onClick = onMetadataClick,
                 )
                 if (showCloudStreamEntry) {
                     SettingsGroupDivider(isTablet = isTablet)
