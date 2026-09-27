@@ -10,6 +10,24 @@ import kotlin.test.assertTrue
 
 class PlayerOfficialParityTest {
     @Test
+    fun `initial position request identity ignores resume position`() {
+        val first = buildInitialPositionRequestKey(
+            playbackIdentity = "url:https://example.com/video.m3u8",
+            videoId = "movie:123",
+            seasonNumber = null,
+            episodeNumber = null,
+        )
+        val second = buildInitialPositionRequestKey(
+            playbackIdentity = "url:https://example.com/video.m3u8",
+            videoId = "movie:123",
+            seasonNumber = null,
+            episodeNumber = null,
+        )
+
+        assertEquals(first, second)
+    }
+
+    @Test
     fun `manual next episode autoplay without fallback requires binge group`() {
         assertTrue(
             shouldRestrictNextEpisodeAutoPlayToBingeGroup(
