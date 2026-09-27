@@ -750,7 +750,7 @@
     <string name="settings_content_discovery_providers_description">Add external CloudStream repositories and enable providers that can work independently of TMDB.</string>
     <string name="settings_content_discovery_addons_description">Install, remove, refresh, and sort your content sources.</string>
     <string name="settings_content_discovery_addons_description_appstore">Add and manage the addons you use with Mew.</string>
-    <string name="settings_content_discovery_plugins_description">Install JavaScript scraper repositories and test providers internally.</string>
+    <string name="settings_content_discovery_plugins_description">Install and manage JavaScript-based scraper repositories.</string>
     <string name="settings_content_discovery_homescreen_description">Adjust home layout, content visibility, and poster behavior</string>
     <string name="settings_content_discovery_meta_screen_description">Settings for the detail and episode screens.</string>
     <string name="settings_content_discovery_collections_description">Create custom catalog groupings with folders shown on Home.</string>
@@ -2394,7 +2394,7 @@
     <string name="settings_homescreen_hide_catalog_underline_description">Remove the accent line under catalog and collection titles throughout the app.</string>
     <string name="settings_continue_watching_ready_badge_description">Show the ready signal badge, such as "Next episode ready", on Continue Watching cards.</string>
     <string name="settings_continue_watching_ready_badge_title">Show Ready Badge</string>
-    <string name="settings_content_discovery_cloudstream_description">Install CloudStream CS3 repositories, search providers, and manage CloudStream sources.</string>
+    <string name="settings_content_discovery_cloudstream_description">Install CloudStream repositories and manage the providers they make available.</string>
     <string name="compose_settings_page_ai_assistant">AI Assistant</string>
     <string name="settings_integrations_ai_description">Chat about movies and series with fast free Cerebras or Groq models</string>
     <string name="ai_settings_section_general">ASSISTANT</string>
