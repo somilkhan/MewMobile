@@ -1285,7 +1285,7 @@
     <string name="theme_arctic_blue">Arctic Blue</string>
     <string name="theme_graphite">Graphite</string>
     <string name="settings_appearance_theme_supporter">Mew Supporter</string>
-    <string name="nuvio_enhanced_supporter">Supporter</string>
+    <string name="nuvio_enhanced_supporter">Mew Supporter</string>
     <string name="profile_choose_background">Choose a background</string>
     <string name="profile_choose_background_description">Choose a Premium background. Automatic uses the default Mew background; selecting a preset or URL keeps it independent.</string>
     <string name="profile_background_normal">Automatic</string>
@@ -1452,8 +1452,8 @@
     <string name="home_continue_watching_watched">%1$s watched</string>
     <string name="home_continue_watching_hours_minutes_left">%1$dh %2$dm left</string>
     <string name="home_continue_watching_minutes_left">%1$dm left</string>
-    <string name="home_empty_no_active_addons_message">Mew is ready. Add the integrations you want from Content &amp; Discovery. TMDB is optional; CloudStream providers can work without it.</string>
-    <string name="home_empty_no_rows_message">No content is available yet. Add or enable an external addon, CloudStream provider, or repository from Content &amp; Discovery. TMDB remains optional.</string>
+    <string name="home_empty_no_active_addons_message">Mew is ready. Open Content &amp; Discovery to add an extension or CloudStream repository, then enable a provider. Metadata and TMDB are optional and only enrich content.</string>
+    <string name="home_empty_no_rows_message">No content is available yet. Add or enable an extension, CloudStream provider, or repository from Content &amp; Discovery. Metadata and TMDB remain optional.</string>
     <string name="home_empty_open_discovery">Open Content &amp; Discovery</string>
     <string name="home_empty_no_rows_title">No home rows available</string>
     <string name="home_view_details">View Details</string>
@@ -2584,7 +2584,7 @@
     <string name="settings_nuvio_enhanced_category">Mew</string>
     <string name="settings_nuvio_enhanced_section">Mew</string>
     <string name="settings_nuvio_enhanced_title">Mew</string>
-    <string name="settings_nuvio_enhanced_description">Fork-only premium controls, homepage intelligence, backup and import.</string>
+    <string name="settings_nuvio_enhanced_description">Mew controls, homepage intelligence, backup and import.</string>
     <string name="settings_new_feature_badge">New</string>
     <string name="home_smart_resume_signal_continue_now">Continue now</string>
     <string name="home_smart_resume_signal_next_episode">Next episode ready</string>
