@@ -36,7 +36,6 @@ import com.nuvio.app.core.ui.ThemeColors
 import com.nuvio.app.core.ui.appTheme
 import com.nuvio.app.core.ui.currentAnimatedThemeVisuals
 import nuvio.composeapp.generated.resources.Res
-import nuvio.composeapp.generated.resources.compose_auth_brand_name
 import nuvio.composeapp.generated.resources.nuvio_enhanced_supporter
 import org.jetbrains.compose.resources.stringResource
 import kotlin.math.PI
@@ -54,14 +53,14 @@ internal fun MemberBrandWordmark(
     height: Dp,
     modifier: Modifier = Modifier,
 ) {
-    val fullLabel = stringResource(Res.string.compose_auth_brand_name) + " " + stringResource(Res.string.nuvio_enhanced_supporter)
+    val fullLabel = stringResource(Res.string.nuvio_enhanced_supporter)
     var badgeSize by remember { mutableStateOf(IntSize.Zero) }
     val appTheme = MaterialTheme.appTheme
     val animatedThemeColors = currentAnimatedThemeVisuals?.colors
     val badgeColors = remember(appTheme, animatedThemeColors) {
         memberBrandWordmarkColors(appTheme, animatedThemeColors)
     }
-    val transition = rememberInfiniteTransition(label = "enhancedSupporterGradient")
+    val transition = rememberInfiniteTransition(label = "mewSupporterGradient")
     val progress by transition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
@@ -72,7 +71,7 @@ internal fun MemberBrandWordmark(
             ),
             repeatMode = RepeatMode.Reverse,
         ),
-        label = "enhancedSupporterGradientProgress",
+        label = "mewSupporterGradientProgress",
     )
     val brush = remember(badgeSize, progress, badgeColors) {
         enhancedSupporterBrush(badgeSize, progress, badgeColors)
