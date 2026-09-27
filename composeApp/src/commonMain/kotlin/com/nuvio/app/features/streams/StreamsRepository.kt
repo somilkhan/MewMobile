@@ -170,7 +170,7 @@ object StreamsRepository {
             !forceRefresh &&
             manualSelection &&
             shouldReuseStreamRequest(
-                sameRequest = activeContentRequestKey == contentRequestKey,
+                sameRequest = activeContentRequestKey == stableContentRequestKey,
                 hasResult = currentState.groups.isNotEmpty() || currentState.emptyStateReason != null,
                 isLoading = currentState.isAnyLoading,
                 jobActive = activeJob?.isActive == true,
