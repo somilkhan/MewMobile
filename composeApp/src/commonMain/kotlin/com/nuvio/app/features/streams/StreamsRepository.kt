@@ -148,10 +148,11 @@ object StreamsRepository {
             manualSelection = manualSelection,
         )
         val pluginQualityKey = pluginUiState.excludedQualities.sorted().joinToString(",")
-        val contentRequestKey = "$type::$videoId::$season::$episode" +
-            "::pluginsGrouped=${pluginUiState.groupStreamsByRepository}" +
-            "::pluginQuality=$pluginQualityKey::cloudstream=$cloudStreamRegistryRevision" +
+        val stableContentRequestKey = "$type::$videoId::$season::$episode" +
+            "::pluginsGrouped=${pluginUiState.groupStreamsGroupedByRepository}" +
+            "::pluginQuality=$pluginQualityKey" +
             "::cloudTarget=${cloudStreamSearchRequest?.cacheKey.orEmpty()}"
+        val contentRequestKey = "$stableContentRequestKey::cloudstream=$cloudStreamRegistryRevision"
         val requestKey = "$contentRequestKey::manualSelection=$manualSelection"
         val currentState = _uiState.value
         if (
