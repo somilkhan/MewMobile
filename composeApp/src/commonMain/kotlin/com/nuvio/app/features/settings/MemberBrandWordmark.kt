@@ -86,7 +86,7 @@ internal fun MemberBrandWordmark(
         AppBrandWordmark(modifier = Modifier.height(height))
         Spacer(modifier = Modifier.width(height * 0.14f))
         Text(
-            text = "Enhanced Supporter",
+            text = stringResource(Res.string.nuvio_enhanced_supporter),
             style = TextStyle(
                 brush = brush,
                 fontSize = (height.value * BadgeHeightRatio).sp,
