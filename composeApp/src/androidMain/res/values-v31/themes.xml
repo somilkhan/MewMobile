@@ -6,27 +6,27 @@
 
     <style name="Theme.Nuvio.Splash" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">@color/nuvio_background</item>
-        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_logo</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/mew_logo</item>
         <item name="postSplashScreenTheme">@style/Theme.Nuvio</item>
     </style>
 
     <style name="Theme.Nuvio.Splash.ArcticBlue" parent="@style/Theme.Nuvio.Splash">
-        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_logo</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/mew_logo</item>
     </style>
 
     <style name="Theme.Nuvio.Splash.Emerald" parent="@style/Theme.Nuvio.Splash">
-        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_logo</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/mew_logo</item>
     </style>
 
     <style name="Theme.Nuvio.Splash.RoseGold" parent="@style/Theme.Nuvio.Splash">
-        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_logo</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/mew_logo</item>
     </style>
 
     <style name="Theme.Nuvio.Splash.Copper" parent="@style/Theme.Nuvio.Splash">
-        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_logo</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/mew_logo</item>
     </style>
 
     <style name="Theme.Nuvio.Splash.Graphite" parent="@style/Theme.Nuvio.Splash">
-        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_logo</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/mew_logo</item>
     </style>
 </resources>
