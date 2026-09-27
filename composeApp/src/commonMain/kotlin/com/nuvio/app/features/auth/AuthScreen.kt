@@ -554,13 +554,6 @@ private fun AuthBrandWordmark(
             contentDescription = null,
             modifier = Modifier.height(height),
         )
-        Spacer(modifier = Modifier.width(height * 0.16f))
-        Text(
-            text = "Enhanced",
-            color = AuthTextPrimary,
-            fontSize = (height.value * 0.34f).sp,
-            fontWeight = FontWeight.SemiBold,
-        )
     }
 }
 
