@@ -869,7 +869,7 @@ private fun MobileSettingsScreen(
                     showPluginsEntry = AppFeaturePolicy.pluginsEnabled,
                     showCloudStreamEntry = AppFeaturePolicy.pluginsEnabled,
                     onAddonsClick = onAddonsClick,
-                    onMetadataClick = onTmdbClick,
+                    onMetadataClick = { onPageChange(SettingsPage.TmdbEnrichment) },
                     onPluginsClick = onPluginsClick,
                     onCloudStreamClick = onCloudStreamClick,
                 )
