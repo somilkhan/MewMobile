@@ -723,7 +723,7 @@ private class CloudStreamSettingsCopy private constructor(
         when (platformSupport) {
             CloudStreamPlatformSupport.AndroidAndIos -> {
                 if (turkish) {
-                    "Bu provider, Nuvio Enhanced içine derlenmiş incelenmiş çapraz platform adaptörü kullanır."
+                    "Bu provider, Mew içine derlenmiş incelenmiş çapraz platform adaptörü kullanır."
                 } else {
                     "This provider has a reviewed cross-platform adapter compiled into Mew."
                 }
