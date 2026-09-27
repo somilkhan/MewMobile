@@ -1285,7 +1285,7 @@
     <string name="theme_arctic_blue">Arctic Blue</string>
     <string name="theme_graphite">Graphite</string>
     <string name="settings_appearance_theme_supporter">Mew Supporter</string>
-    <string name="nuvio_enhanced_supporter">Mew Supporter</string>
+    <string name="nuvio_enhanced_supporter">Supporter</string>
     <string name="profile_choose_background">Choose a background</string>
     <string name="profile_choose_background_description">Choose a Premium background. Automatic uses the default Mew background; selecting a preset or URL keeps it independent.</string>
     <string name="profile_background_normal">Automatic</string>
