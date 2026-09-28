@@ -45,6 +45,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
@@ -62,6 +65,7 @@ internal actual object CloudStreamPlatformRuntime {
     private val log = Logger.withTag("CloudStreamDex")
     private val json = Json { ignoreUnknownKeys = true }
     private val loadMutex = Mutex()
+    private val backgroundScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val loadedLock = Any()
     private val loaded = linkedMapOf<String, LoadedPlugin>()
     private var appContext: Context? = null
@@ -99,12 +103,10 @@ internal actual object CloudStreamPlatformRuntime {
                 // RepositoryManager entries just like the real CloudStream host does.
                 syncNativeRepositories()
                 if (loadedPlugin.providers.isEmpty()) {
-                    coroutineScope {
-                        launch {
-                            repeat(NATIVE_REPOSITORY_SYNC_ATTEMPTS - 1) {
-                                delay(NATIVE_REPOSITORY_SYNC_DELAY_MS)
-                                syncNativeRepositories()
-                            }
+                    backgroundScope.launch {
+                        repeat(NATIVE_REPOSITORY_SYNC_ATTEMPTS - 1) {
+                            delay(NATIVE_REPOSITORY_SYNC_DELAY_MS)
+                            syncNativeRepositories()
                         }
                     }
                 }
