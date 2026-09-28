@@ -2,6 +2,8 @@ package com.nuvio.app.features.settings
 
 import androidx.compose.foundation.lazy.LazyListScope
 import com.nuvio.app.core.build.AppFeaturePolicy
+import com.nuvio.app.features.tmdb.TmdbSettings
+import com.nuvio.app.features.tmdb.TmdbSettingsRepository
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.compose_settings_page_addons
 import nuvio.composeapp.generated.resources.compose_settings_page_cloudstream
@@ -22,42 +24,28 @@ internal fun LazyListScope.contentDiscoveryContent(
     isTablet: Boolean,
     showPluginsEntry: Boolean,
     showCloudStreamEntry: Boolean,
+    tmdbSettings: TmdbSettings,
     onAddonsClick: () -> Unit,
-    onMetadataClick: () -> Unit,
     onPluginsClick: () -> Unit,
     onCloudStreamClick: () -> Unit,
 ) {
-    item {
-        SettingsSection(
-            title = stringResource(Res.string.settings_content_discovery_get_started),
-            isTablet = isTablet,
-        ) {
-            SettingsGroup(isTablet = isTablet) {
-                SettingsNavigationRow(
-                    title = stringResource(Res.string.settings_content_discovery_metadata_title),
-                    description = stringResource(Res.string.settings_content_discovery_metadata_description),
-                    isTablet = isTablet,
-                    onClick = onMetadataClick,
-                )
-                if (showCloudStreamEntry) {
-                    SettingsGroupDivider(isTablet = isTablet)
-                    SettingsNavigationRow(
-                        title = stringResource(Res.string.settings_content_discovery_providers_title),
-                        description = stringResource(Res.string.settings_content_discovery_providers_description),
-                        isTablet = isTablet,
-                        onClick = onCloudStreamClick,
-                    )
-                }
-            }
-        }
-    }
-
     item {
         SettingsSection(
             title = stringResource(Res.string.settings_content_discovery_section_sources),
             isTablet = isTablet,
         ) {
             SettingsGroup(isTablet = isTablet) {
+                SettingsSwitchRow(
+                    title = stringResource(Res.string.settings_content_discovery_metadata_title),
+                    description = stringResource(Res.string.settings_content_discovery_metadata_description),
+                    checked = tmdbSettings.enabled,
+                    enabled = tmdbSettings.hasApiKey,
+                    isTablet = isTablet,
+                    onCheckedChange = TmdbSettingsRepository::setEnabled,
+                )
+                if (showCloudStreamEntry || showPluginsEntry) {
+                    SettingsGroupDivider(isTablet = isTablet)
+                }
                 SettingsNavigationRow(
                     title = stringResource(Res.string.compose_settings_page_addons),
                     description = stringResource(
