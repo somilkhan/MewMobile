@@ -26,6 +26,7 @@ internal fun LazyListScope.contentDiscoveryContent(
     showCloudStreamEntry: Boolean,
     tmdbSettings: TmdbSettings,
     onAddonsClick: () -> Unit,
+    onTmdbConfigureClick: () -> Unit,
     onPluginsClick: () -> Unit,
     onCloudStreamClick: () -> Unit,
 ) {
@@ -39,9 +40,15 @@ internal fun LazyListScope.contentDiscoveryContent(
                     title = stringResource(Res.string.settings_content_discovery_metadata_title),
                     description = stringResource(Res.string.settings_content_discovery_metadata_description),
                     checked = tmdbSettings.enabled,
-                    enabled = tmdbSettings.hasApiKey,
+                    enabled = true,
                     isTablet = isTablet,
-                    onCheckedChange = TmdbSettingsRepository::setEnabled,
+                    onCheckedChange = { enabled ->
+                        if (enabled && !tmdbSettings.hasApiKey) {
+                            onTmdbConfigureClick()
+                        } else {
+                            TmdbSettingsRepository.setEnabled(enabled)
+                        }
+                    },
                 )
                 if (showCloudStreamEntry || showPluginsEntry) {
                     SettingsGroupDivider(isTablet = isTablet)
