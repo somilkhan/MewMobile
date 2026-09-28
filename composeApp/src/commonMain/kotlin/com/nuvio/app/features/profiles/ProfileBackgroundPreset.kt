@@ -7,7 +7,6 @@ import nuvio.composeapp.generated.resources.profile_background_default
 import nuvio.composeapp.generated.resources.profile_background_gold
 import nuvio.composeapp.generated.resources.profile_background_graphite
 import nuvio.composeapp.generated.resources.profile_background_jade
-import nuvio.composeapp.generated.resources.profile_background_mew
 import nuvio.composeapp.generated.resources.profile_background_rose_gold
 import nuvio.composeapp.generated.resources.theme_arctic_blue
 import nuvio.composeapp.generated.resources.theme_gold
@@ -15,7 +14,6 @@ import nuvio.composeapp.generated.resources.theme_graphite
 import nuvio.composeapp.generated.resources.theme_mew
 import nuvio.composeapp.generated.resources.theme_jade
 import nuvio.composeapp.generated.resources.theme_rose_gold
-import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.StringResource
 
 private const val ProfileBackgroundPresetPrefix = "enhanced-mesh://"
@@ -23,37 +21,37 @@ private const val ProfileBackgroundPresetPrefix = "enhanced-mesh://"
 enum class ProfileBackgroundPreset(
     val key: String,
     val labelRes: StringResource,
-    val backgroundRes: DrawableResource,
+    val resourcePath: String,
 ) {
     MEW(
         key = "mew",
         labelRes = Res.string.theme_mew,
-        backgroundRes = Res.drawable.profile_background_mew,
+        resourcePath = "drawable/profile_background_mew.svg",
     ),
     GOLD(
         key = "gold",
         labelRes = Res.string.theme_gold,
-        backgroundRes = Res.drawable.profile_background_gold,
+        resourcePath = "drawable/profile_background_gold.png",
     ),
     JADE(
         key = "jade",
         labelRes = Res.string.theme_jade,
-        backgroundRes = Res.drawable.profile_background_jade,
+        resourcePath = "drawable/profile_background_jade.png",
     ),
     ROSE_GOLD(
         key = "rose-gold",
         labelRes = Res.string.theme_rose_gold,
-        backgroundRes = Res.drawable.profile_background_rose_gold,
+        resourcePath = "drawable/profile_background_rose_gold.png",
     ),
     ARCTIC_BLUE(
         key = "arctic-blue",
         labelRes = Res.string.theme_arctic_blue,
-        backgroundRes = Res.drawable.profile_background_arctic_blue,
+        resourcePath = "drawable/profile_background_arctic_blue.png",
     ),
     GRAPHITE(
         key = "graphite",
         labelRes = Res.string.theme_graphite,
-        backgroundRes = Res.drawable.profile_background_graphite,
+        resourcePath = "drawable/profile_background_graphite.png",
     ),
     ;
 
