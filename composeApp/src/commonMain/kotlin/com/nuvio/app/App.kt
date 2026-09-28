@@ -91,6 +91,7 @@ import androidx.navigation3.ui.NavDisplay
 import androidx.savedstate.serialization.SavedStateConfiguration
 import coil3.ImageLoader
 import coil3.annotation.ExperimentalCoilApi
+import coil3.compose.AsyncImage
 import coil3.compose.setSingletonImageLoaderFactory
 import coil3.request.CachePolicy
 import coil3.request.crossfade
@@ -301,6 +302,7 @@ import nuvio.composeapp.generated.resources.compose_nav_search
 import nuvio.composeapp.generated.resources.sidebar_library
 import nuvio.composeapp.generated.resources.sidebar_search
 import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.ExperimentalResourceApi
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
@@ -4391,6 +4393,7 @@ private fun TabletTopPillItem(
     }
 }
 
+@OptIn(ExperimentalResourceApi::class)
 @Composable
 private fun AppLaunchOverlay(
     profile: NuvioProfile?,
@@ -4408,12 +4411,21 @@ private fun AppLaunchOverlay(
         contentAlignment = Alignment.Center,
     ) {
         PlatformBackHandler(enabled = true) { }
-        Image(
-            painter = painterResource(effectiveBackground.preset?.backgroundRes ?: DefaultProfileBackgroundResource),
-            contentDescription = null,
-            modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop,
-        )
+        if (effectiveBackground.preset != null) {
+            AsyncImage(
+                model = Res.getUri(effectiveBackground.preset.resourcePath),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+            )
+        } else {
+            Image(
+                painter = painterResource(DefaultProfileBackgroundResource),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+            )
+        }
         ProfileRemoteBackgroundImage(
             imageUrl = effectiveBackground.customImageUrl,
             profileIndex = profile?.profileIndex,
