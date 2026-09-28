@@ -103,6 +103,13 @@ internal actual object CloudStreamPlatformRuntime {
     actual suspend fun registerNativeRepository(url: String, name: String, iconUrl: String?) {
         val normalized = url.trim()
         if (normalized.isBlank()) return
+        val context = appContext ?: return
+        // Repository registration can happen before the first plugin load. In that path
+        // CloudStreamApp.context has not yet been installed by prepareHostContext(), and
+        // RepositoryManager.setKey() would silently become a no-op.
+        if (CloudStreamApp.context == null) {
+            prepareHostContext(context)
+        }
         runCatching {
             val managerClass = Class.forName(CLOUDSTREAM_REPOSITORY_MANAGER_CLASS).kotlin
             val manager = managerClass.java.getField("INSTANCE").get(null) ?: return@runCatching
@@ -116,7 +123,25 @@ internal actual object CloudStreamPlatformRuntime {
                 it.name == "addRepository" && it.parameters.size == 2
             } ?: return@runCatching
             addRepository.callSuspend(manager, repository)
-            RuntimeDiagnostics.recordLog("CloudStream native-repository-register-success url=$normalized")
+            val registeredCount = managerClass.memberFunctions
+                .firstOrNull { it.name == "getRepositories" && it.parameters.size == 1 }
+                ?.call(manager)
+                ?.let { it as? Array<*> }
+                ?.count { entry ->
+                    entry?.javaClass?.getMethod("getUrl")?.invoke(entry)?.toString()?.trim() == normalized
+                }
+                ?: 0
+            RuntimeDiagnostics.updateCloudStreamNativeRepositories(
+                managerClass.memberFunctions
+                    .firstOrNull { it.name == "getRepositories" && it.parameters.size == 1 }
+                    ?.call(manager)
+                    ?.let { it as? Array<*> }
+                    ?.size
+                    ?: 0,
+            )
+            RuntimeDiagnostics.recordLog(
+                "CloudStream native-repository-register-success url=$normalized stored=$registeredCount",
+            )
             log.i { "[CS-DYN] native repository registered url=$normalized" }
         }.onFailure { error ->
             RuntimeDiagnostics.recordLog("CloudStream native-repository-register-failure url=$normalized error=${error.message?.take(160)}")
