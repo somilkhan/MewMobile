@@ -256,6 +256,16 @@ internal actual object CloudStreamPlatformRuntime {
 
         val providersBefore = APIHolder.allProviders.toSet()
         val extractorsBefore = extractorApis.toSet()
+        val pluginData = PluginData(
+            internalName = item.metadata.internalName,
+            url = item.metadata.packageUrl,
+            isOnline = true,
+            filePath = file.absolutePath,
+            version = manifest.version ?: item.metadata.version,
+        )
+        // The real CloudStream host registers the plugin before invoking load(). Some
+        // extensions inspect PluginManager during load(), so keep that lifecycle ordering.
+        PluginManager.register(pluginData, instance)
         try {
             log.i { "[CS-DYN] plugin-load-start id=" + item.metadata.id.value }
             RuntimeDiagnostics.recordLog("CloudStream plugin-load-start id=" + item.metadata.id.value)
@@ -277,14 +287,6 @@ internal actual object CloudStreamPlatformRuntime {
             val registeredExtractors = extractorApis
                 .filter { it !in extractorsBefore || it.sourcePlugin == file.absolutePath }
                 .distinct()
-            val data = PluginData(
-                internalName = item.metadata.internalName,
-                url = item.metadata.packageUrl,
-                isOnline = true,
-                filePath = file.absolutePath,
-                version = manifest.version ?: item.metadata.version,
-            )
-            PluginManager.register(data, instance)
             log.i {
                 "Loaded ${item.metadata.internalName}: ${providers.size} provider(s), " +
                     "${registeredExtractors.size} extractor(s)"
@@ -306,6 +308,7 @@ internal actual object CloudStreamPlatformRuntime {
             log.e(error) { "Failed to load ${item.metadata.internalName}" }
             APIHolder.allProviders.removeAll { it !in providersBefore && it.sourcePlugin == file.absolutePath }
             extractorApis.removeAll { it !in extractorsBefore && it.sourcePlugin == file.absolutePath }
+            PluginManager.unregister(file.absolutePath)
             throw error
         } finally {
             PluginManager.currentlyLoading = null
