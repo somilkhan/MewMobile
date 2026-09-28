@@ -870,6 +870,7 @@ private fun MobileSettingsScreen(
                     showCloudStreamEntry = AppFeaturePolicy.pluginsEnabled,
                     tmdbSettings = tmdbSettings,
                     onAddonsClick = onAddonsClick,
+                    onTmdbConfigureClick = { onPageChange(SettingsPage.TmdbEnrichment) },
                     onPluginsClick = onPluginsClick,
                     onCloudStreamClick = onCloudStreamClick,
                 )
@@ -1342,6 +1343,7 @@ private fun TabletSettingsScreen(
                         showCloudStreamEntry = AppFeaturePolicy.pluginsEnabled,
                         tmdbSettings = tmdbSettings,
                         onAddonsClick = { openInlinePage(SettingsPage.Addons) },
+                        onTmdbConfigureClick = { openInlinePage(SettingsPage.TmdbEnrichment) },
                         onPluginsClick = { openInlinePage(SettingsPage.Plugins) },
                         onCloudStreamClick = { openInlinePage(SettingsPage.CloudStream) },
                     )
