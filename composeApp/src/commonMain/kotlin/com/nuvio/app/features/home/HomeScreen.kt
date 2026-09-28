@@ -1318,7 +1318,7 @@ fun HomeScreen(
                                 modifier = Modifier.padding(horizontal = 16.dp),
                                 title = stringResource(Res.string.compose_search_empty_no_active_addons_title),
                                 message = stringResource(Res.string.home_empty_no_active_addons_message),
-                                mascotResource = Res.drawable.mew_mascot_cat,
+                                mascotResourcePath = "drawable/mew_mascot_cat.svg",
                                 actionLabel = onOpenDiscoveryClick?.let {
                                     stringResource(Res.string.home_empty_open_discovery)
                                 },
@@ -1360,10 +1360,10 @@ fun HomeScreen(
                                     title = stringResource(Res.string.home_empty_no_rows_title),
                                     message = homeUiState.errorMessage
                                         ?: stringResource(Res.string.home_empty_no_rows_message),
-                                    mascotResource = if (homeUiState.errorMessage != null) {
-                                        Res.drawable.mew_mascot_dizzy_cat
+                                    mascotResourcePath = if (homeUiState.errorMessage != null) {
+                                        "drawable/mew_mascot_dizzy_cat.svg"
                                     } else {
-                                        Res.drawable.mew_mascot_dizzy_rabbit
+                                        "drawable/mew_mascot_dizzy_rabbit.svg"
                                     },
                                     actionLabel = onOpenDiscoveryClick?.let {
                                         stringResource(Res.string.home_empty_open_discovery)
