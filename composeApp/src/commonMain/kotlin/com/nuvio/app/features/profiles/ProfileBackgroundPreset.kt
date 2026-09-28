@@ -7,10 +7,12 @@ import nuvio.composeapp.generated.resources.profile_background_default
 import nuvio.composeapp.generated.resources.profile_background_gold
 import nuvio.composeapp.generated.resources.profile_background_graphite
 import nuvio.composeapp.generated.resources.profile_background_jade
+import nuvio.composeapp.generated.resources.profile_background_mew
 import nuvio.composeapp.generated.resources.profile_background_rose_gold
 import nuvio.composeapp.generated.resources.theme_arctic_blue
 import nuvio.composeapp.generated.resources.theme_gold
 import nuvio.composeapp.generated.resources.theme_graphite
+import nuvio.composeapp.generated.resources.theme_mew
 import nuvio.composeapp.generated.resources.theme_jade
 import nuvio.composeapp.generated.resources.theme_rose_gold
 import org.jetbrains.compose.resources.DrawableResource
@@ -23,6 +25,11 @@ enum class ProfileBackgroundPreset(
     val labelRes: StringResource,
     val backgroundRes: DrawableResource,
 ) {
+    MEW(
+        key = "mew",
+        labelRes = Res.string.theme_mew,
+        backgroundRes = Res.drawable.profile_background_mew,
+    ),
     GOLD(
         key = "gold",
         labelRes = Res.string.theme_gold,
@@ -62,6 +69,7 @@ enum class ProfileBackgroundPreset(
         }
 
         fun fromTheme(theme: AppTheme): ProfileBackgroundPreset? = when (theme) {
+            AppTheme.MEW -> MEW
             AppTheme.GOLD -> GOLD
             AppTheme.JADE -> JADE
             AppTheme.ROSE_GOLD -> ROSE_GOLD
