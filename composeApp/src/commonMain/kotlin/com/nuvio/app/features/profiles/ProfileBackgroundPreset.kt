@@ -14,6 +14,7 @@ import nuvio.composeapp.generated.resources.theme_graphite
 import nuvio.composeapp.generated.resources.theme_mew
 import nuvio.composeapp.generated.resources.theme_jade
 import nuvio.composeapp.generated.resources.theme_rose_gold
+import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.StringResource
 
 private const val ProfileBackgroundPresetPrefix = "enhanced-mesh://"
