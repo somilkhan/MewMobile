@@ -1,6 +1,5 @@
 package com.nuvio.app.features.home.components
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
@@ -9,13 +8,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
 import nuvio.composeapp.generated.resources.Res
-import org.jetbrains.compose.resources.DrawableResource
-import org.jetbrains.compose.resources.painterResource
 import com.nuvio.app.core.ui.NuvioPrimaryButton
 import com.nuvio.app.core.ui.NuvioSurfaceCard
+import org.jetbrains.compose.resources.ExperimentalResourceApi
 
+@OptIn(ExperimentalResourceApi::class)
 @Composable
 fun HomeEmptyStateCard(
     title: String,
@@ -23,12 +22,12 @@ fun HomeEmptyStateCard(
     modifier: Modifier = Modifier,
     actionLabel: String? = null,
     onActionClick: (() -> Unit)? = null,
-    mascotResource: DrawableResource? = null,
+    mascotResourcePath: String? = null,
 ) {
     NuvioSurfaceCard(modifier = modifier) {
-        if (mascotResource != null) {
-            Image(
-                painter = painterResource(mascotResource),
+        if (mascotResourcePath != null) {
+            AsyncImage(
+                model = Res.getUri(mascotResourcePath),
                 contentDescription = null,
                 modifier = Modifier.size(72.dp),
                 contentScale = ContentScale.Fit,
