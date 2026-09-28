@@ -54,6 +54,7 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlin.reflect.full.callSuspend
@@ -435,7 +436,7 @@ internal actual object CloudStreamPlatformRuntime {
         )
     }
 
-    private const val NATIVE_REPOSITORY_SYNC_ATTEMPTS = 8
+    private const val NATIVE_REPOSITORY_SYNC_ATTEMPTS = 16
     private const val NATIVE_REPOSITORY_SYNC_DELAY_MS = 500L
 
     private const val CLOUDSTREAM_REPOSITORY_MANAGER_CLASS = "com.lagradost.cloudstream3.plugins.RepositoryManager"
@@ -601,26 +602,61 @@ private class AndroidDexCloudStreamProvider(
         val api = findProvider(route.providerClassName)
         val subtitles = Collections.synchronizedList(mutableListOf<CloudStreamSubtitle>())
         val links = Collections.synchronizedList(mutableListOf<ExtractorLink>())
-        val completed = withTimeout(stageTimeout(api.loadLinksTimeoutMs, DEFAULT_LINK_TIMEOUT_MS)) {
-            api.loadLinks(
-                route.data,
-                false,
-                { subtitle ->
-                    subtitles += CloudStreamSubtitle(
-                        url = subtitle.url,
-                        language = subtitle.lang,
-                        name = subtitle.lang,
-                        headers = subtitle.headers.orEmpty(),
-                    )
-                },
-                links::add,
-            )
+        // Match the real CloudStream/Nuvio execution contract: loadLinks() is allowed
+        // to return false and/or finish after producing callbacks. The callback collection
+        // is the authoritative result. A timeout must not discard links already emitted.
+        val completed = withTimeoutOrNull(
+            stageTimeout(api.loadLinksTimeoutMs, DEFAULT_LINK_TIMEOUT_MS),
+        ) {
+            runCatching {
+                api.loadLinks(
+                    data = route.data,
+                    isCasting = false,
+                    subtitleCallback = { subtitle ->
+                        subtitles += CloudStreamSubtitle(
+                            url = subtitle.url,
+                            language = subtitle.lang,
+                            name = subtitle.lang,
+                            headers = subtitle.headers.orEmpty(),
+                        )
+                    },
+                    callback = links::add,
+                )
+            }.onFailure { error ->
+                log.w(error) {
+                    "CloudStream loadLinks threw provider=${api.name} " +
+                        "links=${links.size} error=${error.javaClass.simpleName}: ${error.message}"
+                }
+            }.getOrDefault(false)
         }
+
         val subtitleSnapshot = synchronized(subtitles) { subtitles.toList() }
         val linkSnapshot = synchronized(links) { links.toList() }
-        if (!completed && linkSnapshot.isEmpty()) error("CloudStream provider could not resolve this source")
+
+        RuntimeDiagnostics.recordLog(
+            "cs-load-links-result provider=${api.name} completed=${completed != null} " +
+                "returned=${completed ?: "timeout"} links=${linkSnapshot.size} subtitles=${subtitleSnapshot.size}",
+        )
+
+        if (completed == null) {
+            log.w {
+                "CloudStream loadLinks timed out provider=${api.name} " +
+                    "links=${linkSnapshot.size}; returning partial callbacks"
+            }
+        } else if (completed == false && linkSnapshot.isEmpty()) {
+            log.w {
+                "CloudStream loadLinks returned false with no links provider=${api.name}"
+            }
+        }
+
         linkSnapshot.distinctBy { link ->
-            listOf(link.url, link.referer, link.quality.toString(), link.type.name, link.headers.toString())
+            listOf(
+                link.url,
+                link.referer,
+                link.quality.toString(),
+                link.type.name,
+                link.headers.toString(),
+            )
         }.map { link ->
             CloudStreamPlaybackSource(
                 name = link.name.ifBlank { link.source },
@@ -632,7 +668,14 @@ private class AndroidDexCloudStreamProvider(
                 isHls = link.type == ExtractorLinkType.M3U8,
                 isDash = link.type == ExtractorLinkType.DASH,
             )
-        }.also { if (it.isEmpty()) error("CloudStream provider returned no playable links") }
+        }.also {
+            if (it.isEmpty()) {
+                error(
+                    "CloudStream provider returned no playable links " +
+                        "(provider=${api.name}, completed=${completed ?: "timeout"})",
+                )
+            }
+        }
     }
 
     private fun findProvider(className: String): MainAPI =
