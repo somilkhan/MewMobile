@@ -186,6 +186,25 @@ object ThemeColors {
         backgroundCard = Color(0xFF241A1F),
     )
 
+    val Mew = ThemeColorPalette(
+        secondary = Color(0xFFF4F7FF),
+        secondaryVariant = Color(0xFFB9C2CC),
+        accentGradient = listOf(
+            Color(0xFFF4F7FF),
+            Color(0xFFDDE6F0),
+            Color(0xFF35D6E8),
+            Color(0xFFFF5F9E),
+        ),
+        nativeAccentHex = "#F4F7FF",
+        onSecondary = Color(0xFF0B0C0C),
+        onSecondaryVariant = Color(0xFF111111),
+        focusRing = Color(0xFFF4F7FF),
+        focusBackground = Color(0xFF171A1D),
+        background = Color(0xFF050607),
+        backgroundElevated = Color(0xFF0D0F11),
+        backgroundCard = Color(0xFF14171A),
+    )
+
     val Messenger = ThemeColorPalette(
         secondary = Color(0xFF168AFF),
         secondaryVariant = Color(0xFF0072FF),
@@ -273,6 +292,7 @@ object ThemeColors {
         val accessibleFirst = customFirst.toAccessibleAccent()
         val accessibleSecond = customSecond.toAccessibleAccent()
         return when (theme) {
+            AppTheme.MEW -> Mew
             AppTheme.CRIMSON -> Crimson
             AppTheme.OCEAN -> Ocean
             AppTheme.VIOLET -> Violet
