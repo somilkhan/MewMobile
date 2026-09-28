@@ -32,7 +32,6 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -1474,29 +1473,24 @@ fun HomeScreen(
 
                     Box(
                         modifier = Modifier
-                            .size(56.dp)
+                            .size(52.dp)
                             .clip(CircleShape)
-                            .background(Color.Black.copy(alpha = 0.34f))
+                            .background(
+                                MaterialTheme.colorScheme.surface.copy(alpha = 0.82f),
+                            )
                             .border(
                                 width = 1.dp,
-                                color = Color.White.copy(alpha = 0.18f),
+                                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.30f),
                                 shape = CircleShape,
                             )
                             .clickable { cloudStreamProviderMenuExpanded = true },
                         contentAlignment = androidx.compose.ui.Alignment.Center,
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .matchParentSize()
-                                .padding(2.dp)
-                                .blur(14.dp)
-                                .clip(CircleShape)
-                                .background(Color.White.copy(alpha = 0.10f))
-                        )
                         Text(
-                            text = "◈",
-                            color = Color.White.copy(alpha = 0.96f),
-                            style = MaterialTheme.typography.titleMedium,
+                            text = "CS3",
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.94f),
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
                         )
                     }
                 }
