@@ -3,7 +3,10 @@ package com.nuvio.app.features.settings
 import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
+import com.nuvio.app.core.ui.AppTheme
+import com.nuvio.app.core.ui.ThemeColors
 
 /**
  * Product-facing Mew brand lockup.
@@ -21,4 +24,16 @@ internal fun MemberBrandWordmark(
         modifier = modifier.height(height),
         contentDescription = "Mew",
     )
+}
+
+internal fun memberBrandWordmarkColors(
+    theme: AppTheme,
+    animatedThemeColors: List<Color>? = null,
+): List<Color> {
+    val palette = ThemeColors.getColorPalette(theme)
+    val themeColors = animatedThemeColors
+        ?.takeIf { it.size >= 2 }
+        ?: palette.accentGradient.takeIf { it.size >= 2 }
+        ?: listOf(palette.secondaryVariant, palette.secondary, palette.focusRing)
+    return themeColors + themeColors.first()
 }
