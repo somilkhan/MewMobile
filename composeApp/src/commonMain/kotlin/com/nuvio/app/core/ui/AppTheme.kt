@@ -9,6 +9,7 @@ import nuvio.composeapp.generated.resources.theme_crimson
 import nuvio.composeapp.generated.resources.theme_emerald
 import nuvio.composeapp.generated.resources.theme_ocean
 import nuvio.composeapp.generated.resources.theme_lagoon
+import nuvio.composeapp.generated.resources.theme_mew
 import nuvio.composeapp.generated.resources.theme_messenger
 import nuvio.composeapp.generated.resources.theme_rose
 import nuvio.composeapp.generated.resources.theme_violet
@@ -28,6 +29,7 @@ enum class AppTheme {
     EMERALD,
     AMBER,
     ROSE,
+    MEW,
     MESSENGER,
     AMETHYST,
     BLOSSOM,
@@ -43,7 +45,8 @@ enum class AppTheme {
 }
 
 val AppTheme.isEnhanced: Boolean
-    get() = this == AppTheme.MESSENGER ||
+    get() = this == AppTheme.MEW ||
+        this == AppTheme.MESSENGER ||
         this == AppTheme.AMETHYST ||
         this == AppTheme.BLOSSOM ||
         this == AppTheme.LAGOON ||
@@ -52,6 +55,7 @@ val AppTheme.isEnhanced: Boolean
 
 val AppTheme.labelRes: StringResource
     get() = when (this) {
+        AppTheme.MEW -> Res.string.theme_mew
         AppTheme.CRIMSON -> Res.string.theme_crimson
         AppTheme.OCEAN -> Res.string.theme_ocean
         AppTheme.VIOLET -> Res.string.theme_violet
