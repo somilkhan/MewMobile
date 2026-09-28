@@ -94,7 +94,20 @@ internal actual object CloudStreamPlatformRuntime {
                 }
             }
             if (loadedNow) {
+                // Reconcile synchronous repository registrations immediately, then give
+                // asynchronous bootstrap plugins a bounded background window to publish
+                // RepositoryManager entries just like the real CloudStream host does.
                 syncNativeRepositories()
+                if (loadedPlugin.providers.isEmpty()) {
+                    coroutineScope {
+                        launch {
+                            repeat(NATIVE_REPOSITORY_SYNC_ATTEMPTS - 1) {
+                                delay(NATIVE_REPOSITORY_SYNC_DELAY_MS)
+                                syncNativeRepositories()
+                            }
+                        }
+                    }
+                }
             }
             loadedPlugin.provider
         }
@@ -251,9 +264,10 @@ internal actual object CloudStreamPlatformRuntime {
             RuntimeDiagnostics.recordLog(
                 "cs-provider-register plugin=" + item.metadata.id.value + " count=" + providers.size,
             )
-            require(providers.isNotEmpty()) {
-                "Plugin loaded but registered no providers. It may reject the host runtime."
-            }
+            // CloudStream plugins are allowed to be repository/bootstrap plugins with no MainAPI.
+            // Some real plugins (for example MegaRepo) perform their work from an async coroutine
+            // launched by load(). The upstream CloudStream host considers load() successful here;
+            // rejecting zero providers would incorrectly break those plugins in Mew.
             RuntimeDiagnostics.recordLog(
                 "CloudStream plugin-load-success id=" + item.metadata.id.value + " providers=" + providers.size,
             )
@@ -280,7 +294,8 @@ internal actual object CloudStreamPlatformRuntime {
                 instance = instance,
                 providers = providers,
                 extractors = registeredExtractors,
-                provider = AndroidDexCloudStreamProvider(item.metadata.id.value, providers),
+                provider = providers.takeIf { it.isNotEmpty() }
+                    ?.let { AndroidDexCloudStreamProvider(item.metadata.id.value, it) },
             )
         } catch (error: Throwable) {
             RuntimeDiagnostics.recordLog(
@@ -415,6 +430,9 @@ internal actual object CloudStreamPlatformRuntime {
         )
     }
 
+    private const val NATIVE_REPOSITORY_SYNC_ATTEMPTS = 8
+    private const val NATIVE_REPOSITORY_SYNC_DELAY_MS = 500L
+
     private const val CLOUDSTREAM_REPOSITORY_MANAGER_CLASS = "com.lagradost.cloudstream3.plugins.RepositoryManager"
     private const val CLOUDSTREAM_REPOSITORY_DATA_CLASS = "com.lagradost.cloudstream3.ui.settings.extensions.RepositoryData"
 
@@ -428,7 +446,7 @@ internal actual object CloudStreamPlatformRuntime {
         val instance: BasePlugin,
         val providers: List<MainAPI>,
         val extractors: List<com.lagradost.cloudstream3.utils.ExtractorApi>,
-        val provider: CloudStreamProvider,
+        val provider: CloudStreamProvider?,
     ) {
         fun unload() {
             runCatching { instance.beforeUnload() }
