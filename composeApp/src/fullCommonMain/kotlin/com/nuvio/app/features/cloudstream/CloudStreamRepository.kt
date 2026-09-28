@@ -20,7 +20,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -42,6 +44,9 @@ actual object CloudStreamRepository {
     private val mainPageRequestMutex = Any()
     private val mainPageRequests =
         mutableMapOf<String, Deferred<Result<List<Pair<String, List<CloudStreamSearchItem>>>>>>()
+    private val loadLinksRequestMutex = Mutex()
+    private val loadLinksRequests =
+        mutableMapOf<String, Deferred<Result<List<CloudStreamPlaybackSource>>>>()
     private const val REPOSITORY_DISCOVERY_CONCURRENCY = 6
     private const val PROVIDER_REQUEST_CONCURRENCY = 4
 
@@ -59,6 +64,7 @@ actual object CloudStreamRepository {
         refreshJobs.values.forEach { it.cancel() }
         refreshJobs.clear()
         cancelInFlightMainPageRequests()
+        cancelInFlightLoadLinksRequests()
         CloudStreamPlatformRuntime.clear()
         currentProfileId = profileId.coerceAtLeast(1)
         CloudStreamPlatformStorage.setActiveProfile(currentProfileId)
@@ -73,6 +79,7 @@ actual object CloudStreamRepository {
         currentProfileId = 1
         _uiState.value = CloudStreamUiState()
         cancelInFlightMainPageRequests()
+        cancelInFlightLoadLinksRequests()
         CloudStreamPlatformRuntime.clear()
         CloudStreamPlatformStorage.clearPackages()
         CloudStreamPlatformStorage.clearAllState()
@@ -449,10 +456,19 @@ actual object CloudStreamRepository {
     }
 
     actual suspend fun load(providerId: String, data: String): Result<CloudStreamLoadItem> {
-        RuntimeDiagnostics.recordLog("cs-load-start id=$providerId")
+        val normalizedData = data.trimStart()
+        val dataKind = when {
+            normalizedData.startsWith("http://", ignoreCase = true) ||
+                normalizedData.startsWith("https://", ignoreCase = true) -> "url"
+            normalizedData.startsWith("[") -> "json-array"
+            normalizedData.startsWith("{") -> "json-object"
+            normalizedData.isBlank() -> "blank"
+            else -> "other"
+        }
+        RuntimeDiagnostics.recordLog("cs-load-start id=$providerId dataKind=$dataKind dataLength=${data.length}")
         return providerResult(providerId) { load(data) }
             .onSuccess { item -> RuntimeDiagnostics.recordLog("cs-load-success id=$providerId episodes=${item.episodes.size}") }
-            .onFailure { error -> RuntimeDiagnostics.recordLog("cs-load-failure id=$providerId error=${error.message?.take(160)}") }
+            .onFailure { error -> RuntimeDiagnostics.recordLog("cs-load-failure id=$providerId dataKind=$dataKind error=${error.message?.take(160)}") }
     }
 
     actual suspend fun loadByExternalId(
@@ -462,8 +478,42 @@ actual object CloudStreamRepository {
         loadByExternalId(externalId)
     }
 
-    actual suspend fun loadLinks(providerId: String, data: String): Result<List<CloudStreamPlaybackSource>> =
-        providerResult(providerId) { loadLinks(data) }
+    actual suspend fun loadLinks(providerId: String, data: String): Result<List<CloudStreamPlaybackSource>> {
+        initialize()
+        val requestKey = "$providerId\\u0000$data"
+        var created = false
+        val request = loadLinksRequestMutex.withLock {
+            loadLinksRequests[requestKey]?.takeIf { it.isActive || it.isCompleted }
+                ?: scope.async(start = CoroutineStart.LAZY) {
+                    providerResult(providerId) { loadLinks(data) }
+                }.also { deferred ->
+                    loadLinksRequests[requestKey] = deferred
+                    created = true
+                }
+        }
+        if (!created) {
+            RuntimeDiagnostics.recordLog("cs-load-links-coalesced provider=$providerId")
+        }
+        request.invokeOnCompletion {
+            scope.launch {
+                loadLinksRequestMutex.withLock {
+                    if (loadLinksRequests[requestKey] === request) {
+                        loadLinksRequests.remove(requestKey)
+                    }
+                }
+            }
+        }
+        return request.await()
+    }
+
+    private fun cancelInFlightLoadLinksRequests() {
+        scope.launch {
+            val requests = loadLinksRequestMutex.withLock {
+                loadLinksRequests.values.toList().also { loadLinksRequests.clear() }
+            }
+            requests.forEach { it.cancel() }
+        }
+    }
 
     private suspend fun installOrUpdate(pluginId: String): CloudStreamInstallResult {
         initialize()
