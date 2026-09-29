@@ -327,8 +327,14 @@ internal actual object CloudStreamPlatformRuntime {
         // Mew does not run that Application, so initialize the shared client explicitly
         // before any third-party extension can call app.get().
         app.initClient(context)
+        // Mew invokes MainAPI directly rather than through CloudStream's APIRepository.
+        // That removes the upstream 120s provider execution guard, so the shared NiceHttp
+        // client must not inherit a shorter runtime default from the embedded CloudStream AAR.
+        app.defaultTimeOut = DEFAULT_HTTP_TIMEOUT_SECONDS
         hostInitialized = true
-        RuntimeDiagnostics.recordLog("CloudStream HTTP client initialized")
+        RuntimeDiagnostics.recordLog(
+            "CloudStream HTTP client initialized defaultTimeoutSeconds=${app.defaultTimeOut}",
+        )
 
     }
 
@@ -436,6 +442,7 @@ internal actual object CloudStreamPlatformRuntime {
         )
     }
 
+    private const val DEFAULT_HTTP_TIMEOUT_SECONDS = 120L
     private const val NATIVE_REPOSITORY_SYNC_ATTEMPTS = 16
     private const val NATIVE_REPOSITORY_SYNC_DELAY_MS = 500L
 
