@@ -1750,7 +1750,7 @@
     <string name="nuvio_enhanced_section_feedback">Geri Bildirim</string>
     <string name="nuvio_enhanced_section_discovery">Keşif</string>
     <string name="nuvio_enhanced_section_diagnostics">Tanılama</string>
-    <string name="nuvio_enhanced_home_features_title">Enhanced zeka özellikleri</string>
+    <string name="nuvio_enhanced_home_features_title">Mew intelligence features</string>
     <string name="nuvio_enhanced_home_features_desc">Profil Concierge, Smart Resume sinyalleri ve benzeri fork'a özel akıllı yüzeyler için ana kontrol.</string>
     <string name="nuvio_enhanced_concierge_title">Mew Concierge</string>
     <string name="nuvio_enhanced_concierge_desc">Devam etme, kütüphane ve release sinyallerini kullanan premium profil panelini gösterir.</string>
@@ -1825,7 +1825,7 @@
     <string name="nuvio_enhanced_filter_all">Tümü</string>
     <string name="nuvio_enhanced_filter_episodes">Bölümler</string>
     <string name="nuvio_enhanced_filter_movies">Filmler</string>
-    <string name="nuvio_enhanced_highlight_title">Yeni Enhanced ayarlarını vurgula</string>
+    <string name="nuvio_enhanced_highlight_title">Highlight new Mew settings</string>
     <string name="nuvio_enhanced_highlight_desc">Yeni fork'a özel seçenekler, kullanılana veya görüldü işaretlenene kadar hafif bir çerçeve alır.</string>
     <string name="nuvio_enhanced_footer_title">Mew</string>
     <string name="nuvio_enhanced_footer_desc">Follow releases on GitHub or Telegram for updates, polls and feature requests.</string>
