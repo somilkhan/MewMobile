@@ -1167,7 +1167,7 @@
     <string name="settings_trakt_intro_description">Sync your watchlist, watch progress, continue watching, scrobbles, and personal lists with Trakt.</string>
     <string name="settings_trakt_missing_credentials">Missing TRAKT_CLIENT_ID / TRAKT_CLIENT_SECRET in local.properties.</string>
     <string name="settings_trakt_vip_unavailable_title">Trakt support needs a sponsor</string>
-    <string name="settings_trakt_vip_unavailable_description">Trakt requires a paid VIP subscription to register the API application needed by this build. If you would like to fund Trakt support and be credited in the Trakt supporters list, contact me on Discord.</string>
+    <string name="settings_trakt_vip_unavailable_description">Trakt requires a paid VIP subscription to register the API application needed by this build. If you would like to fund Trakt support and be credited in the Trakt supporters list, contact Mew support.</string>
     <string name="settings_trakt_supporters_count">%1$d Donors</string>
     <string name="settings_trakt_open_login">Open Trakt Login</string>
     <string name="settings_trakt_save_actions_description">Sync your watchlist, watch progress, continue watching, scrobbles, and personal lists with Trakt.</string>
@@ -1304,8 +1304,8 @@
     <string name="nuvio_enhanced_cinematic_header_content_hidden">Hidden</string>
     <string name="details_where_to_watch_attribution">Availability by JustWatch</string>
     <string name="details_where_to_watch_tmdb_required">Enable TMDB to see streaming availability</string>
-    <string name="settings_nuvio_enhanced_telegram_description">Get support, report issues, and share feedback in the Mew Discord.</string>
-    <string name="settings_nuvio_enhanced_donate_description">Support my work and the continued development of Mew on Ko-fi.</string>
+    <string name="settings_nuvio_enhanced_telegram_description">Get support, report issues, and share feedback on Telegram.</string>
+    <string name="settings_nuvio_enhanced_donate_description">Support my work and the continued development of Mew via UPI.</string>
     <string name="support_nuvio_title">Support Mew</string>
     <string name="support_nuvio_description">Help keep Mew independent and support its continued development.</string>
     <string name="support_nuvio_donate_upi">Support via UPI</string>
@@ -2707,9 +2707,9 @@
     <string name="nuvio_enhanced_footer_releases">Releases</string>
     <string name="nuvio_enhanced_footer_telegram">Telegram</string>
     <string name="nuvio_enhanced_footer_community">Community</string>
-    <string name="nuvio_discord_welcome_title">Join the Mew Discord</string>
-    <string name="nuvio_discord_welcome_description">Updates, polls, feature requests and community feedback now live in the Mew Discord.</string>
-    <string name="nuvio_discord_welcome_join">Join Discord</string>
+    <string name="nuvio_discord_welcome_title">Join the Mew Telegram</string>
+    <string name="nuvio_discord_welcome_description">Updates, polls, feature requests and community feedback now live on the Mew Telegram.</string>
+    <string name="nuvio_discord_welcome_join">Open Telegram</string>
     <string name="nuvio_discord_welcome_not_now">Not now</string>
     <string name="nuvio_discord_welcome_dont_show_again">Don&apos;t show again</string>
     <string name="nuvio_enhanced_backup_download_title">Download backup</string>
