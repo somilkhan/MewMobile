@@ -3,7 +3,12 @@ package com.nuvio.app
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -13,6 +18,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -24,6 +30,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
@@ -4400,6 +4407,16 @@ private fun AppLaunchOverlay(
     modifier: Modifier = Modifier,
 ) {
     val tokens = MaterialTheme.nuvio
+    val splashTransition = rememberInfiniteTransition(label = "mew_splash_mascot")
+    val mascotOffsetY by splashTransition.animateFloat(
+        initialValue = -7f,
+        targetValue = 7f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1500, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "mascot_offset",
+    )
     val appTheme = MaterialTheme.appTheme
     val effectiveBackground = remember(profile?.backgroundUrl, appTheme) {
         effectiveProfileBackground(profile, appTheme)
@@ -4407,50 +4424,41 @@ private fun AppLaunchOverlay(
     Box(
         modifier = modifier
             .zIndex(NuvioTokens.Z.dialog)
-            .nuvioConsumePointerEvents(),
+            .nuvioConsumePointerEvents()
+            .background(Color(0xFF0B0C0C)),
         contentAlignment = Alignment.Center,
     ) {
         PlatformBackHandler(enabled = true) { }
-        if (effectiveBackground.preset != null) {
-            AsyncImage(
-                model = Res.getUri(effectiveBackground.preset.resourcePath),
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop,
-            )
-        } else {
-            Image(
-                painter = painterResource(DefaultProfileBackgroundResource),
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop,
-            )
-        }
-        ProfileRemoteBackgroundImage(
-            imageUrl = effectiveBackground.customImageUrl,
-            profileIndex = profile?.profileIndex,
+
+        AsyncImage(
+            model = Res.getUri("drawable/mew_splash_scene.svg"),
+            contentDescription = null,
             modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.FillBounds,
         )
-        if (effectiveBackground.customImageUrl != null) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.28f)),
-            )
-        }
+
+        AsyncImage(
+            model = Res.getUri("drawable/mew_splash_mascot.svg"),
+            contentDescription = "Mew",
+            modifier = Modifier
+                .fillMaxWidth(0.58f)
+                .aspectRatio(760f / 560f)
+                .offset(y = mascotOffsetY.dp),
+            contentScale = ContentScale.Fit,
+        )
+
         Column(
+            modifier = Modifier
+                .align(Alignment.Center)
+                .padding(top = 230.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            MemberBrandWordmark(
-                height = 44.dp,
-            )
-            Spacer(modifier = Modifier.height(tokens.spacing.sectionGap))
-            NuvioLoadingIndicator(color = tokens.colors.accent)
+            NuvioLoadingIndicator(color = Color.White)
             Spacer(modifier = Modifier.height(tokens.spacing.controlGap))
             Text(
                 text = stringResource(Res.string.profile_loading_enhancing_experience),
                 style = MaterialTheme.typography.bodyLarge,
-                color = tokens.colors.textMuted,
+                color = Color.White.copy(alpha = 0.72f),
             )
         }
     }
