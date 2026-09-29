@@ -610,7 +610,7 @@ fun PluginsSettingsPageContent(
                         } else {
                             stringResource(Res.string.plugins_button_test_provider)
                         },
-                        enabled = hasTmdbApiKey && !isTestingThisScraper,
+                        enabled = uiState.pluginsEnabled && !isTestingThisScraper,
                         onClick = {
                             testingScraperId = scraper.id
                             coroutineScope.launch {
