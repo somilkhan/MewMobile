@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.nuvio.app.core.format.formatReleaseDateForDisplay
 import com.nuvio.app.core.ui.NuvioCardDepthSurface
+import com.nuvio.app.core.ui.rememberCardDepthStyleUiState
 import com.nuvio.app.core.ui.NuvioPosterWatchedOverlay
 import com.nuvio.app.core.ui.nuvioCardDepth
 import com.nuvio.app.core.ui.posterCardClickable
@@ -58,6 +59,7 @@ internal fun PosterGridRow(
     onPosterLongClick: ((MetaPreview) -> Unit)? = null,
 ) {
     val posterCardStyle = rememberPosterCardStyleUiState()
+    val cardDepthStyle = rememberCardDepthStyleUiState()
 
     Row(
         modifier = modifier.fillMaxWidth(),
@@ -77,6 +79,7 @@ internal fun PosterGridRow(
                 ),
                 onClick = onPosterClick?.let { { it(item) } },
                 onLongClick = onPosterLongClick?.let { { it(item) } },
+                cardDepthStyle = cardDepthStyle,
             )
         }
         repeat(columns - items.size) {
@@ -116,6 +119,7 @@ private fun PosterGridTile(
     hideLabels: Boolean,
     modifier: Modifier = Modifier,
     isWatched: Boolean = false,
+    cardDepthStyle: com.nuvio.app.core.ui.CardDepthStyleUiState,
     onClick: (() -> Unit)? = null,
     onLongClick: (() -> Unit)? = null,
 ) {
@@ -132,6 +136,7 @@ private fun PosterGridTile(
                 .nuvioCardDepth(
                     shape = RoundedCornerShape(cornerRadiusDp.dp),
                     surface = NuvioCardDepthSurface.Posters,
+                    stateOverride = cardDepthStyle,
                 )
                 .posterCardClickable(
                     onClick = onClick,

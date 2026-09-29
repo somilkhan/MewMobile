@@ -27,6 +27,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nuvio.app.core.ui.NuvioCardDepthSurface
+import com.nuvio.app.core.ui.CardDepthStyleUiState
+import com.nuvio.app.core.ui.rememberCardDepthStyleUiState
 import com.nuvio.app.core.ui.NuvioShelfSection
 import com.nuvio.app.core.ui.PosterLandscapeAspectRatio
 import com.nuvio.app.core.ui.landscapePosterWidth
@@ -79,6 +81,8 @@ private fun HomeCollectionRowSectionContent(
     animateGifs: Boolean,
     onFolderClick: ((collectionId: String, folderId: String) -> Unit)?,
 ) {
+    val posterCardStyle = rememberPosterCardStyleUiState()
+    val cardDepthStyle = rememberCardDepthStyleUiState()
     val homeCatalogSettings by remember {
         HomeCatalogSettingsRepository.snapshot()
         HomeCatalogSettingsRepository.uiState
@@ -97,6 +101,8 @@ private fun HomeCollectionRowSectionContent(
             folder = folder,
             animateGifs = animateGifs,
             onClick = onFolderClick?.let { { it(collection.id, folder.id) } },
+            posterCardStyle = posterCardStyle,
+            cardDepthStyle = cardDepthStyle,
         )
     }
 }
@@ -107,8 +113,9 @@ private fun CollectionFolderCard(
     modifier: Modifier = Modifier,
     animateGifs: Boolean = true,
     onClick: (() -> Unit)? = null,
+    posterCardStyle: com.nuvio.app.core.ui.PosterCardStyleUiState,
+    cardDepthStyle: CardDepthStyleUiState,
 ) {
-    val posterCardStyle = rememberPosterCardStyleUiState()
     val isLandscapeMode = posterCardStyle.catalogLandscapeModeEnabled
     val shape = if (isLandscapeMode) PosterShape.Landscape else folder.posterShape
     val cardWidth: Dp
@@ -142,6 +149,7 @@ private fun CollectionFolderCard(
                 .nuvioCardDepth(
                     shape = shapeCorner,
                     surface = NuvioCardDepthSurface.Posters,
+                    stateOverride = cardDepthStyle,
                 ),
             shape = shapeCorner,
             colors = CardDefaults.cardColors(

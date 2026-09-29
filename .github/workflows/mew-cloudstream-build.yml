@@ -1,0 +1,77 @@
+name: Mew CloudStream Build
+
+on:
+  push:
+    branches:
+      - feature/cloudstream-dynamic-repositories
+  pull_request:
+    branches:
+      - enhanced
+  workflow_dispatch:
+
+jobs:
+  android-full-debug:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Restore stable Mew debug keystore
+        env:
+          MEW_DEBUG_KEYSTORE_BASE64: ${{ secrets.MEW_DEBUG_KEYSTORE_BASE64 }}
+          MEW_DEBUG_KEYSTORE_PASSWORD: ${{ secrets.MEW_DEBUG_KEYSTORE_PASSWORD }}
+          MEW_DEBUG_KEY_ALIAS: ${{ secrets.MEW_DEBUG_KEY_ALIAS }}
+          MEW_DEBUG_KEY_PASSWORD: ${{ secrets.MEW_DEBUG_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$MEW_DEBUG_KEYSTORE_BASE64"
+          test -n "$MEW_DEBUG_KEYSTORE_PASSWORD"
+          test -n "$MEW_DEBUG_KEY_ALIAS"
+          test -n "$MEW_DEBUG_KEY_PASSWORD"
+          mkdir -p "$RUNNER_TEMP/mew-debug"
+          printf '%s' "$MEW_DEBUG_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/mew-debug/mew-debug.keystore"
+          chmod 600 "$RUNNER_TEMP/mew-debug/mew-debug.keystore"
+
+      - name: Prepare Gradle local properties
+        run: touch local.properties
+
+      - name: Build Android Full debug
+        env:
+          MEW_DEBUG_KEYSTORE_FILE: ${{ runner.temp }}/mew-debug/mew-debug.keystore
+          MEW_DEBUG_KEYSTORE_PASSWORD: ${{ secrets.MEW_DEBUG_KEYSTORE_PASSWORD }}
+          MEW_DEBUG_KEY_ALIAS: ${{ secrets.MEW_DEBUG_KEY_ALIAS }}
+          MEW_DEBUG_KEY_PASSWORD: ${{ secrets.MEW_DEBUG_KEY_PASSWORD }}
+        run: ./gradlew :androidApp:assembleFullDebug -Pnuvio.android.distribution=full --stacktrace
+
+      - name: Verify debug APK signing
+        env:
+          MEW_DEBUG_KEYSTORE_FILE: ${{ runner.temp }}/mew-debug/mew-debug.keystore
+          MEW_DEBUG_KEYSTORE_PASSWORD: ${{ secrets.MEW_DEBUG_KEYSTORE_PASSWORD }}
+          MEW_DEBUG_KEY_ALIAS: ${{ secrets.MEW_DEBUG_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          APK="$(find androidApp/build/outputs/apk/full/debug -name '*.apk' -print -quit)"
+          KEYSTORE_SHA="$(keytool -exportcert -rfc -keystore "$MEW_DEBUG_KEYSTORE_FILE" -storepass "$MEW_DEBUG_KEYSTORE_PASSWORD" -alias "$MEW_DEBUG_KEY_ALIAS" | openssl x509 -outform DER | sha256sum | awk '{print $1}' | tr '[:lower:]' '[:upper:]')"
+          APKSIGNER="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)/apksigner"
+          APKSIGNER_OUTPUT="$("$APKSIGNER" verify --print-certs "$APK" 2>&1)"
+          printf '%s\n' "$APKSIGNER_OUTPUT"
+          APK_SHA="$(printf '%s\n' "$APKSIGNER_OUTPUT" | sed -n 's/.*SHA-256 digest: //p' | head -n1 | tr -d ':[:space:]' | tr '[:lower:]' '[:upper:]')"
+          echo "Keystore certificate SHA-256: $KEYSTORE_SHA"
+          echo "APK signer certificate SHA-256: $APK_SHA"
+          test -n "$KEYSTORE_SHA"
+          test -n "$APK_SHA"
+          test "$KEYSTORE_SHA" = "$APK_SHA"
+          echo "Debug APK certificate SHA-256: $APK_SHA"
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: mew-cloudstream-full-debug
+          path: androidApp/build/outputs/apk/full/debug/*.apk
+          if-no-files-found: error

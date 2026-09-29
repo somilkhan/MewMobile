@@ -1,4 +1,4 @@
-name: Build Nuvio Release
+name: Build Mew Release
 
 on:
   workflow_dispatch:
@@ -28,7 +28,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: nuvio-release-${{ github.ref }}
+  group: mew-release-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -149,9 +149,9 @@ jobs:
             exit 1
           fi
 
-          staging_directory="${RUNNER_TEMP}/nuvio-ipa-staging"
+          staging_directory="${RUNNER_TEMP}/mew-ipa-staging"
           output_directory="${GITHUB_WORKSPACE}/iosApp/build/ipa"
-          ipa_name="Nuvio-Enhanced-v${app_version}-Full-unsigned.ipa"
+          ipa_name="Mew-v${app_version}-Full-unsigned.ipa"
           rm -rf "${staging_directory}" "${output_directory}"
           mkdir -p "${staging_directory}/Payload" "${output_directory}"
           ditto "${app_directory}" "${staging_directory}/Payload/$(basename "${app_directory}")"
@@ -167,25 +167,27 @@ jobs:
       - name: Upload sideload IPA artifact
         uses: actions/upload-artifact@v6
         with:
-          name: nuvio-${{ steps.release.outputs.version }}-ios-full-unsigned
+          name: mew-${{ steps.release.outputs.version }}-ios-full-unsigned
           path: iosApp/build/ipa/${{ steps.package.outputs.ipa_name }}
           if-no-files-found: error
 
   release:
-    name: ${{ inputs.mode }} Nuvio release
+    name: ${{ inputs.mode }} Mew release
     needs: build-ios
     if: ${{ always() && (!inputs.include_ios || inputs.mode == 'dry-run' || inputs.mode == 'attach-universal' || needs.build-ios.result == 'success') }}
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ github.token }}
-      RELEASE_PROPERTIES_BASE64: ${{ secrets.NUVIO_LOCAL_PROPERTIES_BASE64 }}
-      RELEASE_KEYSTORE_BASE64: ${{ secrets.NUVIO_RELEASE_KEYSTORE_BASE64 }}
+      RELEASE_PROPERTIES_BASE64: ${{ secrets.MEW_LOCAL_PROPERTIES_BASE64 || secrets.NUVIO_LOCAL_PROPERTIES_BASE64 }}
+      RELEASE_KEYSTORE_BASE64: ${{ secrets.MEW_RELEASE_KEYSTORE_BASE64 || secrets.NUVIO_RELEASE_KEYSTORE_BASE64 }}
+      RELEASE_STORE_PASSWORD: ${{ secrets.MEW_RELEASE_KEYSTORE_PASSWORD }}
+      RELEASE_KEY_ALIAS: ${{ secrets.MEW_RELEASE_KEY_ALIAS }}
+      RELEASE_KEY_PASSWORD: ${{ secrets.MEW_RELEASE_KEY_PASSWORD }}
       TRAKT_CLIENT_ID: ${{ secrets.TRAKT_CLIENT_ID }}
       SIMKL_CLIENT_ID: ${{ secrets.SIMKL_CLIENT_ID }}
       ANILIST_CLIENT_ID: ${{ secrets.ANILIST_CLIENT_ID }}
       MAL_CLIENT_ID: ${{ secrets.MAL_CLIENT_ID }}
       PREMIUMIZE_CLIENT_ID: ${{ secrets.PREMIUMIZE_CLIENT_ID }}
-      EXPECTED_ANDROID_SIGNING_SHA256: 4d87e3d92c54ae0efcdebb75dd08b8cfca1eace052198ed3b8f3f552533a21e3
 
     steps:
       - name: Check out full history
@@ -235,18 +237,20 @@ jobs:
           fi
 
           if [[ "${RELEASE_MODE}" != "dry-run" ]]; then
-            required_secrets=(
-              RELEASE_PROPERTIES_BASE64
-              RELEASE_KEYSTORE_BASE64
-            )
             missing=()
-            for secret_name in "${required_secrets[@]}"; do
-              if [[ -z "${!secret_name}" ]]; then
-                missing+=("${secret_name}")
+            if [[ -z "${RELEASE_KEYSTORE_BASE64}" ]]; then
+              missing+=("MEW_RELEASE_KEYSTORE_BASE64")
+            fi
+            if [[ -z "${RELEASE_STORE_PASSWORD}" || -z "${RELEASE_KEY_ALIAS}" || -z "${RELEASE_KEY_PASSWORD}" ]]; then
+              if [[ -z "${RELEASE_PROPERTIES_BASE64}" ]]; then
+                missing+=("MEW_RELEASE_KEYSTORE_PASSWORD/MEW_RELEASE_KEY_ALIAS/MEW_RELEASE_KEY_PASSWORD")
               fi
-            done
+            fi
+            if [[ -z "${RELEASE_PROPERTIES_BASE64}" ]]; then
+              echo "No legacy local.properties bundle supplied; release signing will use the Mew signing secrets."
+            fi
             if (( ${#missing[@]} > 0 )); then
-              printf 'Missing required release secrets: %s\n' "${missing[*]}" >&2
+              printf "Missing required release secrets: %s\n" "${missing[*]}" >&2
               exit 1
             fi
           fi
@@ -317,9 +321,12 @@ jobs:
       - name: Configure release properties
         if: inputs.mode != 'dry-run'
         run: |
-          keystore_path="${RUNNER_TEMP}/nuvio-release.jks"
+          keystore_path="${RUNNER_TEMP}/mew-release.jks"
           printf '%s' "${RELEASE_KEYSTORE_BASE64}" | base64 --decode > "${keystore_path}"
-          printf '%s' "${RELEASE_PROPERTIES_BASE64}" | base64 --decode > local.properties
+          : > local.properties
+          if [[ -n "${RELEASE_PROPERTIES_BASE64}" ]]; then
+            printf '%s' "${RELEASE_PROPERTIES_BASE64}" | base64 --decode > local.properties
+          fi
 
           # These paths only apply to the machine where local.properties was encoded.
           sed -i -E '/^[[:space:]]*(sdk\.dir|NUVIO_RELEASE_STORE_FILE)[[:space:]]*=/d' local.properties
@@ -334,6 +341,15 @@ jobs:
               printf '%s=%s\n' "${property_name}" "${property_value}" >> local.properties
             fi
           done
+
+          if [[ -n "${RELEASE_STORE_PASSWORD}" && -n "${RELEASE_KEY_ALIAS}" && -n "${RELEASE_KEY_PASSWORD}" ]]; then
+            sed -i -E '/^[[:space:]]*NUVIO_RELEASE_STORE_PASSWORD[[:space:]]*=/d' local.properties
+            sed -i -E '/^[[:space:]]*NUVIO_RELEASE_KEY_ALIAS[[:space:]]*=/d' local.properties
+            sed -i -E '/^[[:space:]]*NUVIO_RELEASE_KEY_PASSWORD[[:space:]]*=/d' local.properties
+            printf 'NUVIO_RELEASE_STORE_PASSWORD=%s\n' "${RELEASE_STORE_PASSWORD}" >> local.properties
+            printf 'NUVIO_RELEASE_KEY_ALIAS=%s\n' "${RELEASE_KEY_ALIAS}" >> local.properties
+            printf 'NUVIO_RELEASE_KEY_PASSWORD=%s\n' "${RELEASE_KEY_PASSWORD}" >> local.properties
+          fi
 
           required_properties=(
             NUVIO_RELEASE_STORE_PASSWORD
@@ -398,8 +414,13 @@ jobs:
             exit 1
           fi
 
+          store_password="$(grep '^NUVIO_RELEASE_STORE_PASSWORD=' local.properties | tail -n 1 | cut -d= -f2-)"
+          key_alias="$(grep '^NUVIO_RELEASE_KEY_ALIAS=' local.properties | tail -n 1 | cut -d= -f2-)"
+          key_password="$(grep '^NUVIO_RELEASE_KEY_PASSWORD=' local.properties | tail -n 1 | cut -d= -f2-)"
           expected_digest="$(
-            printf '%s' "${EXPECTED_ANDROID_SIGNING_SHA256}" |
+            keytool -list -v -keystore "${RUNNER_TEMP}/mew-release.jks" -alias "${key_alias}" -storepass "${store_password}" -keypass "${key_password}" |
+              sed -n -E 's/^.*SHA256:[[:space:]]*//p' |
+              head -n 1 |
               tr '[:upper:]' '[:lower:]' |
               tr -d ':[:space:]'
           )"
@@ -419,7 +440,7 @@ jobs:
               echo "Signing certificate mismatch for ${apk}." >&2
               echo "Expected: ${expected_digest}" >&2
               echo "Actual:   ${actual_digest}" >&2
-              echo "This APK cannot update an existing Nuvio Enhanced installation." >&2
+              echo "The APK signing certificate does not match the release keystore." >&2
               exit 1
             fi
           done
@@ -428,7 +449,7 @@ jobs:
         if: inputs.mode != 'dry-run'
         uses: actions/upload-artifact@v6
         with:
-          name: nuvio-${{ steps.release.outputs.version }}-full-release
+          name: mew-${{ steps.release.outputs.version }}-full-release
           path: androidApp/build/outputs/apk/full/release/*.apk
           if-no-files-found: error
 
@@ -436,7 +457,7 @@ jobs:
         if: inputs.include_ios && (inputs.mode == 'draft' || inputs.mode == 'publish')
         uses: actions/download-artifact@v7
         with:
-          name: nuvio-${{ steps.release.outputs.version }}-ios-full-unsigned
+          name: mew-${{ steps.release.outputs.version }}-ios-full-unsigned
           path: ios-release
 
       - name: Create GitHub release

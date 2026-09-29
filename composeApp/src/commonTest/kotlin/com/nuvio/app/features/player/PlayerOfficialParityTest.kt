@@ -10,6 +10,40 @@ import kotlin.test.assertTrue
 
 class PlayerOfficialParityTest {
     @Test
+    fun `manual seek recovery position is clamped to duration`() {
+        assertEquals(
+            120_000L,
+            manualSeekTargetPosition(positionMs = 120_000L, durationMs = 300_000L),
+        )
+        assertEquals(
+            300_000L,
+            manualSeekTargetPosition(positionMs = 450_000L, durationMs = 300_000L),
+        )
+        assertEquals(
+            0L,
+            manualSeekTargetPosition(positionMs = -5_000L, durationMs = 300_000L),
+        )
+    }
+
+    @Test
+    fun `initial position request identity ignores resume position`() {
+        val first = buildInitialPositionRequestKey(
+            playbackIdentity = "url:https://example.com/video.m3u8",
+            videoId = "movie:123",
+            seasonNumber = null,
+            episodeNumber = null,
+        )
+        val second = buildInitialPositionRequestKey(
+            playbackIdentity = "url:https://example.com/video.m3u8",
+            videoId = "movie:123",
+            seasonNumber = null,
+            episodeNumber = null,
+        )
+
+        assertEquals(first, second)
+    }
+
+    @Test
     fun `manual next episode autoplay without fallback requires binge group`() {
         assertTrue(
             shouldRestrictNextEpisodeAutoPlayToBingeGroup(

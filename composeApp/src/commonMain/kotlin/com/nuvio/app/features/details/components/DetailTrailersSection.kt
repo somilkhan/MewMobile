@@ -40,6 +40,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.nuvio.app.core.ui.NuvioCardDepthSurface
+import com.nuvio.app.core.ui.CardDepthStyleUiState
+import com.nuvio.app.core.ui.rememberCardDepthStyleUiState
 import com.nuvio.app.core.ui.nuvioCardDepth
 import com.nuvio.app.core.ui.nuvioHorizontalScrollBleed
 import com.nuvio.app.core.ui.nuvioKeyboardFocusIndicator
@@ -82,6 +84,7 @@ fun DetailTrailersSection(
 
     val selectedTrailers = grouped[selectedCategory].orEmpty()
     val userCornerRadius = rememberPosterCardStyleUiState().cornerRadiusDp.dp
+    val cardDepthStyle = rememberCardDepthStyleUiState()
 
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -183,6 +186,7 @@ fun DetailTrailersSection(
                         titleFontSize = sizing.titleFontSize,
                         metaFontSize = sizing.metaFontSize,
                         onClick = { onTrailerClick(trailer) },
+                        cardDepthStyle = cardDepthStyle,
                     )
                 }
             }
@@ -198,6 +202,7 @@ private fun TrailerCard(
     titleFontSize: androidx.compose.ui.unit.TextUnit,
     metaFontSize: androidx.compose.ui.unit.TextUnit,
     onClick: () -> Unit,
+    cardDepthStyle: CardDepthStyleUiState,
 ) {
     Column(
         modifier = Modifier.width(cardWidth),
@@ -210,6 +215,7 @@ private fun TrailerCard(
                 .nuvioCardDepth(
                     shape = RoundedCornerShape(cornerRadius),
                     surface = NuvioCardDepthSurface.Trailers,
+                    stateOverride = cardDepthStyle,
                 )
                 .nuvioKeyboardFocusIndicator(RoundedCornerShape(cornerRadius))
                 .clickable(onClick = onClick),

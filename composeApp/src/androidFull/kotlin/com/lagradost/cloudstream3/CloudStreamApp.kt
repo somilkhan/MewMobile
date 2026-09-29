@@ -25,43 +25,55 @@ class CloudStreamApp {
         }
 
         fun <T : Any> getKeyClass(path: String, valueType: Class<T>): T? {
-            val json = sharedPreferences()?.getString(path, null) ?: return null
-            return runCatching { mapper.readValue(json, valueType) }.getOrNull()
+            return context?.let { currentContext ->
+                with(DataStore) { currentContext.getKey(path, valueType) }
+            }
         }
 
-        fun <T : Any> setKeyClass(path: String, value: T) = setKey(path, value)
+        fun <T : Any> setKeyClass(path: String, value: T) {
+            setKey(path, value)
+        }
+
+        inline fun <reified T : Any> getKey(path: String): T? {
+            return context?.let { currentContext ->
+                with(DataStore) { currentContext.getKey<T>(path) }
+            }
+        }
 
         fun <T> setKey(path: String, value: T) {
-            val preferences = sharedPreferences() ?: return
-            preferences.edit().apply {
-                if (value == null) remove(path) else putString(path, mapper.writeValueAsString(value))
-            }.apply()
+            context?.let { currentContext ->
+                with(DataStore) { currentContext.setKey(path, value) }
+            }
         }
 
-        fun <T> setKey(folder: String, path: String, value: T) =
-            setKey(DataStore.getFolderName(folder, path), value)
+        fun <T> setKey(folder: String, path: String, value: T) {
+            context?.let { currentContext ->
+                with(DataStore) { currentContext.setKey(folder, path, value) }
+            }
+        }
 
         fun removeKey(path: String) {
-            sharedPreferences()?.edit()?.remove(path)?.apply()
+            context?.let { currentContext ->
+                with(DataStore) { currentContext.removeKey(path) }
+            }
         }
 
-        fun removeKey(folder: String, path: String) = removeKey(DataStore.getFolderName(folder, path))
+        fun removeKey(folder: String, path: String) {
+            context?.let { currentContext ->
+                with(DataStore) { currentContext.removeKey(folder, path) }
+            }
+        }
 
         fun removeKeys(folder: String): Int? {
-            val preferences = sharedPreferences() ?: return null
-            val keys = getKeys(folder).orEmpty()
-            preferences.edit().apply { keys.forEach(::remove) }.apply()
-            return keys.size
+            return context?.let { currentContext ->
+                with(DataStore) { currentContext.removeKeys(folder) }
+            }
         }
 
         fun getKeys(folder: String): List<String>? {
-            val preferences = sharedPreferences() ?: return null
-            val prefix = folder.trimEnd('/') + "/"
-            return preferences.all.keys.filter { it.startsWith(prefix) }
-        }
-
-        private fun sharedPreferences() = context?.let { currentContext ->
-            with(DataStore) { currentContext.getSharedPrefs() }
+            return context?.let { currentContext ->
+                with(DataStore) { currentContext.getKeys(folder) }
+            }
         }
     }
 }

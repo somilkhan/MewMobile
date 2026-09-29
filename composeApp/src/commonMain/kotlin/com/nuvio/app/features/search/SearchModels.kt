@@ -36,6 +36,7 @@ data class DiscoverCatalogOption(
     val genreOptions: List<String> = emptyList(),
     val genreRequired: Boolean = false,
     val supportsPagination: Boolean = false,
+    val cloudStreamProviderId: String? = null,
 )
 
 data class DiscoverUiState(

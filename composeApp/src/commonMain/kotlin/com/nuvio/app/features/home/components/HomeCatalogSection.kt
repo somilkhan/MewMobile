@@ -98,6 +98,7 @@ private fun HomeCatalogRowSectionContent(
             ),
             onClick = onPosterClick?.let { { it(item) } },
             onLongClick = onPosterLongClick?.let { { it(item) } },
+            posterCardStyle = posterCardStyle,
         )
     }
 }

@@ -30,6 +30,7 @@ data class CloudStreamPluginItem(
 
 data class CloudStreamUiState(
     val repositories: List<CloudStreamRepositoryItem> = emptyList(),
+    val discoveredRepositories: List<CloudStreamRepositoryManifest> = emptyList(),
     val plugins: List<CloudStreamPluginItem> = emptyList(),
     val registryRevision: Long = 0L,
     val securityWarningAccepted: Boolean = false,
@@ -67,6 +68,7 @@ expect object CloudStreamRepository {
     fun acceptSecurityWarning()
 
     suspend fun addRepository(rawUrl: String): AddCloudStreamRepositoryResult
+    suspend fun discoverRepositories(rawInput: String): Result<Int>
     fun refreshRepository(manifestUrl: String)
     fun refreshAll()
     fun removeRepository(manifestUrl: String)

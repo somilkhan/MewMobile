@@ -199,6 +199,7 @@ internal fun LazyListScope.appearanceSettingsContent(
                     ThemeSectionLabel(stringResource(Res.string.settings_appearance_theme_enhanced))
                     ThemeGrid(
                         themes = listOf(
+                            AppTheme.MEW,
                             AppTheme.MESSENGER,
                             AppTheme.AMETHYST,
                             AppTheme.BLOSSOM,

@@ -62,8 +62,10 @@ enum class ProfileBackgroundStatus {
 
 object RuntimeDiagnostics {
     private const val maxEvents = 20
+    private const val maxLogs = 250
     private val lock = SynchronizedObject()
     private val recentEvents = ArrayDeque<String>()
+    private val recentLogs = ArrayDeque<String>()
     private var area = DiagnosticArea.Startup
     private var previousArea = DiagnosticArea.Startup
     private var lastIssueArea: DiagnosticArea? = null
@@ -91,6 +93,7 @@ object RuntimeDiagnostics {
     private var enabledPluginScrapers = 0
     private var totalPluginCodeChars = 0L
     private var largestPluginCodeChars = 0
+    private var cloudStreamNativeRepositories = 0
 
     fun updateArea(value: DiagnosticArea) = synchronized(lock) {
         if (area != value) previousArea = area
@@ -128,6 +131,18 @@ object RuntimeDiagnostics {
         enabledPluginScrapers = enabledScrapers.coerceAtLeast(0)
         totalPluginCodeChars = totalCodeChars.coerceAtLeast(0L)
         largestPluginCodeChars = largestCodeChars.coerceAtLeast(0)
+    }
+
+    fun updateCloudStreamNativeRepositories(count: Int) = synchronized(lock) {
+        cloudStreamNativeRepositories = count.coerceAtLeast(0)
+    }
+
+    fun recordLog(message: String) = synchronized(lock) {
+        val line = message.trim().takeIf { it.isNotEmpty() } ?: return@synchronized
+        if (recentLogs.size == maxLogs) recentLogs.removeFirst()
+        recentLogs.addLast(line)
+        addRecentEvent("LOG: $line")
+        PlatformRuntimeLogcat.appendAppLog("INFO", line)
     }
 
     fun record(event: DiagnosticEvent) = synchronized(lock) {
@@ -235,8 +250,16 @@ object RuntimeDiagnostics {
                 "Plugins: repositories=$pluginRepositories scrapers=$pluginScrapers enabled=$enabledPluginScrapers " +
                     "sourceChars=$totalPluginCodeChars largestSourceChars=$largestPluginCodeChars",
             )
-            append("Recent events: ")
-            append(if (recentEvents.isEmpty()) "none" else recentEvents.joinToString(" | "))
+            appendLine("CloudStream native repositories: $cloudStreamNativeRepositories")
+            appendLine("Recent events: ")
+            appendLine(if (recentEvents.isEmpty()) "none" else recentEvents.joinToString(" | "))
+            appendLine("Diagnostic log:")
+            append(if (recentLogs.isEmpty()) "none" else recentLogs.joinToString("\n"))
+            PlatformRuntimeLogcat.snapshot()?.let { logcat ->
+                appendLine()
+                appendLine("Android Logcat (current app process):")
+                append(logcat)
+            }
         }
     }
 
@@ -247,6 +270,7 @@ object RuntimeDiagnostics {
 
     internal fun resetForTests() = synchronized(lock) {
         recentEvents.clear()
+        recentLogs.clear()
         area = DiagnosticArea.Startup
         previousArea = DiagnosticArea.Startup
         lastIssueArea = null
@@ -274,6 +298,7 @@ object RuntimeDiagnostics {
         enabledPluginScrapers = 0
         totalPluginCodeChars = 0L
         largestPluginCodeChars = 0
+        cloudStreamNativeRepositories = 0
     }
 }
 

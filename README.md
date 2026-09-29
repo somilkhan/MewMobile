@@ -1,203 +1,152 @@
-<div align="center">
+# MewMobile
 
-  <img src="https://github.com/tapframe/NuvioTV/blob/main/assets/brand/app_logo_wordmark.png" alt="NuvioMobile Enhanced" width="320" />
+Mew is an Android media client built as an independent fork of NuvioMobile, with a Mew-owned product/UI layer and native CloudStream compatibility.
 
-  <h1>NuvioMobile Enhanced</h1>
+The project is designed around **user-installed extensions and providers** rather than a bundled all-in-one content database.
 
-  <p><strong>An independent continuation of NuvioMobile, maintained by AKRusso.</strong></p>
+## What Mew is
 
-  <p>
-    This fork keeps Nuvio up to date while adding improvements to the user experience,
-    playback, navigation, tracking, and community support.
-  </p>
+Mew provides the application experience around several independently managed capabilities:
 
-  <p>
-    <a href="https://github.com/AKRusso/NuvioMobile-Enhanced/releases/latest"><img src="https://img.shields.io/github/v/release/AKRusso/NuvioMobile-Enhanced?style=for-the-badge&label=Latest%20Release" alt="Latest release" /></a>
-    <a href="https://github.com/AKRusso/NuvioMobile-Enhanced/releases"><img src="https://img.shields.io/github/downloads/AKRusso/NuvioMobile-Enhanced/total?style=for-the-badge&label=Downloads" alt="Downloads" /></a>
-    <a href="https://github.com/AKRusso/NuvioMobile-Enhanced/actions/workflows/android-release.yml"><img src="https://img.shields.io/github/actions/workflow/status/AKRusso/NuvioMobile-Enhanced/android-release.yml?style=for-the-badge&label=Android%20Build" alt="Android build status" /></a>
-    <a href="https://github.com/AKRusso/NuvioMobile-Enhanced/blob/enhanced/LICENSE"><img src="https://img.shields.io/github/license/AKRusso/NuvioMobile-Enhanced?style=for-the-badge" alt="License" /></a>
-  </p>
+- Home, search, details, episodes, library, profiles, downloads and playback.
+- Native CloudStream repository/plugin compatibility in the full Android build.
+- User-installed CloudStream repositories and providers.
+- External addon integrations.
+- Optional metadata enrichment, including TMDB.
+- Multiple playback engines and configurable playback behavior.
+- Diagnostics and backup/settings tooling for troubleshooting.
 
-  <p>
-    <a href="#download">Download</a> |
-    <a href="#what-i-maintain">What I maintain</a> |
-    <a href="#features">Features</a> |
-    <a href="#contributing">Contributing</a> |
-    <a href="#credits-and-attribution">Credits</a>
-  </p>
+Mew does **not** host or distribute media content.
 
-</div>
+## How content flows
 
-## Current Status
+Mew keeps the product layer separate from the extension runtime:
 
-This repository is maintained by **AKRusso** as an independent continuation of
-NuvioMobile Enhanced. The goal is to keep the fork aligned with the original
-project, fix bugs, improve Android and iOS, and provide easy-to-install release
-builds.
+```text
+Mew UI
+  ↓
+Mew application / orchestration layer
+  ↓
+CloudStream runtime
+  ↓
+CloudStream repositories
+  ↓
+CloudStream plugins / providers
+  ↓
+Search / Home / Details / Episodes
+  ↓
+Source extraction
+  ↓
+Mew playback layer
+```
 
-The current release is aligned with the stable official NuvioMobile `0.4.11`
-codebase while preserving the Enhanced experience and user settings.
+CloudStream is a compatibility/runtime layer, not a bundled catalog. Mew does not replace it with a parallel provider architecture.
 
-| Track | Version |
-| --- | --- |
-| Nuvio Enhanced | `0.4.13 (117)` |
-| Official NuvioMobile base | `0.4.11` |
-| Fork main branch | [`enhanced`](https://github.com/AKRusso/NuvioMobile-Enhanced/tree/enhanced) |
-| Maintainer | [AKRusso](https://github.com/AKRusso) |
+### Metadata is optional
 
-The Enhanced version is kept separate from the official version so it is clear
-which work comes from the original Nuvio project and which work belongs to this
-fork.
+CloudStream providers can expose content without TMDB. Metadata services are used for enrichment and presentation where configured.
 
-## Download
+TMDB can provide richer artwork, descriptions and matching, but **TMDB is not a prerequisite for CloudStream provider content**.
 
-### Android
+## Extensions and sources
 
-Always download from the official fork release:
+Mew supports two distinct integration concepts:
 
-**[Download the latest Nuvio Enhanced release](https://github.com/AKRusso/NuvioMobile-Enhanced/releases/latest)**
+### CloudStream providers
 
-For most Android phones, choose:
+CloudStream repositories can supply providers capable of:
 
-**[ARM64-v8a - recommended](https://github.com/AKRusso/NuvioMobile-Enhanced/releases/latest/download/androidApp-full-arm64-v8a-release.apk)**
+- Home/catalog content
+- Search
+- Details
+- Episodes
+- Source extraction
 
-If you are unsure which architecture your device uses, download the universal APK:
+Provider availability and behavior depend on the installed third-party repository/plugin.
 
-**[Universal APK - easiest option](https://github.com/AKRusso/NuvioMobile-Enhanced/releases/latest/download/androidApp-full-universal-release.apk)**
+### External addons
 
-Other architectures are available on the release page:
+Mew also supports manifest-based addons for capabilities such as catalogs, metadata, streams and subtitles. These are separate from the CloudStream runtime.
 
-- `armeabi-v7a`: older 32-bit Android devices.
-- `x86_64`: 64-bit Intel emulators or compatible devices.
-- `x86`: 32-bit Intel emulators or compatible devices.
+Only install third-party repositories, plugins and addons that you trust and are authorized to use.
 
-Release APKs are built by GitHub Actions, use the update-compatible certificate
-from previous Enhanced builds, and include SHA-256 hashes in the release notes.
+## Getting started
 
-### iOS and iPadOS
+1. Install a Mew build appropriate for your platform/distribution.
+2. Open **Settings → Content & Discovery**.
+3. Add the extensions or CloudStream repositories you want to use.
+4. Enable compatible providers.
+5. Optionally configure metadata enrichment.
+6. Return to Home/Search and discover content from the integrations you installed.
 
-Future published releases build the Full iOS variant and attach
-`Nuvio-Enhanced-v<version>-Full-unsigned.ipa` to the same GitHub release as the
-Android APKs. The Full variant retains sideload-only functionality such as P2P,
-plugins, and in-app trailers.
+Mew does not assume a particular third-party provider database is installed.
 
-The IPA is intentionally unsigned. Install it with AltStore or SideStore, which
-signs it using your own Apple account. It cannot be installed by opening the
-file directly, and it is not intended for the App Store.
+## Android build
 
-## What I Maintain
-
-- Keeping this fork aligned with stable NuvioMobile releases.
-- Fixing bugs and regressions found on Android and iOS.
-- Building and publishing signed Android APKs and sideload-ready iOS IPAs through GitHub Actions.
-- Improving navigation, playback, library, Live TV, and tracking across both platforms.
-- Maintaining clear documentation, changelogs, and release notes.
-- Supporting the community through Ko-fi without storing private payment data.
-
-## Features
-
-| Area | Enhanced improvements |
-| --- | --- |
-| Playback | Serialized Android libmpv playback, ExoPlayer sidecar subtitles, exact seeking, audio boost, custom subtitle styling, and safer surface recovery. |
-| Live TV | Robust M3U parsing, automatic compressed XMLTV EPG, channel matching, caching, favorites, filters, and recent channels. |
-| Tracking | Trakt and Simkl synchronization plus AniList and MyAnimeList anime tracking and editing. |
-| Profiles | Per-profile Enhanced settings, Discover choices, themes, backgrounds, playback preferences, and account isolation. |
-| Library | Release calendar, release radar, downloads, clearer status handling, and refined navigation. |
-| AI assistant | Gemini, OpenRouter, Cerebras, and Groq integrations with formatted responses. |
-| Community | Supporters, contributors, Ko-fi donations, and approved supporter avatars. |
-| UX | Expandable biographies, episode ratings, landscape artwork, keyboard and DeX navigation, smoother transitions, and less flicker. |
-
-## Roadmap
-
-- Continue tracking official NuvioMobile releases.
-- Fix community-reported issues and improve Android compatibility.
-- Keep releases signed, verifiable, and easy to install.
-- Improve technical documentation and contribution workflows.
-
-Features may change as upstream evolves and community feedback arrives. Specific
-changes are recorded in [`CHANGELOG.md`](CHANGELOG.md) and each release's notes.
-
-## Support And Feedback
-
-- [Report a bug](https://github.com/AKRusso/NuvioMobile-Enhanced/issues/new/choose)
-- [View open issues](https://github.com/AKRusso/NuvioMobile-Enhanced/issues)
-- [View builds and workflows](https://github.com/AKRusso/NuvioMobile-Enhanced/actions)
-- [Support development on Ko-fi](https://ko-fi.com/nuvioenhanced)
-- [Join the community Discord](https://discord.gg/at8xffxuRU)
-
-When reporting an issue, include the Enhanced version, device architecture,
-Android version, reproduction steps, and relevant logs without personal data.
-
-## Build From Source
+The primary Android full build is:
 
 ```bash
-git clone https://github.com/AKRusso/NuvioMobile-Enhanced.git
-cd NuvioMobile-Enhanced
-git checkout enhanced
-./gradlew :androidApp:assembleFullDebug
+./gradlew :androidApp:assembleFullDebug -Pnuvio.android.distribution=full
 ```
 
-On Windows:
+The repository currently retains some `nuvio.*` Gradle/property/package identifiers for compatibility. These are implementation details and should not be treated as the public product name.
 
-```powershell
-git clone https://github.com/AKRusso/NuvioMobile-Enhanced.git
-cd NuvioMobile-Enhanced
-git checkout enhanced
-.\gradlew.bat :androidApp:assembleFullDebug
+Credentials and signing configuration belong in ignored `local.properties` or GitHub Actions secrets. Never commit credentials, signing keys or private configuration.
+
+## Release information
+
+Android release versioning is sourced from:
+
+```text
+iosApp/Configuration/Version.xcconfig
 ```
 
-To run the main validation tasks:
+At the current branch state, the configured release version is **0.4.14 (118)**.
 
-```powershell
-.\gradlew.bat allTests :androidApp:lintFullDebug
-```
+Release workflows build and publish Mew artifacts through GitHub Actions when the required signing/configuration secrets are available.
 
-Credentials, tokens, and private configuration must stay in `local.properties` or
-GitHub Actions secrets. Never commit them to Git.
+## Project structure
 
-## Contributing
+Important areas include:
 
-Pull requests and issues are welcome. Before contributing:
+- `composeApp/src/commonMain` — shared application/UI code.
+- `composeApp/src/fullCommonMain` — full-distribution CloudStream integration.
+- `composeApp/src/androidFull` — embedded Android CloudStream runtime and platform integration.
+- `androidApp` — Android application packaging, manifests and release configuration.
+- `composeApp/src/commonTest` — shared tests.
+- `.github/workflows` — CI/release automation.
 
-1. Confirm that the change belongs in Enhanced rather than the original upstream project.
-2. Keep changes focused and explain the expected behavior.
-3. Run the relevant tests and lint checks.
-4. Update the changelog when the change affects users.
-5. Never include tokens, passwords, credentials, or private files.
+## Development principles
 
-For larger changes, open an issue first so the direction can be discussed.
+Mew development is intentionally separated into:
 
-## Credits And Attribution
+1. **Product/UI** — Mew-owned experience and branding.
+2. **CloudStream compatibility** — integration with the native CloudStream runtime.
+3. **Stability/performance** — rendering, loading, playback and lifecycle reliability.
+4. **Upstream compatibility** — maintaining required compatibility with inherited/open-source components.
 
-This is an independent community fork. **NuvioMobile Enhanced is not the original
-project and does not speak on behalf of the upstream maintainers.**
+Do not add fake provider data, synthetic metadata, hardcoded provider catalogs or a duplicate extension runtime.
 
-- Fork maintainer: [AKRusso](https://github.com/AKRusso)
-- Original project: [NuvioMedia/NuvioMobile](https://github.com/NuvioMedia/NuvioMobile)
-- Upstream organization: [NuvioMedia](https://github.com/NuvioMedia)
-- Brand asset used here: [tapframe/NuvioTV](https://github.com/tapframe/NuvioTV)
+## Current limitations
 
-Fork-specific changes are documented in the Git history, changelog, and release
-notes. Original code remains subject to its license and attribution requirements.
+- Content availability depends on the repositories, plugins and addons the user installs.
+- Third-party providers can fail, disappear or change independently of Mew.
+- Metadata enrichment is optional and can be unavailable without affecting the underlying provider architecture.
+- Some internal compatibility identifiers still use upstream Nuvio naming to preserve update/data/integration compatibility.
+- Platform capabilities differ between Android distributions and other targets.
 
-## Legal And DMCA
+## Attribution and licenses
 
-NuvioMobile Enhanced is a client-side interface for browsing metadata and playing
-media through user-installed extensions and/or user-provided sources. Use it only
-with content you own or are authorized to access.
+Mew is an independent fork. Upstream NuvioMobile code and other third-party components remain subject to their respective licenses and attribution requirements.
 
-The project does not host, store, or distribute media content and is not affiliated
-with third-party extensions, catalogs, sources, or content providers.
+Upstream project:
 
-- [Legal policy and disclaimer](https://nuvioapp.space/legal)
-- [GPL-3.0 license](LICENSE)
+- NuvioMobile — https://github.com/NuvioMedia/NuvioMobile
 
-## Star History
+CloudStream compatibility code and the embedded runtime remain subject to their applicable upstream licenses.
 
-<a href="https://www.star-history.com/#AKRusso/NuvioMobile-Enhanced&type=date&legend=top-left">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=AKRusso/NuvioMobile-Enhanced&type=date&theme=dark&legend=top-left" />
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=AKRusso/NuvioMobile-Enhanced&type=date&legend=top-left" />
-    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=AKRusso/NuvioMobile-Enhanced&type=date&legend=top-left" />
-  </picture>
-</a>
+See [LICENSE](LICENSE) and the in-app **Licenses & Attribution** section for project-specific attribution information.
+
+## Legal
+
+Mew is a client application. It does not host or distribute media content. Use Mew and any third-party integrations only with content and services you are authorized to access.

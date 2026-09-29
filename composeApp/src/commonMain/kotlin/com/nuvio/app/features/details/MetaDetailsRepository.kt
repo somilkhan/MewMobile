@@ -68,7 +68,7 @@ object MetaDetailsRepository {
     )
 
     private val log = Logger.withTag("MetaDetailsRepo")
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val _uiState = MutableStateFlow(MetaDetailsUiState())
     val uiState: StateFlow<MetaDetailsUiState> = _uiState.asStateFlow()
     private var activeJob: Job? = null
@@ -361,6 +361,7 @@ object MetaDetailsRepository {
 
     private const val FETCH_TIMEOUT_MS = 5_000L
     private const val METADATA_BASE_TOTAL_TIMEOUT_MS = 5_000L
+    private const val CLOUDSTREAM_DETAIL_TIMEOUT_MS = 120_000L
     private const val FIRST_PAINT_ENRICHMENT_BUDGET_MS = 2_000L
     private const val METADATA_PROVIDER_READY_TIMEOUT_MS = 10_000L
     private const val TMDB_FALLBACK_TIMEOUT_MS = 10_000L
@@ -450,8 +451,13 @@ object MetaDetailsRepository {
         requestKey: String,
     ): CoordinatedMetadataResult<BaseMetadataResult?> {
         val generation = synchronized(cacheLock) { cacheGeneration }
+        val totalTimeoutMs = if (parseCloudStreamRouteId(id) != null) {
+            CLOUDSTREAM_DETAIL_TIMEOUT_MS
+        } else {
+            METADATA_BASE_TOTAL_TIMEOUT_MS
+        }
         return baseRequestCoordinator.execute(key = "$generation:$requestKey") {
-            withTimeoutOrNull(METADATA_BASE_TOTAL_TIMEOUT_MS) {
+            withTimeoutOrNull(totalTimeoutMs) {
                 cachedEntry(requestKey, generation)?.let { cached ->
                     BaseMetadataResult(
                         meta = cached.baseMeta,
@@ -467,7 +473,7 @@ object MetaDetailsRepository {
 
     private suspend fun fetchBaseUncached(type: String, id: String): BaseMetadataResult? {
         parseCloudStreamRouteId(id)?.let { route ->
-            return withTimeoutOrNull(FETCH_TIMEOUT_MS) {
+            return withTimeoutOrNull(CLOUDSTREAM_DETAIL_TIMEOUT_MS) {
                 CloudStreamRepository.load(route.providerId, route.data)
                     .getOrNull()
                     ?.toMetaDetails()
@@ -754,19 +760,36 @@ object MetaDetailsRepository {
         onProgress: (suspend (MetaDetails) -> Unit)? = null,
     ): MetaDetails {
         TmdbSettingsRepository.ensureLoaded()
+        val settings = TmdbSettingsRepository.snapshot()
+        if (!settings.enabled) {
+            RuntimeDiagnostics.recordLog("tmdb-enrichment-miss reason=disabled")
+            return meta
+        }
+        RuntimeDiagnostics.recordLog("tmdb-enrichment-start")
         val seasonCount = meta.videos.mapNotNull { it.season }.distinct().size
         var latestProgress = meta
-        return withTimeoutOrNull(tmdbEnrichmentTimeoutMs(seasonCount)) {
-            TmdbMetadataService.enrichMeta(
-                meta = meta,
-                fallbackItemId = fallbackItemId,
-                settings = TmdbSettingsRepository.snapshot(),
-                onEpisodeProgress = { progress ->
-                    latestProgress = progress
-                    onProgress?.invoke(progress)
-                },
-            )
-        } ?: latestProgress
+        val result = runCatching {
+            withTimeoutOrNull(tmdbEnrichmentTimeoutMs(seasonCount)) {
+                TmdbMetadataService.enrichMeta(
+                    meta = meta,
+                    fallbackItemId = fallbackItemId,
+                    settings = settings,
+                    onEpisodeProgress = { progress ->
+                        latestProgress = progress
+                        onProgress?.invoke(progress)
+                    },
+                )
+            }
+        }.getOrElse { failure ->
+            RuntimeDiagnostics.recordLog("tmdb-enrichment-failure error=${failure.message?.take(160)}")
+            return latestProgress
+        }
+        if (result == null) {
+            RuntimeDiagnostics.recordLog("tmdb-enrichment-miss reason=timeout-or-no-match")
+            return latestProgress
+        }
+        RuntimeDiagnostics.recordLog("tmdb-enrichment-success")
+        return result
     }
 
     private suspend fun applyMoreLikeThisSource(

@@ -3,7 +3,12 @@ package com.nuvio.app
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -13,6 +18,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -24,6 +30,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
@@ -91,6 +98,7 @@ import androidx.navigation3.ui.NavDisplay
 import androidx.savedstate.serialization.SavedStateConfiguration
 import coil3.ImageLoader
 import coil3.annotation.ExperimentalCoilApi
+import coil3.compose.AsyncImage
 import coil3.compose.setSingletonImageLoaderFactory
 import coil3.request.CachePolicy
 import coil3.request.crossfade
@@ -213,15 +221,12 @@ import com.nuvio.app.features.player.SubtitleLanguageOption
 import com.nuvio.app.features.player.sanitizePlaybackHeaders
 import com.nuvio.app.features.player.sanitizePlaybackResponseHeaders
 import com.nuvio.app.features.profiles.AvatarRepository
-import com.nuvio.app.features.profiles.DefaultProfileBackgroundResource
 import com.nuvio.app.features.profiles.NativeProfileSwitcherPopup
 import com.nuvio.app.features.profiles.NuvioProfile
 import com.nuvio.app.features.profiles.ProfileEditScreen
 import com.nuvio.app.features.profiles.ProfileRepository
-import com.nuvio.app.features.profiles.ProfileRemoteBackgroundImage
 import com.nuvio.app.features.profiles.ProfileSelectionScreen
 import com.nuvio.app.features.profiles.ProfileSwitcherTab
-import com.nuvio.app.features.profiles.effectiveProfileBackground
 import com.nuvio.app.features.profiles.profileAvatarImageUrl
 import com.nuvio.app.features.details.resolveCachedEpisodeVideoId
 import com.nuvio.app.features.search.SearchScreen
@@ -234,7 +239,6 @@ import com.nuvio.app.features.settings.AddonsSettingsScreen
 import com.nuvio.app.features.settings.PluginsSettingsScreen
 import com.nuvio.app.features.settings.AccountSettingsScreen
 import com.nuvio.app.features.settings.AppBrandWordmark
-import com.nuvio.app.features.settings.MemberBrandWordmark
 import com.nuvio.app.features.settings.SupportersContributorsSettingsScreen
 import com.nuvio.app.features.settings.LicensesAttributionsSettingsScreen
 import com.nuvio.app.features.settings.NavBarStyle
@@ -301,6 +305,7 @@ import nuvio.composeapp.generated.resources.compose_nav_search
 import nuvio.composeapp.generated.resources.sidebar_library
 import nuvio.composeapp.generated.resources.sidebar_search
 import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.ExperimentalResourceApi
 import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
@@ -479,7 +484,7 @@ fun App(
 ) {
     setSingletonImageLoaderFactory { context ->
         ImageLoader.Builder(context)
-            .crossfade(true)
+            .crossfade(false)
             .diskCachePolicy(CachePolicy.ENABLED)
             .memoryCachePolicy(CachePolicy.ENABLED)
             .components {
@@ -903,9 +908,6 @@ private fun MainAppContent(
             }
         }
         val profileState by ProfileRepository.state.collectAsStateWithLifecycle()
-        val launchOverlayProfile = remember(profileState.activeProfile, profileState.profiles) {
-            profileState.activeProfile ?: profileState.profiles.firstOrNull()
-        }
     val playerSettingsUiState by remember {
         PlayerSettingsRepository.ensureLoaded()
         PlayerSettingsRepository.uiState
@@ -2159,7 +2161,6 @@ private fun MainAppContent(
                                     AppTabHost(
                                         modifier = Modifier
                                             .fillMaxSize()
-                                            .then(if (navBarStyleSetting != NavBarStyle.CLASSIC) Modifier.hazeSource(state = navBarHazeState) else Modifier)
                                             .then(if (navBarStyleSetting == NavBarStyle.ADAPTIVE) Modifier.nestedScroll(navBarScrollState.nestedScrollConnection) else Modifier)
                                             .padding(innerPadding)
                                             .padding(start = if (useTvLayout) 80.dp else 0.dp),
@@ -2367,7 +2368,7 @@ private fun MainAppContent(
                                     NuvioNavigationBar(
                                         modifier = Modifier.align(Alignment.BottomCenter),
                                         scrollState = navBarScrollState,
-                                        hazeState = navBarHazeState,
+                                        hazeState = null,
                                     ) {
                                         NavItem(
                                             selected = selectedTab == AppScreenTab.Home,
@@ -3942,7 +3943,6 @@ private fun MainAppContent(
                 exit = fadeOut(androidx.compose.animation.core.tween(400)),
             ) {
                 AppLaunchOverlay(
-                    profile = launchOverlayProfile,
                     modifier = Modifier.fillMaxSize(),
                 )
             }
@@ -4038,14 +4038,19 @@ private fun AppTabHost(
     onRequestedSettingsPageConsumed: () -> Unit = {},
     onInitialHomeContentRendered: () -> Unit = {},
 ) {
-    val tabStateHolder = rememberSaveableStateHolder()
+    val contentDiscoveryTitle = stringResource(Res.string.compose_settings_page_content_discovery)
 
-    Box(modifier = modifier.fillMaxSize()) {
-        tabStateHolder.SaveableStateProvider(selectedTab.name) {
-            when (selectedTab) {
+    RootTabHost(
+        selectedTab = selectedTab,
+        modifier = modifier.fillMaxSize(),
+        active = rootActionsEnabled,
+        profileId = ProfileRepository.activeProfileId,
+    ) { tab ->
+        when (tab) {
                 AppScreenTab.Home -> {
                     HomeScreen(
                         modifier = Modifier.fillMaxSize(),
+                        isVisible = rootActionsEnabled && tab == AppScreenTab.Home,
                         animateCollectionGifs = animateHomeCollectionGifs,
                         scrollToTopRequests = homeScrollToTopRequests,
                         onCatalogClick = onCatalogClick,
@@ -4054,6 +4059,12 @@ private fun AppTabHost(
                         onContinueWatchingClick = onContinueWatchingClick,
                         onContinueWatchingLongPress = onContinueWatchingLongPress,
                         onFolderClick = onFolderClick,
+                        onOpenDiscoveryClick = {
+                            onSettingsPageClick?.invoke(
+                                SettingsPage.ContentDiscovery.name,
+                                contentDiscoveryTitle,
+                            )
+                        },
                         onFirstCatalogRendered = onInitialHomeContentRendered,
                     )
                 }
@@ -4097,7 +4108,7 @@ private fun AppTabHost(
                         rootActionRequests = settingsRootActionRequests,
                         requestedPageName = requestedSettingsPageName,
                         onRequestedPageConsumed = onRequestedSettingsPageConsumed,
-                        rootActionsEnabled = rootActionsEnabled,
+                        rootActionsEnabled = rootActionsEnabled && tab == AppScreenTab.Settings,
                         onNavigatePage = onSettingsPageClick,
                         onSwitchProfile = onSwitchProfile,
                         onHomescreenClick = onHomescreenSettingsClick,
@@ -4118,7 +4129,6 @@ private fun AppTabHost(
             }
         }
     }
-}
 
 @Composable
 private fun TabletFloatingTopBar(
@@ -4382,54 +4392,60 @@ private fun TabletTopPillItem(
     }
 }
 
+@OptIn(ExperimentalResourceApi::class)
 @Composable
 private fun AppLaunchOverlay(
-    profile: NuvioProfile?,
     modifier: Modifier = Modifier,
 ) {
     val tokens = MaterialTheme.nuvio
-    val appTheme = MaterialTheme.appTheme
-    val effectiveBackground = remember(profile?.backgroundUrl, appTheme) {
-        effectiveProfileBackground(profile, appTheme)
-    }
+    val splashTransition = rememberInfiniteTransition(label = "mew_splash_mascot")
+    val mascotOffsetY by splashTransition.animateFloat(
+        initialValue = -7f,
+        targetValue = 7f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1500, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "mascot_offset",
+    )
     Box(
         modifier = modifier
             .zIndex(NuvioTokens.Z.dialog)
-            .nuvioConsumePointerEvents(),
+            .nuvioConsumePointerEvents()
+            .background(Color(0xFF0B0C0C)),
         contentAlignment = Alignment.Center,
     ) {
         PlatformBackHandler(enabled = true) { }
-        Image(
-            painter = painterResource(effectiveBackground.preset?.backgroundRes ?: DefaultProfileBackgroundResource),
+
+        AsyncImage(
+            model = Res.getUri("drawable/mew_splash_scene.svg"),
             contentDescription = null,
             modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop,
+            contentScale = ContentScale.FillBounds,
         )
-        ProfileRemoteBackgroundImage(
-            imageUrl = effectiveBackground.customImageUrl,
-            profileIndex = profile?.profileIndex,
-            modifier = Modifier.fillMaxSize(),
+
+        AsyncImage(
+            model = Res.getUri("drawable/mew_splash_mascot.svg"),
+            contentDescription = "Mew",
+            modifier = Modifier
+                .fillMaxWidth(0.58f)
+                .aspectRatio(760f / 560f)
+                .offset(y = mascotOffsetY.dp),
+            contentScale = ContentScale.Fit,
         )
-        if (effectiveBackground.customImageUrl != null) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.28f)),
-            )
-        }
+
         Column(
+            modifier = Modifier
+                .align(Alignment.Center)
+                .padding(top = 230.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            MemberBrandWordmark(
-                height = 44.dp,
-            )
-            Spacer(modifier = Modifier.height(tokens.spacing.sectionGap))
-            NuvioLoadingIndicator(color = tokens.colors.accent)
+            NuvioLoadingIndicator(color = Color.White)
             Spacer(modifier = Modifier.height(tokens.spacing.controlGap))
             Text(
                 text = stringResource(Res.string.profile_loading_enhancing_experience),
                 style = MaterialTheme.typography.bodyLarge,
-                color = tokens.colors.textMuted,
+                color = Color.White.copy(alpha = 0.72f),
             )
         }
     }

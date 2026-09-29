@@ -58,7 +58,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -317,6 +316,7 @@ fun MetaDetailsScreen(
             return@LaunchedEffect
         }
         if (!deferredMetaWorkAllowed) return@LaunchedEffect
+        delay(150)
         isCommentsLoading = true
         commentsError = null
         try {
@@ -338,6 +338,7 @@ fun MetaDetailsScreen(
             return@LaunchedEffect
         }
         if (!deferredMetaWorkAllowed) return@LaunchedEffect
+        delay(300)
         if (metaForRatings == null || !metaForRatings.isSeriesLikeForEpisodeRatings()) {
             episodeImdbRatings = emptyMap()
             episodeTmdbRatings = emptyMap()
@@ -592,9 +593,13 @@ fun MetaDetailsScreen(
                     seriesAction?.seasonNumber,
                     seriesAction?.episodeNumber,
                     seriesAction?.episodeTitle,
+                    deferredMetaWorkAllowed,
                 ) {
                     if (!nuvioEnhancedSettings.backgroundStreamPrefetchEnabled) return@LaunchedEffect
-                    if (offlineDetailsMode) return@LaunchedEffect
+                    if (offlineDetailsMode || !deferredMetaWorkAllowed) return@LaunchedEffect
+                    // Keep first-paint work isolated from stream-provider fan-out. Prefetch only
+                    // after the detail UI has had a short idle window to establish a stable frame cadence.
+                    delay(750)
                     val hasEpisodesForPrefetch = meta.type == "series" || meta.videos.any { it.season != null || it.episode != null }
                     val targetVideoId = if (hasEpisodesForPrefetch && seriesAction != null) {
                         seriesStreamVideoId ?: seriesAction.videoId
@@ -803,6 +808,7 @@ fun MetaDetailsScreen(
                     ) {
                         return@LaunchedEffect
                     }
+                    delay(450)
                     TmdbMetadataService.fetchCompanyBranding(
                         meta = meta,
                         fallbackItemId = id,
@@ -833,6 +839,7 @@ fun MetaDetailsScreen(
                     ) {
                         return@LaunchedEffect
                     }
+                    delay(450)
                     cinematicWatchProviders = TmdbMetadataService.fetchWatchProviders(
                         meta = meta,
                         fallbackItemId = id,
@@ -1258,8 +1265,7 @@ fun MetaDetailsScreen(
                                     model = backdropUrl,
                                     contentDescription = null,
                                     modifier = Modifier
-                                        .fillMaxSize()
-                                        .blur(30.dp),
+                                        .fillMaxSize(),
                                     contentScale = ContentScale.Crop,
                                 )
                                 Box(

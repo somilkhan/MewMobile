@@ -49,6 +49,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
@@ -92,8 +93,12 @@ object ProfileRepository {
         persist()
     }
 
-    fun loadCachedProfiles(): Boolean {
-        val stored = decodeStoredPayload() ?: return false
+    suspend fun loadCachedProfiles(): Boolean {
+        // SharedPreferences access + JSON decoding can be non-trivial on large profile caches.
+        // Keep only the state publication/profile-change work on the caller (UI) dispatcher.
+        val stored = withContext(Dispatchers.IO) {
+            decodeStoredPayload()
+        } ?: return false
         loadedCacheForUserId = stored.userId
         applyStoredPayload(stored)
         ThemeSettingsRepository.onProfileChanged()

@@ -232,7 +232,6 @@ fun SettingsScreen(
             HomeCatalogSettingsRepository.snapshot()
             HomeCatalogSettingsRepository.uiState
         }.collectAsStateWithLifecycle()
-        val collections by CollectionRepository.collections.collectAsStateWithLifecycle()
         val metaScreenSettingsUiState by remember {
             MetaScreenSettingsRepository.ensureLoaded()
             MetaScreenSettingsRepository.uiState
@@ -262,8 +261,10 @@ fun SettingsScreen(
             CollectionRepository.initialize()
         }
 
-        LaunchedEffect(collections) {
-            HomeCatalogSettingsRepository.syncCollections(collections)
+        LaunchedEffect(Unit) {
+            CollectionRepository.collections.collect { collections ->
+                HomeCatalogSettingsRepository.syncCollections(collections)
+            }
         }
 
         val initialPage = remember(initialPageName) {
@@ -645,15 +646,19 @@ private fun MobileSettingsScreen(
                 hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
             }
         }
-        val searchEntries = settingsSearchEntries(
-            pluginsEnabled = AppFeaturePolicy.pluginsEnabled,
-            supportersContributorsPageEnabled = AppFeaturePolicy.supportersContributorsPageEnabled,
-            accountDeletionEnabled = AppFeaturePolicy.accountDeletionEnabled,
-            personalMediaAddonCopyEnabled = AppFeaturePolicy.personalMediaAddonCopyEnabled,
-            liquidGlassNativeTabBarSupported = liquidGlassNativeTabBarSupported,
-            switchProfileAvailable = onSwitchProfile != null,
-            checkForUpdatesAvailable = onCheckForUpdatesClick != null,
-        )
+        val searchEntries = if (page == SettingsPage.Root && settingsSearchQuery.isNotBlank()) {
+            settingsSearchEntries(
+                pluginsEnabled = AppFeaturePolicy.pluginsEnabled,
+                supportersContributorsPageEnabled = AppFeaturePolicy.supportersContributorsPageEnabled,
+                accountDeletionEnabled = AppFeaturePolicy.accountDeletionEnabled,
+                personalMediaAddonCopyEnabled = AppFeaturePolicy.personalMediaAddonCopyEnabled,
+                liquidGlassNativeTabBarSupported = liquidGlassNativeTabBarSupported,
+                switchProfileAvailable = onSwitchProfile != null,
+                checkForUpdatesAvailable = onCheckForUpdatesClick != null,
+            )
+        } else {
+            emptyList()
+        }
 
         fun openSearchTarget(target: SettingsSearchTarget) {
             when (target) {
@@ -863,7 +868,9 @@ private fun MobileSettingsScreen(
                     isTablet = false,
                     showPluginsEntry = AppFeaturePolicy.pluginsEnabled,
                     showCloudStreamEntry = AppFeaturePolicy.pluginsEnabled,
+                    tmdbSettings = tmdbSettings,
                     onAddonsClick = onAddonsClick,
+                    onTmdbConfigureClick = { onPageChange(SettingsPage.TmdbEnrichment) },
                     onPluginsClick = onPluginsClick,
                     onCloudStreamClick = onCloudStreamClick,
                 )
@@ -1103,15 +1110,19 @@ private fun TabletSettingsScreen(
             var rootSearchRevealAnimating by rememberSaveable { mutableStateOf(false) }
             val hapticFeedback = LocalHapticFeedback.current
             val hapticScope = rememberCoroutineScope()
-            val searchEntries = settingsSearchEntries(
-                pluginsEnabled = AppFeaturePolicy.pluginsEnabled,
-                supportersContributorsPageEnabled = AppFeaturePolicy.supportersContributorsPageEnabled,
-                accountDeletionEnabled = AppFeaturePolicy.accountDeletionEnabled,
-                personalMediaAddonCopyEnabled = AppFeaturePolicy.personalMediaAddonCopyEnabled,
-                liquidGlassNativeTabBarSupported = liquidGlassNativeTabBarSupported,
-                switchProfileAvailable = onSwitchProfile != null,
-                checkForUpdatesAvailable = onCheckForUpdatesClick != null,
-            )
+            val searchEntries = if (page == SettingsPage.Root && settingsSearchQuery.isNotBlank()) {
+                settingsSearchEntries(
+                    pluginsEnabled = AppFeaturePolicy.pluginsEnabled,
+                    supportersContributorsPageEnabled = AppFeaturePolicy.supportersContributorsPageEnabled,
+                    accountDeletionEnabled = AppFeaturePolicy.accountDeletionEnabled,
+                    personalMediaAddonCopyEnabled = AppFeaturePolicy.personalMediaAddonCopyEnabled,
+                    liquidGlassNativeTabBarSupported = liquidGlassNativeTabBarSupported,
+                    switchProfileAvailable = onSwitchProfile != null,
+                    checkForUpdatesAvailable = onCheckForUpdatesClick != null,
+                )
+            } else {
+                emptyList()
+            }
 
             fun openSearchTarget(target: SettingsSearchTarget) {
                 when (target) {
@@ -1330,7 +1341,9 @@ private fun TabletSettingsScreen(
                         isTablet = true,
                         showPluginsEntry = AppFeaturePolicy.pluginsEnabled,
                         showCloudStreamEntry = AppFeaturePolicy.pluginsEnabled,
+                        tmdbSettings = tmdbSettings,
                         onAddonsClick = { openInlinePage(SettingsPage.Addons) },
+                        onTmdbConfigureClick = { openInlinePage(SettingsPage.TmdbEnrichment) },
                         onPluginsClick = { openInlinePage(SettingsPage.Plugins) },
                         onCloudStreamClick = { openInlinePage(SettingsPage.CloudStream) },
                     )

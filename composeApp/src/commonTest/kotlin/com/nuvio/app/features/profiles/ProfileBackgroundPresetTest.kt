@@ -24,7 +24,8 @@ class ProfileBackgroundPresetTest {
     }
 
     @Test
-    fun `supporter themes map to their profile backgrounds`() {
+    fun `theme backgrounds map to their profile backgrounds`() {
+        assertEquals(ProfileBackgroundPreset.MEW, ProfileBackgroundPreset.fromTheme(AppTheme.MEW))
         assertEquals(ProfileBackgroundPreset.GOLD, ProfileBackgroundPreset.fromTheme(AppTheme.GOLD))
         assertEquals(ProfileBackgroundPreset.JADE, ProfileBackgroundPreset.fromTheme(AppTheme.JADE))
         assertEquals(ProfileBackgroundPreset.ROSE_GOLD, ProfileBackgroundPreset.fromTheme(AppTheme.ROSE_GOLD))

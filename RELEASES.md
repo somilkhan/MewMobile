@@ -38,15 +38,30 @@ For local builds, add these values to `local.properties`:
 ```properties
 SIMKL_CLIENT_ID=your_client_id
 SIMKL_REDIRECT_URI=nuvioenhanced://auth/simkl
-SIMKL_APP_NAME=Nuvio Enhanced
+SIMKL_APP_NAME=Mew
 ```
 
 For GitHub Actions releases, add the repository secret `SIMKL_CLIENT_ID`.
 Simkl authentication uses PKCE and does not embed a client secret in the app.
 
+## Android debug signing
+
+For local debug builds, use the same dedicated Mew debug keystore as CI so a local APK can update a CI debug APK without uninstalling. Keep the keystore under the ignored `keystore/` directory and never commit it.
+
+Add these entries to the local, ignored `local.properties` file:
+
+```properties
+MEW_DEBUG_KEYSTORE_FILE=keystore/mew-debug.keystore
+MEW_DEBUG_KEYSTORE_PASSWORD=your_debug_keystore_password
+MEW_DEBUG_KEY_ALIAS=your_debug_key_alias
+MEW_DEBUG_KEY_PASSWORD=your_debug_key_password
+```
+
+The Gradle configuration reads these values from `local.properties` (environment variables take precedence). CI restores the same keystore from GitHub Actions secrets and verifies the generated APK certificate before uploading it.
+
 ## Android signing
 
-An APK can update an existing Nuvio Enhanced installation only when both APKs
+An APK can update an existing Mew installation only when both APKs
 use the same application ID and signing certificate. The established Android
 certificate SHA-256 digest is:
 
@@ -54,9 +69,13 @@ certificate SHA-256 digest is:
 4d87e3d92c54ae0efcdebb75dd08b8cfca1eace052198ed3b8f3f552533a21e3
 ```
 
-The repository owner must configure the original signing material through
-`NUVIO_RELEASE_KEYSTORE_BASE64` and the matching release properties. Never
-commit the keystore or its passwords, and do not send them through chat.
+The repository owner must configure the Mew signing material through
+`MEW_RELEASE_KEYSTORE_BASE64`, `MEW_RELEASE_KEYSTORE_PASSWORD`,
+`MEW_RELEASE_KEY_ALIAS`, and `MEW_RELEASE_KEY_PASSWORD`. Never commit the
+keystore or its passwords, and do not send them through chat.
+
+Legacy `NUVIO_*` signing/update identifiers may remain in compatibility paths
+where changing them would break existing installations or release tooling.
 
 The release workflow verifies every generated APK against this digest before
 uploading artifacts or creating a GitHub Release. A mismatch stops the workflow
@@ -68,9 +87,12 @@ GitHub Actions builds automatically use the owner of the repository running the
 workflow. A local build can override the update source in `local.properties`:
 
 ```properties
-NUVIO_UPDATE_GITHUB_OWNER=AKRusso
-NUVIO_UPDATE_GITHUB_REPO=NuvioMobile-Enhanced
+NUVIO_UPDATE_GITHUB_OWNER=somilkhan
+NUVIO_UPDATE_GITHUB_REPO=MewMobile
 ```
+
+These property names are retained as internal compatibility identifiers; their
+current defaults target `somilkhan/MewMobile` for Mew releases.
 
 The app checks published, non-prerelease GitHub Releases at startup. A release is
 offered only when it contains a compatible APK and has a version newer than the
@@ -78,7 +100,7 @@ installed app. The GitHub release body is displayed as the in-app changelog.
 
 ## Release checklist
 
-1. Update `CHANGELOG.md`.
+1. Update `CHANGELOG.md` with the current Mew release identity.
 2. Increment `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in
    `iosApp/Configuration/Version.xcconfig`.
 3. Build and test `fullRelease`.

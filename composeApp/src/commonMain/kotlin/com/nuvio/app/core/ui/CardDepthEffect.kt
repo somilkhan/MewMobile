@@ -5,7 +5,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -26,8 +28,9 @@ fun Modifier.nuvioCardDepth(
     shape: Shape,
     surface: NuvioCardDepthSurface,
     fallbackBorderAlpha: Float = 0f,
+    stateOverride: CardDepthStyleUiState? = null,
 ): Modifier {
-    val state = rememberCardDepthStyleUiState()
+    val state = stateOverride ?: rememberCardDepthStyleUiState()
     if (!state.isEnabledFor(surface)) {
         return if (fallbackBorderAlpha > 0f) {
             border(
@@ -75,24 +78,29 @@ fun Modifier.cardDepthVisual(
     }
 
     return if (sheen > 0f) {
-        withEdge.drawWithContent {
-            drawContent()
+        withEdge.drawWithCache {
             val sheenHeight = size.height * 0.22f
-            if (sheenHeight > 0f) {
+            if (sheenHeight <= 0f) {
+                onDrawWithContent { drawContent() }
+            } else {
                 val outline = shape.createOutline(size, layoutDirection, this)
                 val shapePath = outline.toPath()
-                clipPath(shapePath) {
-                    drawRect(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(
-                                Color.White.copy(alpha = sheen),
-                                Color.Transparent,
-                            ),
-                            startY = 0f,
-                            endY = sheenHeight,
-                        ),
-                        size = Size(size.width, sheenHeight),
-                    )
+                val sheenBrush = Brush.verticalGradient(
+                    colors = listOf(
+                        Color.White.copy(alpha = sheen),
+                        Color.Transparent,
+                    ),
+                    startY = 0f,
+                    endY = sheenHeight,
+                )
+                onDrawWithContent {
+                    drawContent()
+                    clipPath(shapePath) {
+                        drawRect(
+                            brush = sheenBrush,
+                            size = Size(size.width, sheenHeight),
+                        )
+                    }
                 }
             }
         }
@@ -101,9 +109,9 @@ fun Modifier.cardDepthVisual(
     }
 }
 
-private fun androidx.compose.ui.graphics.Outline.toPath(): androidx.compose.ui.graphics.Path = when (this) {
-    is androidx.compose.ui.graphics.Outline.Rectangle -> androidx.compose.ui.graphics.Path().apply { addRect(rect) }
-    is androidx.compose.ui.graphics.Outline.Rounded -> androidx.compose.ui.graphics.Path().apply { addRoundRect(roundRect) }
-    is androidx.compose.ui.graphics.Outline.Generic -> path
+private fun Outline.toPath(): Path = when (this) {
+    is Outline.Rectangle -> Path().apply { addRect(rect) }
+    is Outline.Rounded -> Path().apply { addRoundRect(roundRect) }
+    is Outline.Generic -> path
 }
 

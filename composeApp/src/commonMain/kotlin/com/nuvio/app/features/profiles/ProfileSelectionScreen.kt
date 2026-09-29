@@ -56,6 +56,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil3.compose.LocalPlatformContext
+import coil3.request.ImageRequest
 import coil3.compose.AsyncImage
 import com.nuvio.app.core.auth.AuthRepository
 import com.nuvio.app.core.auth.AuthState
@@ -65,9 +67,11 @@ import com.nuvio.app.features.settings.MemberBrandWordmark
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import nuvio.composeapp.generated.resources.*
+import org.jetbrains.compose.resources.ExperimentalResourceApi
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
+@OptIn(ExperimentalResourceApi::class)
 @Composable
 fun ProfileSelectionScreen(
     onProfileSelected: (NuvioProfile) -> Unit,
@@ -77,12 +81,12 @@ fun ProfileSelectionScreen(
 ) {
     val authState by AuthRepository.state.collectAsStateWithLifecycle()
     val profileState by ProfileRepository.state.collectAsStateWithLifecycle()
+    val avatars by AvatarRepository.avatars.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     var pinDialogProfile by remember { mutableStateOf<NuvioProfile?>(null) }
     var isEditMode by remember { mutableStateOf(false) }
 
-    val titleAlpha = remember { Animatable(0f) }
-    val titleOffset = remember { Animatable(20f) }
+    val titleProgress = remember { Animatable(0f) }
     val manageAlpha = remember { Animatable(0f) }
     val onProfileClick: (NuvioProfile) -> Unit = { profile ->
         routeProfileSelection(
@@ -96,7 +100,6 @@ fun ProfileSelectionScreen(
 
     LaunchedEffect(Unit) {
         AvatarRepository.fetchAvatars()
-        AvatarRepository.refreshAvatars()
     }
 
     LaunchedEffect(authState) {
@@ -106,8 +109,7 @@ fun ProfileSelectionScreen(
     }
 
     LaunchedEffect(Unit) {
-        launch { titleAlpha.animateTo(1f, tween(600, easing = FastOutSlowInEasing)) }
-        launch { titleOffset.animateTo(0f, tween(600, easing = FastOutSlowInEasing)) }
+        titleProgress.animateTo(1f, tween(600, easing = FastOutSlowInEasing))
         delay(300)
         manageAlpha.animateTo(1f, tween(500))
     }
@@ -125,16 +127,27 @@ fun ProfileSelectionScreen(
     ) {
         val isTabletLayout = maxWidth >= 768.dp
 
-        Image(
-            painter = painterResource(effectiveBackground.preset?.backgroundRes ?: DefaultProfileBackgroundResource),
-            contentDescription = null,
-            modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop,
-        )
+        if (effectiveBackground.preset != null) {
+            AsyncImage(
+                model = Res.getUri(effectiveBackground.preset.resourcePath),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+            )
+        } else {
+            Image(
+                painter = painterResource(DefaultProfileBackgroundResource),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+            )
+        }
         ProfileRemoteBackgroundImage(
             imageUrl = effectiveBackground.customImageUrl,
             profileIndex = backgroundProfile?.profileIndex,
             modifier = Modifier.fillMaxSize(),
+            targetWidth = maxWidth,
+            targetHeight = maxHeight,
         )
         if (effectiveBackground.customImageUrl != null) {
             Box(
@@ -164,8 +177,8 @@ fun ProfileSelectionScreen(
             MemberBrandWordmark(
                 height = if (isTabletLayout) 42.dp else 34.dp,
                 modifier = Modifier.graphicsLayer {
-                    alpha = titleAlpha.value
-                    translationY = titleOffset.value
+                    alpha = titleProgress.value
+                    translationY = 20f * (1f - titleProgress.value)
                 },
             )
 
@@ -180,8 +193,8 @@ fun ProfileSelectionScreen(
                 color = MaterialTheme.colorScheme.onBackground,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.graphicsLayer {
-                    alpha = titleAlpha.value
-                    translationY = titleOffset.value
+                    alpha = titleProgress.value
+                    translationY = 20f * (1f - titleProgress.value)
                 },
             )
 
@@ -206,6 +219,7 @@ fun ProfileSelectionScreen(
                                 val profile = profiles[currentIndex]
                                 ProfileAvatarCard(
                                     profile = profile,
+                                    avatars = avatars,
                                     isEditMode = isEditMode,
                                     animDelay = currentIndex * 80,
                                     onClick = {
@@ -240,6 +254,7 @@ fun ProfileSelectionScreen(
                                         val profile = profiles[currentIndex]
                                         ProfileAvatarCard(
                                             profile = profile,
+                                            avatars = avatars,
                                             isEditMode = isEditMode,
                                             animDelay = currentIndex * 80,
                                             onClick = {
@@ -316,6 +331,7 @@ fun ProfileSelectionScreen(
 @Composable
 private fun ProfileAvatarCard(
     profile: NuvioProfile,
+    avatars: List<AvatarCatalogItem>,
     isEditMode: Boolean,
     animDelay: Int,
     onClick: () -> Unit,
@@ -323,23 +339,27 @@ private fun ProfileAvatarCard(
     val avatarColor = remember(profile.avatarColorHex) {
         parseHexColor(profile.avatarColorHex)
     }
-    val avatars by AvatarRepository.avatars.collectAsStateWithLifecycle()
     val avatarItem = remember(profile.avatarId, avatars) {
         profile.avatarId?.let { id -> avatars.find { it.id == id } }
     }
     val avatarImageUrl = remember(profile.avatarUrl, avatarItem) {
         profileAvatarImageUrl(profile, avatarItem)
     }
+    val context = LocalPlatformContext.current
+    val imageRequest = avatarImageUrl?.let {
+        ImageRequest.Builder(context)
+            .data(it)
+            .size(220)
+            .memoryCacheKey("profile-avatar:$it")
+            .diskCacheKey("profile-avatar:$it")
+            .build()
+    }
 
-    val animAlpha = remember { Animatable(0f) }
-    val animScale = remember { Animatable(0.85f) }
-    val animOffset = remember { Animatable(30f) }
+    val animProgress = remember { Animatable(0f) }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(animDelay) {
         delay(animDelay.toLong() + 150)
-        launch { animAlpha.animateTo(1f, tween(450, easing = FastOutSlowInEasing)) }
-        launch { animScale.animateTo(1f, tween(500, easing = FastOutSlowInEasing)) }
-        launch { animOffset.animateTo(0f, tween(500, easing = FastOutSlowInEasing)) }
+        animProgress.animateTo(1f, tween(500, easing = FastOutSlowInEasing))
     }
 
     val interactionSource = remember { MutableInteractionSource() }
@@ -351,10 +371,11 @@ private fun ProfileAvatarCard(
         modifier = Modifier
             .width(150.dp)
             .graphicsLayer {
-                alpha = animAlpha.value
-                scaleX = animScale.value * pressScale
-                scaleY = animScale.value * pressScale
-                translationY = animOffset.value
+                alpha = animProgress.value
+                val scale = 0.85f + (0.15f * animProgress.value)
+                scaleX = scale * pressScale
+                scaleY = scale * pressScale
+                translationY = 30f * (1f - animProgress.value)
             }
             .clip(RoundedCornerShape(20.dp))
             .nuvioKeyboardFocusIndicator(RoundedCornerShape(20.dp))
@@ -398,7 +419,7 @@ private fun ProfileAvatarCard(
             ) {
                 if (avatarImageUrl != null) {
                     AsyncImage(
-                        model = avatarImageUrl,
+                        model = imageRequest,
                         contentDescription = avatarItem?.displayName ?: profile.name,
                         modifier = Modifier.size(100.dp).clip(CircleShape),
                         contentScale = ContentScale.Crop,
@@ -480,15 +501,11 @@ private fun AddProfileCard(
     animDelay: Int,
     onClick: () -> Unit,
 ) {
-    val animAlpha = remember { Animatable(0f) }
-    val animScale = remember { Animatable(0.85f) }
-    val animOffset = remember { Animatable(30f) }
+    val animProgress = remember { Animatable(0f) }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(animDelay) {
         delay(animDelay.toLong() + 150)
-        launch { animAlpha.animateTo(1f, tween(450, easing = FastOutSlowInEasing)) }
-        launch { animScale.animateTo(1f, tween(500, easing = FastOutSlowInEasing)) }
-        launch { animOffset.animateTo(0f, tween(500, easing = FastOutSlowInEasing)) }
+        animProgress.animateTo(1f, tween(500, easing = FastOutSlowInEasing))
     }
 
     val interactionSource = remember { MutableInteractionSource() }
@@ -500,10 +517,11 @@ private fun AddProfileCard(
         modifier = Modifier
             .width(150.dp)
             .graphicsLayer {
-                alpha = animAlpha.value
-                scaleX = animScale.value * pressScale
-                scaleY = animScale.value * pressScale
-                translationY = animOffset.value
+                alpha = animProgress.value
+                val scale = 0.85f + (0.15f * animProgress.value)
+                scaleX = scale * pressScale
+                scaleY = scale * pressScale
+                translationY = 30f * (1f - animProgress.value)
             }
             .clip(RoundedCornerShape(20.dp))
             .nuvioKeyboardFocusIndicator(RoundedCornerShape(20.dp))

@@ -5,8 +5,11 @@ import com.nuvio.app.features.addons.httpGetBytesWithHeaders
 import com.nuvio.app.features.addons.httpGetText
 import com.nuvio.app.features.addons.httpRequestRaw
 import com.nuvio.app.features.plugins.currentEpochMillis
+import com.nuvio.app.core.diagnostics.RuntimeDiagnostics
 import com.nuvio.app.features.profiles.ProfileRepository
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -16,8 +19,18 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.coroutineScope
+import java.util.LinkedHashMap
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
 actual object CloudStreamRepository {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -29,6 +42,21 @@ actual object CloudStreamRepository {
     private var initialized = false
     private var currentProfileId = 1
     private val refreshJobs = mutableMapOf<String, Job>()
+    private val mainPageRequestMutex = Any()
+    private val mainPageRequests =
+        mutableMapOf<String, Deferred<Result<List<Pair<String, List<CloudStreamSearchItem>>>>>>()
+    private val loadLinksRequestMutex = Mutex()
+    private val loadLinksRequests =
+        mutableMapOf<String, Deferred<Result<List<CloudStreamPlaybackSource>>>>()
+    private val loadLinksCache = LinkedHashMap<String, CachedCloudStreamLinks>(16, 0.75f, true)
+    private val loadLinksCacheMutex = Mutex()
+    private val loadResultCache = LinkedHashMap<String, CloudStreamLoadItem>(16, 0.75f, true)
+    private val loadResultCacheMutex = Mutex()
+    private const val LOAD_LINKS_CACHE_MAX_ENTRIES = 16
+    private const val LOAD_LINKS_CACHE_TTL_MS = 120_000L
+    private const val LOAD_RESULT_CACHE_MAX_ENTRIES = 16
+    private const val REPOSITORY_DISCOVERY_CONCURRENCY = 6
+    private const val PROVIDER_REQUEST_CONCURRENCY = 4
 
     actual fun initialize() {
         val profileId = ProfileRepository.activeProfileId.coerceAtLeast(1)
@@ -37,11 +65,24 @@ actual object CloudStreamRepository {
         CloudStreamPlatformStorage.setActiveProfile(profileId)
         initialized = true
         _uiState.value = restoreState(profileId)
+
     }
 
     actual fun onProfileChanged(profileId: Int) {
         refreshJobs.values.forEach { it.cancel() }
         refreshJobs.clear()
+        cancelInFlightMainPageRequests()
+        cancelInFlightLoadLinksRequests()
+        loadLinksCacheMutex.tryLock().let { locked ->
+            if (locked) {
+                try { loadLinksCache.clear() } finally { loadLinksCacheMutex.unlock() }
+            }
+        }
+        loadResultCacheMutex.tryLock().let { locked ->
+            if (locked) {
+                try { loadResultCache.clear() } finally { loadResultCacheMutex.unlock() }
+            }
+        }
         CloudStreamPlatformRuntime.clear()
         currentProfileId = profileId.coerceAtLeast(1)
         CloudStreamPlatformStorage.setActiveProfile(currentProfileId)
@@ -55,6 +96,18 @@ actual object CloudStreamRepository {
         initialized = false
         currentProfileId = 1
         _uiState.value = CloudStreamUiState()
+        cancelInFlightMainPageRequests()
+        cancelInFlightLoadLinksRequests()
+        loadLinksCacheMutex.tryLock().let { locked ->
+            if (locked) {
+                try { loadLinksCache.clear() } finally { loadLinksCacheMutex.unlock() }
+            }
+        }
+        loadResultCacheMutex.tryLock().let { locked ->
+            if (locked) {
+                try { loadResultCache.clear() } finally { loadResultCacheMutex.unlock() }
+            }
+        }
         CloudStreamPlatformRuntime.clear()
         CloudStreamPlatformStorage.clearPackages()
         CloudStreamPlatformStorage.clearAllState()
@@ -85,6 +138,11 @@ actual object CloudStreamRepository {
                                 .sortedBy { it.metadata.name.lowercase() },
                         )
                     }
+                    CloudStreamPlatformRuntime.registerNativeRepository(
+                        url = manifestUrl,
+                        name = repository.name,
+                        iconUrl = repository.iconUrl,
+                    )
                     persist()
                     AddCloudStreamRepositoryResult.Success(repository)
                 },
@@ -93,6 +151,58 @@ actual object CloudStreamRepository {
                     AddCloudStreamRepositoryResult.Error(error.message ?: "Could not load CloudStream repository")
                 },
             )
+    }
+
+    actual suspend fun discoverRepositories(rawInput: String): Result<Int> {
+        initialize()
+        val input = rawInput.trim()
+        if (input.isBlank()) return Result.failure(IllegalArgumentException("Repository input is empty"))
+
+        return runCatching {
+            val databaseUrl = when {
+                input.equals("MegaProvider", ignoreCase = true) ||
+                    input.equals("MegaRepo", ignoreCase = true) ||
+                    input.contains("self-similarity/MegaRepo", ignoreCase = true) ||
+                    input.contains("cs-repos/master/repos-db.json", ignoreCase = true) ->
+                    "https://raw.githubusercontent.com/recloudstream/cs-repos/master/repos-db.json"
+                else -> null
+            }
+
+            val repositoryUrls = if (databaseUrl != null) {
+                json.parseToJsonElement(httpGetText(databaseUrl)).jsonArray.mapNotNull { element ->
+                    when {
+                        element is kotlinx.serialization.json.JsonPrimitive -> element.contentOrNull
+                        element is kotlinx.serialization.json.JsonObject -> element["url"]?.jsonPrimitive?.contentOrNull
+                        else -> null
+                    }
+                }.map(String::trim).filter(String::isNotBlank).distinct()
+            } else {
+                listOf(resolveCloudStreamRepositoryInput(input))
+            }
+
+            val manifests = coroutineScope {
+                val gate = Semaphore(REPOSITORY_DISCOVERY_CONCURRENCY)
+                repositoryUrls.map { url ->
+                    async(Dispatchers.IO) {
+                        gate.withPermit {
+                            runCatching {
+                                CloudStreamRepositoryParser.parseRepository(url, httpGetText(url))
+                            }.getOrNull()
+                        }
+                    }
+                }.mapNotNull { it.await() }
+            }.distinctBy { it.sourceUrl }
+
+            _uiState.update { current ->
+                current.copy(
+                    discoveredRepositories = manifests.filterNot { discovered ->
+                        current.repositories.any { it.manifest.sourceUrl == discovered.sourceUrl }
+                    },
+                )
+            }
+            log.i { "CloudStream repository discovery found " + manifests.size + " repositories" }
+            manifests.size
+        }
     }
 
     actual fun refreshRepository(manifestUrl: String) {
@@ -146,6 +256,9 @@ actual object CloudStreamRepository {
         removedPlugins.forEach {
             CloudStreamPlatformRuntime.unload(it.metadata.id.value)
             CloudStreamPlatformStorage.deletePackage(it.metadata.id.storageKey)
+        }
+        scope.launch {
+            CloudStreamPlatformRuntime.removeNativeRepository(normalizedUrl)
         }
         _uiState.update { current ->
             current.copy(
@@ -253,6 +366,7 @@ actual object CloudStreamRepository {
 
     actual fun setPluginEnabled(pluginId: String, enabled: Boolean) {
         initialize()
+        RuntimeDiagnostics.recordLog("cs-provider-enabled id=$pluginId enabled=$enabled")
         _uiState.update { current ->
             var changed = false
             val plugins = current.plugins.map { item ->
@@ -267,7 +381,13 @@ actual object CloudStreamRepository {
                 registryRevision = current.registryRevision + if (changed) 1 else 0,
             )
         }
-        if (!enabled) CloudStreamPlatformRuntime.unload(pluginId)
+        if (!enabled) {
+            CloudStreamPlatformRuntime.unload(pluginId)
+        } else {
+            val enabledPlugin = _uiState.value.plugins.firstOrNull { it.metadata.id.value == pluginId }
+            if (enabledPlugin?.isRunnable == true) {
+            }
+        }
         persist()
     }
 
@@ -298,8 +418,44 @@ actual object CloudStreamRepository {
     actual suspend fun getMainPage(
         providerId: String,
         page: Int,
-    ): Result<List<Pair<String, List<CloudStreamSearchItem>>>> = providerResult(providerId) {
-        getMainPage(page.coerceAtLeast(1))
+    ): Result<List<Pair<String, List<CloudStreamSearchItem>>>> {
+        val normalizedPage = page.coerceAtLeast(1)
+        val requestKey = providerId + ":" + normalizedPage
+        RuntimeDiagnostics.recordLog("cs-mainpage-start id=$providerId page=$normalizedPage")
+
+        val request = synchronized(mainPageRequestMutex) {
+            mainPageRequests[requestKey]?.takeIf { it.isActive || it.isCompleted }
+                ?: scope.async(start = CoroutineStart.LAZY) {
+                    providerResult(providerId) { getMainPage(normalizedPage) }
+                }.also { deferred ->
+                    mainPageRequests[requestKey] = deferred
+                    deferred.invokeOnCompletion {
+                        synchronized(mainPageRequestMutex) {
+                            if (mainPageRequests[requestKey] === deferred) {
+                                mainPageRequests.remove(requestKey)
+                            }
+                        }
+                    }
+                }
+        }
+
+        return request.await()
+            .onSuccess { sections ->
+                RuntimeDiagnostics.recordLog(
+                    "cs-mainpage-success id=$providerId sections=${sections.size} items=${sections.sumOf { it.second.size }}",
+                )
+            }
+            .onFailure { error ->
+                RuntimeDiagnostics.recordLog(
+                    "cs-mainpage-failure id=$providerId error=${error.message?.take(160)}",
+                )
+            }
+    }
+    private fun cancelInFlightMainPageRequests() {
+        val requests = synchronized(mainPageRequestMutex) {
+            mainPageRequests.values.toList().also { mainPageRequests.clear() }
+        }
+        requests.forEach { it.cancel() }
     }
 
     actual suspend fun search(
@@ -308,11 +464,60 @@ actual object CloudStreamRepository {
     ): List<Result<List<CloudStreamSearchItem>>> {
         initialize()
         val activeIds = runnableProviderIds().filter { providerId == null || it == providerId }
-        return activeIds.map { id -> providerResult(id) { search(query.trim()) } }
+        val startedAt = currentEpochMillis()
+        RuntimeDiagnostics.recordLog("cs-search-start providers=${activeIds.size}")
+        val results = coroutineScope {
+            val gate = Semaphore(PROVIDER_REQUEST_CONCURRENCY)
+            activeIds.map { id ->
+                async {
+                    gate.withPermit {
+                        RuntimeDiagnostics.recordLog("cs-search-provider-start id=$id")
+                        providerResult(id) { search(query.trim()) }
+                            .onSuccess { items -> RuntimeDiagnostics.recordLog("cs-search-provider-success id=$id count=${items.size}") }
+                            .onFailure { error -> RuntimeDiagnostics.recordLog("cs-search-provider-failure id=$id error=${error.message?.take(160)}") }
+                    }
+                }
+            }.map { it.await() }
+        }
+        RuntimeDiagnostics.recordLog("cs-search-complete providers=${activeIds.size} successful=${results.count { it.isSuccess }} results=${results.sumOf { it.getOrNull()?.size ?: 0 }} durationMs=${currentEpochMillis() - startedAt}")
+        return results
     }
 
-    actual suspend fun load(providerId: String, data: String): Result<CloudStreamLoadItem> =
-        providerResult(providerId) { load(data) }
+    actual suspend fun load(providerId: String, data: String): Result<CloudStreamLoadItem> {
+        initialize()
+        val cacheKey = "$providerId\\u0000$data"
+        loadResultCacheMutex.withLock {
+            loadResultCache[cacheKey]
+        }?.let { cached ->
+            RuntimeDiagnostics.recordLog("cs-load-cache-hit id=$providerId dataLength=${data.length}")
+            return Result.success(cached)
+        }
+
+        val normalizedData = data.trimStart()
+        val dataKind = when {
+            normalizedData.startsWith("http://", ignoreCase = true) ||
+                normalizedData.startsWith("https://", ignoreCase = true) -> "url"
+            normalizedData.startsWith("[") -> "json-array"
+            normalizedData.startsWith("{") -> "json-object"
+            normalizedData.isBlank() -> "blank"
+            else -> "other"
+        }
+        RuntimeDiagnostics.recordLog("cs-load-start id=$providerId dataKind=$dataKind dataLength=${data.length}")
+        return providerResult(providerId) { load(data) }
+            .onSuccess { item ->
+                loadResultCacheMutex.withLock {
+                    loadResultCache[cacheKey] = item
+                    loadResultCache["$providerId\\u0000${item.data}"] = item
+                    while (loadResultCache.size > LOAD_RESULT_CACHE_MAX_ENTRIES) {
+                        loadResultCache.remove(loadResultCache.entries.first().key)
+                    }
+                }
+                RuntimeDiagnostics.recordLog("cs-load-success id=$providerId episodes=${item.episodes.size}")
+            }
+            .onFailure { error ->
+                RuntimeDiagnostics.recordLog("cs-load-failure id=$providerId dataKind=$dataKind error=${error.message?.take(160)}")
+            }
+    }
 
     actual suspend fun loadByExternalId(
         providerId: String,
@@ -321,8 +526,67 @@ actual object CloudStreamRepository {
         loadByExternalId(externalId)
     }
 
-    actual suspend fun loadLinks(providerId: String, data: String): Result<List<CloudStreamPlaybackSource>> =
-        providerResult(providerId) { loadLinks(data) }
+    actual suspend fun loadLinks(providerId: String, data: String): Result<List<CloudStreamPlaybackSource>> {
+        initialize()
+        val requestKey = "$providerId\\u0000$data"
+        val now = currentEpochMillis()
+        loadLinksCacheMutex.withLock {
+            loadLinksCache[requestKey]
+                ?.takeIf { it.expiresAtEpochMs > now }
+                ?.sources
+        }?.let { cached ->
+            RuntimeDiagnostics.recordLog("cs-load-links-cache-hit provider=$providerId links=${cached.size}")
+            return Result.success(cached)
+        }
+
+        var created = false
+        val request = loadLinksRequestMutex.withLock {
+            loadLinksRequests[requestKey]
+                ?: scope.async(start = CoroutineStart.LAZY) {
+                    providerResult(providerId) { loadLinks(data) }
+                }.also { deferred ->
+                    loadLinksRequests[requestKey] = deferred
+                    created = true
+                }
+        }
+        if (!created) {
+            RuntimeDiagnostics.recordLog("cs-load-links-coalesced provider=$providerId")
+        }
+        request.invokeOnCompletion {
+            scope.launch {
+                loadLinksRequestMutex.withLock {
+                    if (loadLinksRequests[requestKey] === request) {
+                        loadLinksRequests.remove(requestKey)
+                    }
+                }
+            }
+        }
+        return request.await().onSuccess { sources ->
+            loadLinksCacheMutex.withLock {
+                loadLinksCache[requestKey] = CachedCloudStreamLinks(
+                    sources = sources,
+                    expiresAtEpochMs = currentEpochMillis() + LOAD_LINKS_CACHE_TTL_MS,
+                )
+                while (loadLinksCache.size > LOAD_LINKS_CACHE_MAX_ENTRIES) {
+                    loadLinksCache.remove(loadLinksCache.entries.first().key)
+                }
+            }
+        }
+    }
+
+    private data class CachedCloudStreamLinks(
+    val sources: List<CloudStreamPlaybackSource>,
+    val expiresAtEpochMs: Long,
+)
+
+private fun cancelInFlightLoadLinksRequests() {
+        scope.launch {
+            val requests = loadLinksRequestMutex.withLock {
+                loadLinksRequests.values.toList().also { loadLinksRequests.clear() }
+            }
+            requests.forEach { it.cancel() }
+        }
+    }
 
     private suspend fun installOrUpdate(pluginId: String): CloudStreamInstallResult {
         initialize()

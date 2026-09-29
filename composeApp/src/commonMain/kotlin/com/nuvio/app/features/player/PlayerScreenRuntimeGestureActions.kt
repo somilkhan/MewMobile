@@ -177,8 +177,28 @@ internal fun PlayerScreenRuntime.togglePlayback() {
     controlsVisible = true
 }
 
+internal fun manualSeekTargetPosition(positionMs: Long, durationMs: Long): Long =
+    positionMs.coerceAtLeast(0L).let { position ->
+        durationMs.takeIf { it > 0L }?.let { position.coerceAtMost(it) } ?: position
+    }
+
+private fun PlayerScreenRuntime.rememberManualSeekPosition(positionMs: Long) {
+    val targetPositionMs = manualSeekTargetPosition(
+        positionMs = positionMs,
+        durationMs = playbackSnapshot.durationMs,
+    )
+    activeInitialPositionMs = targetPositionMs
+    activeInitialProgressFraction = null
+    initialSeekApplied = true
+}
+
 internal fun PlayerScreenRuntime.seekBy(offsetMs: Long) {
-    playerController?.seekBy(offsetMs)
+    val currentPositionMs = playbackSnapshot.positionMs.coerceAtLeast(0L)
+    val targetPositionMs = (currentPositionMs + offsetMs).coerceAtLeast(0L).let { position ->
+        playbackSnapshot.durationMs.takeIf { it > 0L }?.let { position.coerceAtMost(it) } ?: position
+    }
+    playerController?.seekTo(targetPositionMs)
+    rememberManualSeekPosition(targetPositionMs)
     scheduleProgressSyncAfterSeek()
     controlsVisible = true
     when {
@@ -212,6 +232,7 @@ internal fun PlayerScreenRuntime.handleDoubleTapSeek(direction: PlayerSeekDirect
         }
     }
     playerController?.seekTo(targetPositionMs)
+    rememberManualSeekPosition(targetPositionMs)
     scheduleProgressSyncAfterSeek()
     showSeekFeedback(direction, nextState.amountMs)
 
@@ -328,6 +349,7 @@ internal fun PlayerScreenRuntime.rememberSurfaceGestureCallbacks(): PlayerSurfac
         currentDurationMs = rememberUpdatedState(playbackSnapshot.durationMs),
         commitHorizontalSeek = rememberUpdatedState { targetPositionMs: Long ->
             playerController?.seekTo(targetPositionMs)
+            rememberManualSeekPosition(targetPositionMs)
             scheduleProgressSyncAfterSeek()
         },
     )

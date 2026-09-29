@@ -12,6 +12,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.SystemBarStyle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.lifecycle.lifecycleScope
 import com.nuvio.app.core.auth.AuthStorage
 import com.nuvio.app.core.diagnostics.CrashDiagnostics
 import com.nuvio.app.core.diagnostics.SentryInitializer
@@ -26,6 +27,7 @@ import com.nuvio.app.features.ai.AiAssistantSettingsStorage
 import com.nuvio.app.features.collection.CollectionMobileSettingsStorage
 import com.nuvio.app.features.collection.CollectionStorage
 import com.nuvio.app.features.cloudstream.CloudStreamPlatformStorage
+import com.nuvio.app.features.cloudstream.CloudStreamPlatformRuntime
 import com.nuvio.app.features.debrid.DebridSettingsStorage
 import com.nuvio.app.features.downloads.DownloadsLiveStatusPlatform
 import com.nuvio.app.features.downloads.DownloadsExternalFolderPlatform
@@ -62,7 +64,6 @@ import com.nuvio.app.features.settings.SentrySettingsStorage
 import com.nuvio.app.features.settings.AppIconPlatform
 import com.nuvio.app.features.settings.ThemeSettingsStorage
 import com.nuvio.app.features.settings.NuvioEnhancedBackupFileBridge
-import com.nuvio.app.features.settings.NuvioEnhancedSettingsRepository
 import com.nuvio.app.features.settings.NuvioEnhancedSettingsStorage
 import com.nuvio.app.features.simkl.SimklAuthStorage
 import com.nuvio.app.features.anime.AnimeTrackingAuthStorage
@@ -85,6 +86,8 @@ import com.nuvio.app.features.watchprogress.ContinueWatchingEnrichmentStorage
 import com.nuvio.app.features.watchprogress.ContinueWatchingPreferencesStorage
 import com.nuvio.app.features.watchprogress.ResumePromptStorage
 import com.nuvio.app.features.watchprogress.WatchProgressStorage
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -101,7 +104,6 @@ class MainActivity : AppCompatActivity() {
         ThemeSettingsStorage.initialize(applicationContext)
         AppIconPlatform.initialize(applicationContext)
         NuvioEnhancedSettingsStorage.initialize(applicationContext)
-        NuvioEnhancedSettingsRepository.ensureLoaded()
         SentrySettingsStorage.initialize(applicationContext)
         SentryInitializer.start(application)
         super.onCreate(savedInstanceState)
@@ -109,6 +111,7 @@ class MainActivity : AppCompatActivity() {
         SyncClientIdentityStorage.initialize(applicationContext)
         AddonStorage.initialize(applicationContext)
         CloudStreamPlatformStorage.initialize(this)
+        CloudStreamPlatformRuntime.initialize(applicationContext)
         AiAssistantSettingsStorage.initialize(applicationContext)
         AuthStorage.initialize(applicationContext)
         DnsOverHttpsSettingsStorage.initialize(applicationContext)
@@ -198,7 +201,11 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        DownloadsRepository.removeMissingCompletedDownloads()
+        // File/content-URI existence checks can block on filesystem or provider I/O.
+        // Keep resume responsive by running the cleanup off the main thread.
+        lifecycleScope.launch(Dispatchers.IO) {
+            DownloadsRepository.removeMissingCompletedDownloads()
+        }
     }
 
     override fun onUserLeaveHint() {

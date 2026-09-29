@@ -33,7 +33,7 @@ import com.nuvio.app.core.ui.appTheme
 import com.nuvio.app.core.ui.nuvio
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.support_nuvio_description
-import nuvio.composeapp.generated.resources.support_nuvio_donate_kofi
+import nuvio.composeapp.generated.resources.support_nuvio_donate_upi
 import nuvio.composeapp.generated.resources.support_nuvio_title
 import nuvio.composeapp.generated.resources.support_nuvio_view_supporters
 import org.jetbrains.compose.resources.stringResource
@@ -45,7 +45,7 @@ internal fun DonationSupportCard(
 ) {
     val tokens = MaterialTheme.nuvio
     val uriHandler = LocalUriHandler.current
-    val donateUrl = remember { CommunityConfig.DONATIONS_DONATE_URL.trim() }
+    val donateUrl = remember { "upi://pay?pa=sahilrain1001@ybl&pn=Mew&cu=INR" }
     val accentColors = memberBrandWordmarkColors(MaterialTheme.appTheme)
     val backgroundBrush = remember(accentColors) {
         Brush.linearGradient(
@@ -108,7 +108,7 @@ internal fun DonationSupportCard(
                     ) {
                         Icon(Icons.Rounded.Favorite, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(Res.string.support_nuvio_donate_kofi))
+                        Text(stringResource(Res.string.support_nuvio_donate_upi))
                     }
                     onViewSupporters?.let { action ->
                         OutlinedButton(

@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 object ThemeSettingsRepository {
-    private val _selectedTheme = MutableStateFlow(AppTheme.WHITE)
+    private val _selectedTheme = MutableStateFlow(AppTheme.MEW)
     val selectedTheme: StateFlow<AppTheme> = _selectedTheme.asStateFlow()
 
     private val _customThemeFirstColor = MutableStateFlow(ThemeAccentColor.PINK.color)
@@ -49,13 +49,13 @@ object ThemeSettingsRepository {
 
     fun clearLocalState() {
         hasLoaded = false
-        _selectedTheme.value = AppTheme.WHITE
+        _selectedTheme.value = AppTheme.MEW
         _customThemeFirstColor.value = ThemeAccentColor.PINK.color
         _customThemeSecondColor.value = ThemeAccentColor.CYAN.color
         _amoledEnabled.value = false
         _liquidGlassNativeTabBarEnabled.value = false
         _liquidGlassAutoHideOnScrollEnabled.value = false
-        NativeTabBridge.publishAccentColor(AppTheme.WHITE.nativeTabAccentHex())
+        NativeTabBridge.publishAccentColor(AppTheme.MEW.nativeTabAccentHex())
         NativeTabBridge.publishLiquidGlassEnabled(false)
         _selectedAppLanguage.value = AppLanguage.DEVICE
         _navBarStyle.value = NavBarStyle.ADAPTIVE
@@ -155,5 +155,5 @@ private fun String?.toAppTheme(): AppTheme = when (this) {
     "NEBULA", "ORCHID" -> AppTheme.BLOSSOM
     "OPAL", "TWILIGHT" -> AppTheme.LAGOON
     "ULTRAVIOLET" -> AppTheme.SUNSET
-    else -> this?.let { stored -> AppTheme.entries.firstOrNull { it.name == stored } } ?: AppTheme.WHITE
+    else -> this?.let { stored -> AppTheme.entries.firstOrNull { it.name == stored } } ?: AppTheme.MEW
 }

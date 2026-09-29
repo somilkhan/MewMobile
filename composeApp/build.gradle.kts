@@ -455,7 +455,7 @@ val generateRuntimeConfigs = tasks.register<GenerateRuntimeConfigsTask>("generat
     traktRedirectUri.set(runtimeConfigValue("TRAKT_REDIRECT_URI", fallback = "nuvioenhanced://auth/trakt"))
     simklClientId.set(runtimeConfigValue("SIMKL_CLIENT_ID"))
     simklRedirectUri.set(runtimeConfigValue("SIMKL_REDIRECT_URI", fallback = "nuvioenhanced://auth/simkl"))
-    simklAppName.set(runtimeConfigValue("SIMKL_APP_NAME", fallback = "nuvio"))
+    simklAppName.set(runtimeConfigValue("SIMKL_APP_NAME", fallback = "Mew"))
     aniListClientId.set(runtimeConfigValue("ANILIST_CLIENT_ID"))
     aniListRedirectUri.set(runtimeConfigValue("ANILIST_REDIRECT_URI", fallback = "nuvioenhanced://auth/anilist"))
     malClientId.set(runtimeConfigValue("MAL_CLIENT_ID"))
@@ -465,10 +465,10 @@ val generateRuntimeConfigs = tasks.register<GenerateRuntimeConfigsTask>("generat
         runtimeConfigValue(
             "NUVIO_UPDATE_GITHUB_OWNER",
             "GITHUB_REPOSITORY_OWNER",
-            fallback = "AKRusso",
+            fallback = "somilkhan",
         )
     )
-    updateGithubRepo.set(runtimeConfigValue("NUVIO_UPDATE_GITHUB_REPO", fallback = "NuvioMobile-Enhanced"))
+    updateGithubRepo.set(runtimeConfigValue("NUVIO_UPDATE_GITHUB_REPO", fallback = "MewMobile"))
 }
 
 tasks.withType<KotlinCompilationTask<*>>().configureEach {
@@ -609,6 +609,7 @@ kotlin {
                     implementation("org.jsoup:jsoup:1.22.1")
                     implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.8.0")
                     implementation("com.github.Blatzar:NiceHttp:0.4.18")
+                    implementation(libs.conscrypt.android)
                     implementation("me.xdrop:fuzzywuzzy:1.4.0")
                     implementation("org.mozilla:rhino:1.8.1")
                     implementation("com.uwetrottmann.tmdb2:tmdb-java:2.13.0")
@@ -648,7 +649,6 @@ kotlin {
             implementation(libs.compose.ui)
             implementation(libs.compose.components.resources)
             implementation(libs.compose.uiToolingPreview)
-            implementation(libs.compottie)
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
             implementation(libs.kotlinx.serialization.json)
