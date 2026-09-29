@@ -1519,8 +1519,8 @@
     <string name="nuvio_enhanced_category_new">Baru</string>
     <string name="nuvio_enhanced_section_player_tools">Pemutar &amp; subtitle</string>
     <string name="nuvio_enhanced_subtitle_selector_title">Pemilih subtitle</string>
-    <string name="nuvio_enhanced_subtitle_selector_desc">Pilih antara pemilih Enhanced yang dikelompokkan berdasarkan bahasa dan tata letak Mew terbaru.</string>
-    <string name="nuvio_enhanced_subtitle_selector_enhanced">Enhanced</string>
+    <string name="nuvio_enhanced_subtitle_selector_desc">Choose between the Mew language-grouped selector and the latest core layout.</string>
+    <string name="nuvio_enhanced_subtitle_selector_enhanced">Mew</string>
     <string name="nuvio_enhanced_subtitle_selector_nuvio">Mew</string>
     <string name="community_donation_progress_fee_notice">Jumlah yang ditampilkan adalah sebelum biaya pembayaran dan bank, sehingga jumlah yang diterima mungkin lebih kecil.</string>
     <string name="downloads_download_settings">Pengaturan unduhan</string>
