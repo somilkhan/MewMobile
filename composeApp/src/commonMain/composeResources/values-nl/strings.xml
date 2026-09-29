@@ -1985,8 +1985,8 @@
     <string name="nuvio_enhanced_category_new">Nieuw</string>
     <string name="nuvio_enhanced_section_player_tools">Speler en ondertitels</string>
     <string name="nuvio_enhanced_subtitle_selector_title">Ondertitelingkiezer</string>
-    <string name="nuvio_enhanced_subtitle_selector_desc">Kies tussen de Enhanced-kiezer gegroepeerd op taal en de nieuwe Mew-indeling.</string>
-    <string name="nuvio_enhanced_subtitle_selector_enhanced">Enhanced</string>
+    <string name="nuvio_enhanced_subtitle_selector_desc">Choose between the Mew language-grouped selector and the latest core layout.</string>
+    <string name="nuvio_enhanced_subtitle_selector_enhanced">Mew</string>
     <string name="nuvio_enhanced_subtitle_selector_nuvio">Mew</string>
     <string name="community_donation_progress_fee_notice">Het getoonde bedrag is voor betalings- en bankkosten, dus het ontvangen bedrag kan lager zijn.</string>
     <string name="downloads_download_settings">Downloadinstellingen</string>
