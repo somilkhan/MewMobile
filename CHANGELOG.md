@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.5.0 - 2026-09-30
+
+### Added
+
+- Added native CloudStream repository and provider integration through the existing CloudStream runtime.
+- Added dynamic external repository registration without a built-in provider catalog.
+- Added Mew-facing Content & Discovery onboarding while keeping TMDB metadata enrichment optional.
+
+### Improved
+
+- Reworked the product-facing identity around Mew while preserving required Nuvio compatibility identifiers and deep links.
+- Improved stream request lifecycle handling, cancellation, caching, and playback identity protection.
+- Improved repository/plugin lifecycle handling and large CloudStream scraper memory behavior.
+- Improved release signing and update compatibility safeguards.
+
+### Fixed
+
+- Fixed stale stream and metadata results crossing title, episode, or profile boundaries.
+- Hardened playback state restoration and watch-progress identity handling.
+- Removed remaining user-facing legacy Discord, Ko-fi, and Nuvio Enhanced branding from the current product surface.
+- Hardened Android release configuration against accidental debug-certificate signing.
+
+### Release
+
+- Mew 0.5.0 (119), focused on native CloudStream compatibility, productization, stability, and release readiness.
+
 All notable Mew changes are recorded here. GitHub release notes use the same
 user-facing summary so the in-app updater can display it before download.
 
