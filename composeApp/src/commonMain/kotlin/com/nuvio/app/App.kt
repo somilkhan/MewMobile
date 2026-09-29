@@ -221,15 +221,12 @@ import com.nuvio.app.features.player.SubtitleLanguageOption
 import com.nuvio.app.features.player.sanitizePlaybackHeaders
 import com.nuvio.app.features.player.sanitizePlaybackResponseHeaders
 import com.nuvio.app.features.profiles.AvatarRepository
-import com.nuvio.app.features.profiles.DefaultProfileBackgroundResource
 import com.nuvio.app.features.profiles.NativeProfileSwitcherPopup
 import com.nuvio.app.features.profiles.NuvioProfile
 import com.nuvio.app.features.profiles.ProfileEditScreen
 import com.nuvio.app.features.profiles.ProfileRepository
-import com.nuvio.app.features.profiles.ProfileRemoteBackgroundImage
 import com.nuvio.app.features.profiles.ProfileSelectionScreen
 import com.nuvio.app.features.profiles.ProfileSwitcherTab
-import com.nuvio.app.features.profiles.effectiveProfileBackground
 import com.nuvio.app.features.profiles.profileAvatarImageUrl
 import com.nuvio.app.features.details.resolveCachedEpisodeVideoId
 import com.nuvio.app.features.search.SearchScreen
@@ -242,7 +239,6 @@ import com.nuvio.app.features.settings.AddonsSettingsScreen
 import com.nuvio.app.features.settings.PluginsSettingsScreen
 import com.nuvio.app.features.settings.AccountSettingsScreen
 import com.nuvio.app.features.settings.AppBrandWordmark
-import com.nuvio.app.features.settings.MemberBrandWordmark
 import com.nuvio.app.features.settings.SupportersContributorsSettingsScreen
 import com.nuvio.app.features.settings.LicensesAttributionsSettingsScreen
 import com.nuvio.app.features.settings.NavBarStyle
@@ -910,10 +906,6 @@ private fun MainAppContent(
                 withFrameNanos { }
                 selectedPosterActionTarget = target
             }
-        }
-        val profileState by ProfileRepository.state.collectAsStateWithLifecycle()
-        val launchOverlayProfile = remember(profileState.activeProfile, profileState.profiles) {
-            profileState.activeProfile ?: profileState.profiles.firstOrNull()
         }
     val playerSettingsUiState by remember {
         PlayerSettingsRepository.ensureLoaded()
@@ -3950,7 +3942,6 @@ private fun MainAppContent(
                 exit = fadeOut(androidx.compose.animation.core.tween(400)),
             ) {
                 AppLaunchOverlay(
-                    profile = launchOverlayProfile,
                     modifier = Modifier.fillMaxSize(),
                 )
             }
@@ -4403,7 +4394,6 @@ private fun TabletTopPillItem(
 @OptIn(ExperimentalResourceApi::class)
 @Composable
 private fun AppLaunchOverlay(
-    profile: NuvioProfile?,
     modifier: Modifier = Modifier,
 ) {
     val tokens = MaterialTheme.nuvio
