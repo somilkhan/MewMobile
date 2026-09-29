@@ -183,6 +183,8 @@ jobs:
       RELEASE_STORE_PASSWORD: ${{ secrets.MEW_RELEASE_KEYSTORE_PASSWORD }}
       RELEASE_KEY_ALIAS: ${{ secrets.MEW_RELEASE_KEY_ALIAS }}
       RELEASE_KEY_PASSWORD: ${{ secrets.MEW_RELEASE_KEY_PASSWORD }}
+      # Release CI must use the Mew release certificate, never the host Android debug keystore.
+      NUVIO_LEGACY_UPDATE_COMPAT_SIGNING: "false"
       TRAKT_CLIENT_ID: ${{ secrets.TRAKT_CLIENT_ID }}
       SIMKL_CLIENT_ID: ${{ secrets.SIMKL_CLIENT_ID }}
       ANILIST_CLIENT_ID: ${{ secrets.ANILIST_CLIENT_ID }}
