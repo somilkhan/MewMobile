@@ -2216,8 +2216,8 @@
     <string name="nuvio_enhanced_category_new">Νέα</string>
     <string name="nuvio_enhanced_section_player_tools">Αναπαραγωγή και υπότιτλοι</string>
     <string name="nuvio_enhanced_subtitle_selector_title">Επιλογή υποτίτλων</string>
-    <string name="nuvio_enhanced_subtitle_selector_desc">Επιλέξτε ανάμεσα στον επιλογέα Enhanced με ομαδοποίηση ανά γλώσσα και τη νέα διάταξη Mew.</string>
-    <string name="nuvio_enhanced_subtitle_selector_enhanced">Enhanced</string>
+    <string name="nuvio_enhanced_subtitle_selector_desc">Choose between the Mew language-grouped selector and the latest core layout.</string>
+    <string name="nuvio_enhanced_subtitle_selector_enhanced">Mew</string>
     <string name="nuvio_enhanced_subtitle_selector_nuvio">Mew</string>
     <string name="community_donation_progress_fee_notice">Το εμφανιζόμενο ποσό είναι πριν από χρεώσεις πληρωμών και τραπεζών, επομένως το ποσό που λαμβάνεται μπορεί να είναι μικρότερο.</string>
     <string name="downloads_download_settings">Ρυθμίσεις λήψης</string>
