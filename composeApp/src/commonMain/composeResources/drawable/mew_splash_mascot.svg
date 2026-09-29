@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 560">
+  <g transform="translate(380 270)">
+    <path d="M-170 200V-40Q-170-190 0-190Q170-190 170-40V200Q130 170 90 200Q45 170 0 200Q-45 170-90 200Q-130 170-170 200Z" fill="#fff"/>
+    <path d="M-105-70H-35A35 35 0 0 1-105-70ZM35-70H105A35 35 0 0 1 35-70Z" fill="#0b0c0c"/>
+    <path d="M-8-25h16l-8 14z" fill="#0b0c0c"/>
+    <g fill="#0b0c0c" opacity=".25">
+      <circle cx="-130" cy="40" r="4"/><circle cx="140" cy="-10" r="4"/>
+      <circle cx="120" cy="120" r="4"/><circle cx="-140" cy="150" r="4"/>
+    </g>
+    <g fill="#0b0c0c" stroke="#fff" stroke-width="6">
+      <rect x="-42" y="150" width="30" height="90" rx="15"/><rect x="12" y="150" width="30" height="90" rx="15"/>
+    </g>
+    <path d="M-60 80L-55 20-25 42Q0 34 25 42L55 20 60 80Q65 135 0 140Q-65 135-60 80Z" fill="#0b0c0c"/>
+    <g fill="#fff"><circle cx="-24" cy="80" r="11"/><circle cx="24" cy="80" r="11"/></g>
+    <g fill="#0b0c0c"><circle cx="-24" cy="80" r="4"/><circle cx="24" cy="80" r="4"/></g>
+    <path d="M-125 135Q-20 95 75 125Q88 160 45 168Q-50 168-125 168Z" fill="#fff" stroke="#0b0c0c" stroke-width="6" stroke-linejoin="round"/>
+    <g transform="translate(-265 40)">
+      <g fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round">
+        <path d="M-5-20C-30-40 20-55-5-80C-20-95 5-105 0-115"/>
+      </g>
+      <rect x="-40" y="0" width="80" height="80" rx="8" fill="#0b0c0c" stroke="#fff" stroke-width="6"/>
+      <path d="M40 15h22q14 0 14 25t-14 25H40" fill="none" stroke="#fff" stroke-width="6"/>
+      <text x="0" y="52" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" font-size="24" font-weight="700" fill="#fff">MEH</text>
+    </g>
+  </g>
+</svg>
