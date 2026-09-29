@@ -2128,8 +2128,6 @@
     <string name="plugins_badge_providers">%1$d providers</string>
     <string name="plugins_badge_refreshing">Refreshing</string>
     <string name="plugins_badge_repos">%1$d repos</string>
-    <string name="plugins_badge_tmdb_key_missing">TMDB API key missing</string>
-    <string name="plugins_badge_tmdb_key_set">TMDB API key set</string>
     <string name="plugins_button_install_repo">Install Plugin Repository</string>
     <string name="plugins_button_installing">Installing…</string>
     <string name="plugins_button_test_provider">Test Provider</string>
@@ -2173,7 +2171,6 @@
     <string name="plugins_test_error_title">Error</string>
     <string name="plugins_test_failed">Provider test failed</string>
     <string name="plugins_test_results_count">Test results (%1$d)</string>
-    <string name="plugins_tmdb_required_message">Plugin providers require a TMDB API key. Set it on the TMDB screen or plugin providers will not work correctly.</string>
     <string name="search_error_no_results_for_catalog">No search results returned for %1$s.</string>
     <string name="settings_playback_introdb_invalid_key">Invalid API Key or connection failed</string>
     <string name="streams_plugin_repository_fallback">Plugin repository</string>
