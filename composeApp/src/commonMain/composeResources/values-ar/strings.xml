@@ -2298,7 +2298,7 @@
     <string name="nuvio_enhanced_filter_movies">أفلام</string>
     <string name="nuvio_enhanced_footer_title">Mew</string>
     <string name="nuvio_enhanced_footer_community">المجتمع</string>
-    <string name="nuvio_enhanced_intro_title">Mew محسّن</string>
+    <string name="nuvio_enhanced_intro_title">Mew</string>
     <string name="nuvio_enhanced_close">إغلاق</string>
     <string name="nuvio_enhanced_import_action">استيراد</string>
     <string name="nuvio_enhanced_cancel">إلغاء</string>
@@ -2312,7 +2312,7 @@
     <string name="nuvio_enhanced_footer_desc">Follow releases on GitHub or Telegram for updates, polls and feature requests.</string>
     <string name="nuvio_enhanced_footer_github">GitHub</string>
     <string name="nuvio_enhanced_footer_releases">الإصدارات</string>
-    <string name="nuvio_enhanced_footer_discord">Discord</string>
+    <string name="nuvio_enhanced_footer_discord">Telegram</string>
     <string name="nuvio_discord_welcome_title">Join the Mew Telegram</string>
     <string name="nuvio_discord_welcome_description">Updates, polls, feature requests and community feedback now live on the Mew Telegram.</string>
     <string name="nuvio_discord_welcome_join">Open Telegram</string>
