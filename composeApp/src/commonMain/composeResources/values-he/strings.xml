@@ -739,8 +739,8 @@
     <string name="nuvio_enhanced_section_player_tools">נגן וכתוביות</string>
     <string name="settings_trakt_missing_credentials">Trakt אינו מוגדר בגרסה זו. מנהל האפליקציה חייב להוסיף פרטי Trakt לפני הפרסום.</string>
     <string name="nuvio_enhanced_subtitle_selector_title">בורר כתוביות</string>
-    <string name="nuvio_enhanced_subtitle_selector_desc">בחרו בין בורר Enhanced המקובץ לפי שפה לבין הפריסה החדשה של Mew.</string>
-    <string name="nuvio_enhanced_subtitle_selector_enhanced">Enhanced</string>
+    <string name="nuvio_enhanced_subtitle_selector_desc">Choose between the Mew language-grouped selector and the latest core layout.</string>
+    <string name="nuvio_enhanced_subtitle_selector_enhanced">Mew</string>
     <string name="nuvio_enhanced_subtitle_selector_nuvio">Mew</string>
     <string name="community_donation_progress_fee_notice">הסכום המוצג הוא לפני עמלות תשלום ובנק, לכן הסכום המתקבל עשוי להיות נמוך יותר.</string>
     <string name="downloads_download_settings">הגדרות הורדה</string>
