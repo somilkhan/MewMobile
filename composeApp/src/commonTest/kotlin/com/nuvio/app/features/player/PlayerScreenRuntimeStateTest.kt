@@ -36,6 +36,26 @@ class PlayerScreenRuntimeStateTest {
     }
 
     @Test
+    fun restoredLaunchUsesCurrentPlaybackPosition() {
+        val runtime = PlayerScreenRuntime(testPlayerScreenArgs().copy(initialPositionMs = 351_000L))
+        runtime.initialSeekApplied = true
+        runtime.playbackSnapshot = PlayerPlaybackSnapshot(isPlaying = true, positionMs = 442_000L, durationMs = 1_200_000L)
+        val launch = PlayerLaunch(
+            profileId = 1,
+            title = "Title",
+            sourceUrl = "https://example.com/video.mp4",
+            streamTitle = "Source",
+            providerName = "Provider",
+            contentType = "movie",
+            videoId = "tt1234567",
+            parentMetaId = "tt1234567",
+            parentMetaType = "movie",
+            initialPositionMs = 351_000L,
+        )
+        assertEquals(442_000L, runtime.currentLaunch(launch).initialPositionMs)
+    }
+
+    @Test
     fun seekScrobbleUpdate_requiresActiveIncompletePlayback() {
         assertTrue(
             shouldUpdateTrackingScrobbleAfterSeek(

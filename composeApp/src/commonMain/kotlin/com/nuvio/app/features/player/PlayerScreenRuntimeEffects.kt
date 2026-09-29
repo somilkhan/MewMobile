@@ -443,6 +443,7 @@ internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
 
     DisposableEffect(Unit) {
         onDispose {
+            args.launchId?.let { launchId -> PlayerLaunchStore.update(launchId) { currentLaunch(it) } }
             playerController?.clearNowPlayingInfo()
             P2pStreamingEngine.shutdown()
             PlayerStreamsRepository.clearAll()

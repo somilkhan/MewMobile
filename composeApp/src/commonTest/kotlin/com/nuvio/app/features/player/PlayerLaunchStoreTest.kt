@@ -23,6 +23,9 @@ class PlayerLaunchStoreTest {
 
         assertEquals(launch, PlayerLaunchStore.get(launchId))
 
+        PlayerLaunchStore.update(launchId) { it.copy(initialPositionMs = 442_000L) }
+        assertEquals(442_000L, PlayerLaunchStore.get(launchId)?.initialPositionMs)
+
         PlayerLaunchStore.remove(launchId)
 
         assertNull(PlayerLaunchStore.get(launchId))

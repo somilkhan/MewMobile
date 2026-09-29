@@ -3283,6 +3283,7 @@ private fun MainAppContent(
                         initialPositionMs = launch.initialPositionMs,
                         initialProgressFraction = launch.initialProgressFraction,
                         contentLanguage = launch.contentLanguage,
+                        launchId = route.launchId,
                         onBack = onBack,
                         onOpenInExternalPlayer = { request ->
                             val playerLaunch = PlayerLaunch(
