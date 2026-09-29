@@ -69,6 +69,11 @@ actual object CloudStreamRepository {
         refreshJobs.clear()
         cancelInFlightMainPageRequests()
         cancelInFlightLoadLinksRequests()
+        loadResultCacheMutex.tryLock().let { locked ->
+            if (locked) {
+                try { loadResultCache.clear() } finally { loadResultCacheMutex.unlock() }
+            }
+        }
         CloudStreamPlatformRuntime.clear()
         currentProfileId = profileId.coerceAtLeast(1)
         CloudStreamPlatformStorage.setActiveProfile(currentProfileId)
