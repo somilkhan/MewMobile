@@ -3,6 +3,7 @@ name: Mew CloudStream Build
 on:
   push:
     branches:
+      - enhanced
       - feature/cloudstream-dynamic-repositories
   pull_request:
     branches:
