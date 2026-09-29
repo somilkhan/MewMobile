@@ -47,6 +47,9 @@ actual object CloudStreamRepository {
     private val loadLinksRequestMutex = Mutex()
     private val loadLinksRequests =
         mutableMapOf<String, Deferred<Result<List<CloudStreamPlaybackSource>>>>()
+    private val loadResultCache = LinkedHashMap<String, CloudStreamLoadItem>(16, 0.75f, true)
+    private val loadResultCacheMutex = Mutex()
+    private const val LOAD_RESULT_CACHE_MAX_ENTRIES = 16
     private const val REPOSITORY_DISCOVERY_CONCURRENCY = 6
     private const val PROVIDER_REQUEST_CONCURRENCY = 4
 
@@ -456,6 +459,15 @@ actual object CloudStreamRepository {
     }
 
     actual suspend fun load(providerId: String, data: String): Result<CloudStreamLoadItem> {
+        initialize()
+        val cacheKey = "$providerId\\u0000$data"
+        loadResultCacheMutex.withLock {
+            loadResultCache[cacheKey]
+        }?.let { cached ->
+            RuntimeDiagnostics.recordLog("cs-load-cache-hit id=$providerId dataLength=${data.length}")
+            return Result.success(cached)
+        }
+
         val normalizedData = data.trimStart()
         val dataKind = when {
             normalizedData.startsWith("http://", ignoreCase = true) ||
@@ -467,8 +479,19 @@ actual object CloudStreamRepository {
         }
         RuntimeDiagnostics.recordLog("cs-load-start id=$providerId dataKind=$dataKind dataLength=${data.length}")
         return providerResult(providerId) { load(data) }
-            .onSuccess { item -> RuntimeDiagnostics.recordLog("cs-load-success id=$providerId episodes=${item.episodes.size}") }
-            .onFailure { error -> RuntimeDiagnostics.recordLog("cs-load-failure id=$providerId dataKind=$dataKind error=${error.message?.take(160)}") }
+            .onSuccess { item ->
+                loadResultCacheMutex.withLock {
+                    loadResultCache[cacheKey] = item
+                    loadResultCache["$providerId\\u0000${item.data}"] = item
+                    while (loadResultCache.size > LOAD_RESULT_CACHE_MAX_ENTRIES) {
+                        loadResultCache.remove(loadResultCache.entries.first().key)
+                    }
+                }
+                RuntimeDiagnostics.recordLog("cs-load-success id=$providerId episodes=${item.episodes.size}")
+            }
+            .onFailure { error ->
+                RuntimeDiagnostics.recordLog("cs-load-failure id=$providerId dataKind=$dataKind error=${error.message?.take(160)}")
+            }
     }
 
     actual suspend fun loadByExternalId(
@@ -483,7 +506,7 @@ actual object CloudStreamRepository {
         val requestKey = "$providerId\\u0000$data"
         var created = false
         val request = loadLinksRequestMutex.withLock {
-            loadLinksRequests[requestKey]?.takeIf { it.isActive || it.isCompleted }
+            loadLinksRequests[requestKey]
                 ?: scope.async(start = CoroutineStart.LAZY) {
                     providerResult(providerId) { loadLinks(data) }
                 }.also { deferred ->
