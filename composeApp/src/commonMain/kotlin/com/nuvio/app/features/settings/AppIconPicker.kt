@@ -175,6 +175,9 @@ private fun AppIconPickerContent(
     modifier: Modifier = Modifier,
 ) {
     val tokens = MaterialTheme.nuvio
+    // Mew product branding is monochrome. Keep legacy colored icon values readable for migration,
+    // but do not expose them as new selectable product options.
+    val visibleIcons = listOf(AppIconOption.ORIGINAL, AppIconOption.GRAPHITE)
     val horizontalPadding = if (columns == 4) tokens.spacing.dialogPadding else tokens.spacing.screenHorizontal
     Column(
         modifier = modifier
@@ -208,7 +211,7 @@ private fun AppIconPickerContent(
 
         Spacer(modifier = Modifier.height(18.dp))
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            AppIconOption.entries.chunked(columns).forEach { rowIcons ->
+            visibleIcons.chunked(columns).forEach { rowIcons ->
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
