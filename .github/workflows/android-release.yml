@@ -179,7 +179,7 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       RELEASE_PROPERTIES_BASE64: ${{ secrets.MEW_LOCAL_PROPERTIES_BASE64 || secrets.NUVIO_LOCAL_PROPERTIES_BASE64 }}
-      RELEASE_KEYSTORE_BASE64: ${{ secrets.MEW_RELEASE_KEYSTORE_BASE64 || secrets.NUVIO_RELEASE_KEYSTORE_BASE64 }}
+      RELEASE_KEYSTORE_BASE64: ${{ secrets.MEW_RELEASE_KEYSTORE_BASE64 }}
       RELEASE_STORE_PASSWORD: ${{ secrets.MEW_RELEASE_KEYSTORE_PASSWORD }}
       RELEASE_KEY_ALIAS: ${{ secrets.MEW_RELEASE_KEY_ALIAS }}
       RELEASE_KEY_PASSWORD: ${{ secrets.MEW_RELEASE_KEY_PASSWORD }}
@@ -243,10 +243,14 @@ jobs:
             if [[ -z "${RELEASE_KEYSTORE_BASE64}" ]]; then
               missing+=("MEW_RELEASE_KEYSTORE_BASE64")
             fi
-            if [[ -z "${RELEASE_STORE_PASSWORD}" || -z "${RELEASE_KEY_ALIAS}" || -z "${RELEASE_KEY_PASSWORD}" ]]; then
-              if [[ -z "${RELEASE_PROPERTIES_BASE64}" ]]; then
-                missing+=("MEW_RELEASE_KEYSTORE_PASSWORD/MEW_RELEASE_KEY_ALIAS/MEW_RELEASE_KEY_PASSWORD")
-              fi
+            if [[ -z "${RELEASE_STORE_PASSWORD}" ]]; then
+              missing+=("MEW_RELEASE_KEYSTORE_PASSWORD")
+            fi
+            if [[ -z "${RELEASE_KEY_ALIAS}" ]]; then
+              missing+=("MEW_RELEASE_KEY_ALIAS")
+            fi
+            if [[ -z "${RELEASE_KEY_PASSWORD}" ]]; then
+              missing+=("MEW_RELEASE_KEY_PASSWORD")
             fi
             if [[ -z "${RELEASE_PROPERTIES_BASE64}" ]]; then
               echo "No legacy local.properties bundle supplied; release signing will use the Mew signing secrets."
