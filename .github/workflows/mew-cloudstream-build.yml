@@ -43,6 +43,14 @@ jobs:
       - name: Prepare Gradle local properties
         run: touch local.properties
 
+      - name: Verify Mew branding in localized resources
+        run: |
+          set -euo pipefail
+          if git grep -n -E 'Discord|Ko-fi|Mew Enhanced|Nuvio Enhanced' -- 'composeApp/src/commonMain/composeResources/*/strings.xml'; then
+            echo "Forbidden legacy branding remains in localized user-facing resources." >&2
+            exit 1
+          fi
+
       - name: Build Android Full debug
         env:
           MEW_DEBUG_KEYSTORE_FILE: ${{ runner.temp }}/mew-debug/mew-debug.keystore
