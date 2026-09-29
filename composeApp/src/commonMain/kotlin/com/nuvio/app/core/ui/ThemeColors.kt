@@ -187,19 +187,19 @@ object ThemeColors {
     )
 
     val Mew = ThemeColorPalette(
-        secondary = Color(0xFFF4F7FF),
-        secondaryVariant = Color(0xFFB9C2CC),
+        secondary = Color(0xFFF4F4F4),
+        secondaryVariant = Color(0xFFAEB2B6),
         accentGradient = listOf(
-            Color(0xFFF4F7FF),
-            Color(0xFFDDE6F0),
-            Color(0xFF35D6E8),
-            Color(0xFFFF5F9E),
+            Color(0xFFF4F4F4),
+            Color(0xFFD8DADC),
+            Color(0xFFAEB2B6),
+            Color(0xFF72767A),
         ),
-        nativeAccentHex = "#F4F7FF",
+        nativeAccentHex = "#F4F4F4",
         onSecondary = Color(0xFF0B0C0C),
         onSecondaryVariant = Color(0xFF111111),
-        focusRing = Color(0xFFF4F7FF),
-        focusBackground = Color(0xFF171A1D),
+        focusRing = Color(0xFFF4F4F4),
+        focusBackground = Color(0xFF1B1D1F),
         background = Color(0xFF050607),
         backgroundElevated = Color(0xFF0D0F11),
         backgroundCard = Color(0xFF14171A),
