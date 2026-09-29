@@ -2092,7 +2092,7 @@
     <string name="nuvio_enhanced_footer_desc">Follow releases on GitHub or Telegram for updates, polls and feature requests.</string>
     <string name="nuvio_enhanced_footer_github">GitHub</string>
     <string name="nuvio_enhanced_footer_releases">Lanzamientos</string>
-    <string name="nuvio_enhanced_footer_discord">Discord</string>
+    <string name="nuvio_enhanced_footer_discord">Telegram</string>
     <string name="nuvio_enhanced_footer_community">Comunidad</string>
     <string name="nuvio_enhanced_backup_download_title">Descargar copia de seguridad</string>
     <string name="nuvio_enhanced_backup_download_desc">Save a portable JSON backup of profile settings, playback preferences and Mew options.</string>
@@ -2107,7 +2107,7 @@
     <string name="nuvio_enhanced_copy_last_crash_empty_desc">Aún no hay ningún informe local de crash guardado en este dispositivo.</string>
     <string name="nuvio_enhanced_feedback_title">Mew feedback</string>
     <string name="nuvio_enhanced_feedback_desc">Send bugs, ideas or user feedback directly to the Mew maintainer.</string>
-    <string name="nuvio_enhanced_intro_title">Mew Enhanced</string>
+    <string name="nuvio_enhanced_intro_title">Mew</string>
     <string name="nuvio_enhanced_intro_desc">Las funciones exclusivas de esta versión viven aquí para separar claramente los ajustes oficiales de los añadidos de Mew.</string>
     <string name="nuvio_enhanced_mark_all_seen">Mark all Mew features as seen</string>
     <string name="nuvio_enhanced_backup_ready_title">Copia lista</string>
