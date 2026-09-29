@@ -5,7 +5,7 @@
     <string name="details_premium_overview_subtitle">Informações principais, avaliações e contexto da história agrupados para uma decisão mais rápida.</string>
     <string name="details_premium_story_label">História</string>
     <string name="nuvio_enhanced_nuvio_read_title">Mew Read</string>
-    <string name="nuvio_enhanced_nuvio_read_desc">Agrupa informações principais, avaliações e a história no cartão de visão geral Enhanced das páginas de detalhes.</string>
+    <string name="nuvio_enhanced_nuvio_read_desc">Group key facts, ratings, and the story into the Mew Read overview card on detail pages.</string>
     <string name="about_licenses_attributions_subtitle">Fontes de dados, agradecimentos e licenças da plataforma</string>
     <string name="about_supporters_contributors_subtitle">Reconhecimento aberto e créditos do projeto</string>
     <string name="action_back">Voltar</string>
