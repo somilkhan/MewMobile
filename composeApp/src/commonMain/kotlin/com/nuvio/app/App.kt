@@ -4417,10 +4417,6 @@ private fun AppLaunchOverlay(
         ),
         label = "mascot_offset",
     )
-    val appTheme = MaterialTheme.appTheme
-    val effectiveBackground = remember(profile?.backgroundUrl, appTheme) {
-        effectiveProfileBackground(profile, appTheme)
-    }
     Box(
         modifier = modifier
             .zIndex(NuvioTokens.Z.dialog)
