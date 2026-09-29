@@ -1,7 +1,7 @@
 # Changelog
 
-All notable Nuvio Enhanced changes are recorded here. GitHub release notes use the
-same user-facing summary so the in-app updater can display it before download.
+All notable Mew changes are recorded here. GitHub release notes use the same
+user-facing summary so the in-app updater can display it before download.
 
 ## 0.4.14 - 2026-09-06
 
@@ -50,7 +50,7 @@ Enhanced settings remain preserved when updating from an earlier release.
 ### Release
 
 - This release is based on official NuvioMobile `0.4.11` and is versioned
-  independently as Nuvio Enhanced `0.4.14 (118)`.
+  independently as Mew `0.4.14 (118)`.
 
 ## 0.4.13 - 2026-08-30
 
