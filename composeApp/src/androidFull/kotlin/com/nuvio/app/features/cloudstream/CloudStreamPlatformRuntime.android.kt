@@ -598,7 +598,11 @@ private class AndroidDexCloudStreamProvider(
     override suspend fun load(data: String): CloudStreamLoadItem = withContext(Dispatchers.IO) {
         val route = decodeAndroidDexRoute(data)
         val api = findProvider(route.providerClassName)
-        val response = withTimeout(loadStageTimeout(api.loadTimeoutMs)) {
+        val effectiveTimeoutMs = loadStageTimeout(api.loadTimeoutMs)
+        RuntimeDiagnostics.recordLog(
+            "cs-load-timeout-config provider=${api.name} hintMs=${api.loadTimeoutMs} effectiveMs=$effectiveTimeoutMs",
+        )
+        val response = withTimeout(effectiveTimeoutMs) {
             api.load(route.data)
         } ?: error("CloudStream provider returned no details")
         response.toNuvioLoadItem(api)
