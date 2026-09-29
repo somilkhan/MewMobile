@@ -48,8 +48,12 @@ actual object CloudStreamRepository {
     private val loadLinksRequestMutex = Mutex()
     private val loadLinksRequests =
         mutableMapOf<String, Deferred<Result<List<CloudStreamPlaybackSource>>>>()
+    private val loadLinksCache = LinkedHashMap<String, CachedCloudStreamLinks>(16, 0.75f, true)
+    private val loadLinksCacheMutex = Mutex()
     private val loadResultCache = LinkedHashMap<String, CloudStreamLoadItem>(16, 0.75f, true)
     private val loadResultCacheMutex = Mutex()
+    private const val LOAD_LINKS_CACHE_MAX_ENTRIES = 16
+    private const val LOAD_LINKS_CACHE_TTL_MS = 120_000L
     private const val LOAD_RESULT_CACHE_MAX_ENTRIES = 16
     private const val REPOSITORY_DISCOVERY_CONCURRENCY = 6
     private const val PROVIDER_REQUEST_CONCURRENCY = 4
@@ -69,6 +73,11 @@ actual object CloudStreamRepository {
         refreshJobs.clear()
         cancelInFlightMainPageRequests()
         cancelInFlightLoadLinksRequests()
+        loadLinksCacheMutex.tryLock().let { locked ->
+            if (locked) {
+                try { loadLinksCache.clear() } finally { loadLinksCacheMutex.unlock() }
+            }
+        }
         loadResultCacheMutex.tryLock().let { locked ->
             if (locked) {
                 try { loadResultCache.clear() } finally { loadResultCacheMutex.unlock() }
@@ -89,6 +98,11 @@ actual object CloudStreamRepository {
         _uiState.value = CloudStreamUiState()
         cancelInFlightMainPageRequests()
         cancelInFlightLoadLinksRequests()
+        loadLinksCacheMutex.tryLock().let { locked ->
+            if (locked) {
+                try { loadLinksCache.clear() } finally { loadLinksCacheMutex.unlock() }
+            }
+        }
         loadResultCacheMutex.tryLock().let { locked ->
             if (locked) {
                 try { loadResultCache.clear() } finally { loadResultCacheMutex.unlock() }
@@ -515,6 +529,16 @@ actual object CloudStreamRepository {
     actual suspend fun loadLinks(providerId: String, data: String): Result<List<CloudStreamPlaybackSource>> {
         initialize()
         val requestKey = "$providerId\\u0000$data"
+        val now = currentEpochMillis()
+        loadLinksCacheMutex.withLock {
+            loadLinksCache[requestKey]
+                ?.takeIf { it.expiresAtEpochMs > now }
+                ?.sources
+        }?.let { cached ->
+            RuntimeDiagnostics.recordLog("cs-load-links-cache-hit provider=$providerId links=\${cached.size}")
+            return Result.success(cached)
+        }
+
         var created = false
         val request = loadLinksRequestMutex.withLock {
             loadLinksRequests[requestKey]
@@ -537,10 +561,25 @@ actual object CloudStreamRepository {
                 }
             }
         }
-        return request.await()
+        return request.await().onSuccess { sources ->
+            loadLinksCacheMutex.withLock {
+                loadLinksCache[requestKey] = CachedCloudStreamLinks(
+                    sources = sources,
+                    expiresAtEpochMs = currentEpochMillis() + LOAD_LINKS_CACHE_TTL_MS,
+                )
+                while (loadLinksCache.size > LOAD_LINKS_CACHE_MAX_ENTRIES) {
+                    loadLinksCache.remove(loadLinksCache.entries.first().key)
+                }
+            }
+        }
     }
 
-    private fun cancelInFlightLoadLinksRequests() {
+    private data class CachedCloudStreamLinks(
+    val sources: List<CloudStreamPlaybackSource>,
+    val expiresAtEpochMs: Long,
+)
+
+private fun cancelInFlightLoadLinksRequests() {
         scope.launch {
             val requests = loadLinksRequestMutex.withLock {
                 loadLinksRequests.values.toList().also { loadLinksRequests.clear() }
