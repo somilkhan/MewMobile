@@ -535,7 +535,7 @@ actual object CloudStreamRepository {
                 ?.takeIf { it.expiresAtEpochMs > now }
                 ?.sources
         }?.let { cached ->
-            RuntimeDiagnostics.recordLog("cs-load-links-cache-hit provider=$providerId links=\${cached.size}")
+            RuntimeDiagnostics.recordLog("cs-load-links-cache-hit provider=$providerId links=${cached.size}")
             return Result.success(cached)
         }
 
