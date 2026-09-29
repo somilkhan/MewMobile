@@ -1304,7 +1304,7 @@
     <string name="nuvio_enhanced_cinematic_header_content_hidden">Hidden</string>
     <string name="details_where_to_watch_attribution">Availability by JustWatch</string>
     <string name="details_where_to_watch_tmdb_required">Enable TMDB to see streaming availability</string>
-    <string name="settings_nuvio_enhanced_discord_description">Get support, report issues, and share feedback in the Mew Discord.</string>
+    <string name="settings_nuvio_enhanced_telegram_description">Get support, report issues, and share feedback in the Mew Discord.</string>
     <string name="settings_nuvio_enhanced_donate_description">Support my work and the continued development of Mew on Ko-fi.</string>
     <string name="support_nuvio_title">Support Mew</string>
     <string name="support_nuvio_description">Help keep Mew independent and support its continued development.</string>
