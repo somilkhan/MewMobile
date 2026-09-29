@@ -907,6 +907,7 @@ private fun MainAppContent(
                 selectedPosterActionTarget = target
             }
         }
+        val profileState by ProfileRepository.state.collectAsStateWithLifecycle()
     val playerSettingsUiState by remember {
         PlayerSettingsRepository.ensureLoaded()
         PlayerSettingsRepository.uiState
