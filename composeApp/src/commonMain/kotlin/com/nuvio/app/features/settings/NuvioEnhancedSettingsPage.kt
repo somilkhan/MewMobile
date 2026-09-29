@@ -33,6 +33,7 @@ import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.Link
 import androidx.compose.material.icons.rounded.Restore
+import androidx.compose.material.icons.rounded.Send
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
@@ -93,7 +94,7 @@ import nuvio.composeapp.generated.resources.settings_nuvio_enhanced_title
 import org.jetbrains.compose.resources.stringResource
 
 private const val NuvioEnhancedGithubUrl = "https://github.com/somilkhan/MewMobile"
-internal const val NuvioEnhancedDiscordUrl = "https://discord.gg/at8xffxuRU"
+internal const val MewTelegramUrl = "https://t.me/MewRelease"
 
 private enum class EnhancedSettingsCategory {
     New,
@@ -1215,9 +1216,9 @@ private fun NuvioEnhancedSettingsPageContent(
                 markSeen(NuvioEnhancedFeature.CommunityLinks)
                 uriHandler.openUri(NuvioEnhancedGithubUrl)
             },
-            onDiscordClick = {
+            onTelegramClick = {
                 markSeen(NuvioEnhancedFeature.CommunityLinks)
-                uriHandler.openUri(NuvioEnhancedDiscordUrl)
+                uriHandler.openUri(MewTelegramUrl)
             },
         )
 
@@ -1516,7 +1517,7 @@ private fun EnhancedNewBadge() {
 private fun EnhancedCommunityFooter(
     isTablet: Boolean,
     onGithubClick: () -> Unit,
-    onDiscordClick: () -> Unit,
+    onTelegramClick: () -> Unit,
 ) {
     val tokens = MaterialTheme.nuvio
     Surface(
@@ -1552,11 +1553,11 @@ private fun EnhancedCommunityFooter(
                     onClick = onGithubClick,
                 )
                 EnhancedFooterLink(
-                    title = stringResource(Res.string.nuvio_enhanced_footer_discord),
+                    title = stringResource(Res.string.nuvio_enhanced_footer_telegram),
                     subtitle = stringResource(Res.string.nuvio_enhanced_footer_community),
-                    icon = appIconPainter(AppIconResource.DiscordMark),
+                    icon = Icons.Rounded.Send,
                     modifier = Modifier.weight(1f),
-                    onClick = onDiscordClick,
+                    onClick = onTelegramClick,
                 )
             }
         }
