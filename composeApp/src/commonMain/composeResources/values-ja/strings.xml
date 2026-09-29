@@ -1991,8 +1991,8 @@
     <string name="nuvio_enhanced_category_new">新着</string>
     <string name="nuvio_enhanced_section_player_tools">プレーヤーと字幕</string>
     <string name="nuvio_enhanced_subtitle_selector_title">字幕セレクター</string>
-    <string name="nuvio_enhanced_subtitle_selector_desc">言語別にグループ化された Enhanced セレクターと新しい Mew レイアウトを選択します。</string>
-    <string name="nuvio_enhanced_subtitle_selector_enhanced">Enhanced</string>
+    <string name="nuvio_enhanced_subtitle_selector_desc">Choose between the Mew language-grouped selector and the latest core layout.</string>
+    <string name="nuvio_enhanced_subtitle_selector_enhanced">Mew</string>
     <string name="nuvio_enhanced_subtitle_selector_nuvio">Mew</string>
     <string name="community_donation_progress_fee_notice">表示額は決済手数料および銀行手数料を差し引く前の金額のため、受取額はこれより少なくなる場合があります。</string>
     <string name="downloads_download_settings">ダウンロード設定</string>
