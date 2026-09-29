@@ -89,6 +89,11 @@ actual object CloudStreamRepository {
         _uiState.value = CloudStreamUiState()
         cancelInFlightMainPageRequests()
         cancelInFlightLoadLinksRequests()
+        loadResultCacheMutex.tryLock().let { locked ->
+            if (locked) {
+                try { loadResultCache.clear() } finally { loadResultCacheMutex.unlock() }
+            }
+        }
         CloudStreamPlatformRuntime.clear()
         CloudStreamPlatformStorage.clearPackages()
         CloudStreamPlatformStorage.clearAllState()
