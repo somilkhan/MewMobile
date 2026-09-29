@@ -1308,7 +1308,7 @@
     <string name="settings_nuvio_enhanced_donate_description">Support my work and the continued development of Mew on Ko-fi.</string>
     <string name="support_nuvio_title">Support Mew</string>
     <string name="support_nuvio_description">Help keep Mew independent and support its continued development.</string>
-    <string name="support_nuvio_donate_kofi">Donate on Ko-fi</string>
+    <string name="support_nuvio_donate_upi">Support via UPI</string>
     <string name="support_nuvio_view_supporters">View supporters</string>
     <string name="player_next_episode">Next Episode</string>
     <string name="compose_player_next_ep">Next Ep</string>
@@ -2702,10 +2702,10 @@
     <string name="nuvio_enhanced_highlight_title">Highlight new Mew settings</string>
     <string name="nuvio_enhanced_highlight_desc">New fork-specific options receive a subtle outline until you use or mark them as seen.</string>
     <string name="nuvio_enhanced_footer_title">Mew</string>
-    <string name="nuvio_enhanced_footer_desc">Follow releases on GitHub or join Discord for updates, polls and feature requests.</string>
+    <string name="nuvio_enhanced_footer_desc">Follow releases on GitHub or Telegram for updates, polls and feature requests.</string>
     <string name="nuvio_enhanced_footer_github">GitHub</string>
     <string name="nuvio_enhanced_footer_releases">Releases</string>
-    <string name="nuvio_enhanced_footer_discord">Discord</string>
+    <string name="nuvio_enhanced_footer_telegram">Telegram</string>
     <string name="nuvio_enhanced_footer_community">Community</string>
     <string name="nuvio_discord_welcome_title">Join the Mew Discord</string>
     <string name="nuvio_discord_welcome_description">Updates, polls, feature requests and community feedback now live in the Mew Discord.</string>
