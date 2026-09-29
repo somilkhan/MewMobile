@@ -56,8 +56,8 @@ import nuvio.composeapp.generated.resources.compose_settings_root_notifications_
 import nuvio.composeapp.generated.resources.settings_nuvio_enhanced_description
 import nuvio.composeapp.generated.resources.settings_nuvio_enhanced_section
 import nuvio.composeapp.generated.resources.settings_nuvio_enhanced_title
-import nuvio.composeapp.generated.resources.nuvio_enhanced_footer_discord
-import nuvio.composeapp.generated.resources.settings_nuvio_enhanced_discord_description
+import nuvio.composeapp.generated.resources.nuvio_enhanced_footer_telegram
+import nuvio.composeapp.generated.resources.settings_nuvio_enhanced_telegram_description
 import nuvio.composeapp.generated.resources.compose_settings_root_profile_description
 import nuvio.composeapp.generated.resources.compose_settings_root_profile_title
 import nuvio.composeapp.generated.resources.compose_settings_root_privacy_policy_description
@@ -169,11 +169,11 @@ internal fun LazyListScope.settingsRootContent(
                     )
                     SettingsGroupDivider(isTablet = isTablet)
                     SettingsNavigationRow(
-                        title = stringResource(Res.string.nuvio_enhanced_footer_discord),
-                        description = stringResource(Res.string.settings_nuvio_enhanced_discord_description),
+                        title = stringResource(Res.string.nuvio_enhanced_footer_telegram),
+                        description = stringResource(Res.string.settings_nuvio_enhanced_telegram_description),
                         icon = Icons.Rounded.People,
                         isTablet = isTablet,
-                        onClick = { uriHandler.openUri(NuvioEnhancedDiscordUrl) },
+                        onClick = { uriHandler.openUri(MewTelegramUrl) },
                     )
                 }
             }
