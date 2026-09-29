@@ -1452,8 +1452,8 @@
     <string name="nuvio_enhanced_category_new">Nytt</string>
     <string name="nuvio_enhanced_section_player_tools">Spiller og undertekster</string>
     <string name="nuvio_enhanced_subtitle_selector_title">Undertekstvelger</string>
-    <string name="nuvio_enhanced_subtitle_selector_desc">Velg mellom Enhanced-velgeren gruppert etter språk og det nye Mew-oppsettet.</string>
-    <string name="nuvio_enhanced_subtitle_selector_enhanced">Enhanced</string>
+    <string name="nuvio_enhanced_subtitle_selector_desc">Choose between the Mew language-grouped selector and the latest core layout.</string>
+    <string name="nuvio_enhanced_subtitle_selector_enhanced">Mew</string>
     <string name="nuvio_enhanced_subtitle_selector_nuvio">Mew</string>
     <string name="community_donation_progress_fee_notice">Beløpet som vises er før betalings- og bankgebyrer, så mottatt beløp kan være lavere.</string>
     <string name="downloads_download_settings">Nedlastingsinnstillinger</string>

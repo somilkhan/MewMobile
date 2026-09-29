@@ -1991,8 +1991,8 @@
     <string name="nuvio_enhanced_category_new">Új</string>
     <string name="nuvio_enhanced_section_player_tools">Lejátszó és feliratok</string>
     <string name="nuvio_enhanced_subtitle_selector_title">Feliratválasztó</string>
-    <string name="nuvio_enhanced_subtitle_selector_desc">Válassz a nyelv szerint csoportosított Enhanced választó és az új Mew elrendezés között.</string>
-    <string name="nuvio_enhanced_subtitle_selector_enhanced">Enhanced</string>
+    <string name="nuvio_enhanced_subtitle_selector_desc">Choose between the Mew language-grouped selector and the latest core layout.</string>
+    <string name="nuvio_enhanced_subtitle_selector_enhanced">Mew</string>
     <string name="nuvio_enhanced_subtitle_selector_nuvio">Mew</string>
     <string name="community_donation_progress_fee_notice">A megjelenített összeg a fizetési és banki díjak előtti összeg, ezért a beérkező összeg alacsonyabb lehet.</string>
     <string name="downloads_download_settings">Letöltési beállítások</string>

@@ -1998,7 +1998,7 @@
     <string name="theme_sunset">Coucher de soleil</string>
     <string name="theme_custom">Personnalisé</string>
     <string name="settings_appearance_theme_classic">Thèmes classiques</string>
-    <string name="settings_appearance_theme_enhanced">Thèmes améliorés</string>
+    <string name="settings_appearance_theme_enhanced">Mew themes</string>
     <string name="settings_appearance_theme_custom_first">Première couleur</string>
     <string name="settings_appearance_theme_custom_second">Deuxième couleur</string>
     <string name="settings_appearance_theme_animation_style">Style d'animation</string>
@@ -2056,8 +2056,8 @@
     <string name="nuvio_enhanced_category_new">Nouveau</string>
     <string name="nuvio_enhanced_section_player_tools">Lecteur et sous-titres</string>
     <string name="nuvio_enhanced_subtitle_selector_title">Sélecteur de sous-titres</string>
-    <string name="nuvio_enhanced_subtitle_selector_desc">Choisissez entre le sélecteur Enhanced regroupé par langue et la nouvelle interface Mew.</string>
-    <string name="nuvio_enhanced_subtitle_selector_enhanced">Enhanced</string>
+    <string name="nuvio_enhanced_subtitle_selector_desc">Choose between the Mew language-grouped selector and the latest core layout.</string>
+    <string name="nuvio_enhanced_subtitle_selector_enhanced">Mew</string>
     <string name="nuvio_enhanced_subtitle_selector_nuvio">Mew</string>
     <string name="community_donation_progress_fee_notice">Le montant affiché est avant les frais de paiement et bancaires, le montant reçu peut donc être inférieur.</string>
     <string name="downloads_download_settings">Paramètres de téléchargement</string>
