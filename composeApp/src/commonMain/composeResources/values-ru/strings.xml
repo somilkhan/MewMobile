@@ -2214,7 +2214,7 @@
     <string name="settings_nuvio_enhanced_category">Улучшенный</string>
     <string name="settings_nuvio_enhanced_section">Mew Расширенный</string>
     <string name="settings_nuvio_enhanced_title">Mew Расширенный</string>
-    <string name="settings_nuvio_enhanced_description">Премиум-настройки для Enhanced-версии, интеллектуальная главная страница, резервное копирование и импорт.</string>
+    <string name="settings_nuvio_enhanced_description">Mew controls, homepage intelligence, backup and import.</string>
     <string name="settings_new_feature_badge">Новый</string>
     <string name="home_smart_resume_signal_continue_now">Продолжить сейчас</string>
     <string name="home_smart_resume_signal_almost_finished">Почти закончено</string>
@@ -2260,7 +2260,7 @@
     <string name="nuvio_enhanced_app_icon_title">Значок приложения</string>
     <string name="nuvio_enhanced_app_icon_desc">Выберите значок запуска для этого устройства. На Android приложение закроется после применения, чтобы лаунчер обновился; на iOS может появиться системное подтверждение.</string>
     <string name="nuvio_enhanced_app_icon_default">По умолчанию</string>
-    <string name="nuvio_enhanced_app_icon_enhanced">Enhanced</string>
+    <string name="nuvio_enhanced_app_icon_enhanced">Mew</string>
     <string name="nuvio_enhanced_app_icon_monochrome">Монохромный</string>
     <string name="nuvio_enhanced_app_icon_neon">Неон</string>
     <string name="nuvio_enhanced_app_icon_gear">Механика</string>
@@ -2309,13 +2309,13 @@
     <string name="nuvio_enhanced_radar_content_desc">Отфильтруйте радарные карточки по всем выпускам, сигналам, ориентированным на эпизоды, или сигналам только для фильмов.</string>
     <string name="nuvio_enhanced_highlight_title">Выделите новые расширенные настройки</string>
     <string name="nuvio_enhanced_highlight_desc">Новые параметры, специфичные для форка, получают тонкий контур, пока вы не используете их или не помечаете как видимые.</string>
-    <string name="nuvio_enhanced_footer_desc">Следите за выпусками на GitHub или присоединяйтесь к Discord для получения обновлений, опросов и запросов функций.</string>
+    <string name="nuvio_enhanced_footer_desc">Follow releases on GitHub or Telegram for updates, polls and feature requests.</string>
     <string name="nuvio_enhanced_footer_github">GitHub</string>
     <string name="nuvio_enhanced_footer_releases">Релизы</string>
     <string name="nuvio_enhanced_footer_discord">Раздор</string>
-    <string name="nuvio_discord_welcome_title">Присоединяйтесь к Discord Mew</string>
-    <string name="nuvio_discord_welcome_description">Обновления, опросы, запросы функций и отзывы сообщества теперь находятся в Discord Mew.</string>
-    <string name="nuvio_discord_welcome_join">Открыть Discord</string>
+    <string name="nuvio_discord_welcome_title">Join the Mew Telegram</string>
+    <string name="nuvio_discord_welcome_description">Updates, polls, feature requests and community feedback now live on the Mew Telegram.</string>
+    <string name="nuvio_discord_welcome_join">Open Telegram</string>
     <string name="nuvio_discord_welcome_not_now">Не сейчас</string>
     <string name="nuvio_discord_welcome_dont_show_again">Больше не показывать</string>
     <string name="nuvio_enhanced_backup_download_title">Скачать резервную копию</string>
@@ -2330,7 +2330,7 @@
     <string name="nuvio_enhanced_copy_last_crash_desc">Скопируйте последний локальный отчет о сбое, чтобы отправить его разработчику.</string>
     <string name="nuvio_enhanced_copy_last_crash_empty_desc">На этом устройстве пока нет сохраненного локального отчета о сбое.</string>
     <string name="nuvio_enhanced_feedback_title">Mew Расширенная обратная связь</string>
-    <string name="nuvio_enhanced_feedback_desc">Отправляйте ошибки, идеи или отзывы пользователей непосредственно разработчику Mew Enhanced.</string>
+    <string name="nuvio_enhanced_feedback_desc">Send bugs, ideas or user feedback directly to the Mew maintainer.</string>
     <string name="nuvio_enhanced_intro_desc">Здесь представлены функции только для форка, поэтому пользователи могут четко отделять официальные настройки от дополнений Mew.</string>
     <string name="nuvio_enhanced_mark_all_seen">Отметить все расширенные функции как просмотренные</string>
     <string name="nuvio_enhanced_backup_ready_title">Резервное копирование готово</string>
@@ -2388,8 +2388,8 @@
     <string name="nuvio_enhanced_category_new">Новое</string>
     <string name="nuvio_enhanced_section_player_tools">Плеер и субтитры</string>
     <string name="nuvio_enhanced_subtitle_selector_title">Выбор субтитров</string>
-    <string name="nuvio_enhanced_subtitle_selector_desc">Выберите селектор Enhanced с группировкой по языку или новый интерфейс Mew.</string>
-    <string name="nuvio_enhanced_subtitle_selector_enhanced">Enhanced</string>
+    <string name="nuvio_enhanced_subtitle_selector_desc">Choose between the Mew language-grouped selector and the latest core layout.</string>
+    <string name="nuvio_enhanced_subtitle_selector_enhanced">Mew</string>
     <string name="nuvio_enhanced_subtitle_selector_nuvio">Mew</string>
     <string name="community_donation_progress_fee_notice">Указанная сумма приведена до вычета платежных и банковских комиссий, поэтому полученная сумма может быть меньше.</string>
     <string name="downloads_download_settings">Настройки загрузки</string>
