@@ -56,7 +56,6 @@ import com.nuvio.app.core.ui.NuvioPrimaryButton
 import com.nuvio.app.core.ui.NuvioSectionLabel
 import com.nuvio.app.core.ui.NuvioSurfaceCard
 import com.nuvio.app.features.streams.StreamSourcePreferencesRepository
-import com.nuvio.app.features.tmdb.TmdbSettingsRepository
 import com.nuvio.app.features.plugins.runtime.PluginRuntime
 import kotlinx.coroutines.launch
 import nuvio.composeapp.generated.resources.Res
@@ -65,8 +64,6 @@ import nuvio.composeapp.generated.resources.plugins_badge_enabled
 import nuvio.composeapp.generated.resources.plugins_badge_providers
 import nuvio.composeapp.generated.resources.plugins_badge_refreshing
 import nuvio.composeapp.generated.resources.plugins_badge_repos
-import nuvio.composeapp.generated.resources.plugins_badge_tmdb_key_missing
-import nuvio.composeapp.generated.resources.plugins_badge_tmdb_key_set
 import nuvio.composeapp.generated.resources.plugins_button_install_repo
 import nuvio.composeapp.generated.resources.plugins_button_installing
 import nuvio.composeapp.generated.resources.plugins_button_test_provider
@@ -104,7 +101,6 @@ import nuvio.composeapp.generated.resources.plugins_section_repository_control
 import nuvio.composeapp.generated.resources.plugins_test_error_title
 import nuvio.composeapp.generated.resources.plugins_test_failed
 import nuvio.composeapp.generated.resources.plugins_test_results_count
-import nuvio.composeapp.generated.resources.plugins_tmdb_required_message
 import nuvio.composeapp.generated.resources.streams_pin_source_title
 import nuvio.composeapp.generated.resources.streams_unpin_source_title
 import org.jetbrains.compose.resources.stringResource
@@ -119,10 +115,6 @@ fun PluginsSettingsPageContent(
     }
 
     val uiState by PluginRepository.uiState.collectAsStateWithLifecycle()
-    val tmdbSettings by remember {
-        TmdbSettingsRepository.ensureLoaded()
-        TmdbSettingsRepository.uiState
-    }.collectAsStateWithLifecycle()
     val sourcePreferences by remember {
         StreamSourcePreferencesRepository.ensureLoaded()
         StreamSourcePreferencesRepository.uiState
@@ -148,7 +140,6 @@ fun PluginsSettingsPageContent(
             selectedRepositoryUrl = null
         }
     }
-    val hasTmdbApiKey = tmdbSettings.hasApiKey
     val repositoryNameByUrl = remember(sortedRepos) {
         sortedRepos.associate { it.manifestUrl to it.name }
     }
@@ -197,21 +188,6 @@ fun PluginsSettingsPageContent(
                     } else {
                         stringResource(Res.string.plugins_badge_disabled)
                     },
-                )
-                NuvioInfoBadge(
-                    text = if (hasTmdbApiKey) {
-                        stringResource(Res.string.plugins_badge_tmdb_key_set)
-                    } else {
-                        stringResource(Res.string.plugins_badge_tmdb_key_missing)
-                    },
-                )
-            }
-            if (!hasTmdbApiKey) {
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = stringResource(Res.string.plugins_tmdb_required_message),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.error,
                 )
             }
             Spacer(modifier = Modifier.height(12.dp))
