@@ -54,6 +54,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.AnnotatedString
@@ -1555,7 +1556,7 @@ private fun EnhancedCommunityFooter(
                 EnhancedFooterLink(
                     title = stringResource(Res.string.nuvio_enhanced_footer_telegram),
                     subtitle = stringResource(Res.string.nuvio_enhanced_footer_community),
-                    icon = Icons.Rounded.Send,
+                    icon = rememberVectorPainter(Icons.Rounded.Send),
                     modifier = Modifier.weight(1f),
                     onClick = onTelegramClick,
                 )
