@@ -591,7 +591,7 @@ private class AndroidDexCloudStreamProvider(
     override suspend fun load(data: String): CloudStreamLoadItem = withContext(Dispatchers.IO) {
         val route = decodeAndroidDexRoute(data)
         val api = findProvider(route.providerClassName)
-        val response = withTimeout(stageTimeout(api.loadTimeoutMs, DEFAULT_LOAD_TIMEOUT_MS)) {
+        val response = withTimeout(loadStageTimeout(api.loadTimeoutMs)) {
             api.load(route.data)
         } ?: error("CloudStream provider returned no details")
         response.toNuvioLoadItem(api)
@@ -747,10 +747,28 @@ private class AndroidDexCloudStreamProvider(
         private fun stageTimeout(providerHint: Long?, hostMaximum: Long): Long =
             providerHint?.coerceIn(5_000L, hostMaximum) ?: hostMaximum
 
+        /**
+         * CloudStream's current host uses 120s as the default load timeout and clamps
+         * provider hints between 5s and 8 minutes. The bundled runtime AAR can expose
+         * its legacy 5s default through MainAPI.loadTimeoutMs even when the provider
+         * does not explicitly request a 5s timeout. Treat that exact legacy default
+         * as unspecified so CS3 providers retain the upstream detail-load behavior.
+         */
+        private fun loadStageTimeout(providerHint: Long?): Long {
+            val effectiveHint = providerHint?.takeUnless { it == LEGACY_RUNTIME_DEFAULT_LOAD_TIMEOUT_MS }
+            return (effectiveHint ?: DEFAULT_LOAD_TIMEOUT_MS).coerceIn(
+                MIN_PROVIDER_TIMEOUT_MS,
+                MAX_LOAD_TIMEOUT_MS,
+            )
+        }
+
         private const val CLOUDSTREAM_API_CONCURRENCY = 4
         private const val DEFAULT_DISCOVERY_TIMEOUT_MS = 15_000L
-        private const val DEFAULT_LOAD_TIMEOUT_MS = 30_000L
+        private const val DEFAULT_LOAD_TIMEOUT_MS = 120_000L
         private const val DEFAULT_LINK_TIMEOUT_MS = 120_000L
+        private const val LEGACY_RUNTIME_DEFAULT_LOAD_TIMEOUT_MS = 5_000L
+        private const val MIN_PROVIDER_TIMEOUT_MS = 5_000L
+        private const val MAX_LOAD_TIMEOUT_MS = 480_000L
     }
 }
 
