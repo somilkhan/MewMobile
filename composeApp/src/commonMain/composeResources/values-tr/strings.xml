@@ -1831,7 +1831,7 @@
     <string name="nuvio_enhanced_footer_desc">Follow releases on GitHub or Telegram for updates, polls and feature requests.</string>
     <string name="nuvio_enhanced_footer_github">GitHub</string>
     <string name="nuvio_enhanced_footer_releases">Sürümler</string>
-    <string name="nuvio_enhanced_footer_discord">Discord</string>
+    <string name="nuvio_enhanced_footer_discord">Telegram</string>
     <string name="nuvio_enhanced_footer_community">Topluluk</string>
     <string name="nuvio_discord_welcome_title">Join the Mew Telegram</string>
     <string name="nuvio_discord_welcome_description">Updates, polls, feature requests and community feedback now live on the Mew Telegram.</string>
@@ -1851,7 +1851,7 @@
     <string name="nuvio_enhanced_copy_last_crash_empty_desc">Bu cihazda henüz kaydedilmiş yerel crash raporu yok.</string>
     <string name="nuvio_enhanced_feedback_title">Mew feedback</string>
     <string name="nuvio_enhanced_feedback_desc">Send bugs, ideas or user feedback directly to the Mew maintainer.</string>
-    <string name="nuvio_enhanced_intro_title">Mew Enhanced</string>
+    <string name="nuvio_enhanced_intro_title">Mew</string>
     <string name="nuvio_enhanced_intro_desc">Kullanıcıların resmi ayarlarla Mew eklemelerini net şekilde ayırabilmesi için fork'a özel özellikler burada toplanır.</string>
     <string name="nuvio_enhanced_mark_all_seen">Mark all Mew features as seen</string>
     <string name="nuvio_enhanced_backup_ready_title">Backup hazır</string>
