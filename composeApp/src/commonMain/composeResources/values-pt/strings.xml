@@ -1878,7 +1878,7 @@
     <string name="theme_sunset">Pôr do sol</string>
     <string name="theme_custom">Personalizado</string>
     <string name="settings_appearance_theme_classic">Temas clássicos</string>
-    <string name="settings_appearance_theme_enhanced">Temas Enhanced</string>
+    <string name="settings_appearance_theme_enhanced">Mew themes</string>
     <string name="settings_appearance_theme_custom_first">Primeira cor</string>
     <string name="settings_appearance_theme_custom_second">Segunda cor</string>
     <string name="settings_appearance_theme_animation_style">Estilo da animação</string>
@@ -1943,8 +1943,8 @@
     <string name="nuvio_enhanced_category_new">Novidades</string>
     <string name="nuvio_enhanced_section_player_tools">Leitor e legendas</string>
     <string name="nuvio_enhanced_subtitle_selector_title">Seletor de legendas</string>
-    <string name="nuvio_enhanced_subtitle_selector_desc">Escolhe entre o seletor Enhanced agrupado por idioma e o novo layout do Mew.</string>
-    <string name="nuvio_enhanced_subtitle_selector_enhanced">Enhanced</string>
+    <string name="nuvio_enhanced_subtitle_selector_desc">Choose between the Mew language-grouped selector and the latest core layout.</string>
+    <string name="nuvio_enhanced_subtitle_selector_enhanced">Mew</string>
     <string name="nuvio_enhanced_subtitle_selector_nuvio">Mew</string>
     <string name="community_donation_progress_fee_notice">O valor apresentado é anterior às taxas de pagamento e bancárias, pelo que o montante recebido pode ser inferior.</string>
     <string name="downloads_download_settings">Definições de transferência</string>
