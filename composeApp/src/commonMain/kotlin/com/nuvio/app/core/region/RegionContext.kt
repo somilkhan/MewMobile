@@ -64,6 +64,5 @@ private fun normalizeLanguageTag(value: String): String {
 }
 
 internal expect object PlatformRegionContext {
-    fun initialize()
     fun currentCountryCode(): String?
 }
