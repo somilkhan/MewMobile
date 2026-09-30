@@ -3,6 +3,7 @@ package com.nuvio.app.core.region
 import com.nuvio.app.features.player.DeviceLanguagePreferences
 
 enum class RegionContextSource {
+    NETWORK,
     DEVICE_LOCALE,
     GLOBAL,
 }
@@ -21,17 +22,31 @@ data class RegionContext(
                 ?.takeIf { it.isNotBlank() }
                 ?.let(::normalizeLanguageTag)
                 ?: "en"
-            val countryCode = languageTag
+
+            val networkCountryCode = PlatformRegionContext.currentCountryCode()
+            val localeCountryCode = languageTag
                 .split('-')
                 .drop(1)
                 .firstOrNull { it.length == 2 && it.all(Char::isLetter) }
                 ?.uppercase()
 
-            return RegionContext(
-                countryCode = countryCode,
-                languageTag = languageTag,
-                source = if (countryCode != null) RegionContextSource.DEVICE_LOCALE else RegionContextSource.GLOBAL,
-            )
+            return when {
+                networkCountryCode != null -> RegionContext(
+                    countryCode = networkCountryCode,
+                    languageTag = languageTag,
+                    source = RegionContextSource.NETWORK,
+                )
+                localeCountryCode != null -> RegionContext(
+                    countryCode = localeCountryCode,
+                    languageTag = languageTag,
+                    source = RegionContextSource.DEVICE_LOCALE,
+                )
+                else -> RegionContext(
+                    countryCode = null,
+                    languageTag = languageTag,
+                    source = RegionContextSource.GLOBAL,
+                )
+            }
         }
     }
 }
@@ -46,4 +61,9 @@ private fun normalizeLanguageTag(value: String): String {
             append(if (part.length == 2) part.uppercase() else part)
         }
     }
+}
+
+internal expect object PlatformRegionContext {
+    fun initialize()
+    fun currentCountryCode(): String?
 }

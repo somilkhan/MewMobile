@@ -18,6 +18,7 @@ import com.nuvio.app.core.diagnostics.CrashDiagnostics
 import com.nuvio.app.core.diagnostics.SentryInitializer
 import com.nuvio.app.core.deeplink.handleAppUrl
 import com.nuvio.app.core.network.DnsOverHttpsSettingsStorage
+import com.nuvio.app.core.region.PlatformRegionContext
 import com.nuvio.app.core.storage.PlatformLocalAccountDataCleaner
 import com.nuvio.app.core.sync.SyncClientIdentityStorage
 import com.nuvio.app.core.ui.AppSystemUiController
@@ -136,6 +137,7 @@ class MainActivity : AppCompatActivity() {
         PosterCardStyleStorage.initialize(applicationContext)
         CardDepthStyleStorage.initialize(applicationContext)
         DebridSettingsStorage.initialize(applicationContext)
+        PlatformRegionContext.initialize(applicationContext)
         TmdbSettingsStorage.initialize(applicationContext)
         TmdbPreviewArtworkStorage.initialize(applicationContext)
         TmdbEpisodeEnrichmentStorage.initialize(applicationContext)
