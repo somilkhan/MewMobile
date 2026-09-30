@@ -42,18 +42,20 @@ internal object HomeCatalogParser {
                     return@forEach
                 }
 
+                val landscapePoster = meta.string("landscapePoster")?.takeIf(String::isNotBlank)
                 val item = MetaPreview(
                     id = id,
                     type = type,
                     name = name,
                     poster = meta.string("poster"),
-                    banner = meta.string("banner") ?: meta.string("background"),
+                    banner = meta.string("banner") ?: meta.string("background") ?: landscapePoster,
                     logo = meta.string("logo"),
                     posterShape = meta.string("posterShape").toPosterShape(),
                     description = meta.string("description") ?: meta.string("overview"),
                     releaseInfo = meta.string("releaseInfo"),
                     rawReleaseDate = meta.string("released"),
                     imdbRating = meta.string("imdbRating"),
+                    landscapePoster = landscapePoster,
                     genres = meta.array("genres").mapNotNull { genre ->
                         genre.jsonPrimitive.contentOrNull?.takeIf { it.isNotBlank() }
                     },
