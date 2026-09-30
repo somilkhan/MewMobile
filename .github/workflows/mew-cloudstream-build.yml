@@ -5,6 +5,7 @@ on:
     branches:
       - enhanced
       - feature/cloudstream-dynamic-repositories
+      - feature/global-region-context
   pull_request:
     branches:
       - enhanced
