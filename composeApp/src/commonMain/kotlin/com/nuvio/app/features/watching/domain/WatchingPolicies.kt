@@ -9,6 +9,7 @@ import com.nuvio.app.core.time.parseEpisodeReleaseLocalDate
 private const val CompletionThresholdFraction = 0.90
 private const val ProgressStoreThresholdMs = 1_000L
 private const val UpcomingNextSeasonWindowDays = 7
+private const val MinRealContentDurationMs = 121_000L
 
 fun watchedKey(
     content: WatchingContentRef,
@@ -19,19 +20,22 @@ fun watchedKey(
 fun shouldStoreProgress(
     positionMs: Long,
     durationMs: Long,
-): Boolean = positionMs >= ProgressStoreThresholdMs
+): Boolean = !isShortPlaceholderDuration(durationMs) && positionMs >= ProgressStoreThresholdMs
 
 fun isProgressComplete(
     positionMs: Long,
     durationMs: Long,
     isEnded: Boolean,
 ): Boolean {
+    if (isShortPlaceholderDuration(durationMs)) return false
     if (isEnded) return true
     if (durationMs <= 0L) return false
 
     val watchedFraction = positionMs.toDouble() / durationMs.toDouble()
     return watchedFraction >= CompletionThresholdFraction
 }
+
+fun isShortPlaceholderDuration(durationMs: Long): Boolean = durationMs in 1 until MinRealContentDurationMs
 
 fun isReleasedBy(
     todayIsoDate: String,

@@ -10,6 +10,15 @@ class WatchingPoliciesTest {
     private val show = WatchingContentRef(type = "series", id = "show")
 
     @Test
+    fun shortPlaceholderDurationsAreNotStoredOrCompleted() {
+        assertTrue(isShortPlaceholderDuration(120_999L))
+        assertFalse(isShortPlaceholderDuration(121_000L))
+        assertFalse(shouldStoreProgress(30_000L, 120_999L))
+        assertFalse(isProgressComplete(120_999L, 120_999L, isEnded = true))
+        assertTrue(shouldStoreProgress(2_000L, 121_000L))
+    }
+
+    @Test
     fun isReleasedByUsesExactInstantForZonedTimestamps() {
         val exactEpochMs = 1_768_489_200_000L // 2026-01-15T15:00:00Z
 

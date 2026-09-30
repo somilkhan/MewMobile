@@ -10,6 +10,7 @@ import com.nuvio.app.features.watchprogress.WatchProgressClock
 import com.nuvio.app.features.watchprogress.WatchProgressPlaybackSession
 import com.nuvio.app.features.watchprogress.WatchProgressRepository
 import com.nuvio.app.features.watchprogress.buildPlaybackVideoId
+import com.nuvio.app.features.watching.domain.isShortPlaceholderDuration
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -169,12 +170,14 @@ internal fun PlayerScreenRuntime.currentTrackingMedia(): TrackingMediaReference 
     snapshotTrackingScrobbleItemInputs().buildMedia()
 
 internal fun PlayerScreenRuntime.emitTrackingScrobbleStart() {
+    if (isShortPlaceholderDuration(playbackSnapshot.durationMs)) return
     if (hasRequestedScrobbleStartForCurrentItem) return
     hasRequestedScrobbleStartForCurrentItem = true
     val requestGeneration = scrobbleStartRequestGeneration + 1L
     scrobbleStartRequestGeneration = requestGeneration
 
     scope.launch {
+        if (isShortPlaceholderDuration(playbackSnapshot.durationMs)) return@launch
         val media = currentTrackingMedia()
         if (!media.hasResolvableIdentity) {
             hasRequestedScrobbleStartForCurrentItem = false
@@ -213,6 +216,7 @@ private fun PlayerScreenRuntime.emitTrackingScrobbleTerminal(
     action: TrackingScrobbleAction,
     progressPercent: Float?,
 ) {
+    if (isShortPlaceholderDuration(playbackSnapshot.durationMs)) return
     val provided = progressPercent
     if (!hasRequestedScrobbleStartForCurrentItem && (provided ?: 0f) < 80f) return
 
@@ -234,6 +238,7 @@ private fun PlayerScreenRuntime.emitTrackingScrobbleTerminal(
 }
 
 internal fun PlayerScreenRuntime.emitStopScrobbleForCurrentProgress() {
+    if (isShortPlaceholderDuration(playbackSnapshot.durationMs)) return
     val progressPercent = currentPlaybackProgressPercent()
     if (!shouldSendStopScrobble(hasRequestedScrobbleStartForCurrentItem, progressPercent)) {
         return
@@ -260,6 +265,7 @@ internal fun shouldUpdateTrackingScrobbleAfterSeek(
 ): Boolean = hasActiveScrobble && progressPercent >= 1f && progressPercent < 80f
 
 internal fun PlayerScreenRuntime.emitTrackingSeekScrobbleStart() {
+    if (isShortPlaceholderDuration(playbackSnapshot.durationMs)) return
     val mediaSnapshot = currentTrackingMedia
     val inputsSnapshot = snapshotTrackingScrobbleItemInputs()
     scope.launch {
@@ -364,6 +370,7 @@ internal fun PlayerScreenRuntime.scheduleProgressSyncAfterSeek() {
 }
 
 internal fun PlayerScreenRuntime.persistPlaybackProgressTick() {
+    if (isShortPlaceholderDuration(playbackSnapshot.durationMs)) return
     val now = WatchProgressClock.nowEpochMs()
     if (now - lastProgressPersistEpochMs < PlaybackProgressPersistIntervalMs) return
     lastProgressPersistEpochMs = now
@@ -376,6 +383,7 @@ internal fun PlayerScreenRuntime.persistPlaybackProgressTick() {
 
 internal fun PlayerScreenRuntime.syncPlaybackProgressTick() {
     if (isLiveTv) return
+    if (isShortPlaceholderDuration(playbackSnapshot.durationMs)) return
     if (playbackSnapshot.isLoading || !playbackSnapshot.isPlaying) return
     val positionMs = playbackSnapshot.positionMs.coerceAtLeast(0L)
     if (positionMs <= 0L || playbackSnapshot.durationMs <= 0L) return
