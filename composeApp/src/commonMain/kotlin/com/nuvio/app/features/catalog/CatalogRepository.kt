@@ -150,6 +150,7 @@ object CatalogRepository {
                         catalogId = target.catalogId,
                         genre = target.genre,
                         skip = requestedSkip.takeIf { it > 0 },
+                        regionExtraName = target.regionExtraName,
                     )
 
                     is CatalogTarget.CollectionSource -> fetchCollectionSourcePage(

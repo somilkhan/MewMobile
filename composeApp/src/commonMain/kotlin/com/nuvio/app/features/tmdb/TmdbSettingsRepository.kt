@@ -1,7 +1,7 @@
 package com.nuvio.app.features.tmdb
 
+import com.nuvio.app.core.region.RegionContext
 import com.nuvio.app.core.time.EpisodeReleaseDatePlatform
-import com.nuvio.app.features.player.DeviceLanguagePreferences
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -217,8 +217,7 @@ object TmdbSettingsRepository {
     }
 
     private fun defaultTmdbLanguage(): String {
-        val preferred = DeviceLanguagePreferences.preferredLanguageCodes().firstOrNull()
-        return normalizeLanguage(preferred).ifBlank { "en" }
+        return normalizeLanguage(RegionContext.current().languageTag).ifBlank { "en" }
     }
 }
 
