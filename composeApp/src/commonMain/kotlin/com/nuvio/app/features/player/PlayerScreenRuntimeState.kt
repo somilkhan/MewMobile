@@ -147,6 +147,7 @@ internal class PlayerScreenRuntime(
     var resizeMode by mutableStateOf(playerSettingsUiState.resizeMode)
     var layoutSize by mutableStateOf(IntSize.Zero)
     var playbackSnapshot by mutableStateOf(PlayerPlaybackSnapshot())
+    var playbackSnapshotKey by mutableStateOf<PlaybackKey?>(null)
     var randomNextEpisodeMode by mutableStateOf(randomEpisodeMode)
     var playerController by mutableStateOf<PlayerEngineController?>(null)
     var playerControllerSourceUrl by mutableStateOf<String?>(null)
@@ -237,6 +238,6 @@ internal class PlayerScreenRuntime(
     var visibleAddonSubtitlesCache: List<AddonSubtitle> = emptyList()
 
     var lastSyncedSettingsResizeMode: PlayerResizeMode? = null
-    var lastResetPlaybackIdentity: String? = null
+    var lastResetPlaybackIdentity: PlaybackKey? = null
     var lastResetVideoIdentity: String? = null
 }

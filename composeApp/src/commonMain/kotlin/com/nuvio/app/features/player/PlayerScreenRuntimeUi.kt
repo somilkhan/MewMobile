@@ -8,6 +8,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
 import com.nuvio.app.features.p2p.P2pStreamingState
@@ -141,7 +145,13 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
         val playerSurfaceSourceUrl = currentPlaybackSurfaceSourceUrl
         val initialPositionRequestKey = currentInitialPositionRequestKey()
         if (playerSurfaceSourceUrl != null) {
-            PlatformPlayerSurface(
+            val playbackKey = activePlaybackKey
+            key(playbackKey) {
+                val active = remember { mutableStateOf(true) }
+                DisposableEffect(Unit) {
+                    onDispose { active.value = false }
+                }
+                PlatformPlayerSurface(
                 sourceUrl = playerSurfaceSourceUrl,
                 sourceAudioUrl = activeSourceAudioUrl,
                 sourceHeaders = activeSourceHeaders,
@@ -154,12 +164,13 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
                 initialPositionRequestKey = initialPositionRequestKey,
                 resizeMode = resizeMode,
                 onInitialPositionHandled = { key, handled ->
-                    if (key == currentInitialPositionRequestKey()) {
+                    if (active.value && playbackKey == activePlaybackKey && key == currentInitialPositionRequestKey()) {
                         initialSeekApplied = handled
                     }
                 },
                 onControllerReady = { controller ->
-                    playerController = controller
+                    if (active.value && playbackKey == activePlaybackKey) {
+                        playerController = controller
                     playerControllerSourceUrl = playerSurfaceSourceUrl
                     pendingPlaybackSpeedRestore?.let { speed ->
                         controller.setPlaybackSpeed(speed)
@@ -167,7 +178,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
                     }
                 },
                 onSnapshot = { snapshot ->
-                    playbackSnapshot = snapshot
+                    if (!active.value || !updatePlaybackSnapshot(snapshot, playbackKey)) return@PlatformPlayerSurface
                     if (!snapshot.isLoading) initialLoadCompleted = true
                     if (snapshot.isEnded) {
                         shouldPlay = false
@@ -175,6 +186,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
                     }
                 },
                 onError = { message ->
+                    if (!active.value || playbackKey != activePlaybackKey) return@PlatformPlayerSurface
                     if (message != null && tryRefreshCredentialedSourceAfterError(message)) {
                         return@PlatformPlayerSurface
                     }
@@ -184,7 +196,8 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
                         removeFailedStreamFromCache()
                     }
                 },
-            )
+                )
+            }
         }
 
         AnimatedVisibility(
