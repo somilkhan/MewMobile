@@ -4,6 +4,7 @@ import com.nuvio.app.core.i18n.localizedMediaTypeLabel
 import com.nuvio.app.features.addons.AddonCatalog
 import com.nuvio.app.features.addons.AddonManifest
 import com.nuvio.app.features.addons.ManagedAddon
+import com.nuvio.app.features.addons.regionExtraName
 import com.nuvio.app.features.addons.enabledAddons
 import com.nuvio.app.features.catalog.supportsPagination
 import kotlinx.coroutines.runBlocking
@@ -20,6 +21,7 @@ data class HomeCatalogDefinition(
     val type: String,
     val catalogId: String,
     val supportsPagination: Boolean,
+    val regionExtraName: String?,
     val descriptorSignature: String,
 ) {
     val cacheKey: String
@@ -62,6 +64,7 @@ fun buildHomeCatalogDefinitions(addons: List<ManagedAddon>): List<HomeCatalogDef
                     type = catalog.type,
                     catalogId = catalog.id,
                     supportsPagination = catalog.supportsPagination(),
+                    regionExtraName = catalog.regionExtraName(),
                     descriptorSignature = buildHomeCatalogDescriptorSignature(addon, manifest, catalog),
                 )
             }

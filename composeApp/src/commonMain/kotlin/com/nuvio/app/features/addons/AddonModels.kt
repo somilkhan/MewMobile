@@ -39,6 +39,18 @@ data class AddonExtraProperty(
     val optionsLimit: Int? = null,
 )
 
+internal fun AddonCatalog.regionExtraName(): String? =
+    extra.firstOrNull { property ->
+        when (property.name.trim().lowercase()) {
+            "country",
+            "countrycode",
+            "country_code",
+            "region",
+            "watch_region" -> true
+            else -> false
+        }
+    }?.name
+
 data class AddonBehaviorHints(
     val configurable: Boolean = false,
     val configurationRequired: Boolean = false,

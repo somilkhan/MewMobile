@@ -12,7 +12,7 @@ import com.nuvio.app.features.details.MoreLikeThisSource
 import com.nuvio.app.features.details.PersonDetail
 import com.nuvio.app.features.home.MetaPreview
 import com.nuvio.app.features.home.PosterShape
-import com.nuvio.app.features.player.DeviceLanguagePreferences
+import com.nuvio.app.core.region.RegionContext
 import com.nuvio.app.features.watchprogress.WatchProgressClock
 import kotlinx.atomicfu.locks.SynchronizedObject
 import kotlinx.atomicfu.locks.synchronized
@@ -66,7 +66,7 @@ object TmdbMetadataService {
     ): PersonDetail? = withContext(Dispatchers.Default) {
         val settings = TmdbSettingsRepository.snapshot()
         if (!settings.enabled || !settings.hasApiKey) return@withContext null
-        val language = normalizeTmdbLanguage(settings.language)
+        val language = resolveTmdbLanguage(settings.language)
         val cacheKey = "$personId:${preferCrewCredits?.toString() ?: "auto"}:$language"
         cacheGet(personCache, cacheKey)?.let { return@withContext it }
 
@@ -285,7 +285,7 @@ object TmdbMetadataService {
     ): TmdbEntityBrowseData? = withContext(Dispatchers.Default) {
         val settings = TmdbSettingsRepository.snapshot()
         if (!settings.enabled || !settings.hasApiKey) return@withContext null
-        val language = normalizeTmdbLanguage(settings.language)
+        val language = resolveTmdbLanguage(settings.language)
         val normalizedSourceType = normalizeEntitySourceType(sourceType)
         val cacheKey = "${entityKind.routeValue}:$entityId:$normalizedSourceType:$language"
         cacheGet(entityBrowseCache, cacheKey)?.let { return@withContext it }
@@ -538,7 +538,7 @@ object TmdbMetadataService {
         if (!settings.enabled || !settings.hasApiKey || !settings.useArtwork) return@withContext null
         val mediaType = normalizeMetaType(item.type)
         val tmdbId = TmdbService.ensureTmdbId(item.id, mediaType) ?: return@withContext null
-        val normalizedLanguage = normalizeTmdbLanguage(settings.language)
+        val normalizedLanguage = resolveTmdbLanguage(settings.language)
         val artwork = fetchPreviewArtwork(
             tmdbId = tmdbId,
             mediaType = mediaType,
@@ -733,7 +733,7 @@ object TmdbMetadataService {
         val tmdbId = TmdbService.ensureTmdbId(meta.id, mediaType)
             ?: TmdbService.ensureTmdbId(fallbackItemId, mediaType)
             ?: return@withContext null
-        val language = normalizeTmdbLanguage(settings.language)
+        val language = resolveTmdbLanguage(settings.language)
         val cacheKey = "$mediaType:$tmdbId:$language"
         cacheGet(companyBrandingCache, cacheKey)?.let { return@withContext it }
 
@@ -761,7 +761,7 @@ object TmdbMetadataService {
             ?: TmdbService.ensureTmdbId(fallbackItemId, mediaType)
             ?: return@withContext null
         val region = resolveTmdbWatchProviderRegion(
-            languageCodes = DeviceLanguagePreferences.preferredLanguageCodes(),
+            languageCodes = emptyList(),
             fallbackLanguage = settings.language,
         )
         val cacheKey = "$mediaType:$tmdbId:$region"
@@ -1206,7 +1206,15 @@ object TmdbMetadataService {
         query: Map<String, String> = emptyMap(),
     ): T? {
         val apiKey = TmdbSettingsRepository.snapshot().apiKey.trim().takeIf(String::isNotBlank) ?: return null
-        val url = buildTmdbUrl(endpoint = endpoint, apiKey = apiKey, query = query)
+        val regionalQuery = if (endpoint.startsWith("discover/")) {
+            buildMap {
+                putAll(query)
+                RegionContext.current().countryCode?.let { put("region", it) }
+            }
+        } else {
+            query
+        }
+        val url = buildTmdbUrl(endpoint = endpoint, apiKey = apiKey, query = regionalQuery)
         val payload = requestCoordinator.execute(url) {
             requestTmdbText {
                 httpRequestRaw(
@@ -1452,6 +1460,7 @@ internal fun resolveTmdbWatchProviderRegion(
     languageCodes: List<String>,
     fallbackLanguage: String?,
 ): String {
+    RegionContext.current().countryCode?.let { return it }
     val normalized = (languageCodes + listOfNotNull(fallbackLanguage))
         .map(::normalizeTmdbLanguage)
     return normalized.firstNotNullOfOrNull { language ->
@@ -1629,6 +1638,13 @@ private fun normalizeMetaType(type: String): String =
         "movie", "film" -> "movie"
         else -> "movie"
     }
+
+internal fun resolveTmdbLanguage(language: String?): String {
+    val normalized = normalizeTmdbLanguage(language)
+    if (normalized.contains('-')) return normalized
+    val region = RegionContext.current().countryCode ?: return normalized
+    return "$normalized-$region"
+}
 
 internal fun normalizeTmdbLanguage(language: String?): String {
     val raw = language

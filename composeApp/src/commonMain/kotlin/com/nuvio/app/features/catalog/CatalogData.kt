@@ -3,6 +3,7 @@ package com.nuvio.app.features.catalog
 import com.nuvio.app.features.addons.AddonCatalog
 import com.nuvio.app.features.addons.buildAddonResourceUrl
 import com.nuvio.app.features.addons.httpGetText
+import com.nuvio.app.core.region.RegionContext
 import com.nuvio.app.features.home.HomeCatalogParser
 import com.nuvio.app.features.home.MetaPreview
 import com.nuvio.app.features.home.stableKey
@@ -63,6 +64,7 @@ suspend fun fetchCatalogPage(
     search: String? = null,
     skip: Int? = null,
     maxItems: Int? = null,
+    regionExtraName: String? = null,
 ): CatalogPage {
     val url = buildCatalogUrl(
         manifestUrl = manifestUrl,
@@ -71,6 +73,7 @@ suspend fun fetchCatalogPage(
         genre = genre,
         search = search,
         skip = skip,
+        regionExtraName = regionExtraName,
     )
     val payload = deduplicatedHttpGetText(url)
     val parsed = HomeCatalogParser.parseCatalogResponse(
@@ -161,11 +164,16 @@ internal fun buildCatalogUrl(
     genre: String?,
     search: String?,
     skip: Int?,
+    regionExtraName: String?,
 ): String {
     val extraParts = buildList {
         if (!search.isNullOrBlank()) add("search=${search.encodeCatalogExtra()}")
         if (!genre.isNullOrBlank()) add("genre=${genre.encodeCatalogExtra()}")
         if (skip != null && skip > 0) add("skip=$skip")
+        val country = RegionContext.current().countryCode
+        if (!regionExtraName.isNullOrBlank() && !country.isNullOrBlank()) {
+            add(regionExtraName.encodeCatalogExtra() + "=" + country.encodeCatalogExtra())
+        }
     }
 
     return buildAddonResourceUrl(

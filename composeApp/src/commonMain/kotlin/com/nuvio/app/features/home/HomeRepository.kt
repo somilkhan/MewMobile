@@ -1,5 +1,6 @@
 package com.nuvio.app.features.home
 
+import com.nuvio.app.core.region.RegionContext
 import com.nuvio.app.features.addons.ManagedAddon
 import com.nuvio.app.features.addons.AddonRepository
 import com.nuvio.app.features.addons.enabledAddons
@@ -17,7 +18,7 @@ import com.nuvio.app.features.cloudstream.toMetaPreview
 import com.nuvio.app.features.tmdb.TmdbMetadataService
 import com.nuvio.app.features.tmdb.TmdbSettings
 import com.nuvio.app.features.tmdb.TmdbSettingsRepository
-import com.nuvio.app.features.tmdb.normalizeTmdbLanguage
+import com.nuvio.app.features.tmdb.resolveTmdbLanguage
 import com.nuvio.app.features.trakt.TraktPublicListSourceResolver
 import com.nuvio.app.features.watchprogress.CurrentDateProvider
 import kotlinx.coroutines.CancellationException
@@ -455,7 +456,7 @@ object HomeRepository {
         enabled && hasApiKey && useArtwork
 
     private fun localizedHeroArtworkCacheKey(item: MetaPreview, settings: TmdbSettings): String =
-        "${item.stableKey()}:${normalizeTmdbLanguage(settings.language)}"
+        "${item.stableKey()}:${resolveTmdbLanguage(settings.language)}:${RegionContext.current().countryCode.orEmpty()}"
 
     private suspend fun HomeCatalogDefinition.toSection(): HomeCatalogSection {
         val page = fetchCatalogPage(
@@ -463,6 +464,7 @@ object HomeRepository {
             type = type,
             catalogId = catalogId,
             maxItems = HOME_CATALOG_PREVIEW_FETCH_LIMIT,
+            regionExtraName = regionExtraName,
         )
         val items = page.items
         if (items.isEmpty()) {
@@ -492,6 +494,7 @@ object HomeRepository {
                 manifestUrl = manifestUrl,
                 contentType = type,
                 catalogId = catalogId,
+                regionExtraName = regionExtraName,
                 supportsPagination = supportsPagination,
             ),
             items = items,

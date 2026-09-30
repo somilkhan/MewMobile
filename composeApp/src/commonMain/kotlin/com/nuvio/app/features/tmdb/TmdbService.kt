@@ -85,7 +85,7 @@ object TmdbService {
     suspend fun search(query: String, limit: Int = 24): List<MetaPreview> {
         val apiKey = currentApiKey() ?: return emptyList()
         val normalizedQuery = query.trim().takeIf { it.isNotBlank() } ?: return emptyList()
-        val language = TmdbSettingsRepository.snapshot().language.takeIf { it.isNotBlank() } ?: "en"
+        val language = resolveTmdbLanguage(TmdbSettingsRepository.snapshot().language)
         val body = fetch<TmdbSearchResponse>(
             endpoint = "search/multi",
             apiKey = apiKey,
