@@ -39,6 +39,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -52,6 +53,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.nuvio.app.core.ui.toThemeHex
 import kotlin.math.max
@@ -69,6 +71,7 @@ import com.nuvio.app.core.ui.isEnhanced
 import com.nuvio.app.core.ui.rememberAnimatedAccentBrush
 import com.nuvio.app.core.ui.nuvioKeyboardFocusIndicator
 import com.nuvio.app.isIos
+import com.nuvio.app.core.ui.NuvioStatusModal
 import kotlinx.coroutines.launch
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.cd_selected
@@ -79,6 +82,8 @@ import nuvio.composeapp.generated.resources.compose_settings_page_meta_screen
 import nuvio.composeapp.generated.resources.compose_settings_page_poster_customization
 import nuvio.composeapp.generated.resources.compose_settings_page_streams
 import nuvio.composeapp.generated.resources.settings_appearance_app_language
+import nuvio.composeapp.generated.resources.settings_appearance_app_language_restart_message
+import nuvio.composeapp.generated.resources.settings_appearance_app_language_restart_title
 import nuvio.composeapp.generated.resources.settings_appearance_theme_supporter
 import nuvio.composeapp.generated.resources.settings_appearance_app_language_sheet_title
 import nuvio.composeapp.generated.resources.settings_appearance_app_icon
@@ -234,6 +239,8 @@ internal fun LazyListScope.appearanceSettingsContent(
     }
     item {
         var showLanguageSheet by remember { mutableStateOf(false) }
+        var showLanguageRestartDialog by remember { mutableStateOf(false) }
+        val layoutDirection = LocalLayoutDirection.current
         var showNavBarStyleSheet by remember { mutableStateOf(false) }
         var showAppIconPicker by remember { mutableStateOf(false) }
         SettingsSection(
@@ -304,10 +311,19 @@ internal fun LazyListScope.appearanceSettingsContent(
                 onLanguageSelected = {
                     onAppLanguageSelected(it)
                     showLanguageSheet = false
+                    val newLayoutDirection = if (it.isRightToLeft()) LayoutDirection.Rtl else LayoutDirection.Ltr
+                    if (isIos && newLayoutDirection != layoutDirection) showLanguageRestartDialog = true
                 },
                 onDismiss = { showLanguageSheet = false },
             )
         }
+
+        NuvioStatusModal(
+            title = stringResource(Res.string.settings_appearance_app_language_restart_title),
+            message = stringResource(Res.string.settings_appearance_app_language_restart_message),
+            isVisible = showLanguageRestartDialog,
+            onConfirm = { showLanguageRestartDialog = false },
+        )
 
         if (showAppIconPicker) {
             AppIconPicker(
