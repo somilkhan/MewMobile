@@ -104,6 +104,7 @@ internal fun NuvioSubtitleModal(
     onSubtitleDelayChanged: (Int) -> Unit,
     onSubtitleDelayReset: () -> Unit,
     onAutoSyncCapture: () -> Unit,
+    onSyncByEarClick: () -> Unit,
     onAutoSyncCueSelected: (SubtitleSyncCue) -> Unit,
     onAutoSyncReload: () -> Unit,
     onTogglePlayback: () -> Unit,
@@ -758,6 +759,14 @@ private fun SubtitleSyncControls(
                     icon = Icons.Rounded.CenterFocusStrong,
                     enabled = selectedAddonSubtitle != null,
                     onClick = onAutoSyncCapture,
+                )
+                NuvioSyncActionButton(
+                    modifier = Modifier.weight(1f),
+                    isCompact = isCompact,
+                    text = stringResource(Res.string.compose_player_sync_by_ear),
+                    icon = Icons.Rounded.CenterFocusStrong,
+                    enabled = selectedAddonSubtitle != null,
+                    onClick = onSyncByEarClick,
                 )
                 NuvioSyncActionButton(
                     modifier = Modifier.weight(1f),
