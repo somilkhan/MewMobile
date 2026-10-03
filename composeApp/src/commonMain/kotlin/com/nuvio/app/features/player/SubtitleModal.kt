@@ -125,6 +125,7 @@ internal fun SubtitleModal(
             onSubtitleDelayChanged = onSubtitleDelayChanged,
             onSubtitleDelayReset = onSubtitleDelayReset,
             onAutoSyncCapture = onAutoSyncCapture,
+            onSyncByEarClick = onSyncByEarClick,
             onAutoSyncCueSelected = onAutoSyncCueSelected,
             onAutoSyncReload = onAutoSyncReload,
             onTogglePlayback = onTogglePlayback,
