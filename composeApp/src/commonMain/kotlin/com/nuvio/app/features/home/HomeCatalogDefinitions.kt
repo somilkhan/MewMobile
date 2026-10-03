@@ -25,7 +25,7 @@ data class HomeCatalogDefinition(
     val descriptorSignature: String,
 ) {
     val cacheKey: String
-        get() = "$key|$descriptorSignature"
+        get() = "$key|$descriptorSignature|region=${com.nuvio.app.core.region.RegionContext.current().countryCode.orEmpty()}"
 
     fun titleFor(showCatalogType: Boolean): String =
         if (showCatalogType) defaultTitle else catalogName
