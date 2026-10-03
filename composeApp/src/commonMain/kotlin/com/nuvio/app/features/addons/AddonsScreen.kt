@@ -174,7 +174,11 @@ internal fun AddonsSettingsPageContent(
                     } else {
                         null
                     },
-                    onDeleteClick = { AddonRepository.removeAddon(addon.manifestUrl) },
+                    onDeleteClick = if (BundledIntegrations.isBundledStremioAddon(addon.manifestUrl)) {
+                        null
+                    } else {
+                        { AddonRepository.removeAddon(addon.manifestUrl) }
+                    },
                 )
             }
         }

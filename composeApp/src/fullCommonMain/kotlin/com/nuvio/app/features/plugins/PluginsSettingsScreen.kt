@@ -453,12 +453,14 @@ fun PluginsSettingsPageContent(
                                 tint = MaterialTheme.colorScheme.primary,
                                 onClick = { PluginRepository.refreshRepository(repo.manifestUrl, pushAfterRefresh = true) },
                             )
-                            NuvioIconActionButton(
-                                icon = Icons.Rounded.Delete,
-                                contentDescription = stringResource(Res.string.plugins_cd_delete_repo),
-                                tint = MaterialTheme.colorScheme.error,
-                                onClick = { PluginRepository.removeRepository(repo.manifestUrl) },
-                            )
+                            if (!BundledIntegrations.isBundledPluginRepository(repo.manifestUrl)) {
+                                NuvioIconActionButton(
+                                    icon = Icons.Rounded.Delete,
+                                    contentDescription = stringResource(Res.string.plugins_cd_delete_repo),
+                                    tint = MaterialTheme.colorScheme.error,
+                                    onClick = { PluginRepository.removeRepository(repo.manifestUrl) },
+                                )
+                            }
                         }
                     }
                     Spacer(modifier = Modifier.height(14.dp))

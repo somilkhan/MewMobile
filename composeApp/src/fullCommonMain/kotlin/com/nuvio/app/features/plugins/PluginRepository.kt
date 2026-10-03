@@ -6,6 +6,7 @@ import com.nuvio.app.core.diagnostics.RuntimeDiagnostics
 import com.nuvio.app.core.network.SupabaseProvider
 import com.nuvio.app.features.addons.httpGetText
 import com.nuvio.app.features.profiles.ProfileRepository
+import com.nuvio.app.features.integrations.BundledIntegrations
 import com.nuvio.app.features.tmdb.TmdbService
 import com.nuvio.app.features.plugins.runtime.PluginRuntime
 import io.github.jan.supabase.postgrest.postgrest
@@ -95,6 +96,7 @@ actual object PluginRepository {
         val effectiveProfileId = resolveEffectiveProfileId(ProfileRepository.activeProfileId)
         val shouldRefreshStoredRepos = !initialized || currentProfileId != effectiveProfileId
         ensureStateLoadedForProfile(effectiveProfileId)
+        ensureBundledRepositories()
         if (!shouldRefreshStoredRepos) return
 
         _uiState.value.repositories.forEach { repo ->
@@ -141,7 +143,10 @@ actual object PluginRepository {
                 pullProfileId != currentProfileId
             ) return
 
-            val urls = dedupeManifestUrls(rows.map { it.url })
+            val urls = dedupeManifestUrls(
+                rows.map { it.url } +
+                    BundledIntegrations.bundledPluginRepositoryUrls,
+            )
             if (urls.isEmpty() && !pulledFromServer) {
                 val localUrls = _uiState.value.repositories.map { it.manifestUrl }
                 if (localUrls.isNotEmpty()) {
@@ -665,6 +670,38 @@ actual object PluginRepository {
             PluginStorage.saveState(snapshot.profileId, json.encodeToString(payload))
             persistedRevisionByProfile[snapshot.profileId] = snapshot.revision
             RuntimeDiagnostics.record(DiagnosticEvent.PluginPersistFinished)
+        }
+    }
+
+    private fun ensureBundledRepositories() {
+        val existingUrls = _uiState.value.repositories
+            .map { it.manifestUrl }
+            .toSet()
+
+        val missingUrls = BundledIntegrations.bundledPluginRepositoryUrls
+            .filterNot(existingUrls::contains)
+
+        if (missingUrls.isEmpty()) return
+
+        _uiState.update { state ->
+            state.copy(
+                repositories = state.repositories + missingUrls.map { url ->
+                    PluginRepositoryItem(
+                        manifestUrl = url,
+                        name = url.substringBefore("?").substringAfterLast('/'),
+                        isRefreshing = true,
+                    )
+                },
+            )
+        }
+        persist()
+
+        missingUrls.forEach { url ->
+            refreshRepositoryInternal(
+                manifestUrl = url,
+                pushAfterRefresh = false,
+                ensureInitialized = false,
+            )
         }
     }
 

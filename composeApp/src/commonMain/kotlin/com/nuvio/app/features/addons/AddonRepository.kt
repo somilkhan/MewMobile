@@ -2,6 +2,7 @@ package com.nuvio.app.features.addons
 
 import co.touchlab.kermit.Logger
 import com.nuvio.app.core.network.SupabaseProvider
+import com.nuvio.app.features.integrations.BundledIntegrations
 import com.nuvio.app.core.sync.putSyncOriginClientId
 import com.nuvio.app.features.profiles.ProfileRepository
 import io.github.jan.supabase.postgrest.postgrest
@@ -63,7 +64,10 @@ object AddonRepository {
         currentProfileId = effectiveProfileId
         log.d { "initialize() — loading local addons for profile $currentProfileId" }
 
-        val storedUrls = dedupeManifestUrls(AddonStorage.loadInstalledAddonUrls(currentProfileId))
+        val storedUrls = dedupeManifestUrls(
+            AddonStorage.loadInstalledAddonUrls(currentProfileId) +
+                BundledIntegrations.bundledStremioAddonUrls,
+        )
         val enabledByUrl = loadLocalEnabledStates()
         log.d { "initialize() — local addon count: ${storedUrls.size}" }
         if (storedUrls.isEmpty()) return
@@ -125,12 +129,18 @@ object AddonRepository {
                 }
             }
 
-            val urls = rowsByUrl.keys.toList()
+            val urls = dedupeManifestUrls(
+                rowsByUrl.keys.toList() +
+                    BundledIntegrations.bundledStremioAddonUrls,
+            )
             log.i { "pullFromServer() — server returned ${rows.size} addons" }
             urls.forEachIndexed { i, u -> log.d { "  server[$i]: $u" } }
 
             if (urls.isEmpty() && !pulledFromServer) {
-                val localUrls = dedupeManifestUrls(AddonStorage.loadInstalledAddonUrls(currentProfileId))
+                val localUrls = dedupeManifestUrls(
+                    AddonStorage.loadInstalledAddonUrls(currentProfileId) +
+                        BundledIntegrations.bundledStremioAddonUrls,
+                )
                 log.i { "pullFromServer() — server empty, local has ${localUrls.size} addons" }
                 if (localUrls.isNotEmpty()) {
                     log.i { "pullFromServer() — migrating local addons to server for profile $currentProfileId" }
