@@ -1,5 +1,6 @@
 package com.nuvio.app.features.catalog
 
+import com.nuvio.app.core.region.RegionContext
 import com.nuvio.app.features.collection.CollectionRepository
 import com.nuvio.app.features.collection.TmdbCollectionSourceResolver
 import com.nuvio.app.features.collection.catalogRouteKey
@@ -226,6 +227,7 @@ object CatalogRepository {
         CatalogRequest(
             target = target,
             hideUnreleasedContent = HomeCatalogSettingsRepository.snapshot().hideUnreleasedContent,
+            regionCode = RegionContext.current().countryCode,
         )
 }
 
@@ -257,4 +259,5 @@ private suspend fun fetchCollectionSourcePage(
 private data class CatalogRequest(
     val target: CatalogTarget,
     val hideUnreleasedContent: Boolean,
+    val regionCode: String?,
 )
