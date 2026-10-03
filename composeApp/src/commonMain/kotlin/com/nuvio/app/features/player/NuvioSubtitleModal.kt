@@ -73,6 +73,7 @@ import nuvio.composeapp.generated.resources.compose_player_none
 import nuvio.composeapp.generated.resources.compose_player_no_subtitle_lines_found
 import nuvio.composeapp.generated.resources.compose_player_reload
 import nuvio.composeapp.generated.resources.compose_player_reset
+import nuvio.composeapp.generated.resources.compose_player_sync_by_ear
 import nuvio.composeapp.generated.resources.compose_player_select_addon_subtitle_first
 import nuvio.composeapp.generated.resources.compose_player_style
 import nuvio.composeapp.generated.resources.compose_player_subtitle_delay
