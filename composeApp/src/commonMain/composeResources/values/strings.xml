@@ -743,6 +743,14 @@
     <string name="settings_continue_watching_use_episode_thumbnails_title">Prefer Episode Thumbnails in Continue Watching</string>
     <string name="settings_content_discovery_section_home">HOME</string>
     <string name="settings_content_discovery_get_started">GET STARTED</string>
+    <string name="settings_content_discovery_region_title">Content region</string>
+    <string name="settings_content_discovery_region_description">Choose the market used for regional catalog and metadata context.</string>
+    <string name="settings_content_discovery_region_auto">Automatic • %1$s</string>
+    <string name="settings_content_discovery_region_manual">Manual • %1$s</string>
+    <string name="settings_content_discovery_region_dialog_title">Content region</string>
+    <string name="settings_content_discovery_region_dialog_hint">Automatic follows the current network country, then your device locale. Manual uses a two-letter ISO 3166-1 country code.</string>
+    <string name="settings_content_discovery_region_cancel">Cancel</string>
+    <string name="settings_content_discovery_region_apply">Apply</string>
     <string name="settings_content_discovery_section_sources">SOURCES</string>
     <string name="settings_content_discovery_metadata_title">TMDB metadata</string>
     <string name="settings_content_discovery_metadata_description">Optional TMDB enrichment. CloudStream providers work independently when this is off.</string>

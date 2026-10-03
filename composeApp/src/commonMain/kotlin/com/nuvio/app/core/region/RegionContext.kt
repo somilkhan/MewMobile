@@ -3,6 +3,7 @@ package com.nuvio.app.core.region
 import com.nuvio.app.features.player.DeviceLanguagePreferences
 
 enum class RegionContextSource {
+    MANUAL,
     NETWORK,
     DEVICE_LOCALE,
     GLOBAL,
@@ -14,7 +15,12 @@ data class RegionContext(
     val source: RegionContextSource,
 ) {
     companion object {
-        fun current(): RegionContext {
+        fun current(): RegionContext =
+            RegionSettingsRepository.run {
+                resolve(manualCountryCode())
+            }
+
+        internal fun resolve(manualCountryCode: String?): RegionContext {
             val languageTag = DeviceLanguagePreferences.preferredLanguageCodes()
                 .firstOrNull()
                 ?.trim()
@@ -31,6 +37,11 @@ data class RegionContext(
                 ?.uppercase()
 
             return when {
+                manualCountryCode != null -> RegionContext(
+                    countryCode = manualCountryCode,
+                    languageTag = languageTag,
+                    source = RegionContextSource.MANUAL,
+                )
                 networkCountryCode != null -> RegionContext(
                     countryCode = networkCountryCode,
                     languageTag = languageTag,
