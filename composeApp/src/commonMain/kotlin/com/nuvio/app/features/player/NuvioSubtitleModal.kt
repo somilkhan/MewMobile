@@ -770,6 +770,14 @@ private fun SubtitleSyncControls(
                     onClick = onSubtitleDelayReset,
                 )
             }
+            NuvioSyncActionButton(
+                modifier = Modifier.fillMaxWidth(),
+                isCompact = isCompact,
+                text = stringResource(Res.string.compose_player_sync_by_ear),
+                icon = Icons.Rounded.CenterFocusStrong,
+                enabled = selectedAddonSubtitle != null,
+                onClick = onSyncByEarClick,
+            )
 
             if (subtitleAutoSyncState.isLoading && sortedCues.isNotEmpty()) {
                 Text(
