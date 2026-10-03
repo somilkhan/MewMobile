@@ -178,22 +178,23 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
                     }
                 },
                 onSnapshot = { snapshot ->
-                    if (!active.value || !updatePlaybackSnapshot(snapshot, playbackKey)) return@PlatformPlayerSurface
-                    if (!snapshot.isLoading) initialLoadCompleted = true
-                    if (snapshot.isEnded) {
-                        shouldPlay = false
-                        controlsVisible = !playerControlsLocked
+                    if (active.value && updatePlaybackSnapshot(snapshot, playbackKey)) {
+                        if (!snapshot.isLoading) initialLoadCompleted = true
+                        if (snapshot.isEnded) {
+                            shouldPlay = false
+                            controlsVisible = !playerControlsLocked
+                        }
                     }
                 },
                 onError = { message ->
-                    if (!active.value || playbackKey != activePlaybackKey) return@PlatformPlayerSurface
-                    if (message != null && tryRefreshCredentialedSourceAfterError(message)) {
-                        return@PlatformPlayerSurface
-                    }
-                    errorMessage = message
-                    if (message != null) {
-                        controlsVisible = !playerControlsLocked
-                        removeFailedStreamFromCache()
+                    if (active.value && playbackKey == activePlaybackKey) {
+                        if (message != null && !tryRefreshCredentialedSourceAfterError(message)) {
+                            errorMessage = message
+                            controlsVisible = !playerControlsLocked
+                            removeFailedStreamFromCache()
+                        } else if (message == null) {
+                            errorMessage = null
+                        }
                     }
                 },
                 )
