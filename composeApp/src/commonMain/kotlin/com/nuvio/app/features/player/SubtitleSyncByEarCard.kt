@@ -34,6 +34,11 @@ import androidx.compose.ui.unit.dp
 import com.nuvio.app.core.ui.nuvio
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.compose_player_sync_by_ear
+import nuvio.composeapp.generated.resources.compose_player_sync_by_ear_hint
+import nuvio.composeapp.generated.resources.compose_player_sync_by_ear_heard
+import nuvio.composeapp.generated.resources.compose_player_sync_by_ear_saw
+import nuvio.composeapp.generated.resources.compose_player_sync_by_ear_in_sync
+import nuvio.composeapp.generated.resources.compose_player_sync_by_ear_offset
 import org.jetbrains.compose.resources.stringResource
 @Composable
 internal fun SubtitleSyncByEarCard(visible:Boolean,subtitleDelayMs:Int,heardCaptured:Boolean,sawCaptured:Boolean,onHeard:()->Unit,onSaw:()->Unit,onClose:()->Unit,modifier:Modifier=Modifier){
@@ -44,12 +49,12 @@ internal fun SubtitleSyncByEarCard(visible:Boolean,subtitleDelayMs:Int,heardCapt
     Text(stringResource(Res.string.compose_player_sync_by_ear),color=Color.White,style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.SemiBold)
     Box(Modifier.size(32.dp).clip(CircleShape).background(Color.White.copy(alpha=.08f)).clickable(onClick=onClose),contentAlignment=Alignment.Center){Icon(Icons.Rounded.Close,null,tint=Color.White)}
    }
-   Text("Tap Heard when you hear the line, then Saw when its subtitle appears.",color=Color.White.copy(alpha=.72f),style=MaterialTheme.typography.bodySmall)
+   Text(stringResource(Res.string.compose_player_sync_by_ear_hint),color=Color.White.copy(alpha=.72f),style=MaterialTheme.typography.bodySmall)
    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(10.dp)){
-    Row(Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(if(heardCaptured)tokens.colors.accent else Color.White.copy(alpha=.1f)).clickable(onClick=onHeard).padding(12.dp),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalAlignment=Alignment.CenterVertically){Icon(Icons.Rounded.Hearing,null,tint=Color.White);Text("Heard",color=Color.White)}
-    Row(Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(if(sawCaptured)tokens.colors.accent else Color.White.copy(alpha=.1f)).clickable(onClick=onSaw).padding(12.dp),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalAlignment=Alignment.CenterVertically){Icon(Icons.Rounded.Visibility,null,tint=Color.White);Text("Saw",color=Color.White)}
+    Row(Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(if(heardCaptured)tokens.colors.accent else Color.White.copy(alpha=.1f)).clickable(onClick=onHeard).padding(12.dp),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalAlignment=Alignment.CenterVertically){Icon(Icons.Rounded.Hearing,null,tint=Color.White);Text(stringResource(Res.string.compose_player_sync_by_ear_heard),color=Color.White)}
+    Row(Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(if(sawCaptured)tokens.colors.accent else Color.White.copy(alpha=.1f)).clickable(onClick=onSaw).padding(12.dp),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalAlignment=Alignment.CenterVertically){Icon(Icons.Rounded.Visibility,null,tint=Color.White);Text(stringResource(Res.string.compose_player_sync_by_ear_saw),color=Color.White)}
    }
-   Text(if(subtitleDelayMs==0)"Current delay: in sync" else "Current delay: "+subtitleDelayMs+" ms",color=Color.White.copy(alpha=.65f),style=MaterialTheme.typography.labelMedium)
+   Text(if(subtitleDelayMs==0)stringResource(Res.string.compose_player_sync_by_ear_in_sync) else stringResource(Res.string.compose_player_sync_by_ear_offset,subtitleDelayMs),color=Color.White.copy(alpha=.65f),style=MaterialTheme.typography.labelMedium)
   }
  }
 }
