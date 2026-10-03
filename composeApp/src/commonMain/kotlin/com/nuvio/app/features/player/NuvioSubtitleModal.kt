@@ -660,6 +660,7 @@ private fun SubtitleSyncControls(
     onSubtitleDelayChanged: (Int) -> Unit,
     onSubtitleDelayReset: () -> Unit,
     onAutoSyncCapture: () -> Unit,
+    onSyncByEarClick: () -> Unit,
     onAutoSyncReload: () -> Unit,
     onTogglePlayback: () -> Unit,
     tokens: com.nuvio.app.core.ui.NuvioThemeTokens,
