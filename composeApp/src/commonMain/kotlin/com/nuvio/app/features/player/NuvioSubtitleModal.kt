@@ -509,6 +509,7 @@ private fun NuvioSubtitleSyncContent(
                 onSubtitleDelayChanged = onSubtitleDelayChanged,
                 onSubtitleDelayReset = onSubtitleDelayReset,
                 onAutoSyncCapture = onAutoSyncCapture,
+                onSyncByEarClick = onSyncByEarClick,
                 onAutoSyncReload = onAutoSyncReload,
                 onTogglePlayback = onTogglePlayback,
                 tokens = tokens,
