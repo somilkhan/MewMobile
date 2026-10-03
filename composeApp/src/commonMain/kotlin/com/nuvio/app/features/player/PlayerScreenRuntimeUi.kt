@@ -176,6 +176,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
                         controller.setPlaybackSpeed(speed)
                         pendingPlaybackSpeedRestore = null
                     }
+                    }
                 },
                 onSnapshot = { snapshot ->
                     if (active.value && updatePlaybackSnapshot(snapshot, playbackKey)) {
