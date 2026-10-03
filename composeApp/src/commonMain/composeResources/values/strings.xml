@@ -410,6 +410,11 @@
     <string name="compose_player_subs">Subs</string>
     <string name="compose_player_subtitle_delay">Subtitle Delay</string>
     <string name="compose_player_sync_by_ear">Sync by ear</string>
+    <string name="compose_player_sync_by_ear_hint">Tap Heard when you hear the line, then Saw when its subtitle appears.</string>
+    <string name="compose_player_sync_by_ear_heard">Heard</string>
+    <string name="compose_player_sync_by_ear_saw">Saw</string>
+    <string name="compose_player_sync_by_ear_in_sync">Current delay: in sync</string>
+    <string name="compose_player_sync_by_ear_offset">Current delay: %1$s ms</string>
     <string name="compose_player_subtitles">Subtitles</string>
     <string name="compose_player_text_opacity">Text Opacity</string>
     <string name="compose_player_brightness_level">Brightness %1$s</string>

@@ -53,4 +53,4 @@ internal fun SubtitleSyncByEarCard(visible:Boolean,subtitleDelayMs:Int,heardCapt
   }
  }
 }
-private fun PlayerScreenRuntime.applySubtitleSyncByEarIfReady(){val heardMs=subtitleSyncHeardPositionMs?:return;val sawMs=subtitleSyncSawPositionMs?:return;setSubtitleDelay((subtitleDelayMs.toLong()+heardMs-sawMs).coerceIn(SUBTITLE_DELAY_MIN_MS.toLong(),SUBTITLE_DELAY_MAX_MS.toLong()).toInt());subtitleSyncHeardPositionMs=null;subtitleSyncSawPositionMs=null}
+internal fun PlayerScreenRuntime.applySubtitleSyncByEarIfReady(){val heardMs=subtitleSyncHeardPositionMs?:return;val sawMs=subtitleSyncSawPositionMs?:return;setSubtitleDelay((subtitleDelayMs.toLong()+heardMs-sawMs).coerceIn(SUBTITLE_DELAY_MIN_MS.toLong(),SUBTITLE_DELAY_MAX_MS.toLong()).toInt());subtitleSyncHeardPositionMs=null;subtitleSyncSawPositionMs=null}
