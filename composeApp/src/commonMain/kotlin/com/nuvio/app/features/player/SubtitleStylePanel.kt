@@ -201,11 +201,15 @@ private fun SyncControlsCard(
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End,
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
         ) {
             SmallActionPill(
                 text = stringResource(Res.string.compose_player_reset),
                 onClick = onSubtitleDelayReset,
+            )
+            SmallActionPill(
+                text = stringResource(Res.string.compose_player_sync_by_ear),
+                onClick = onSyncByEarClick,
             )
         }
 
