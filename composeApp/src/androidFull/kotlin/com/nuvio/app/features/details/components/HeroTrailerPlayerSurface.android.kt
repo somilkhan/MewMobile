@@ -12,8 +12,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
@@ -29,6 +32,9 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.MergingMediaSource
 import com.nuvio.app.features.player.PlatformPlaybackDataSourceFactory
+import com.nuvio.app.features.trailer.LetterboxDetector
+import com.nuvio.app.features.trailer.LetterboxSampler
+import com.nuvio.app.features.trailer.LetterboxTracker
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 
@@ -57,6 +63,13 @@ actual fun HeroTrailerPlayerSurface(
         mutableStateOf(lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED))
     }
     var playerContainer by remember { mutableStateOf<HeroTrailerTextureContainer?>(null) }
+    var hasRenderedFirstFrame by remember(exoPlayer) { mutableStateOf(false) }
+    var letterboxZoom by remember(exoPlayer) { mutableFloatStateOf(1f) }
+    val letterboxZoomState = androidx.compose.animation.core.animateFloatAsState(
+        targetValue = letterboxZoom,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 400),
+        label = "heroTrailerLetterboxZoom",
+    )
 
     val dataSourceFactory = remember(context) {
         PlatformPlaybackDataSourceFactory.create(
@@ -117,6 +130,10 @@ actual fun HeroTrailerPlayerSurface(
                     }
                     else -> Unit
                 }
+            }
+
+            override fun onRenderedFirstFrame() {
+                hasRenderedFirstFrame = true
             }
 
             override fun onVideoSizeChanged(videoSize: VideoSize) {
@@ -208,8 +225,33 @@ actual fun HeroTrailerPlayerSurface(
         exoPlayer.volume = if (muted || !lifecycleAllowsPlayback) 0f else 1f
     }
 
+    LaunchedEffect(exoPlayer, hasRenderedFirstFrame) {
+        letterboxZoom = 1f
+        if (!hasRenderedFirstFrame) return@LaunchedEffect
+        val tracker = LetterboxTracker()
+        val sampler = LetterboxSampler()
+        try {
+            while (isActive) {
+                delay(LetterboxDetector.SAMPLE_INTERVAL_MS)
+                if (LetterboxDetector.isSampleWindowOver(exoPlayer.currentPosition, exoPlayer.duration)) break
+                if (!exoPlayer.isPlaying) continue
+                val textureView = playerContainer?.textureView ?: continue
+                val bar = sampler.sample(textureView) ?: continue
+                letterboxZoom = tracker.onSample(bar) ?: continue
+                break
+            }
+        } finally {
+            sampler.release()
+        }
+    }
+
     AndroidView(
-        modifier = modifier,
+        modifier = modifier
+            .clipToBounds()
+            .graphicsLayer {
+                scaleX = letterboxZoomState.value
+                scaleY = letterboxZoomState.value
+            },
         factory = { viewContext ->
             HeroTrailerTextureContainer(viewContext).apply {
                 layoutParams = android.view.ViewGroup.LayoutParams(MATCH_PARENT, MATCH_PARENT)
@@ -233,7 +275,7 @@ actual fun HeroTrailerPlayerSurface(
 private class HeroTrailerTextureContainer(
     context: Context,
 ) : FrameLayout(context) {
-    private val textureView = TextureView(context)
+    val textureView = TextureView(context)
     private val textureTransform = Matrix()
     private var videoAspectRatio = 16f / 9f
     private var attachedPlayer: ExoPlayer? = null
