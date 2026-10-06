@@ -63,13 +63,6 @@ actual fun HeroTrailerPlayerSurface(
         mutableStateOf(lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED))
     }
     var playerContainer by remember { mutableStateOf<HeroTrailerTextureContainer?>(null) }
-    var hasRenderedFirstFrame by remember(exoPlayer) { mutableStateOf(false) }
-    var letterboxZoom by remember(exoPlayer) { mutableFloatStateOf(1f) }
-    val letterboxZoomState = androidx.compose.animation.core.animateFloatAsState(
-        targetValue = letterboxZoom,
-        animationSpec = androidx.compose.animation.core.tween(durationMillis = 400),
-        label = "heroTrailerLetterboxZoom",
-    )
 
     val dataSourceFactory = remember(context) {
         PlatformPlaybackDataSourceFactory.create(
@@ -100,6 +93,14 @@ actual fun HeroTrailerPlayerSurface(
                 prepare()
             }
     }
+
+    var hasRenderedFirstFrame by remember(exoPlayer) { mutableStateOf(false) }
+    var letterboxZoom by remember(exoPlayer) { mutableFloatStateOf(1f) }
+    val letterboxZoomState = androidx.compose.animation.core.animateFloatAsState(
+        targetValue = letterboxZoom,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 400),
+        label = "heroTrailerLetterboxZoom",
+    )
 
     fun detachVideoSurface() {
         playerContainer?.detachPlayer(exoPlayer)
