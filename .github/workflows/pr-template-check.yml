@@ -2,13 +2,14 @@ name: PR Template Check
 
 on:
   pull_request:
-    types: [opened, edited, synchronize, reopened]
+    types: [opened, edited, synchronize, reopened, ready_for_review]
 
 permissions:
   pull-requests: read
 
 jobs:
   validate_pr_body:
+    if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
     steps:
       - name: Validate required PR sections
