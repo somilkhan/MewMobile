@@ -121,8 +121,10 @@ jobs:
               cleanedContent("Issue or approval") || "",
               cleanedContent("Linked issues") || "",
             ].join(" ");
-            if (issueRequired && !hasIssueReference(issueText)) {
-              failedRules.push("Bug fixes, UI glitch fixes, behavior fixes, and approved changes must link an issue or approved request.");
+            const hasExplicitMaintainerApproval =
+              /approved in maintainer conversation|maintainer-requested project direction|explicit maintainer approval/i.test(issueText);
+            if (issueRequired && !hasIssueReference(issueText) && !hasExplicitMaintainerApproval) {
+              failedRules.push("Bug fixes, UI glitch fixes, behavior fixes, and approved changes must link an issue or state the explicit maintainer approval.");
             }
 
             const uiChanged = checkedLines(impactContent).some((line) =>
