@@ -61,78 +61,49 @@
             android:taskAffinity=""
             android:theme="@android:style/Theme.Translucent.NoTitleBar">
             <intent-filter>
-                            <action android:name="android.intent.action.VIEW" />
-            
-                            <category android:name="android.intent.category.DEFAULT" />
-                            <category android:name="android.intent.category.BROWSABLE" />
-            
-                            <data
-                                android:scheme="nuvioenhanced"
-                                android:host="auth"
-                                android:path="/simkl" />
-                        </intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="nuvioenhanced" android:host="auth" android:path="/simkl" />
+            </intent-filter>
             <intent-filter>
-                            <action android:name="android.intent.action.VIEW" />
-            
-                            <category android:name="android.intent.category.DEFAULT" />
-                            <category android:name="android.intent.category.BROWSABLE" />
-            
-                            <data
-                                android:scheme="nuvioenhanced"
-                                android:host="auth"
-                                android:path="/anilist" />
-                            <data
-                                android:scheme="nuvioenhanced"
-                                android:host="auth"
-                                android:path="/mal" />
-                        </intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="nuvioenhanced" android:host="auth" android:path="/anilist" />
+                <data android:scheme="nuvioenhanced" android:host="auth" android:path="/mal" />
+            </intent-filter>
             <intent-filter>
-                            <action android:name="android.intent.action.VIEW" />
-            
-                            <category android:name="android.intent.category.DEFAULT" />
-                            <category android:name="android.intent.category.BROWSABLE" />
-            
-                            <data
-                                android:scheme="nuvioenhanced"
-                                android:host="auth"
-                                android:path="/trakt" />
-                        </intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="nuvioenhanced" android:host="auth" android:path="/trakt" />
+            </intent-filter>
             <intent-filter>
-                            <action android:name="android.intent.action.VIEW" />
-            
-                            <category android:name="android.intent.category.DEFAULT" />
-                            <category android:name="android.intent.category.BROWSABLE" />
-            
-                            <data
-                                android:scheme="nuvio"
-                                android:host="auth"
-                                android:path="/trakt" />
-                        </intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="nuvio" android:host="auth" android:path="/trakt" />
+            </intent-filter>
             <intent-filter>
-                            <action android:name="android.intent.action.VIEW" />
-            
-                            <category android:name="android.intent.category.DEFAULT" />
-                            <category android:name="android.intent.category.BROWSABLE" />
-            
-                            <data android:scheme="nuvio" />
-                        </intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="nuvio" />
+            </intent-filter>
             <intent-filter>
-                            <action android:name="android.intent.action.VIEW" />
-            
-                            <category android:name="android.intent.category.DEFAULT" />
-                            <category android:name="android.intent.category.BROWSABLE" />
-            
-                            <data android:scheme="stremio" />
-                        </intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="stremio" />
+            </intent-filter>
             <intent-filter>
-                            <action android:name="android.intent.action.VIEW" />
-            
-                            <category android:name="android.intent.category.DEFAULT" />
-                            <category android:name="android.intent.category.BROWSABLE" />
-            
-                            <data android:scheme="magnet" />
-                        </intent-filter>
-        </activity>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="magnet" />
+            </intent-filter>
+        </activity>ctivity>
         <activity-alias
             android:name="com.nuvio.app.launcher.AppIconDefault"
             android:enabled="true"
