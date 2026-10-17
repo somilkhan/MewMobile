@@ -1223,16 +1223,16 @@ private fun LibmpvPlayerSurface(
     val latestOnError = rememberUpdatedState(onError)
     val latestPlayWhenReady = rememberUpdatedState(playWhenReady)
     val coroutineScope = rememberCoroutineScope()
+    val sanitizedSourceHeaders = remember(sourceHeaders) {
+        sanitizePlaybackHeaders(sourceHeaders)
+    }
+    var playerViewRef by remember { mutableStateOf<NuvioLibmpvView?>(null) }
     val audioFocus = remember(context) {
         PlayerAudioFocus(context) { playerViewRef?.setPaused(true) }
     }
     DisposableEffect(audioFocus) {
         onDispose { audioFocus.abandon() }
     }
-    val sanitizedSourceHeaders = remember(sourceHeaders) {
-        sanitizePlaybackHeaders(sourceHeaders)
-    }
-    var playerViewRef by remember { mutableStateOf<NuvioLibmpvView?>(null) }
     val nowPlayingController = remember(context, playerViewRef) {
         playerViewRef?.let { view ->
             AndroidPlayerNowPlayingController(
