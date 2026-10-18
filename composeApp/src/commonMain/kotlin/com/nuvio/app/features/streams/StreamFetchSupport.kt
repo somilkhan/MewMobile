@@ -934,7 +934,7 @@ private fun String.matchesRequestedCloudStreamEpisodeTitle(requestedTitle: Strin
 private fun String.isGenericCloudStreamEpisodeTitle(): Boolean =
     matches(cloudStreamGenericEpisodeTitleRegex)
 
-private val cloudStreamSeasonQualifierRegex = Regex("""(?i)\\s+(?:season|series)\\s+\\d+\\s*$""")
+private val cloudStreamSeasonQualifierRegex = Regex("""(?i)\s+(?:season|series)\s+\d+\s*$""")
 
 private fun String.withoutTrailingCloudStreamSeasonQualifier(): String {
     val trimmed = trim()
