@@ -558,6 +558,7 @@ fun MetaDetailsScreen(
                         watchedItems = watchedUiState.items,
                         todayIsoDate = todayIsoDate,
                         preferFurthestEpisode = cwPrefs.upNextFromFurthestEpisode,
+                        allowRewatch = true,
                     )
                 }
                 val seriesActionVideo = remember(seriesAction, meta.id, meta.videos) {

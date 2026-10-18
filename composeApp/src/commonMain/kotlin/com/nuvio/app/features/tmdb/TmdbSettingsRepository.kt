@@ -1,6 +1,9 @@
 package com.nuvio.app.features.tmdb
 
 import com.nuvio.app.core.time.EpisodeReleaseDatePlatform
+import com.nuvio.app.features.details.MetaDetailsRepository
+import com.nuvio.app.features.profiles.ProfileRepository
+import com.nuvio.app.features.watchprogress.ContinueWatchingEnrichmentCache
 import com.nuvio.app.features.player.DeviceLanguagePreferences
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -11,6 +14,9 @@ object TmdbSettingsRepository {
     val uiState: StateFlow<TmdbSettings> = _uiState.asStateFlow()
 
     private var hasLoaded = false
+
+    private val _enableAfterConfigRequested = MutableStateFlow(false)
+    val enableAfterConfigRequested: StateFlow<Boolean> = _enableAfterConfigRequested.asStateFlow()
 
     private var enabled = false
     private var apiKey = ""
@@ -37,6 +43,17 @@ object TmdbSettingsRepository {
         loadFromDisk()
     }
 
+    fun requestEnableAfterConfig() {
+        _enableAfterConfigRequested.value = true
+    }
+
+    fun completeEnableAfterConfigIfPossible() {
+        ensureLoaded()
+        if (!_enableAfterConfigRequested.value || apiKey.isBlank()) return
+        _enableAfterConfigRequested.value = false
+        setEnabled(true)
+    }
+
     fun snapshot(): TmdbSettings {
         ensureLoaded()
         return _uiState.value
@@ -49,6 +66,7 @@ object TmdbSettingsRepository {
         enabled = value
         publish()
         TmdbSettingsStorage.saveEnabled(value)
+        invalidateMetadata()
     }
 
     fun setApiKey(value: String) {
@@ -62,6 +80,7 @@ object TmdbSettingsRepository {
         }
         publish()
         TmdbSettingsStorage.saveApiKey(normalized, EpisodeReleaseDatePlatform.nowEpochMs())
+        invalidateMetadata()
     }
 
     fun setLanguage(value: String) {
@@ -194,6 +213,11 @@ object TmdbSettingsRepository {
         useMoreLikeThis = TmdbSettingsStorage.loadUseMoreLikeThis() ?: true
         useCollections = TmdbSettingsStorage.loadUseCollections() ?: true
         publish()
+    }
+
+    private fun invalidateMetadata() {
+        MetaDetailsRepository.invalidateTmdbEnrichment()
+        ContinueWatchingEnrichmentCache.clearAll(ProfileRepository.activeProfileId)
     }
 
     private fun publish() {

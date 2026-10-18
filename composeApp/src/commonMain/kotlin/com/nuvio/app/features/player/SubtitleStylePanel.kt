@@ -99,6 +99,7 @@ fun SubtitleSyncPanel(
     onSubtitleDelayChanged: (Int) -> Unit,
     onSubtitleDelayReset: () -> Unit,
     onAutoSyncCapture: () -> Unit,
+    onSyncByEarClick: () -> Unit,
     onAutoSyncCueSelected: (SubtitleSyncCue) -> Unit,
     onAutoSyncReload: () -> Unit,
     onTogglePlayback: () -> Unit,
@@ -129,6 +130,7 @@ fun SubtitleSyncPanel(
                 onSubtitleDelayChanged = onSubtitleDelayChanged,
                 onSubtitleDelayReset = onSubtitleDelayReset,
                 onAutoSyncCapture = onAutoSyncCapture,
+                onSyncByEarClick = onSyncByEarClick,
                 onAutoSyncCueSelected = onAutoSyncCueSelected,
                 onAutoSyncReload = onAutoSyncReload,
                 onTogglePlayback = onTogglePlayback,
@@ -151,6 +153,7 @@ private fun SyncControlsCard(
     onSubtitleDelayChanged: (Int) -> Unit,
     onSubtitleDelayReset: () -> Unit,
     onAutoSyncCapture: () -> Unit,
+    onSyncByEarClick: () -> Unit,
     onAutoSyncCueSelected: (SubtitleSyncCue) -> Unit,
     onAutoSyncReload: () -> Unit,
     onTogglePlayback: () -> Unit,
@@ -198,11 +201,15 @@ private fun SyncControlsCard(
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End,
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
         ) {
             SmallActionPill(
                 text = stringResource(Res.string.compose_player_reset),
                 onClick = onSubtitleDelayReset,
+            )
+            SmallActionPill(
+                text = stringResource(Res.string.compose_player_sync_by_ear),
+                onClick = onSyncByEarClick,
             )
         }
 

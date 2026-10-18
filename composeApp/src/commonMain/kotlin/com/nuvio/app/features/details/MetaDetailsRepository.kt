@@ -276,6 +276,49 @@ object MetaDetailsRepository {
             ?: cachedEntry.baseMeta
     }
 
+    fun invalidateTmdbEnrichment() {
+        val currentState = _uiState.value
+        val requestKey = currentState.requestKey
+        activeJob?.cancel()
+        activeJob = null
+        activeRequestGeneration += 1
+        activeSettingsFingerprint = null
+
+        synchronized(cacheLock) {
+            cacheGeneration += 1
+            val iterator = cachedMetaByRequestKey.entries.iterator()
+            while (iterator.hasNext()) {
+                val entry = iterator.next()
+                if (entry.value.baseMeta.id.startsWith("tmdb:", ignoreCase = true)) {
+                    iterator.remove()
+                } else {
+                    entry.setValue(
+                        entry.value.copy(
+                            metaScreenMeta = null,
+                            metaScreenSettingsFingerprint = null,
+                        ),
+                    )
+                }
+            }
+        }
+
+        val cachedBase = requestKey?.let(::cachedEntry)
+        activeRequestKey = requestKey?.takeIf { cachedBase != null }
+        if (cachedBase != null) {
+            _uiState.value = MetaDetailsUiState(
+                requestKey = requestKey,
+                meta = cachedBase.baseMeta.withUnreleasedFilter(),
+            )
+        } else if (requestKey != null && currentState.meta?.id?.startsWith("tmdb:", ignoreCase = true) == true) {
+            // Remove the stale standalone TMDB result without launching network work from settings.
+            // The detail route will fetch again when it is next loaded with the new settings.
+            _uiState.value = MetaDetailsUiState(requestKey = requestKey)
+        } else if (currentState.isLoading) {
+            _uiState.value = currentState.copy(isLoading = false)
+        }
+        RuntimeDiagnostics.updateMetadataLoading(false)
+    }
+
     fun clear() {
         activeJob?.cancel()
         activeJob = null

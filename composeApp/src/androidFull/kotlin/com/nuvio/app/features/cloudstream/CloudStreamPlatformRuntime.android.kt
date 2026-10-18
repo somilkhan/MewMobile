@@ -42,6 +42,8 @@ import java.lang.ref.WeakReference
 import java.util.Collections
 import java.util.zip.ZipFile
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
@@ -49,7 +51,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
@@ -67,6 +68,9 @@ internal actual object CloudStreamPlatformRuntime {
     private val json = Json { ignoreUnknownKeys = true }
     private val loadMutex = Mutex()
     private val backgroundScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val nativeRepositorySyncLock = Any()
+    private val nativeRepositorySyncMutex = Mutex()
+    private var nativeRepositorySyncJob: Job? = null
     private val loadedLock = Any()
     private val loaded = linkedMapOf<String, LoadedPlugin>()
     private var appContext: Context? = null
@@ -99,18 +103,11 @@ internal actual object CloudStreamPlatformRuntime {
                 }
             }
             if (loadedNow) {
-                // Reconcile synchronous repository registrations immediately, then give
-                // asynchronous bootstrap plugins a bounded background window to publish
-                // RepositoryManager entries just like the real CloudStream host does.
+                // Reconcile synchronous registrations immediately. Keep a shared bounded poll
+                // running after every plugin load: bootstrap plugins can register repositories
+                // asynchronously even when that same plugin already exposes MainAPI providers.
                 syncNativeRepositories()
-                if (loadedPlugin.providers.isEmpty()) {
-                    backgroundScope.launch {
-                        repeat(NATIVE_REPOSITORY_SYNC_ATTEMPTS - 1) {
-                            delay(NATIVE_REPOSITORY_SYNC_DELAY_MS)
-                            syncNativeRepositories()
-                        }
-                    }
-                }
+                scheduleNativeRepositorySync()
             }
             loadedPlugin.provider
         }
@@ -338,12 +335,40 @@ internal actual object CloudStreamPlatformRuntime {
 
     }
 
+    private fun scheduleNativeRepositorySync() {
+        synchronized(nativeRepositorySyncLock) {
+            if (nativeRepositorySyncJob?.isActive == true) return
+            nativeRepositorySyncJob = backgroundScope.launch {
+                try {
+                    repeat(NATIVE_REPOSITORY_SYNC_ATTEMPTS - 1) {
+                        delay(NATIVE_REPOSITORY_SYNC_DELAY_MS)
+                        syncNativeRepositories()
+                    }
+                } finally {
+                    synchronized(nativeRepositorySyncLock) {
+                        nativeRepositorySyncJob = null
+                    }
+                }
+            }
+        }
+    }
+
     /**
      * CloudStream's RepositoryManager persists repositories registered by extensions, but the
      * upstream API does not expose a repository-added callback. Read that native registry after
      * plugin loading and reconcile only repositories Mew does not already own.
      */
     private suspend fun syncNativeRepositories() {
+        // Skip overlapping reconciliation rather than queueing duplicate manifest fetches.
+        if (!nativeRepositorySyncMutex.tryLock()) return
+        try {
+            syncNativeRepositoriesLocked()
+        } finally {
+            nativeRepositorySyncMutex.unlock()
+        }
+    }
+
+    private suspend fun syncNativeRepositoriesLocked() {
         val nativeRepositories: List<String> = runCatching {
             val managerClass = Class.forName(CLOUDSTREAM_REPOSITORY_MANAGER_CLASS).kotlin
             val manager = managerClass.java.getField("INSTANCE").get(null) ?: return@runCatching emptyList<String>()

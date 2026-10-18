@@ -264,7 +264,7 @@ class MainActivity : AppCompatActivity() {
         if (handleSharedStreamIntent(intent)) {
             return
         }
-        val appUrl = intent.dataString?.trim().orEmpty()
+        val appUrl = (intent.dataString ?: intent.getStringExtra(LinkActivity.EXTRA_LINK))?.trim().orEmpty()
         if (appUrl.isBlank()) return
         handleAppUrl(appUrl)
     }

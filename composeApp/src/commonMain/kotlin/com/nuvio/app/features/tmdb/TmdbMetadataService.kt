@@ -698,7 +698,7 @@ object TmdbMetadataService {
         id: String,
         settings: TmdbSettings,
     ): MetaDetails? {
-        if (!settings.hasApiKey) return null
+        if (!settings.canUseMetadata) return null
 
         val tmdbId = id
             .takeIf { it.startsWith("tmdb:", ignoreCase = true) }

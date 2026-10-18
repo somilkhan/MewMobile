@@ -5,6 +5,7 @@ on:
     branches:
       - enhanced
       - feature/cloudstream-dynamic-repositories
+      - sync/upstream
   pull_request:
     branches:
       - enhanced
@@ -51,6 +52,9 @@ jobs:
             exit 1
           fi
 
+      - name: Run Android host tests
+        run: ./gradlew :composeApp:testAndroidHostTest -Pnuvio.android.distribution=full --stacktrace
+
       - name: Build Android Full debug
         env:
           MEW_DEBUG_KEYSTORE_FILE: ${{ runner.temp }}/mew-debug/mew-debug.keystore
@@ -58,6 +62,17 @@ jobs:
           MEW_DEBUG_KEY_ALIAS: ${{ secrets.MEW_DEBUG_KEY_ALIAS }}
           MEW_DEBUG_KEY_PASSWORD: ${{ secrets.MEW_DEBUG_KEY_PASSWORD }}
         run: ./gradlew :androidApp:assembleFullDebug -Pnuvio.android.distribution=full --stacktrace
+
+      - name: Verify Mew package ID
+        run: |
+          set -euo pipefail
+          APK="$(find androidApp/build/outputs/apk/full/debug -name '*.apk' -print -quit)"
+          APKANALYZER="$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer"
+          test -f "$APK"
+          test -x "$APKANALYZER"
+          APP_ID="$("$APKANALYZER" manifest application-id "$APK")"
+          echo "APK application ID: $APP_ID"
+          test "$APP_ID" = "com.mew.mobile.debug"
 
       - name: Verify debug APK signing
         env:
