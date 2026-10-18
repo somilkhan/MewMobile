@@ -552,9 +552,10 @@ object HomeRepository {
                 }
                 repeat(scanPlugins.size) {
                     val (_, result) = resultChannel.receive()
-                    if (sections.size < HOME_CLOUDSTREAM_SECTION_PREVIEW_LIMIT) {
-                        val remaining = HOME_CLOUDSTREAM_SECTION_PREVIEW_LIMIT - sections.size
-                        sections += result.sections.take(remaining)
+                    if (sections.size < HOME_CLOUDSTREAM_SECTION_PREVIEW_LIMIT && result.sections.isNotEmpty()) {
+                        // Reserve one Home row per provider. Without this, the first provider's
+                        // multiple categories can consume the entire global section budget.
+                        sections += result.sections.first()
                     }
                     if (firstError == null) firstError = result.errorMessage
                     if (sections.isNotEmpty() && activeRequestKey == requestKey) {
