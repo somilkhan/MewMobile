@@ -781,7 +781,9 @@ internal fun CloudStreamLoadItem.linkDataForCloudStreamRequest(
         }
         return exactEpisodes.bestEpisodeTitleMatch(request)?.data
             ?: exactEpisodes.firstOrNull()?.data
-            ?: titledEpisode?.takeIf { item -> item.episode == request.episode }?.data
+            // Never fall back to an episode number alone when a season was requested:
+            // S1E3 is not a valid substitute for S2E3. Providers that omit season metadata
+            // may use the guarded unknown-season fallback below, which rejects ambiguous lists.
             ?: sortedEpisodes.safeUnknownSeasonEpisodeMatch(request)?.data
     }
 
