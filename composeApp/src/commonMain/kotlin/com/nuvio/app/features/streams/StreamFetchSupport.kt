@@ -473,9 +473,16 @@ internal fun buildCloudStreamSearchRequest(
     val metaLookupType = parentMetaType?.takeIf { it.isNotBlank() } ?: type
     val metaLookupId = parentMetaId?.takeIf { it.isNotBlank() } ?: videoId
     val meta = MetaDetailsRepository.peek(metaLookupType, metaLookupId)
-    val title = searchTitle?.trim()?.takeIf { it.isNotBlank() }
+    val rawTitle = searchTitle?.trim()?.takeIf { it.isNotBlank() }
         ?: meta?.name?.trim()?.takeIf { it.isNotBlank() }
         ?: return null
+    // Some episode/catalog routes expose a season-qualified display title (e.g. "Black Clover Season 2")
+    // as if it were the series title. Search the parent series first, but retain the original as an alias.
+    val title = if (normalizeCloudStreamNuvioType(type) == "series") {
+        rawTitle.withoutTrailingCloudStreamSeasonQualifier()
+    } else {
+        rawTitle
+    }
     val aliases = (listOfNotNull(meta?.name, searchTitle) + meta?.aliases.orEmpty())
         .cleanCloudStreamRequestAliases(primaryTitle = title)
     val year = meta?.releaseInfo.cloudStreamReleaseYear()
@@ -926,6 +933,13 @@ private fun String.matchesRequestedCloudStreamEpisodeTitle(requestedTitle: Strin
 
 private fun String.isGenericCloudStreamEpisodeTitle(): Boolean =
     matches(cloudStreamGenericEpisodeTitleRegex)
+
+private val cloudStreamSeasonQualifierRegex = Regex("""(?i)\\s+(?:season|series)\\s+\\d+\\s*$""")
+
+private fun String.withoutTrailingCloudStreamSeasonQualifier(): String {
+    val trimmed = trim()
+    return trimmed.replace(cloudStreamSeasonQualifierRegex, "").trim().ifBlank { trimmed }
+}
 
 private fun String.withoutTrailingCloudStreamReleaseYear(): String {
     val tokens = split(' ').filter { it.isNotBlank() }
