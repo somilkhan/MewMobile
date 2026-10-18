@@ -136,6 +136,7 @@ object StreamsRepository {
             type = type,
             request = cloudStreamSearchRequest,
             directRoute = cloudStreamRoute,
+            groupByRepository = pluginUiState.groupStreamsByRepository,
         )
         val cloudStreamRegistryRevision = CloudStreamRepository.uiState.value.registryRevision
         val requestToken = requestToken(
