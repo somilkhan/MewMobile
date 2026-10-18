@@ -1205,7 +1205,9 @@ object TmdbMetadataService {
         endpoint: String,
         query: Map<String, String> = emptyMap(),
     ): T? {
-        val apiKey = TmdbSettingsRepository.snapshot().apiKey.trim().takeIf(String::isNotBlank) ?: return null
+        val settings = TmdbSettingsRepository.snapshot()
+        if (!settings.canUseMetadata) return null
+        val apiKey = settings.apiKey.trim().takeIf(String::isNotBlank) ?: return null
         val url = buildTmdbUrl(endpoint = endpoint, apiKey = apiKey, query = query)
         val payload = requestCoordinator.execute(url) {
             requestTmdbText {

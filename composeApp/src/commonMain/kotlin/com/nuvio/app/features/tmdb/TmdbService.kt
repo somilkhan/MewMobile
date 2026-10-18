@@ -179,8 +179,11 @@ object TmdbService {
         }.getOrNull()
     }
 
-    private fun currentApiKey(): String? =
-        TmdbSettingsRepository.snapshot().apiKey.trim().takeIf(String::isNotBlank)
+    private fun currentApiKey(): String? = TmdbSettingsRepository.snapshot()
+        .takeIf { it.canUseMetadata }
+        ?.apiKey
+        ?.trim()
+        ?.takeIf(String::isNotBlank)
 
     internal fun normalizeMediaType(mediaType: String): String =
         when (mediaType.trim().lowercase()) {
