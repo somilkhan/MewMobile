@@ -888,12 +888,7 @@ private fun MobileSettingsScreen(
                     isTablet = false,
                     showPluginsEntry = AppFeaturePolicy.pluginsEnabled,
                     showCloudStreamEntry = AppFeaturePolicy.pluginsEnabled,
-                    tmdbSettings = tmdbSettings,
                     onAddonsClick = onAddonsClick,
-                    onTmdbConfigureClick = {
-                        onTmdbEnableRequested()
-                        onPageChange(SettingsPage.TmdbEnrichment)
-                    },
                     onPluginsClick = onPluginsClick,
                     onCloudStreamClick = onCloudStreamClick,
                 )
@@ -1365,12 +1360,7 @@ private fun TabletSettingsScreen(
                         isTablet = true,
                         showPluginsEntry = AppFeaturePolicy.pluginsEnabled,
                         showCloudStreamEntry = AppFeaturePolicy.pluginsEnabled,
-                        tmdbSettings = tmdbSettings,
                         onAddonsClick = { openInlinePage(SettingsPage.Addons) },
-                        onTmdbConfigureClick = {
-                            onTmdbEnableRequested()
-                            openInlinePage(SettingsPage.TmdbEnrichment)
-                        },
                         onPluginsClick = { openInlinePage(SettingsPage.Plugins) },
                         onCloudStreamClick = { openInlinePage(SettingsPage.CloudStream) },
                     )

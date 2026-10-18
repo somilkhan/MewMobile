@@ -4,6 +4,7 @@ import co.touchlab.kermit.Logger
 import com.nuvio.app.features.addons.AddonManifest
 import com.nuvio.app.features.addons.ManagedAddon
 import com.nuvio.app.features.cloudstream.CloudStreamLoadItem
+import com.nuvio.app.features.cloudstream.CloudStreamRouteData
 import com.nuvio.app.features.cloudstream.CloudStreamEpisode
 import com.nuvio.app.features.cloudstream.CloudStreamPluginItem
 import com.nuvio.app.features.cloudstream.CloudStreamRepository
@@ -53,6 +54,7 @@ internal data class CloudStreamProviderGroup(
     val addonId: String,
     val addonName: String,
     val providerId: String,
+    val directData: String? = null,
 )
 
 internal data class CloudStreamSearchRequest(
@@ -92,6 +94,7 @@ internal fun cloudStreamAddonId(providerId: String): String =
 internal fun cloudStreamProviderGroupsForRequest(
     type: String,
     request: CloudStreamSearchRequest?,
+    directRoute: CloudStreamRouteData? = null,
 ): List<CloudStreamProviderGroup> {
     CloudStreamRepository.initialize()
     return CloudStreamRepository.uiState.value.plugins
@@ -111,6 +114,9 @@ internal fun cloudStreamProviderGroupsForRequest(
                 addonId = cloudStreamAddonId(plugin.metadata.id.value),
                 addonName = plugin.metadata.name.ifBlank { plugin.metadata.internalName },
                 providerId = plugin.metadata.id.value,
+                directData = directRoute
+                    ?.takeIf { route -> route.providerId == plugin.metadata.id.value }
+                    ?.data,
             )
         }
         .distinctBy { it.providerId }
@@ -121,10 +127,12 @@ internal suspend fun resolveCloudStreamProviderStreams(
     request: CloudStreamSearchRequest?,
 ): AddonStreamGroup {
     val searchRequest = request?.takeIf { it.title.isNotBlank() }
-        ?: return providerGroup.toCloudStreamGroup(
+    if (searchRequest == null && providerGroup.directData == null) {
+        return providerGroup.toCloudStreamGroup(
             streams = emptyList(),
             error = "CloudStream search title is unavailable",
         )
+    }
 
     // Third-party plugins can execute blocking code that ignores coroutine cancellation.
     // Run them in a detached supervisor so a timed-out plugin cannot retain the caller's
@@ -132,6 +140,22 @@ internal suspend fun resolveCloudStreamProviderStreams(
     val providerTask = cloudStreamProviderScope.async {
         runCatchingUnlessCancelled {
             var lastError: Throwable? = null
+            providerGroup.directData?.let { directData ->
+                val directSources = runCatchingUnlessCancelled {
+                    CloudStreamRepository.loadLinks(providerGroup.providerId, directData).getOrThrow()
+                }.onFailure { error -> lastError = error }
+                    .getOrNull()
+                val directStreams = directSources?.let { sources ->
+                    cloudStreamSourcesToStreamItems(
+                        providerId = providerGroup.providerId,
+                        providerName = providerGroup.addonName,
+                        sources = sources,
+                    )
+                }.orEmpty()
+                if (directStreams.isNotEmpty()) return@runCatchingUnlessCancelled directStreams
+            }
+            val activeSearchRequest = searchRequest
+                ?: throw IllegalStateException("CloudStream search title is unavailable")
             suspend fun resolveMatch(
                 match: CloudStreamSearchItem,
                 allowProviderRankedFallback: Boolean,
@@ -142,13 +166,13 @@ internal suspend fun resolveCloudStreamProviderStreams(
                     .getOrNull()
                     ?: return null
                 if (!loaded.matchesCloudStreamRequest(
-                        request = searchRequest,
+                        request = activeSearchRequest,
                         searchItem = match,
                         allowProviderRankedFallback = allowProviderRankedFallback,
                     )
                 ) return null
 
-                val linkData = loaded.linkDataForCloudStreamRequest(searchRequest)
+                val linkData = loaded.linkDataForCloudStreamRequest(activeSearchRequest)
                 if (linkData == null) {
                     lastError = IllegalStateException("CloudStream episode not found")
                     return null
@@ -172,9 +196,9 @@ internal suspend fun resolveCloudStreamProviderStreams(
 
             val indexedRoutes = CloudStreamSearchRouteIndex.find(
                 providerId = providerGroup.providerId,
-                titles = searchRequest.titleCandidates,
-                type = searchRequest.type,
-                year = searchRequest.year,
+                titles = activeSearchRequest.titleCandidates,
+                type = activeSearchRequest.type,
+                year = activeSearchRequest.year,
             )
             for (route in indexedRoutes) {
                 resolveMatch(route, allowProviderRankedFallback = true)?.let {
@@ -182,13 +206,13 @@ internal suspend fun resolveCloudStreamProviderStreams(
                 }
             }
 
-            searchRequest.externalId?.let { externalId ->
+            activeSearchRequest.externalId?.let { externalId ->
                 val loaded = runCatchingUnlessCancelled {
                     CloudStreamRepository.loadByExternalId(providerGroup.providerId, externalId).getOrThrow()
                 }.onFailure { error -> lastError = error }
                     .getOrNull()
                 if (loaded != null) {
-                    val linkData = loaded.linkDataForCloudStreamRequest(searchRequest)
+                    val linkData = loaded.linkDataForCloudStreamRequest(activeSearchRequest)
                     if (linkData != null) {
                         val directSources = runCatchingUnlessCancelled {
                             CloudStreamRepository.loadLinks(providerGroup.providerId, linkData).getOrThrow()
@@ -205,7 +229,7 @@ internal suspend fun resolveCloudStreamProviderStreams(
                     }
                 }
             }
-            for (query in searchRequest.searchQueries()) {
+            for (query in activeSearchRequest.searchQueries()) {
                 val searchResults = runCatchingUnlessCancelled {
                     CloudStreamRepository.search(query, providerGroup.providerId)
                         .firstOrNull()
@@ -215,9 +239,9 @@ internal suspend fun resolveCloudStreamProviderStreams(
                 }.onFailure { error -> lastError = error }
                     .getOrDefault(emptyList())
 
-                val strictMatches = searchResults.bestCloudStreamMatches(searchRequest)
+                val strictMatches = searchResults.bestCloudStreamMatches(activeSearchRequest)
                 val matches = strictMatches.ifEmpty {
-                    searchResults.providerRankedCloudStreamFallbacks(searchRequest)
+                    searchResults.providerRankedCloudStreamFallbacks(activeSearchRequest)
                 }
                 if (matches.isEmpty()) continue
                 val isProviderRankedFallback = strictMatches.isEmpty()
