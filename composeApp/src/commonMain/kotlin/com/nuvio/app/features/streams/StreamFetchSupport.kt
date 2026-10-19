@@ -879,6 +879,11 @@ internal fun CloudStreamLoadItem.matchesCloudStreamRequest(
         if (requestedType == "movie" && searchYear != requestedYear && loadedYear != requestedYear) return false
     }
 
+    // Provider-ranked fallback can be useful for localized movie titles only when
+    // the requested year independently verifies the result. For series, accepting a
+    // title mismatch can resolve an unrelated show's episode with the same S/E numbers.
+    if (!titleMatches && (requestedType != "movie" || requestedYear == null)) return false
+
     return titleMatches || allowProviderRankedFallback
 }
 
