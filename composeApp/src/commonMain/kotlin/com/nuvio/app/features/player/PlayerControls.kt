@@ -40,6 +40,8 @@ import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.LockOpen
 import androidx.compose.material.icons.rounded.Replay10
 import androidx.compose.material.icons.rounded.Shuffle
+import androidx.compose.material.icons.rounded.StayCurrentLandscape
+import androidx.compose.material.icons.rounded.StayCurrentPortrait
 import androidx.compose.material.icons.rounded.SignalCellularAlt
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.SwapHoriz
@@ -109,6 +111,8 @@ internal fun PlayerControlsShell(
     onQualityClick: (() -> Unit)? = null,
     onChannelsClick: (() -> Unit)? = null,
     onVideoSettingsClick: (() -> Unit)? = null,
+    onOrientationToggleClick: (() -> Unit)? = null,
+    isPortraitPlayback: Boolean = false,
     onSourcesClick: (() -> Unit)? = null,
     onEpisodesClick: (() -> Unit)? = null,
     onNextEpisodeClick: (() -> Unit)? = null,
@@ -195,6 +199,8 @@ internal fun PlayerControlsShell(
                     onParentalGuideAnimationComplete = onParentalGuideAnimationComplete,
                     onLockToggle = onLockToggle,
                     onVideoSettingsClick = onVideoSettingsClick,
+                    onOrientationToggleClick = onOrientationToggleClick,
+                    isPortraitPlayback = isPortraitPlayback,
                     randomNextEpisodeMode = randomNextEpisodeMode,
                     onRandomNextEpisodeModeToggle = onRandomNextEpisodeModeToggle,
                     onOpenInExternalPlayer = onOpenInExternalPlayer,
@@ -500,6 +506,8 @@ private fun PlayerHeader(
     onParentalGuideAnimationComplete: () -> Unit,
     onLockToggle: () -> Unit,
     onVideoSettingsClick: (() -> Unit)?,
+    onOrientationToggleClick: (() -> Unit)?,
+    isPortraitPlayback: Boolean,
     randomNextEpisodeMode: Boolean,
     onRandomNextEpisodeModeToggle: (() -> Unit)?,
     onOpenInExternalPlayer: (() -> Unit)?,
@@ -597,6 +605,17 @@ private fun PlayerHeader(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
+                        if (onOrientationToggleClick != null) {
+                            PlayerHeaderIconButton(
+                                icon = if (isPortraitPlayback) Icons.Rounded.StayCurrentLandscape else Icons.Rounded.StayCurrentPortrait,
+                                contentDescription = stringResource(
+                                    if (isPortraitPlayback) Res.string.player_action_rotate_landscape else Res.string.player_action_rotate_portrait,
+                                ),
+                                buttonSize = metrics.headerIconSize + 16.dp,
+                                iconSize = metrics.headerIconSize,
+                                onClick = onOrientationToggleClick,
+                            )
+                        }
                         if (onSubmitIntroClick != null) {
                             PlayerHeaderIconButton(
                                 icon = Icons.Rounded.Flag,

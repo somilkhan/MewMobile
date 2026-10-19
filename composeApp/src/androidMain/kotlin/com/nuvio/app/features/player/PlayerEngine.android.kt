@@ -12,6 +12,7 @@ import android.util.TypedValue
 import android.graphics.RectF
 import android.graphics.Typeface
 import android.os.Build
+import android.view.View
 import android.view.SurfaceHolder
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.util.AttributeSet
@@ -936,10 +937,12 @@ private fun ExoPlayerSurface(
                 }
 
                 override fun setVideoZoom(scale: Float) {
-                    playerViewRef?.videoSurfaceView?.apply {
-                        scaleX = scale
-                        scaleY = scale
-                    }
+                    val playerView = playerViewRef ?: return
+                    val target = playerView.findViewById<View>(androidx.media3.ui.R.id.exo_content_frame)
+                        ?: playerView.videoSurfaceView
+                        ?: return
+                    target.scaleX = scale
+                    target.scaleY = scale
                 }
 
                 override fun setVolumeBoost(multiplier: Float) {
