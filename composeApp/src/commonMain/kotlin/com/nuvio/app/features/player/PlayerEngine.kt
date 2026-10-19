@@ -10,6 +10,8 @@ interface PlayerEngineController {
     fun seekBy(offsetMs: Long)
     fun retry()
     fun setPlaybackSpeed(speed: Float)
+    /** Applies a transient video zoom without changing the saved aspect-ratio mode. */
+    fun setVideoZoom(scale: Float) {}
     fun setMuted(muted: Boolean) {}
     fun setVolumeBoost(multiplier: Float) {}
     fun getAudioTracks(): List<AudioTrack>
