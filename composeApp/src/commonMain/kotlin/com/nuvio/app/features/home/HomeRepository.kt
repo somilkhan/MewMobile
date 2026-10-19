@@ -169,9 +169,12 @@ object HomeRepository {
         activeJob?.cancel()
         _uiState.update { it.copy(isLoading = true, errorMessage = null) }
         activeJob = scope.launch {
-            val cloudResult = loadCloudSections(cloudPlugins, requestKey)
-            if (activeRequestKey != requestKey) return@launch
-            cachedCloudSections = cloudResult.sections
+            // Add-on catalogs should load while CloudStream providers are scanning.
+            // loadCloudSections publishes provider rows progressively; await its final result
+            // only when composing the final Home state.
+            val cloudResultDeferred = async {
+                loadCloudSections(cloudPlugins, requestKey)
+            }
             val prioritizedRequests = prioritizeDefinitions(
                 definitions = requests,
                 snapshot = HomeCatalogSettingsRepository.snapshot(),
@@ -180,6 +183,9 @@ object HomeRepository {
                 force || cachedSections[definition.cacheKey] == null
             }
             if (pendingRequests.isEmpty()) {
+                val cloudResult = cloudResultDeferred.await()
+                if (activeRequestKey != requestKey) return@launch
+                cachedCloudSections = cloudResult.sections
                 lastErrorMessage = cloudResult.errorMessage
                 completedRequestKey = requestKey.takeIf { cachedCloudSections.isNotEmpty() || cachedSections.isNotEmpty() }
                 activeRequestKey = null
@@ -192,7 +198,7 @@ object HomeRepository {
             val loadedSections = linkedMapOf<String, HomeCatalogSection>().apply {
                 putAll(cachedSections)
             }
-            var firstErrorMessage: String? = cloudResult.errorMessage
+            var firstErrorMessage: String? = null
             var batchIndex = 0
 
             pendingRequests.chunked(HOME_CATALOG_FETCH_BATCH_SIZE).forEach { batch ->
@@ -231,6 +237,10 @@ object HomeRepository {
             }
 
             if (activeRequestKey != requestKey) return@launch
+            val cloudResult = cloudResultDeferred.await()
+            if (activeRequestKey != requestKey) return@launch
+            cachedCloudSections = cloudResult.sections
+            if (firstErrorMessage == null) firstErrorMessage = cloudResult.errorMessage
 
             cachedSections = loadedSections.toMap()
             lastErrorMessage = firstErrorMessage
