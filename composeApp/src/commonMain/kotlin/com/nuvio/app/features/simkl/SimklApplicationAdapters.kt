@@ -30,6 +30,7 @@ import kotlinx.coroutines.launch
 
 object SimklWatchedSyncAdapter : TrackingWatchedProvider {
     override val providerId: TrackingProviderId = TrackingProviderId.SIMKL
+    private val log = Logger.withTag("SimklWatchedSyncAdapter")
     override suspend fun pull(profileId: Int, pageSize: Int): List<WatchedItem> {
         if (profileId != ProfileRepository.activeProfileId) return emptyList()
         SimklSyncRepository.refresh(
