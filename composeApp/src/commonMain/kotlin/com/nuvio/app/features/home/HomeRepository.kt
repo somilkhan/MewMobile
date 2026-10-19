@@ -516,7 +516,7 @@ object HomeRepository {
     ): CloudHomeSectionsResult {
         val sections = mutableListOf<HomeCatalogSection>()
         var firstError: String? = null
-        val scanPlugins = plugins.take(HOME_CLOUDSTREAM_PROVIDER_SCAN_LIMIT)
+        val scanPlugins = plugins
         withTimeoutOrNull(HOME_CLOUDSTREAM_TOTAL_PREVIEW_TIMEOUT_MS) {
             val gate = Semaphore(HOME_CLOUDSTREAM_PROVIDER_CONCURRENCY)
             val resultChannel = Channel<Pair<CloudStreamPluginItem, CloudHomeProviderResult>>(Channel.BUFFERED)
@@ -742,11 +742,10 @@ private const val HOME_COLLECTION_HERO_SOURCE_ITEM_LIMIT = 8
 private const val HOME_CATALOG_FETCH_BATCH_SIZE = 4
 private const val HOME_CATALOG_PREVIEW_FETCH_LIMIT = 18
 private const val HOME_CATALOG_PUBLISH_INTERVAL = 2
-private const val HOME_CLOUDSTREAM_PROVIDER_SCAN_LIMIT = 6
 private const val HOME_CLOUDSTREAM_SECTION_PREVIEW_LIMIT = 6
 private const val HOME_CLOUDSTREAM_PROVIDER_TIMEOUT_MS = 5_000L
-private const val HOME_CLOUDSTREAM_PROVIDER_CONCURRENCY = 2
-private const val HOME_CLOUDSTREAM_TOTAL_PREVIEW_TIMEOUT_MS = 15_000L
+private const val HOME_CLOUDSTREAM_PROVIDER_CONCURRENCY = 4
+private const val HOME_CLOUDSTREAM_TOTAL_PREVIEW_TIMEOUT_MS = 30_000L
 private const val HOME_CATALOG_REQUEST_TIMEOUT_MS = 12_000L
 private const val HOME_COLLECTION_HERO_SOURCE_TIMEOUT_MS = 10_000L
 private const val HOME_HERO_LOCALIZED_ARTWORK_BATCH_SIZE = 3
