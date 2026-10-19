@@ -775,7 +775,13 @@ internal fun CloudStreamLoadItem.linkDataForCloudStreamRequest(
 ): String? {
     val requestedType = normalizeCloudStreamNuvioType(request.type)
     val sortedEpisodes = sortCloudStreamEpisodes(episodes)
-    if (requestedType != "series" || sortedEpisodes.isEmpty()) return data
+    if (requestedType != "series") return data
+    // A series-level route is not a safe substitute for a requested episode. Some
+    // providers interpret loadLinks(series.data) as the default episode (often S1E1).
+    // Only return the series route when the caller did not request a specific episode.
+    if (sortedEpisodes.isEmpty()) {
+        return data.takeIf { request.season == null && request.episode == null }
+    }
 
     if (request.season == null && request.episode == null) {
         return sortedEpisodes.firstOrNull()?.data

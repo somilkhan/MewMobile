@@ -232,6 +232,46 @@ class CloudStreamMatchTest {
     }
 
     @Test
+    fun doesNotResolveSeriesRouteWhenRequestedEpisodeMetadataIsMissing() {
+        val loaded = CloudStreamLoadItem(
+            providerId = "provider",
+            data = "show",
+            name = "Show",
+            type = CloudStreamTvType.TvSeries,
+            episodes = emptyList(),
+        )
+        val request = CloudStreamSearchRequest(
+            title = "Show",
+            type = "series",
+            year = null,
+            season = 2,
+            episode = 3,
+        )
+
+        assertNull(loaded.linkDataForCloudStreamRequest(request))
+    }
+
+    @Test
+    fun keepsSeriesRouteWhenNoEpisodeWasRequestedAndMetadataIsMissing() {
+        val loaded = CloudStreamLoadItem(
+            providerId = "provider",
+            data = "show",
+            name = "Show",
+            type = CloudStreamTvType.TvSeries,
+            episodes = emptyList(),
+        )
+        val request = CloudStreamSearchRequest(
+            title = "Show",
+            type = "series",
+            year = null,
+            season = null,
+            episode = null,
+        )
+
+        assertEquals("show", loaded.linkDataForCloudStreamRequest(request))
+    }
+
+    @Test
     fun selectsUnknownSeasonEpisodeOnlyForFirstSeasonFallback() {
         val loaded = CloudStreamLoadItem(
             providerId = "provider",
