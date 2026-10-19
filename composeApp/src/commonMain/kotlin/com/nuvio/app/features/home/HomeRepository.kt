@@ -572,7 +572,8 @@ object HomeRepository {
                 }
             }
         }
-        resultChannel.close()        return CloudHomeSectionsResult(sections = sections, errorMessage = firstError)
+        resultChannel.close()
+        return CloudHomeSectionsResult(sections = sections, errorMessage = firstError)
     }
     private fun ensureCollectionHeroFallback(
         addons: List<ManagedAddon>,
