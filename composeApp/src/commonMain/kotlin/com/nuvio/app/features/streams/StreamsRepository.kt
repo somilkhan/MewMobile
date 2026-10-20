@@ -218,6 +218,14 @@ object StreamsRepository {
         ) {
             parentMetaId?.let { BingeGroupCacheRepository.get(it) }
         } else null
+        val persistedFilename = if (persistedBingeGroup != null) parentMetaId?.let(BingeGroupCacheRepository::getFilename) else null
+        val persistedInfoHash = if (persistedBingeGroup != null) parentMetaId?.let(BingeGroupCacheRepository::getInfoHash) else null
+        val persistedNextFilename = persistedFilename?.let { filename ->
+            val extracted = FilenameEpisodeMatcher.extractSeasonEpisode(filename)
+            if (extracted != null && episode != null && episode > 0) {
+                FilenameEpisodeMatcher.buildNextFilename(filename, extracted.first, extracted.second, season, episode) ?: filename
+            } else filename
+        }
         val isDirectAutoPlayFlow = isAutoPlayEnabled
 
         if (isDirectAutoPlayFlow) {
@@ -413,6 +421,8 @@ object StreamsRepository {
                     selectedAddons = playerSettings.streamAutoPlaySelectedAddons,
                     selectedPlugins = playerSettings.streamAutoPlaySelectedPlugins,
                     preferredBingeGroup = persistedBingeGroup,
+                    preferredFilename = persistedNextFilename,
+                    preferredInfoHash = persistedInfoHash,
                     preferBingeGroupInSelection = persistedBingeGroup != null,
                     bingeGroupOnly = bingeGroupOnly,
                     debridEnabled = debridSettings.canResolvePlayableLinks,
@@ -492,6 +502,8 @@ object StreamsRepository {
                                 selectedAddons = playerSettings.streamAutoPlaySelectedAddons,
                                 selectedPlugins = playerSettings.streamAutoPlaySelectedPlugins,
                                 preferredBingeGroup = persistedBingeGroup,
+                    preferredFilename = persistedNextFilename,
+                    preferredInfoHash = persistedInfoHash,
                                 preferBingeGroupInSelection = true,
                                 bingeGroupOnly = true,
                                 debridEnabled = debridSettings.canResolvePlayableLinks,
@@ -558,6 +570,8 @@ object StreamsRepository {
                                         selectedAddons = playerSettings.streamAutoPlaySelectedAddons,
                                         selectedPlugins = playerSettings.streamAutoPlaySelectedPlugins,
                                         preferredBingeGroup = persistedBingeGroup,
+                    preferredFilename = persistedNextFilename,
+                    preferredInfoHash = persistedInfoHash,
                                         preferBingeGroupInSelection = persistedBingeGroup != null,
                                         bingeGroupOnly = false,
                                         debridEnabled = debridSettings.canResolvePlayableLinks,
@@ -596,6 +610,8 @@ object StreamsRepository {
                                     selectedAddons = playerSettings.streamAutoPlaySelectedAddons,
                                     selectedPlugins = playerSettings.streamAutoPlaySelectedPlugins,
                                     preferredBingeGroup = persistedBingeGroup,
+                    preferredFilename = persistedNextFilename,
+                    preferredInfoHash = persistedInfoHash,
                                     preferBingeGroupInSelection = persistedBingeGroup != null,
                                     bingeGroupOnly = false,
                                     debridEnabled = debridSettings.canResolvePlayableLinks,
@@ -827,6 +843,8 @@ object StreamsRepository {
                             selectedAddons = playerSettings.streamAutoPlaySelectedAddons,
                             selectedPlugins = playerSettings.streamAutoPlaySelectedPlugins,
                             preferredBingeGroup = persistedBingeGroup,
+                    preferredFilename = persistedNextFilename,
+                    preferredInfoHash = persistedInfoHash,
                             preferBingeGroupInSelection = true,
                             bingeGroupOnly = !timeoutElapsed,
                             debridEnabled = debridSettings.canResolvePlayableLinks,
@@ -877,6 +895,8 @@ object StreamsRepository {
                                 selectedAddons = playerSettings.streamAutoPlaySelectedAddons,
                                 selectedPlugins = playerSettings.streamAutoPlaySelectedPlugins,
                                 preferredBingeGroup = persistedBingeGroup,
+                    preferredFilename = persistedNextFilename,
+                    preferredInfoHash = persistedInfoHash,
                                 preferBingeGroupInSelection = true,
                                 bingeGroupOnly = !timeoutElapsed,
                                 debridEnabled = debridSettings.canResolvePlayableLinks,
@@ -907,6 +927,8 @@ object StreamsRepository {
                                 selectedAddons = playerSettings.streamAutoPlaySelectedAddons,
                                 selectedPlugins = playerSettings.streamAutoPlaySelectedPlugins,
                                 preferredBingeGroup = persistedBingeGroup,
+                    preferredFilename = persistedNextFilename,
+                    preferredInfoHash = persistedInfoHash,
                                 preferBingeGroupInSelection = persistedBingeGroup != null,
                                 bingeGroupOnly = false,
                                 debridEnabled = debridSettings.canResolvePlayableLinks,
@@ -929,6 +951,8 @@ object StreamsRepository {
                                 selectedAddons = playerSettings.streamAutoPlaySelectedAddons,
                                 selectedPlugins = playerSettings.streamAutoPlaySelectedPlugins,
                                 preferredBingeGroup = persistedBingeGroup,
+                    preferredFilename = persistedNextFilename,
+                    preferredInfoHash = persistedInfoHash,
                                 preferBingeGroupInSelection = true,
                                 bingeGroupOnly = true,
                                 debridEnabled = debridSettings.canResolvePlayableLinks,
@@ -958,6 +982,8 @@ object StreamsRepository {
                     selectedAddons = playerSettings.streamAutoPlaySelectedAddons,
                     selectedPlugins = playerSettings.streamAutoPlaySelectedPlugins,
                     preferredBingeGroup = persistedBingeGroup,
+                    preferredFilename = persistedNextFilename,
+                    preferredInfoHash = persistedInfoHash,
                     preferBingeGroupInSelection = persistedBingeGroup != null,
                     bingeGroupOnly = false,
                     debridEnabled = debridSettings.canResolvePlayableLinks,

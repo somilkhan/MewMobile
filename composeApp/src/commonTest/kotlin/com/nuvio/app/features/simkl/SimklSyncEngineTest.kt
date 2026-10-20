@@ -102,6 +102,28 @@ class SimklSyncEngineTest {
     }
 
     @Test
+    fun `playback refresh keeps locally newer position for the same episode`() = runBlocking {
+        val localNewer = episodePlayback("1", "2026-10-20T10:02:00Z").copy(progress = 88.0)
+        val serverStale = episodePlayback("1", "2026-10-20T10:00:00Z").copy(progress = 83.0)
+        val current = SimklSyncSnapshot(
+            isInitialized = true,
+            watermark = "v1",
+            activities = activities(all = "v1", playback = "p1"),
+            playback = listOf(localNewer),
+        )
+        val remote = ScriptedRemote(
+            Step.Activities(activities(all = "v2", playback = "p2")),
+            Step.Playback(listOf(serverStale)),
+        )
+
+        val result = SimklSyncEngine(remote) { 900L }.synchronize(current)
+
+        assertEquals(88.0, result.playback.single().progress)
+        assertEquals("2026-10-20T10:02:00Z", result.playback.single().pausedAt)
+        assertTrue(remote.isExhausted)
+    }
+
+    @Test
     fun `settings only activity updates watermark without projection calls`() = runBlocking {
         val current = SimklSyncSnapshot(
             isInitialized = true,

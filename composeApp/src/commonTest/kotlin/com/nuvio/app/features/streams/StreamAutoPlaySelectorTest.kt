@@ -291,6 +291,71 @@ class StreamAutoPlaySelectorTest {
         assertEquals(stream, selected)
     }
 
+    @Test
+    fun `matching binge group prefers the exact next episode filename`() {
+        val wrongEpisode = stream(
+            addonName = "AddonA",
+            url = "https://example.com/s02e03.mkv",
+            bingeGroup = "series-pack",
+            filename = "Black Clover S02E03.mkv",
+        )
+        val nextEpisode = stream(
+            addonName = "AddonB",
+            url = "https://example.com/s02e04.mkv",
+            bingeGroup = "series-pack",
+            filename = "Black Clover S02E04.mkv",
+        )
+
+        val selected = StreamAutoPlaySelector.selectAutoPlayStream(
+            streams = listOf(wrongEpisode, nextEpisode),
+            mode = StreamAutoPlayMode.FIRST_STREAM,
+            regexPattern = "",
+            source = StreamAutoPlaySource.ALL_SOURCES,
+            installedAddonNames = setOf("AddonA", "AddonB"),
+            selectedAddons = emptySet(),
+            selectedPlugins = emptySet(),
+            preferredBingeGroup = "series-pack",
+            preferredFilename = "Black Clover S02E04.mkv",
+            preferBingeGroupInSelection = true,
+        )
+
+        assertEquals(nextEpisode, selected)
+    }
+
+    @Test
+    fun `does not autoplay a previous episode when the expected episode is missing`() {
+        val previousEpisode = stream(
+            addonName = "AddonA",
+            url = "https://example.com/episode.mkv",
+            bingeGroup = "series-pack",
+            filename = "Black Clover S02E03.mkv",
+            infoHash = "expected-hash",
+        )
+        val anotherEpisode = stream(
+            addonName = "AddonB",
+            url = "https://example.com/other.mkv",
+            bingeGroup = "series-pack",
+            filename = "Black Clover S02E04.mkv",
+            infoHash = "other-hash",
+        )
+
+        val selected = StreamAutoPlaySelector.selectAutoPlayStream(
+            streams = listOf(anotherEpisode, previousEpisode),
+            mode = StreamAutoPlayMode.FIRST_STREAM,
+            regexPattern = "",
+            source = StreamAutoPlaySource.ALL_SOURCES,
+            installedAddonNames = setOf("AddonA", "AddonB"),
+            selectedAddons = emptySet(),
+            selectedPlugins = emptySet(),
+            preferredBingeGroup = "series-pack",
+            preferredFilename = "Black Clover S02E05.mkv",
+            preferredInfoHash = "expected-hash",
+            preferBingeGroupInSelection = true,
+        )
+
+        assertNull(selected)
+    }
+
     private fun stream(
         addonName: String,
         url: String? = null,
@@ -300,6 +365,7 @@ class StreamAutoPlaySelectorTest {
         directDebrid: Boolean = false,
         directDebridService: String = "torbox",
         infoHash: String? = null,
+        filename: String? = null,
         cacheState: StreamDebridCacheState? = null,
     ): StreamItem = StreamItem(
         name = name,
@@ -327,6 +393,7 @@ class StreamAutoPlaySelectorTest {
         },
         behaviorHints = StreamBehaviorHints(
             bingeGroup = bingeGroup,
+            filename = filename,
         ),
     )
 }

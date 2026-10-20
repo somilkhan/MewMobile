@@ -51,10 +51,10 @@ internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
         }
     }
 
-    LaunchedEffect(currentStreamBingeGroup, parentMetaId) {
+    LaunchedEffect(currentStreamBingeGroup, currentStreamFilename, currentStreamInfoHash, parentMetaId) {
         val bg = currentStreamBingeGroup
         if (bg != null && parentMetaId.isNotBlank()) {
-            BingeGroupCacheRepository.save(parentMetaId, bg)
+            BingeGroupCacheRepository.save(parentMetaId, bg, currentStreamFilename, currentStreamInfoHash)
         }
     }
 
@@ -911,6 +911,8 @@ internal fun PlayerScreenRuntime.tryRefreshCredentialedSourceAfterError(message:
         activeProviderName = stream.addonName
         activeProviderAddonId = stream.addonId
         currentStreamBingeGroup = stream.behaviorHints.bingeGroup
+        currentStreamFilename = stream.behaviorHints.filename
+        currentStreamInfoHash = stream.infoHash ?: stream.p2pInfoHash
         activeInitialPositionMs = savedPositionMs
         activeInitialProgressFraction = null
         showSourcesPanel = false
