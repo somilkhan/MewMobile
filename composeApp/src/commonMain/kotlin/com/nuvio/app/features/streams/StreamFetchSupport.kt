@@ -615,12 +615,22 @@ private fun String.fallbackRepositoryLabel(): String {
 private fun CloudStreamPluginItem.supportsCloudStreamRequest(
     type: String,
     request: CloudStreamSearchRequest?,
+): Boolean = cloudStreamTypeSupportsRequest(
+    supportedTypes = metadata.tvTypes.toSet(),
+    type = type,
+    genres = request?.genres.orEmpty(),
+)
+
+/** Pure provider-type eligibility logic so supported CloudStream types stay regression-tested. */
+internal fun cloudStreamTypeSupportsRequest(
+    supportedTypes: Set<CloudStreamTvType>,
+    type: String,
+    genres: List<String> = emptyList(),
 ): Boolean {
     val requestedType = normalizeCloudStreamNuvioType(type)
-    val supportedTypes = metadata.tvTypes.toSet()
     if (supportedTypes.isEmpty() || CloudStreamTvType.Other in supportedTypes) return true
 
-    val normalizedGenres = request?.genres.orEmpty().map { it.trim().lowercase() }.toSet()
+    val normalizedGenres = genres.map { it.trim().lowercase() }.toSet()
     val isAnime = normalizedGenres.any { genre -> genre == "anime" }
     val isAnimation = normalizedGenres.any { genre -> genre == "animation" || genre == "animasyon" }
     val isDocumentary = normalizedGenres.any { genre -> genre == "documentary" || genre == "belgesel" }
@@ -636,13 +646,16 @@ private fun CloudStreamPluginItem.supportsCloudStreamRequest(
         }
         "series" -> when {
             isAnime -> supportedTypes.any {
-                it == CloudStreamTvType.Anime || it == CloudStreamTvType.Ova || it == CloudStreamTvType.TvSeries
+                it == CloudStreamTvType.Anime || it == CloudStreamTvType.Ova ||
+                    it == CloudStreamTvType.TvSeries || it == CloudStreamTvType.AsianDrama
             }
             isAnimation -> supportedTypes.any {
                 it == CloudStreamTvType.Anime || it == CloudStreamTvType.Ova ||
                     it == CloudStreamTvType.Cartoon || it == CloudStreamTvType.TvSeries
             }
-            else -> CloudStreamTvType.TvSeries in supportedTypes
+            else -> supportedTypes.any {
+                it == CloudStreamTvType.TvSeries || it == CloudStreamTvType.AsianDrama
+            }
         }
         "live" -> CloudStreamTvType.Live in supportedTypes || CloudStreamTvType.Music in supportedTypes
         else -> supportedTypes.any { cloudType -> normalizeCloudStreamNuvioType(cloudType.nuvioType) == requestedType }

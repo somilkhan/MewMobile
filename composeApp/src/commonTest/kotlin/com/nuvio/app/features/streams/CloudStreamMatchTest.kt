@@ -12,6 +12,37 @@ import kotlin.test.assertTrue
 
 class CloudStreamMatchTest {
     @Test
+    fun includesAsianDramaProvidersForSeriesRequests() {
+        assertTrue(
+            cloudStreamTypeSupportsRequest(
+                supportedTypes = setOf(CloudStreamTvType.AsianDrama),
+                type = "series",
+            ),
+        )
+    }
+
+    @Test
+    fun includesAsianDramaProvidersForAnimeSeriesRequests() {
+        assertTrue(
+            cloudStreamTypeSupportsRequest(
+                supportedTypes = setOf(CloudStreamTvType.AsianDrama),
+                type = "series",
+                genres = listOf("Anime"),
+            ),
+        )
+    }
+
+    @Test
+    fun excludesMovieOnlyProvidersForSeriesRequests() {
+        assertFalse(
+            cloudStreamTypeSupportsRequest(
+                supportedTypes = setOf(CloudStreamTvType.Movie),
+                type = "series",
+            ),
+        )
+    }
+
+    @Test
     fun doesNotSelectPrefixOnlyMovieForShortTitle() {
         val match = listOf(
             CloudStreamSearchItem(
