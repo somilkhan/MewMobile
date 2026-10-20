@@ -172,6 +172,7 @@ final class MPVPlayerBridgeImpl: NSObject, NuvioPlayerBridge {
         backgroundColor: String,
         outlineColor: String,
         outlineSize: Float,
+        shadowOffset: Float,
         bold: Bool,
         fontSize: Float,
         fontFamily: String,
@@ -183,6 +184,7 @@ final class MPVPlayerBridgeImpl: NSObject, NuvioPlayerBridge {
             backgroundColor: backgroundColor,
             outlineColor: outlineColor,
             outlineSize: outlineSize,
+            shadowOffset: shadowOffset,
             bold: bold,
             fontSize: fontSize,
             fontFamily: fontFamily,
@@ -1127,6 +1129,7 @@ final class MPVPlayerViewController: UIViewController {
         backgroundColor: String,
         outlineColor: String,
         outlineSize: Float,
+        shadowOffset: Float,
         bold: Bool,
         fontSize: Float,
         fontFamily: String,
@@ -1135,11 +1138,15 @@ final class MPVPlayerViewController: UIViewController {
     ) {
         guard mpv != nil else { return }
 
+        let hasBackground = !backgroundColor.hasPrefix("#00")
+        let hasShadow = shadowOffset > 0
+        let effectiveBackColor = (hasShadow && !hasBackground) ? "#B3000000" : backgroundColor
+
         checkError(mpv_set_property_string(mpv, "sub-ass-override", "no"))
         checkError(mpv_set_property_string(mpv, "sub-color", textColor))
-        checkError(mpv_set_property_string(mpv, "sub-back-color", backgroundColor))
+        checkError(mpv_set_property_string(mpv, "sub-back-color", effectiveBackColor))
         checkError(mpv_set_property_string(mpv, "sub-outline-color", outlineColor))
-        checkError(mpv_set_property_string(mpv, "sub-border-style", backgroundColor.hasPrefix("#00") ? "outline-and-shadow" : "opaque-box"))
+        checkError(mpv_set_property_string(mpv, "sub-border-style", hasBackground ? "opaque-box" : "outline-and-shadow"))
         setStringProperty("sub-bold", bold ? "yes" : "no")
         if let fontDirectory, !fontDirectory.isEmpty {
             checkError(mpv_set_property_string(mpv, "sub-fonts-dir", fontDirectory))
@@ -1148,6 +1155,9 @@ final class MPVPlayerViewController: UIViewController {
 
         var outline = Double(outlineSize)
         checkError(mpv_set_property(mpv, "sub-outline-size", MPV_FORMAT_DOUBLE, &outline))
+
+        var shadow = Double(hasBackground ? 0 : shadowOffset)
+        checkError(mpv_set_property(mpv, "sub-shadow-offset", MPV_FORMAT_DOUBLE, &shadow))
 
         var size = Double(fontSize)
         checkError(mpv_set_property(mpv, "sub-font-size", MPV_FORMAT_DOUBLE, &size))

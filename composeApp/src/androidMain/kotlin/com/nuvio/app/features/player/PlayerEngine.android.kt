@@ -2042,11 +2042,11 @@ private class NuvioLibmpvView(
                 executeMpv("subtitleStyle") {
                     currentSubtitleStyle = style
                     mpv.setPropertyString("sub-color", style.textColor.toMpvColor())
-                    mpv.setPropertyString("sub-back-color", style.backgroundColor.toMpvColor())
+                    mpv.setPropertyString("sub-back-color", style.toMpvSubtitleBackColor())
                     mpv.setPropertyString("sub-outline-color", style.outlineColor.toMpvColor())
                     mpv.setPropertyString("sub-border-color", style.outlineColor.toMpvColor())
                     mpv.setPropertyString("sub-border-style", style.toMpvSubtitleBorderStyle())
-                    mpv.setPropertyInt("sub-shadow-offset", 0)
+                    mpv.setPropertyDouble("sub-shadow-offset", style.toMpvSubtitleShadowOffset())
                     mpv.setPropertyString("sub-bold", if (style.bold) "yes" else "no")
                     style.customFontDirectory()?.let { mpv.setPropertyString("sub-fonts-dir", it) }
                     style.toMpvSubtitleFont()?.let { mpv.setPropertyString("sub-font", it) }
@@ -2337,6 +2337,19 @@ private fun SubtitleStyleState.toMpvSubtitleBorderStyle(): String =
 private const val MPV_SUBTITLE_FONT_SIZE_SCALE = 55.0 / 18.0
 private const val MPV_SUBTITLE_FONT_SIZE_MIN = 36
 private const val MPV_SUBTITLE_FONT_SIZE_MAX = 122
+private const val MPV_SUBTITLE_SHADOW_OFFSET_SCALE = 1.5
+private const val MPV_SUBTITLE_SHADOW_COLOR = "#B3000000"
+
+private fun SubtitleStyleState.toMpvSubtitleShadowOffset(): Double =
+    if (shadowEnabled && toMpvSubtitleBorderStyle() != "opaque-box") {
+        normalizeSubtitleShadowStrength(shadowStrength) * MPV_SUBTITLE_SHADOW_OFFSET_SCALE
+    } else {
+        0.0
+    }
+
+private fun SubtitleStyleState.toMpvSubtitleBackColor(): String =
+    if (shadowEnabled && backgroundColor.alphaByte() == 0) MPV_SUBTITLE_SHADOW_COLOR
+    else backgroundColor.toMpvColor()
 
 private fun buildAndroidLoadControl(memorySafeBufferEnabled: Boolean): DefaultLoadControl =
     DefaultLoadControl.Builder().apply {
@@ -2896,6 +2909,7 @@ private class CueNormalizingTextOutput(
                 }
             }
         }
+        processed = SubtitleShadowCue.apply(processed, PlayerSettingsRepository.uiState.value.subtitleStyle)
         return processed
     }
 

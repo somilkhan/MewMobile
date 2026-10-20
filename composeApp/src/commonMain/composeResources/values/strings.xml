@@ -387,6 +387,8 @@
     <string name="compose_player_no_streams_found">No streams found</string>
     <string name="compose_player_none">None</string>
     <string name="compose_player_outline">Outline</string>
+    <string name="compose_player_shadow">Subtitle shadow</string>
+    <string name="compose_player_shadow_strength">Shadow strength</string>
     <string name="compose_player_outline_thickness">Outline Thickness</string>
     <string name="compose_player_outline_color">Outline Color</string>
     <string name="compose_player_panel_episodes">Episodes</string>

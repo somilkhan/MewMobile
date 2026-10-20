@@ -419,6 +419,35 @@ private fun StyleControlsCard(
         }
 
         ToggleRow(
+            label = stringResource(Res.string.compose_player_shadow),
+            enabled = style.shadowEnabled,
+            onToggle = { onStyleChanged { current -> current.copy(shadowEnabled = !current.shadowEnabled) } },
+        )
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(Res.string.compose_player_shadow_strength),
+                color = colorScheme.onSurfaceVariant,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+            )
+            StepperControl(
+                value = style.shadowStrength.toString(),
+                onMinus = { onStyleChanged { current -> current.copy(shadowStrength = normalizeSubtitleShadowStrength(current.shadowStrength - 1)) } },
+                onPlus = { onStyleChanged { current -> current.copy(shadowStrength = normalizeSubtitleShadowStrength(current.shadowStrength + 1)) } },
+                buttonSize = btnSize,
+                buttonRadius = btnRadius,
+                minWidth = 46.dp,
+                minusIcon = Icons.Rounded.KeyboardArrowDown,
+                plusIcon = Icons.Rounded.KeyboardArrowUp,
+            )
+        }
+
+        ToggleRow(
             label = stringResource(Res.string.compose_player_bold),
             enabled = style.bold,
             onToggle = { onStyleChanged { current -> current.copy(bold = !current.bold) } },
