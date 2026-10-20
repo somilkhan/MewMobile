@@ -40,6 +40,15 @@ import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.math.absoluteValue
 import kotlin.random.Random
 
+/**
+ * Home's single-provider filter is only applicable when CloudStream is the fallback
+ * discovery source. With addon catalogs enabled, Home must include all runnable providers.
+ */
+internal fun effectiveHomeCloudStreamProviderId(
+    selectedProviderId: String?,
+    hasAddonCatalogs: Boolean,
+): String? = selectedProviderId.takeUnless { hasAddonCatalogs }
+
 private data class CloudHomeProviderResult(
     val sections: List<HomeCatalogSection>,
     val errorMessage: String?,
@@ -109,11 +118,18 @@ object HomeRepository {
         restoreSelectedCloudStreamProvider()
         CloudStreamRepository.initialize()
         val cloudState = CloudStreamRepository.uiState.value
-        val selectedProviderId = _selectedCloudStreamProviderId.value
+        val activeAddons = addons.enabledAddons()
+        val hasAddonCatalogs = activeAddons.any { it.manifest != null }
+        // The provider picker is hidden while addon catalogs are available. Ignore its
+        // persisted single-provider filter in that mode so CloudStream and addon catalogs
+        // remain visible together instead of silently narrowing Home to one provider.
+        val selectedProviderId = effectiveHomeCloudStreamProviderId(
+            selectedProviderId = _selectedCloudStreamProviderId.value,
+            hasAddonCatalogs = hasAddonCatalogs,
+        )
         val cloudPlugins = cloudState.plugins
             .filter(CloudStreamPluginItem::isRunnable)
             .filter { selectedProviderId == null || it.metadata.id.value == selectedProviderId }
-        val activeAddons = addons.enabledAddons()
         val requests = buildHomeCatalogDefinitions(activeAddons)
         currentDefinitions = requests
         val requestCacheKeys = requests.mapTo(mutableSetOf(), HomeCatalogDefinition::cacheKey)
