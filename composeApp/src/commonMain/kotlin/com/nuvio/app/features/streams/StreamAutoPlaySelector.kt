@@ -110,19 +110,22 @@ object StreamAutoPlaySelector {
         val expectedEpisodeIsKnown = preferBingeGroupInSelection &&
             targetBingeGroup.isNotEmpty() &&
             FilenameEpisodeMatcher.extractSeasonEpisode(preferredFilename.orEmpty()) != null
-        val hasConflictingEpisodeIdentity = expectedEpisodeIsKnown &&
-            bingeGroupCandidates.any { FilenameEpisodeMatcher.extractSeasonEpisode(it.behaviorHints.filename.orEmpty()) != null } &&
-            bingeGroupCandidates.none {
+        // A persisted binge group is a preference, not permission to play a different episode.
+        // Prefer an exact episode from that group; if the group is stale or missing this episode,
+        // search all candidates for the exact target instead of falling back to the first stream.
+        val matchingBingeGroupEpisodes = if (expectedEpisodeIsKnown) {
+            bingeGroupCandidates.filter {
                 FilenameEpisodeMatcher.matchesEpisode(it.behaviorHints.filename, preferredFilename)
             }
-        if (hasConflictingEpisodeIdentity) return StreamAutoPlayEvaluation()
-        val episodeScopedCandidateStreams = if (
-            expectedEpisodeIsKnown &&
-            bingeGroupCandidates.any { FilenameEpisodeMatcher.matchesEpisode(it.behaviorHints.filename, preferredFilename) }
-        ) {
-            bingeGroupCandidates.filter { FilenameEpisodeMatcher.matchesEpisode(it.behaviorHints.filename, preferredFilename) }
         } else {
-            candidateStreams
+            emptyList()
+        }
+        val episodeScopedCandidateStreams = when {
+            !expectedEpisodeIsKnown -> candidateStreams
+            matchingBingeGroupEpisodes.isNotEmpty() -> matchingBingeGroupEpisodes
+            else -> candidateStreams.filter {
+                FilenameEpisodeMatcher.matchesEpisode(it.behaviorHints.filename, preferredFilename)
+            }
         }
 
         val preferredReadyStream = preferredIdentityMatch(
