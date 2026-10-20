@@ -108,11 +108,11 @@ class SimklSyncEngineTest {
         val current = SimklSyncSnapshot(
             isInitialized = true,
             watermark = "v1",
-            activities = activities(all = "v1", playback = "p1"),
+            activities = activities(all = "v1", playback = "p1", library = "l1"),
             playback = listOf(localNewer),
         )
         val remote = ScriptedRemote(
-            Step.Activities(activities(all = "v2", playback = "p2")),
+            Step.Activities(activities(all = "v2", playback = "p2", library = "l1")),
             Step.Playback(listOf(serverStale)),
         )
 
