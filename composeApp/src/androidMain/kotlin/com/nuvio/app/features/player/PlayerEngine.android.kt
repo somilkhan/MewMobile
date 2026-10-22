@@ -72,6 +72,7 @@ import androidx.media3.ui.PlayerView
 import androidx.media3.ui.SubtitleView
 import androidx.media3.ui.CaptionStyleCompat
 import com.nuvio.app.R
+import com.nuvio.app.core.network.SharedOkHttpClient
 import com.nuvio.app.features.streams.normalizeStreamType
 import `is`.xyz.mpv.BaseMPVView
 import `is`.xyz.mpv.MPV
@@ -89,10 +90,10 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.net.HttpURLConnection
 import java.net.URI
-import java.net.URL
 import java.util.Locale
+import java.util.concurrent.TimeUnit
+import okhttp3.Request
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
@@ -3037,25 +3038,27 @@ private fun probeSubtitleHeaders(url: String, headers: Map<String, String>? = nu
     val methods = listOf("HEAD", "GET")
     methods.forEach { method ->
         runCatching {
-            val connection = (URL(url).openConnection() as HttpURLConnection).apply {
-                requestMethod = method
-                connectTimeout = 5_000
-                readTimeout = 5_000
-                instanceFollowRedirects = true
-                setRequestProperty("Accept", "*/*")
-                headers?.forEach { (key, value) ->
-                    setRequestProperty(key, value)
-                }
-            }
-            try {
-                connection.responseCode
-                connection.contentType to connection.getHeaderField("Content-Disposition")
-            } finally {
-                connection.disconnect()
+            val request = Request.Builder()
+                .url(url)
+                .method(method, null)
+                .header("Accept", "*/*")
+                .apply { headers?.forEach { (key, value) -> header(key, value) } }
+                .build()
+            subtitleProbeHttpClient.newCall(request).execute().use { response ->
+                response.header("Content-Type") to response.header("Content-Disposition")
             }
         }.getOrNull()?.let { return it }
     }
     return null
+}
+
+private val subtitleProbeHttpClient by lazy {
+    SharedOkHttpClient.base.newBuilder()
+        .connectTimeout(5, TimeUnit.SECONDS)
+        .readTimeout(5, TimeUnit.SECONDS)
+        .followRedirects(true)
+        .followSslRedirects(true)
+        .build()
 }
 
 private fun mapSubtitleMime(contentType: String?): String? {

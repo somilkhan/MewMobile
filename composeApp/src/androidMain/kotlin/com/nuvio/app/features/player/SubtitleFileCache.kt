@@ -5,11 +5,13 @@ import android.net.Uri
 import android.util.Log
 import androidx.core.content.FileProvider
 import com.nuvio.app.core.diagnostics.SentryNetworkBreadcrumbInterceptor
+import com.nuvio.app.core.network.SharedOkHttpClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
+import java.net.URI
 
 /**
  * Downloads subtitle files from remote URLs to local cache and provides
@@ -21,7 +23,7 @@ object SubtitleFileCache {
 
     private var appContext: Context? = null
     private val okHttpClient: OkHttpClient by lazy {
-        OkHttpClient.Builder()
+        SharedOkHttpClient.base.newBuilder()
             .addInterceptor(SentryNetworkBreadcrumbInterceptor())
             .build()
     }
@@ -57,7 +59,7 @@ object SubtitleFileCache {
                     null
                 }
             } catch (e: Exception) {
-                Log.w(TAG, "Error caching subtitle: ${input.name}", e)
+                Log.w(TAG, "Error caching subtitle: ${input.name} (${e.javaClass.simpleName})")
                 null
             }
         }
@@ -82,7 +84,7 @@ object SubtitleFileCache {
             try {
                 okHttpClient.newCall(request).execute().use { response ->
                     if (!response.isSuccessful) {
-                        Log.w(TAG, "HTTP ${response.code} downloading subtitle: ${input.url}")
+                        Log.w(TAG, "HTTP ${response.code} downloading subtitle: ${redactSubtitleUrlForLogs(input.url)}")
                         return@withContext null
                     }
 
@@ -99,7 +101,7 @@ object SubtitleFileCache {
                     file
                 )
             } catch (e: Exception) {
-                Log.w(TAG, "Failed to download subtitle file: ${input.url}", e)
+                Log.w(TAG, "Failed to download subtitle file: ${redactSubtitleUrlForLogs(input.url)} (${e.javaClass.simpleName})")
                 file.delete()
                 null
             }
@@ -133,3 +135,10 @@ object SubtitleFileCache {
             .take(100) // Limit filename length
     }
 }
+
+
+/** Strip credentials, query parameters, and fragments before writing remote URLs to logs. */
+internal fun redactSubtitleUrlForLogs(url: String): String = runCatching {
+    val parsed = URI(url)
+    URI(parsed.scheme, null, parsed.host, parsed.port, parsed.path, null, null).toASCIIString()
+}.getOrElse { "<redacted-url>" }
