@@ -53,6 +53,8 @@ data class PlayerLaunch(
     val initialProgressFraction: Float? = null,
     val contentLanguage: String? = null,
     val randomEpisodeMode: Boolean = false,
+    val initialStreamFilename: String? = null,
+    val initialStreamInfoHash: String? = null,
 )
 
 object PlayerLaunchStore {

@@ -49,6 +49,19 @@ class PlayerScreenRuntimeStateTest {
     }
 
     @Test
+    fun initialDirectStreamIdentityIsAvailableForBingeGroupCache() {
+        val runtime = PlayerScreenRuntime(
+            testPlayerScreenArgs().copy(
+                initialStreamFilename = "Show.S01E02.1080p.mkv",
+                initialStreamInfoHash = "direct-source-hash",
+            ),
+        )
+
+        assertEquals("Show.S01E02.1080p.mkv", runtime.currentStreamFilename)
+        assertEquals("direct-source-hash", runtime.currentStreamInfoHash)
+    }
+
+    @Test
     fun seekScrobbleUpdate_requiresActiveIncompletePlayback() {
         assertTrue(
             shouldUpdateTrackingScrobbleAfterSeek(

@@ -57,6 +57,8 @@ internal class PlayerScreenRuntime(
     val torrentFileIdx: Int? get() = args.torrentFileIdx
     val torrentFilename: String? get() = args.torrentFilename
     val torrentTrackers: List<String> get() = args.torrentTrackers
+    val initialStreamFilename: String? get() = args.initialStreamFilename
+    val initialStreamInfoHash: String? get() = args.initialStreamInfoHash
     val initialPositionMs: Long get() = args.initialPositionMs
     val initialProgressFraction: Float? get() = args.initialProgressFraction
     val externalSubtitles: List<StreamSubtitle> get() = args.externalSubtitles
@@ -136,10 +138,10 @@ internal class PlayerScreenRuntime(
     var activeProviderName by mutableStateOf(providerName)
     var activeProviderAddonId by mutableStateOf(providerAddonId)
     var currentStreamBingeGroup by mutableStateOf(initialBingeGroup)
-    // Seed binge-group identity from the initial P2P source so the first cache write
-    // cannot erase filename/hash metadata before a source switch occurs.
-    var currentStreamFilename by mutableStateOf(torrentFilename)
-    var currentStreamInfoHash by mutableStateOf(torrentInfoHash)
+    // Preserve source identity before the first cache write. Torrent metadata remains
+    // authoritative for P2P sources; direct addon/debrid links use separate arguments.
+    var currentStreamFilename by mutableStateOf(torrentFilename ?: initialStreamFilename)
+    var currentStreamInfoHash by mutableStateOf(torrentInfoHash ?: initialStreamInfoHash)
     var activeSeasonNumber by mutableStateOf(seasonNumber)
     var activeEpisodeNumber by mutableStateOf(episodeNumber)
     var activeEpisodeTitle by mutableStateOf(episodeTitle)
