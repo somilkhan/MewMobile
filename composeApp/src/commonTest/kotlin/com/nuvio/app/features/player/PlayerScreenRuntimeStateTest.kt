@@ -36,6 +36,19 @@ class PlayerScreenRuntimeStateTest {
     }
 
     @Test
+    fun initialTorrentIdentityIsAvailableForBingeGroupCache() {
+        val runtime = PlayerScreenRuntime(
+            testPlayerScreenArgs().copy(
+                torrentInfoHash = "abc123",
+                torrentFilename = "Show.S01E02.mkv",
+            ),
+        )
+
+        assertEquals("Show.S01E02.mkv", runtime.currentStreamFilename)
+        assertEquals("abc123", runtime.currentStreamInfoHash)
+    }
+
+    @Test
     fun seekScrobbleUpdate_requiresActiveIncompletePlayback() {
         assertTrue(
             shouldUpdateTrackingScrobbleAfterSeek(

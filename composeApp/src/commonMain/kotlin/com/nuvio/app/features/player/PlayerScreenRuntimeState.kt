@@ -136,8 +136,10 @@ internal class PlayerScreenRuntime(
     var activeProviderName by mutableStateOf(providerName)
     var activeProviderAddonId by mutableStateOf(providerAddonId)
     var currentStreamBingeGroup by mutableStateOf(initialBingeGroup)
-    var currentStreamFilename by mutableStateOf<String?>(null)
-    var currentStreamInfoHash by mutableStateOf<String?>(null)
+    // Seed binge-group identity from the initial P2P source so the first cache write
+    // cannot erase filename/hash metadata before a source switch occurs.
+    var currentStreamFilename by mutableStateOf(torrentFilename)
+    var currentStreamInfoHash by mutableStateOf(torrentInfoHash)
     var activeSeasonNumber by mutableStateOf(seasonNumber)
     var activeEpisodeNumber by mutableStateOf(episodeNumber)
     var activeEpisodeTitle by mutableStateOf(episodeTitle)
