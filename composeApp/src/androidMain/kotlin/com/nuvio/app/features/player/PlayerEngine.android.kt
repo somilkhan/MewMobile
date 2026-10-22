@@ -27,6 +27,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
@@ -513,7 +514,21 @@ private fun ExoPlayerSurface(
         mutableStateOf(playerSettings.volumeBoostPercent / 100f)
     }
     val isInPip = rememberIsInPictureInPicture()
-    val pipSubtitleScale by rememberUpdatedState(if (isInPip) 0.4f else 1.0f)
+    var playerSizeOutsidePip by remember { mutableStateOf(IntSize.Zero) }
+    val pipVideoHeightPx by rememberUpdatedState(
+        if (isInPip) {
+            val videoSize = exoPlayer.videoSize
+            calculateFittedVideoHeightPx(
+                viewWidthPx = playerSizeOutsidePip.width.toFloat(),
+                viewHeightPx = playerSizeOutsidePip.height.toFloat(),
+                videoWidthPx = videoSize.width,
+                videoHeightPx = videoSize.height,
+                pixelWidthHeightRatio = videoSize.pixelWidthHeightRatio,
+            ) ?: 0f
+        } else {
+            null
+        },
+    )
     val sidecarController = remember(exoPlayer, coroutineScope) {
         SidecarSubtitleController(
             scope = coroutineScope,
@@ -1102,7 +1117,7 @@ private fun ExoPlayerSurface(
 
                 override fun applySubtitleStyle(style: SubtitleStyleState) {
                     currentSubtitleStyle = style
-                    playerViewRef?.applySubtitleStyle(style, pipSubtitleScale)
+                    playerViewRef?.applySubtitleStyle(style, pipVideoHeightPx)
                 }
 
                 override fun applySubtitlePreferences(
@@ -1186,12 +1201,21 @@ private fun ExoPlayerSurface(
                 setShutterBackgroundColor(android.graphics.Color.BLACK)
                 playerViewRef = this
                 sidecarController.bindSubtitleView(subtitleView)
+                subtitleView?.addOnLayoutChangeListener { view, _, _, _, _, _, _, _, _ ->
+                    val inPip = Build.VERSION.SDK_INT >= Build.VERSION_CODES.N &&
+                        context.findActivity()?.isInPictureInPictureMode == true
+                    val width = view.width - view.paddingLeft - view.paddingRight
+                    val height = view.height - view.paddingTop - view.paddingBottom
+                    if (!inPip && width > 0 && height > 0) {
+                        playerSizeOutsidePip = IntSize(width, height)
+                    }
+                }
                 syncLibassOverlay(
                     player = exoPlayer,
                     enabled = useLibass,
                     renderType = libassRenderType,
                 )
-                applySubtitleStyle(currentSubtitleStyle, pipSubtitleScale)
+                applySubtitleStyle(currentSubtitleStyle, pipVideoHeightPx)
             }
         },
         update = { playerView ->
@@ -1206,7 +1230,7 @@ private fun ExoPlayerSurface(
                 enabled = useLibass,
                 renderType = libassRenderType,
             )
-            playerView.applySubtitleStyle(currentSubtitleStyle, pipSubtitleScale)
+            playerView.applySubtitleStyle(currentSubtitleStyle, pipVideoHeightPx)
         },
     )
 }
@@ -2582,7 +2606,9 @@ private fun android.widget.FrameLayout.removeAssOverlayChildren() {
     }
 }
 
-private fun PlayerView.applySubtitleStyle(style: SubtitleStyleState, pipScale: Float = 1.0f) {
+private const val PIP_FALLBACK_SUBTITLE_SCALE = 0.4f
+
+private fun PlayerView.applySubtitleStyle(style: SubtitleStyleState, pipVideoHeightPx: Float? = null) {
     subtitleView?.apply {
         val baseBottomPaddingFraction = SubtitleView.DEFAULT_BOTTOM_PADDING_FRACTION * 2f / 3f
         val offsetFraction = (style.bottomOffset / 1000f).coerceIn(0f, 0.2f)
@@ -2601,7 +2627,18 @@ private fun PlayerView.applySubtitleStyle(style: SubtitleStyleState, pipScale: F
                 style.toAndroidSubtitleTypeface(),
             )
         )
-        setFixedTextSize(TypedValue.COMPLEX_UNIT_SP, style.fontSizeSp.toFloat() * pipScale)
+        val fontSizeSp = style.fontSizeSp.toFloat()
+        when {
+            pipVideoHeightPx == null -> setFixedTextSize(TypedValue.COMPLEX_UNIT_SP, fontSizeSp)
+            pipVideoHeightPx > 0f -> setFractionalTextSize(
+                TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, fontSizeSp, resources.displayMetrics) /
+                    pipVideoHeightPx,
+            )
+            else -> setFixedTextSize(
+                TypedValue.COMPLEX_UNIT_SP,
+                fontSizeSp * PIP_FALLBACK_SUBTITLE_SCALE,
+            )
+        }
     }
 }
 
