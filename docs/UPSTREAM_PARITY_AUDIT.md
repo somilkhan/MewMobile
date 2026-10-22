@@ -1,6 +1,6 @@
 # MewMobile Upstream Parity Audit
 
-**Audit date:** 2026-10-21  
+**Audit date:** 2026-10-22  
 **Target:** Android-first Mew app, preserving Mew-specific CloudStream integration and existing player/profile behavior.  
 **Policy:** Full relevant feature parity is the objective; implementation is dependency-aware and selective by design. Never wholesale-copy upstream files where Mew has diverged.
 
@@ -9,9 +9,9 @@
 - Mew integration branch: `sync/upstream`
 - Baseline audit source: `9742b0cfdfd933039759c1700737d152500076b5`; follow-up implementation commits must be re-audited before Phase 5.
 - Review PR: [#38](https://github.com/somilkhan/MewMobile/pull/38), open and draft, base `enhanced`.
-- Latest verified CI run: [39413940550](https://github.com/somilkhan/MewMobile/actions/runs/39413940550), `android-full-debug` job **success** on `9742b0cfdfd933039759c1700737d152500076b5`. Android host tests, Full Debug APK build, Mew branding resource check, application ID assertion, APK signing verification and artifact upload passed. Artifact: `mew-cloudstream-full-debug`, archive size 173,696,474 bytes, [run/artifact page](https://github.com/somilkhan/MewMobile/actions/runs/39413940550).
+- Latest verified feature CI run: [39504029899](https://github.com/somilkhan/MewMobile/actions/runs/39504029899), `android-full-debug` **success** on subtitle-shadow commit `c6cd81a385e060a93934b5da83d409c89347d842`. The Android Full Debug build/host-test workflow passed. Earlier branding, application-ID, signing and artifact-upload checks passed on baseline run [39413940550](https://github.com/somilkhan/MewMobile/actions/runs/39413940550); rerun these release checks on the final Phase 5 candidate. CI does not verify real-device behavior.
 - Current package target: `com.mew.mobile.debug` for Full Debug. Package migration is a breaking install/update boundary versus old IDs; do not claim app-data migration is automatic.
-- Upstream release baseline: Nuvio Mobile `0.6.2-beta` (published 2026-10-18) and Nuvio Enhanced `0.6.2-beta` (published 2026-10-19). Live compare on 2026-10-20 shows Nuvio `cmp-rewrite` is one commit ahead of its tag (store publication only); Nuvio Enhanced `enhanced` is 25 commits ahead of its tag as of 2026-10-21, including navigation Liquid Glass and icon-color settings, cinematic stream search/filter glass, Discord Rich Presence, player glass, subtitle text-shadow controls, custom subtitle font importing, and follow-up fixes. Re-run the comparison before the final parity gate because upstream is moving. Do not treat the release tag alone as the full current upstream baseline.
+- Upstream release baseline: Nuvio Mobile `0.6.2-beta` (published 2026-10-18) and Nuvio Enhanced `0.6.2-beta` (published 2026-10-19). The latest inspected Enhanced branch commit is `ae535226b1488a60d59613c1502fbb717cbb333f` (2026-10-21), adding episode/show/anime rating maps and tracking anime-ID mapping changes. Recent commits also add a per-profile in-app rating switch and player-toolbar/gesture layout adjustments. These newer commits still require a scoped parity assessment against Mew before final sign-off; do not treat release tags or this snapshot as the final upstream baseline.
 
 ## Already implemented on the audited Mew head (source/CI verified)
 
