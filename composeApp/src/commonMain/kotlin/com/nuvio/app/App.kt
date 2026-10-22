@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -35,6 +36,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -119,6 +121,11 @@ import com.nuvio.app.core.sync.ProviderCredentialSync
 import com.nuvio.app.core.sync.SyncManager
 import com.nuvio.app.core.ui.LocalNuvioNavBarScrollState
 import com.nuvio.app.core.ui.NuvioNavigationBar
+import com.nuvio.app.core.ui.FloatingNavigationBar
+import com.nuvio.app.core.ui.FloatingNavigationItem
+import com.nuvio.app.core.ui.floatingNavigationBarPadding
+import com.nuvio.app.core.ui.glass.nuvioBackdropSource
+import com.nuvio.app.core.ui.glass.rememberNuvioBackdrop
 import com.nuvio.app.core.ui.NuvioClassicNavigationBar
 import com.nuvio.app.core.ui.NuvioNavBarScrollState
 import com.nuvio.app.core.ui.rememberNuvioNavBarScrollState
@@ -2084,7 +2091,6 @@ private fun MainAppContent(
                         }
                         val tabsRouteActive = currentRoute is TabsRoute
                         val navBarScrollState = rememberNuvioNavBarScrollState()
-                        val navBarHazeState = rememberHazeState()
                         val navBarStyleSetting by remember { ThemeSettingsRepository.navBarStyle }.collectAsStateWithLifecycle()
                         val onProfileSelected: (NuvioProfile) -> Unit = { profile ->
                             nativeProfileSwitcherVisible = false
@@ -2096,6 +2102,69 @@ private fun MainAppContent(
                                 ProfileRepository.selectProfile(profile.profileIndex)
                                 SyncManager.pullAllForProfile(profile.profileIndex)
                             }
+                        }
+
+                        val navBarBackdrop = if (navBarStyleSetting == NavBarStyle.LIQUID_GLASS && tabsRouteActive) {
+                            rememberNuvioBackdrop()
+                        } else {
+                            null
+                        }
+                        val navHomeLabel = stringResource(Res.string.compose_nav_home)
+                        val navSearchLabel = stringResource(Res.string.compose_nav_search)
+                        val navLiveTvLabel = stringResource(Res.string.compose_nav_live_tv)
+                        val navLibraryLabel = stringResource(Res.string.compose_nav_library)
+                        val navProfileLabel = stringResource(Res.string.compose_nav_profile)
+                        val liquidGlassNavigationItems = buildList {
+                            add(
+                                FloatingNavigationItem(
+                                    label = navHomeLabel,
+                                    selected = selectedTab == AppScreenTab.Home,
+                                    onClick = { handleRootTabClick(AppScreenTab.Home) },
+                                    icon = Icons.Filled.Home,
+                                ),
+                            )
+                            add(
+                                FloatingNavigationItem(
+                                    label = navSearchLabel,
+                                    selected = selectedTab == AppScreenTab.Search,
+                                    onClick = { handleRootTabClick(AppScreenTab.Search) },
+                                    drawable = Res.drawable.sidebar_search,
+                                ),
+                            )
+                            if (liveTvEnabled) {
+                                add(
+                                    FloatingNavigationItem(
+                                        label = navLiveTvLabel,
+                                        selected = selectedTab == AppScreenTab.LiveTv,
+                                        onClick = { handleRootTabClick(AppScreenTab.LiveTv) },
+                                        icon = Icons.Filled.Tv,
+                                    ),
+                                )
+                            }
+                            add(
+                                FloatingNavigationItem(
+                                    label = navLibraryLabel,
+                                    selected = selectedTab == AppScreenTab.Library,
+                                    onClick = { handleRootTabClick(AppScreenTab.Library) },
+                                    drawable = Res.drawable.sidebar_library,
+                                ),
+                            )
+                            add(
+                                FloatingNavigationItem(
+                                    label = navProfileLabel,
+                                    selected = selectedTab == AppScreenTab.Settings,
+                                    onClick = { handleRootTabClick(AppScreenTab.Settings) },
+                                    content = { itemOnClick, _ ->
+                                        ProfileSwitcherTab(
+                                            selected = selectedTab == AppScreenTab.Settings,
+                                            onClick = itemOnClick,
+                                            onProfileSelected = onProfileSelected,
+                                            onAddProfileRequested = onSwitchProfile,
+                                            rememberTriggerAsContentFocus = false,
+                                        )
+                                    },
+                                ),
+                            )
                         }
 
                         CompositionLocalProvider(
@@ -2161,6 +2230,7 @@ private fun MainAppContent(
                                     AppTabHost(
                                         modifier = Modifier
                                             .fillMaxSize()
+                                            .then(if (navBarBackdrop != null) Modifier.nuvioBackdropSource(navBarBackdrop) else Modifier)
                                             .then(if (navBarStyleSetting == NavBarStyle.ADAPTIVE) Modifier.nestedScroll(navBarScrollState.nestedScrollConnection) else Modifier)
                                             .padding(innerPadding)
                                             .padding(start = if (useTvLayout) 80.dp else 0.dp),
@@ -2323,13 +2393,27 @@ private fun MainAppContent(
                                 }
 
                                 if (isTabletLayout && !useNativeBottomTabs && !useTvLayout) {
-                                    TabletFloatingTopBar(
-                                        selectedTab = selectedTab,
-                                        liveTvEnabled = liveTvEnabled,
-                                        onTabSelected = ::handleRootTabClick,
-                                        onProfileSelected = onProfileSelected,
-                                        onAddProfileRequested = onSwitchProfile,
-                                    )
+                                    if (navBarStyleSetting == NavBarStyle.LIQUID_GLASS) {
+                                        FloatingNavigationBar(
+                                            items = liquidGlassNavigationItems,
+                                            modifier = Modifier.align(Alignment.TopCenter).widthIn(max = 416.dp),
+                                            scrollState = remember { NuvioNavBarScrollState().apply { collapse() } },
+                                            backdrop = navBarBackdrop,
+                                            contentPadding = PaddingValues(
+                                                top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 10.dp,
+                                                bottom = 8.dp,
+                                            ),
+                                            compactSize = true,
+                                        )
+                                    } else {
+                                        TabletFloatingTopBar(
+                                            selectedTab = selectedTab,
+                                            liveTvEnabled = liveTvEnabled,
+                                            onTabSelected = ::handleRootTabClick,
+                                            onProfileSelected = onProfileSelected,
+                                            onAddProfileRequested = onSwitchProfile,
+                                        )
+                                    }
                                 }
 
                                 if (useTvLayout) {
@@ -2359,59 +2443,69 @@ private fun MainAppContent(
 
                                 // Floating pill navigation bar overlay
                                 if (!isTabletLayout && !useTvLayout && !useNativeBottomTabs && navBarStyleSetting != NavBarStyle.CLASSIC) {
-                                    // Force expand/collapse for non-adaptive modes
                                     when (navBarStyleSetting) {
                                         NavBarStyle.EXPANDED -> navBarScrollState.expand()
                                         NavBarStyle.COMPACT -> navBarScrollState.collapse()
-                                        else -> {} // ADAPTIVE — scroll controls it
+                                        NavBarStyle.LIQUID_GLASS -> navBarScrollState.expand()
+                                        else -> {}
                                     }
-                                    NuvioNavigationBar(
-                                        modifier = Modifier.align(Alignment.BottomCenter),
-                                        scrollState = navBarScrollState,
-                                        hazeState = null,
-                                    ) {
-                                        NavItem(
-                                            selected = selectedTab == AppScreenTab.Home,
-                                            onClick = { handleRootTabClick(AppScreenTab.Home) },
-                                            icon = Icons.Filled.Home,
-                                            contentDescription = stringResource(Res.string.compose_nav_home),
-                                            label = stringResource(Res.string.compose_nav_home),
+                                    if (navBarStyleSetting == NavBarStyle.LIQUID_GLASS) {
+                                        FloatingNavigationBar(
+                                            items = liquidGlassNavigationItems,
+                                            modifier = Modifier.align(Alignment.BottomCenter),
+                                            scrollState = navBarScrollState,
+                                            backdrop = navBarBackdrop,
+                                            contentPadding = floatingNavigationBarPadding(),
                                         )
-                                        NavItem(
-                                            selected = selectedTab == AppScreenTab.Search,
-                                            onClick = { handleRootTabClick(AppScreenTab.Search) },
-                                            icon = Res.drawable.sidebar_search,
-                                            contentDescription = stringResource(Res.string.compose_nav_search),
-                                            label = stringResource(Res.string.compose_nav_search),
-                                        )
-                                        if (liveTvEnabled) {
-                                            NavItem(
-                                                selected = selectedTab == AppScreenTab.LiveTv,
-                                                onClick = { handleRootTabClick(AppScreenTab.LiveTv) },
-                                                icon = Icons.Filled.Tv,
-                                                contentDescription = stringResource(Res.string.compose_nav_live_tv),
-                                                label = stringResource(Res.string.compose_nav_live_tv),
-                                            )
-                                        }
-                                        NavItem(
-                                            selected = selectedTab == AppScreenTab.Library,
-                                            onClick = { handleRootTabClick(AppScreenTab.Library) },
-                                            icon = Res.drawable.sidebar_library,
-                                            contentDescription = stringResource(Res.string.compose_nav_library),
-                                            label = stringResource(Res.string.compose_nav_library),
-                                        )
-                                        NavItem(
-                                            selected = selectedTab == AppScreenTab.Settings,
-                                            onClick = { handleRootTabClick(AppScreenTab.Settings) },
-                                            label = stringResource(Res.string.compose_nav_profile),
+                                    } else {
+                                                                                NuvioNavigationBar(
+                                            modifier = Modifier.align(Alignment.BottomCenter),
+                                            scrollState = navBarScrollState,
+                                            hazeState = null,
                                         ) {
-                                            ProfileSwitcherTab(
+                                            NavItem(
+                                                selected = selectedTab == AppScreenTab.Home,
+                                                onClick = { handleRootTabClick(AppScreenTab.Home) },
+                                                icon = Icons.Filled.Home,
+                                                contentDescription = stringResource(Res.string.compose_nav_home),
+                                                label = stringResource(Res.string.compose_nav_home),
+                                            )
+                                            NavItem(
+                                                selected = selectedTab == AppScreenTab.Search,
+                                                onClick = { handleRootTabClick(AppScreenTab.Search) },
+                                                icon = Res.drawable.sidebar_search,
+                                                contentDescription = stringResource(Res.string.compose_nav_search),
+                                                label = stringResource(Res.string.compose_nav_search),
+                                            )
+                                            if (liveTvEnabled) {
+                                                NavItem(
+                                                    selected = selectedTab == AppScreenTab.LiveTv,
+                                                    onClick = { handleRootTabClick(AppScreenTab.LiveTv) },
+                                                    icon = Icons.Filled.Tv,
+                                                    contentDescription = stringResource(Res.string.compose_nav_live_tv),
+                                                    label = stringResource(Res.string.compose_nav_live_tv),
+                                                )
+                                            }
+                                            NavItem(
+                                                selected = selectedTab == AppScreenTab.Library,
+                                                onClick = { handleRootTabClick(AppScreenTab.Library) },
+                                                icon = Res.drawable.sidebar_library,
+                                                contentDescription = stringResource(Res.string.compose_nav_library),
+                                                label = stringResource(Res.string.compose_nav_library),
+                                            )
+                                            NavItem(
                                                 selected = selectedTab == AppScreenTab.Settings,
                                                 onClick = { handleRootTabClick(AppScreenTab.Settings) },
-                                                onProfileSelected = onProfileSelected,
-                                                onAddProfileRequested = onSwitchProfile,
-                                                rememberTriggerAsContentFocus = false,
-                                            )
+                                                label = stringResource(Res.string.compose_nav_profile),
+                                            ) {
+                                                ProfileSwitcherTab(
+                                                    selected = selectedTab == AppScreenTab.Settings,
+                                                    onClick = { handleRootTabClick(AppScreenTab.Settings) },
+                                                    onProfileSelected = onProfileSelected,
+                                                    onAddProfileRequested = onSwitchProfile,
+                                                    rememberTriggerAsContentFocus = false,
+                                                )
+                                            }
                                         }
                                     }
                                 }

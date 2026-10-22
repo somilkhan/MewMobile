@@ -626,7 +626,8 @@
     <string name="settings_nav_bar_style_adaptive">Adaptive</string>
     <string name="settings_nav_bar_style_expanded">Always Expanded</string>
     <string name="settings_nav_bar_style_compact">Always Compact</string>
-    <string name="settings_nav_bar_style_classic">Classic</string>
+    <string name="settings_nav_bar_style_classic">Mew Classic</string>
+    <string name="settings_nav_bar_style_liquid_glass">Liquid Glass</string>
     <string name="settings_appearance_continue_watching_description">Settings for the Continue Watching section.</string>
     <string name="settings_appearance_liquid_glass">Liquid Glass</string>
     <string name="settings_appearance_liquid_glass_description">Use the native iPhone tab bar on iOS 26 and later.</string>
