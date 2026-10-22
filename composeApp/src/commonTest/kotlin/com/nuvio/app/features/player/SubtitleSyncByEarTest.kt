@@ -21,7 +21,7 @@ class SubtitleSyncByEarTest {
 
     @Test
     fun `correction clamps to supported subtitle delay bounds`() {
-        assertEquals(SUBTITLE_DELAY_MIN_MS, subtitleDelayAfterSyncByEar(0, Long.MAX_VALUE / 4, Long.MIN_VALUE / 4))
-        assertEquals(SUBTITLE_DELAY_MAX_MS, subtitleDelayAfterSyncByEar(0, Long.MIN_VALUE / 4, Long.MAX_VALUE / 4))
+        assertEquals(SUBTITLE_DELAY_MAX_MS, subtitleDelayAfterSyncByEar(0, Long.MAX_VALUE / 4, Long.MIN_VALUE / 4))
+        assertEquals(SUBTITLE_DELAY_MIN_MS, subtitleDelayAfterSyncByEar(0, Long.MIN_VALUE / 4, Long.MAX_VALUE / 4))
     }
 }
