@@ -32,6 +32,7 @@ jobs:
           java-version: "17"
 
       - name: Restore stable Mew debug keystore
+        if: github.event_name == 'workflow_dispatch' && inputs.build_apk == true
         env:
           MEW_DEBUG_KEYSTORE_BASE64: ${{ secrets.MEW_DEBUG_KEYSTORE_BASE64 }}
           MEW_DEBUG_KEYSTORE_PASSWORD: ${{ secrets.MEW_DEBUG_KEYSTORE_PASSWORD }}
