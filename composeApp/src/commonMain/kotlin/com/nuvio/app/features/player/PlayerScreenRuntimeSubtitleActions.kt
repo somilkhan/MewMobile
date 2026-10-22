@@ -105,10 +105,20 @@ internal fun PlayerScreenRuntime.captureSubtitleSyncSaw() {
 private fun PlayerScreenRuntime.applySubtitleSyncByEarIfReady() {
     val heardMs = subtitleSyncHeardPositionMs ?: return
     val sawMs = subtitleSyncSawPositionMs ?: return
-    val newDelayMs = (subtitleDelayMs.toLong() + heardMs - sawMs)
-        .coerceIn(SUBTITLE_DELAY_MIN_MS.toLong(), SUBTITLE_DELAY_MAX_MS.toLong())
-        .toInt()
+    val newDelayMs = subtitleDelayAfterSyncByEar(
+        currentDelayMs = subtitleDelayMs,
+        heardPositionMs = heardMs,
+        sawPositionMs = sawMs,
+    )
     setSubtitleDelay(newDelayMs)
     subtitleSyncHeardPositionMs = null
     subtitleSyncSawPositionMs = null
 }
+internal fun subtitleDelayAfterSyncByEar(
+    currentDelayMs: Int,
+    heardPositionMs: Long,
+    sawPositionMs: Long,
+): Int =
+    (currentDelayMs.toLong() + heardPositionMs - sawPositionMs)
+        .coerceIn(SUBTITLE_DELAY_MIN_MS.toLong(), SUBTITLE_DELAY_MAX_MS.toLong())
+        .toInt()
