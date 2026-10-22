@@ -26,8 +26,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -77,11 +75,6 @@ fun SubtitleSyncByEarCard(
                     width = 1.dp,
                     color = Color.White.copy(alpha = 0.1f),
                     shape = RoundedCornerShape(20.dp),
-                )
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = {},
                 )
                 .padding(start = 18.dp, end = 12.dp, top = 12.dp, bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
