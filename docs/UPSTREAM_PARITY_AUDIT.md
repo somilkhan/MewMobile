@@ -28,6 +28,7 @@
 - Continuous pinch-to-zoom is ported into Mew's existing gesture pipeline for ExoPlayer and libmpv, clamped to 0.8x–2.0x, with zoom reset when the resize mode changes. ExoPlayer scales the content frame to avoid zoom escaping the video frame's black bars. Host tests and Full Debug build pass.
 - Android portrait/landscape playback toggle is ported with lifecycle restoration and reset on player exit. iOS behavior remains unchanged and the toggle is hidden there. Host tests and Full Debug build pass.
 - ExoPlayer PiP subtitle scaling now computes fitted video height using the full-screen subtitle view bounds and video pixel aspect ratio; it uses a bounded fallback if geometry is unavailable. Pure geometry regression tests cover wide-video letterboxing, viewport-height fit, pixel aspect ratio, and invalid dimensions. The implementation is in the active candidate; its current-head CI is pending and device PiP rendering is not verified.
+- iOS Now Playing publication now avoids rewriting identical metadata every playback poll. Position updates are compared to the OS's expected elapsed position using monotonic uptime and a 1,500 ms drift threshold; changes to playing state, duration, or playback speed still publish immediately. Existing Mew remote-command handlers are retained. This Swift source port is not covered by Android CI and still needs an iOS/Xcode build plus device verification.
 
 ## Confirmed upstream gaps requiring assessment/porting
 
