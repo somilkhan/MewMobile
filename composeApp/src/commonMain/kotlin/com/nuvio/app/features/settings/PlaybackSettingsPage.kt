@@ -592,6 +592,12 @@ private fun PlaybackSettingsSection(
                     isTablet = isTablet,
                     onClick = { showAddonSubtitleStartupModeDialog = true },
                 )
+                SettingsGroupDivider(isTablet = isTablet)
+                AutoSyncPlaybackSettingsRows(
+                    isTablet = isTablet,
+                    enabled = otherSubtitleOptionsEnabled,
+                    preferredSubtitleLanguage = preferredSubtitleLanguage,
+                )
             }
         }
 

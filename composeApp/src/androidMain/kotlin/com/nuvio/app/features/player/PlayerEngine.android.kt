@@ -74,6 +74,9 @@ import androidx.media3.ui.CaptionStyleCompat
 import com.nuvio.app.R
 import com.nuvio.app.core.network.SharedOkHttpClient
 import com.nuvio.app.features.streams.normalizeStreamType
+import com.nuvio.app.features.autosync.AutoSyncExtractorsFactory
+import com.nuvio.app.features.autosync.AutoSyncPreferencesRepository
+import com.nuvio.app.features.autosync.rememberAutoSyncCoordinator
 import `is`.xyz.mpv.BaseMPVView
 import `is`.xyz.mpv.MPV
 import `is`.xyz.mpv.MPVNode
@@ -327,10 +330,16 @@ private fun ExoPlayerSurface(
     var resolvedMediaItem by remember(playerSourceKey) { mutableStateOf(initialMediaItem) }
     var probeAttempted by remember(playerSourceKey) { mutableStateOf(false) }
 
-    val extractorsFactory = remember {
-        DefaultExtractorsFactory()
+    val extractorsFactory = remember(playerSourceKey) {
+        val factory = DefaultExtractorsFactory()
             .setTsExtractorFlags(DefaultTsPayloadReaderFactory.FLAG_ENABLE_HDMV_DTS_AUDIO_STREAMS)
             .setTsExtractorTimestampSearchBytes(1500 * TsExtractor.TS_PACKET_SIZE)
+        AutoSyncPreferencesRepository.ensureLoaded()
+        if (AutoSyncPreferencesRepository.preferredSubtitleAutoSyncOnStart.value) {
+            AutoSyncExtractorsFactory(factory, sourceUrl)
+        } else {
+            factory
+        }
     }
     val dataSourceFactory = remember(
         context,
@@ -537,6 +546,24 @@ private fun ExoPlayerSurface(
             getSubtitleDelayMs = { (subtitleDelayUs.get() / 1_000L).toInt() },
         )
     }
+
+    val autoSyncCoordinator = rememberAutoSyncCoordinator(
+        scope = coroutineScope,
+        player = exoPlayer,
+        sidecar = sidecarController,
+        playerSourceKey = playerSourceKey,
+        sourceUrl = sourceUrl,
+        sourceHeaders = sanitizedSourceHeaders,
+        externalSubtitles = externalSubtitles,
+        useLibass = useLibass,
+        preferredSubtitleLanguage = playerSettings.preferredSubtitleLanguage,
+        onMimeTypeSelected = { selectedExternalSubtitleMimeType = it },
+        onSubtitleDelayChanged = { delayMs ->
+            subtitleDelayUs.set(
+                delayMs.coerceIn(SUBTITLE_DELAY_MIN_MS, SUBTITLE_DELAY_MAX_MS).toLong() * 1_000L,
+            )
+        },
+    )
 
     fun syncPlayerViewKeepScreenOn() {
         playerViewRef?.keepScreenOn = exoPlayer.shouldKeepPlayerScreenOn()
@@ -925,7 +952,7 @@ private fun ExoPlayerSurface(
 
     LaunchedEffect(exoPlayer) {
         onControllerReady(
-            object : PlayerEngineController {
+            autoSyncCoordinator.wrap(object : PlayerEngineController {
                 override fun play() {
                     exoPlayer.playWhenReady = true
                     exoPlayer.play()
@@ -1149,7 +1176,7 @@ private fun ExoPlayerSurface(
                 override fun refreshSubtitlePosition(positionMs: Long) {
                     exoPlayer.seekTo(positionMs.coerceAtLeast(0L))
                 }
-            }
+            })
         )
     }
 
