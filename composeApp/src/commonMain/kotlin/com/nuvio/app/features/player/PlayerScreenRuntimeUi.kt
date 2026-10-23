@@ -721,7 +721,7 @@ private fun PlayerScreenRuntime.RenderPlayerModals(displayedPositionMs: Long) {
              trackPreferenceRestoreApplied = true
              preferredSubtitleSelectionApplied = true
              persistAddonSubtitlePreference(addon)
-             playerController?.setSubtitleUri(addon.url)
+             attachSelectedAddonSubtitleWithAutoSync(addon.url)
         },
         onFetchAddonSubtitles = { fetchAddonSubtitlesForActiveItem() },
         onSubtitleStyleChanged = PlayerSettingsRepository::updateSubtitleStyle,

@@ -26,6 +26,7 @@ import org.jetbrains.compose.resources.getString
 
 @Composable
 internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
+    BindAutoSyncRuntimeEffects()
     val currentFeedback = liveGestureFeedback ?: gestureFeedback
     LaunchedEffect(currentFeedback) {
         if (currentFeedback != null) {
@@ -357,7 +358,9 @@ internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
         selectedSubtitleIndex = -1
         useCustomSubtitles = true
         autoAddonFallbackPending = false
-        playerController?.setSubtitleUri(currentEpisodeSubtitle.url)
+        if (!maybeAutoSyncPreferredSubtitleAtStart(currentEpisodeSubtitle)) {
+            playerController?.setSubtitleUri(currentEpisodeSubtitle.url)
+        }
     }
 
     LaunchedEffect(playbackSnapshot.isLoading, playerController) {
