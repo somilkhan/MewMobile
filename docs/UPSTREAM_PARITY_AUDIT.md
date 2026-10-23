@@ -84,6 +84,14 @@ Comparison anchor: Enhanced `ae535226b1488a60d59613c1502fbb717cbb333f` → `a3e8
 4. **Automated verification:** Android host tests, Android Kotlin source compilation, branding checks, and CI review on ordinary pushes. Build the Full Debug APK, assert application ID and verify signing only when the Phase 5 device-testing handoff is ready or the user explicitly requests a manual APK build. Recheck current upstream commits before closing the phase.
 5. **Device-testing handoff (PIN USER):** only after automated checks are green and the APK artifact is available. Provide exact artifact URL, SHA-256 if available, install/update warning, test checklist, passed/failed/not-verified categories. Do not claim device verification without actual device evidence.
 
+## Phase 5 handoff checkpoint — 2026-10-23
+
+- The audited source head before this checkpoint was `113e51827c8b6b2231c9f057694caa23d6f82843`; current-head CI passed Android host tests and Android Kotlin source compilation. The PR remains draft and the APK was intentionally not built by routine CI.
+- This checkpoint requests the dedicated Full Debug APK pipeline using the workflow's `[build-apk]` commit-message gate. The artifact is **not available or verified until that workflow run completes successfully**; do not install an artifact from an older SHA.
+- APK gate must pass: host tests, Android source compilation, Mew branding check, Full Debug assembly, `com.mew.mobile.debug` application-ID assertion, signing certificate match, and artifact upload. APK generation is only for this Phase 5 handoff, not routine CI.
+- Device-test order: install/update warning and launch; Settings → Layout → Navigation (all existing styles plus Liquid Glass); CloudStream repository install/update/reconciliation; verify installed provider count and progressive home scan; search/details/playback through CloudStream and addon paths; anime season/episode correctness; provider grouping; TMDB disabled; ExoPlayer/libmpv seek/zoom/orientation/PiP; external and embedded subtitles including AutoSync; profile/settings persistence; force-stop/reopen; record crashes, logcat, memory and frame drops.
+- Device status remains **NOT VERIFIED** until evidence is collected on the Vivo V30 / Android 16. Package ID `com.mew.mobile.debug` differs from legacy package IDs; do not assume update compatibility or automatic data migration. Keep the PR draft and do not merge as part of the handoff.
+
 ## Known release blockers / unverified items
 
 - Real device verification is outstanding: Vivo V30 / Android 16, CloudStream installation/reconciliation and 81-provider home scan, source playback/loading, correct anime season/episode resolution, provider grouping, TMDB-disabled operation, player gestures/orientation, subtitles, and package coexistence/data migration.
