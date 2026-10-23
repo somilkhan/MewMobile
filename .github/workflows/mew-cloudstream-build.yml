@@ -24,8 +24,7 @@ on:
 
 jobs:
   android-full-debug:
-    # sync/upstream PRs run host tests once via pull_request; only an explicit [build-apk] push runs the APK pipeline.
-    if: github.event_name != 'push' || github.ref_name != 'sync/upstream' || contains(github.event.head_commit.message, '[build-apk]')
+    # Run tests and Android compilation on every push/PR. APK packaging remains separately gated below.
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
