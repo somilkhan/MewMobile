@@ -1,6 +1,5 @@
 package com.nuvio.app.features.autosync
 
-import com.nuvio.app.features.player.SubtitleSyncCue
 import kotlin.math.max
 
 /**
@@ -8,11 +7,17 @@ import kotlin.math.max
  * for long files. Nuvio's own [com.nuvio.app.features.player.PlayerSubtitleCueParser] only
  * reads SRT and WebVTT, so AutoSync keeps this one to itself and leaves Nuvio's untouched.
  */
+internal data class AutoSyncSubtitleCue(
+    val startTimeMs: Long,
+    val endTimeMs: Long,
+    val text: String,
+)
+
 internal object AutoSyncSubtitleCueParser {
     private val timestampRegex = Regex("""(?:(\d+):)?(\d{1,2}):(\d{2})([.,](\d+))?""")
     private const val CANCELLATION_CHECK_INTERVAL = 64
 
-    fun parse(text: String, sourceUrl: String? = null): List<SubtitleSyncCue> =
+    fun parse(text: String, sourceUrl: String? = null): List<AutoSyncSubtitleCue> =
         parse(
             text = text,
             sourceUrl = sourceUrl,
@@ -23,7 +28,7 @@ internal object AutoSyncSubtitleCueParser {
         text: String,
         sourceUrl: String?,
         cancellationCheck: (() -> Unit)?,
-    ): List<SubtitleSyncCue> {
+    ): List<AutoSyncSubtitleCue> {
         cancellationCheck?.invoke()
         val cleanedText = cleanText(text)
         cancellationCheck?.invoke()
@@ -72,9 +77,9 @@ internal object AutoSyncSubtitleCueParser {
     private fun parseSrt(
         text: String,
         cancellationCheck: (() -> Unit)? = null,
-    ): List<SubtitleSyncCue> {
+    ): List<AutoSyncSubtitleCue> {
         val blocks = text.split(Regex("""\n\s*\n"""))
-        val cues = mutableListOf<SubtitleSyncCue>()
+        val cues = mutableListOf<AutoSyncSubtitleCue>()
         var cancellationCounter = 0
         for (block in blocks) {
             checkCancellation(cancellationCounter++, cancellationCheck)
@@ -95,7 +100,7 @@ internal object AutoSyncSubtitleCueParser {
             val textLines = lines.drop(index + 1)
             val cueText = normalizeCueText(textLines.joinToString("\n"))
             if (cueText.isBlank()) continue
-            cues += SubtitleSyncCue(startTimeMs = startTimeMs, endTimeMs = endTimeMs, text = cueText)
+            cues += AutoSyncSubtitleCue(startTimeMs = startTimeMs, endTimeMs = endTimeMs, text = cueText)
         }
         return cues
     }
@@ -103,12 +108,12 @@ internal object AutoSyncSubtitleCueParser {
     private fun parseVtt(
         text: String,
         cancellationCheck: (() -> Unit)? = null,
-    ): List<SubtitleSyncCue> {
+    ): List<AutoSyncSubtitleCue> {
         val lines = text
             .lines()
             .map { it.trimEnd() }
 
-        val cues = mutableListOf<SubtitleSyncCue>()
+        val cues = mutableListOf<AutoSyncSubtitleCue>()
         var cursor = 0
         var cancellationCounter = 0
 
@@ -159,7 +164,7 @@ internal object AutoSyncSubtitleCueParser {
             }
             val cueText = normalizeCueText(textParts.joinToString("\n"))
             if (cueText.isNotBlank()) {
-                cues += SubtitleSyncCue(startTimeMs = startTimeMs, endTimeMs = endTimeMs, text = cueText)
+                cues += AutoSyncSubtitleCue(startTimeMs = startTimeMs, endTimeMs = endTimeMs, text = cueText)
             }
             cursor = i + 1
         }
@@ -183,7 +188,7 @@ internal object AutoSyncSubtitleCueParser {
     private fun parseAss(
         text: String,
         cancellationCheck: (() -> Unit)? = null,
-    ): List<SubtitleSyncCue> {
+    ): List<AutoSyncSubtitleCue> {
         var inEventsSection = false
         var formatFields: List<String>? = null
         var cancellationCounter = 0
@@ -216,7 +221,7 @@ internal object AutoSyncSubtitleCueParser {
         return cues.sortedBy { it.startTimeMs }
     }
 
-    private fun parseAssDialogue(payload: String, formatFields: List<String>?): SubtitleSyncCue? {
+    private fun parseAssDialogue(payload: String, formatFields: List<String>?): AutoSyncSubtitleCue? {
         val fields = formatFields.orEmpty()
         val parts = payload
             .split(',', limit = fields.ifEmpty { defaultAssFormatFields }.size)
@@ -236,13 +241,13 @@ internal object AutoSyncSubtitleCueParser {
                 .replace("\\n", "\n")
                 .replace("\\h", " ")
         )
-        return if (body.isBlank()) null else SubtitleSyncCue(startTimeMs = start, endTimeMs = end, text = body)
+        return if (body.isBlank()) null else AutoSyncSubtitleCue(startTimeMs = start, endTimeMs = end, text = body)
     }
 
     private fun parseTtml(
         text: String,
         cancellationCheck: (() -> Unit)? = null,
-    ): List<SubtitleSyncCue> {
+    ): List<AutoSyncSubtitleCue> {
         val frameRate = parseTtmlFrameRate(text)
         var cancellationCounter = 0
         val cues = Regex("""(?is)<p\b([^>]*)>(.*?)</p>""")
@@ -261,7 +266,7 @@ internal object AutoSyncSubtitleCueParser {
                     match.groupValues[2]
                         .replace(Regex("""<br\s*/?>""", RegexOption.IGNORE_CASE), "\n")
                 )
-                if (body.isBlank()) null else SubtitleSyncCue(startTimeMs = start, endTimeMs = end, text = body)
+                if (body.isBlank()) null else AutoSyncSubtitleCue(startTimeMs = start, endTimeMs = end, text = body)
             }
             .toList()
         cancellationCheck?.invoke()
