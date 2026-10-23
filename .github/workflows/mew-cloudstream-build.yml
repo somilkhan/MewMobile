@@ -70,7 +70,7 @@ jobs:
         run: ./gradlew :composeApp:testAndroidHostTest -Pnuvio.android.distribution=full --stacktrace
 
       - name: Compile Android Kotlin sources without packaging an APK
-        run: ./gradlew :composeApp:compileDebugKotlinAndroid -Pnuvio.android.distribution=full --stacktrace
+        run: ./gradlew :composeApp:compileAndroidMain -Pnuvio.android.distribution=full --stacktrace
 
       - name: Build Android Full debug
         if: (github.event_name == 'workflow_dispatch' && inputs.build_apk == true) || (github.event_name == 'push' && contains(github.event.head_commit.message, '[build-apk]'))
