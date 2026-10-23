@@ -83,7 +83,20 @@ internal actual object SubtitleFontFileBridge {
         val destination = File(destinationDir, "custom-subtitle-font.$extension")
         try {
             resolver.openInputStream(uri)?.use { input ->
-                temporary.outputStream().use { output -> input.copyTo(output) }
+                temporary.outputStream().use { output ->
+                    val buffer = ByteArray(64 * 1024)
+                    var totalBytes = 0L
+                    while (true) {
+                        val read = input.read(buffer)
+                        if (read < 0) break
+                        if (read == 0) continue
+                        totalBytes += read
+                        check(totalBytes <= SUBTITLE_FONT_IMPORT_MAX_BYTES) {
+                            "Subtitle font files must be 30 MB or smaller."
+                        }
+                        output.write(buffer, 0, read)
+                    }
+                }
             } ?: error("Could not read font file.")
             check(temporary.length() > 0L) { "The selected font file is empty." }
             Typeface.createFromFile(temporary)
