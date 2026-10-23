@@ -21,7 +21,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import okhttp3.Call
 import okhttp3.Callback
-import okhttp3.OkHttpClient
+import com.nuvio.app.core.network.SharedOkHttpClient
 import okhttp3.Request
 import okhttp3.Response
 import java.util.ArrayDeque
@@ -105,13 +105,16 @@ internal object EmbeddedSubtitleTimelineLoader {
     private const val ID_CUE_TRACK = 0xF7L
     private const val ID_CUE_DURATION = 0xB2L
 
-    private val httpClient = OkHttpClient.Builder()
-        .connectTimeout(3, TimeUnit.SECONDS)
-        .readTimeout(4, TimeUnit.SECONDS)
-        .callTimeout(5, TimeUnit.SECONDS)
-        .followRedirects(true)
-        .followSslRedirects(true)
-        .build()
+    // Preserve Mew's selected DNS resolver while keeping strict per-request limits for index probing.
+    private val httpClient by lazy {
+        SharedOkHttpClient.base.newBuilder()
+            .connectTimeout(3, TimeUnit.SECONDS)
+            .readTimeout(4, TimeUnit.SECONDS)
+            .callTimeout(5, TimeUnit.SECONDS)
+            .followRedirects(true)
+            .followSslRedirects(true)
+            .build()
+    }
 
     private val cacheLock = Any()
     private val cache = object : LinkedHashMap<String, CachedLoadResult>(
