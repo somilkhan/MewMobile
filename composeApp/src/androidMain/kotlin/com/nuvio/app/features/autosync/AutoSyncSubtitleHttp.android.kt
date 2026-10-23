@@ -1,6 +1,6 @@
 package com.nuvio.app.features.autosync
 
-import com.nuvio.app.features.addons.AddonHttpClientProvider
+import com.nuvio.app.features.addons.addonHttpClient
 import com.nuvio.app.features.addons.RawHttpResponse
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -43,7 +43,7 @@ internal object AutoSyncSubtitleHttp {
             }
         }
 
-        val call = AddonHttpClientProvider.get().newCall(requestBuilder.build())
+        val call = addonHttpClient().newCall(requestBuilder.build())
 
         return suspendCancellableCoroutine { continuation ->
             continuation.invokeOnCancellation {

@@ -90,7 +90,7 @@ private val addonHttpClientLock = Any()
 private var cachedAddonHttpClientProviderId: String? = null
 private var cachedAddonHttpClient: OkHttpClient? = null
 
-private fun addonHttpClient(): OkHttpClient {
+internal fun addonHttpClient(): OkHttpClient {
     val provider = DnsOverHttpsSettingsRepository.snapshot().provider
     synchronized(addonHttpClientLock) {
         val cached = cachedAddonHttpClient
