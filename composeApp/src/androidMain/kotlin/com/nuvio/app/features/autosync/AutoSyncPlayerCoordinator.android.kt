@@ -90,9 +90,13 @@ internal class AutoSyncPlayerCoordinator(
         cancel()
         val token = operationToken
         AutoSyncPreferencesRepository.ensureLoaded()
-        if (decideAutoSyncStart(AutoSyncPreferencesRepository.preferredSubtitleAutoSyncOnStart.value) ==
-            AutoSyncStartAction.ATTACH_ORIGINAL ||
-            !(sourceUrl.startsWith("https://", true) || sourceUrl.startsWith("http://", true))) {
+        if (
+            !candidateScope.shouldRunAutoSync(
+                preferredSubtitleAutoSyncOnStart =
+                    AutoSyncPreferencesRepository.preferredSubtitleAutoSyncOnStart.value,
+            ) ||
+            !(sourceUrl.startsWith("https://", true) || sourceUrl.startsWith("http://", true))
+        ) {
             fallbackAttach(url)
             return
         }

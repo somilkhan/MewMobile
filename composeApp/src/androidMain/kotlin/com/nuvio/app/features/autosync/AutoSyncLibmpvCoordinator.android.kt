@@ -127,9 +127,13 @@ internal class LibmpvAutoSyncCoordinator(
         val token = operationToken
         base.setSubtitleUri(url)
         AutoSyncPreferencesRepository.ensureLoaded()
-        if (decideAutoSyncStart(AutoSyncPreferencesRepository.preferredSubtitleAutoSyncOnStart.value) ==
-            AutoSyncStartAction.ATTACH_ORIGINAL ||
-            !(sourceUrl.startsWith("https://", true) || sourceUrl.startsWith("http://", true))) {
+        if (
+            !candidateScope.shouldRunAutoSync(
+                preferredSubtitleAutoSyncOnStart =
+                    AutoSyncPreferencesRepository.preferredSubtitleAutoSyncOnStart.value,
+            ) ||
+            !(sourceUrl.startsWith("https://", true) || sourceUrl.startsWith("http://", true))
+        ) {
             return
         }
 

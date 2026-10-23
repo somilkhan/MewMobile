@@ -147,7 +147,7 @@ internal class SidecarSubtitleController(
                 if (parseResult.cues.isEmpty()) {
                     Log.w(
                         SIDECAR_TAG,
-                        "Sidecar subtitle parse empty for url=$url " +
+                        "Sidecar subtitle parse empty for url=${redactSubtitleUrlForLogs(url)} " +
                             "urlMime=${PlayerSubtitleUtils.mimeTypeFromUrl(url)} sniffed=$resolvedMime " +
                             "(buffer preserved; no media reload)",
                     )
@@ -158,7 +158,7 @@ internal class SidecarSubtitleController(
                 sidecarTimedCuesState = parseResult.cues
                 Log.d(
                     SIDECAR_TAG,
-                    "Sidecar subtitle ready url=$url cues=${parseResult.cues.size} " +
+                    "Sidecar subtitle ready url=${redactSubtitleUrlForLogs(url)} cues=${parseResult.cues.size} " +
                         "mime=${parseResult.effectiveMime} source=${parseResult.source} (buffer preserved)",
                 )
                 while (isActive && isActiveGeneration(requestGeneration)) {
@@ -171,7 +171,7 @@ internal class SidecarSubtitleController(
                 if (!isActiveGeneration(requestGeneration)) return@launch
                 Log.w(
                     SIDECAR_TAG,
-                    "Sidecar subtitle failed url=$url: ${error.message} (buffer preserved; no media reload)",
+                    "Sidecar subtitle failed url=${redactSubtitleUrlForLogs(url)} (${error.javaClass.simpleName}; buffer preserved; no media reload)",
                 )
                 clearGeneration(requestGeneration)
             }
@@ -284,7 +284,7 @@ private fun parseSidecarTimedCuesWithMime(rawText: String, mimeType: String): Li
         output.sortBy { it.startTimeUs }
         output
     } catch (error: Exception) {
-        runCatching { Log.d(SIDECAR_TAG, "Sidecar Media3 parse failed mime=$mimeType: ${error.message}") }
+        runCatching { Log.d(SIDECAR_TAG, "Sidecar Media3 parse failed mime=$mimeType (${error.javaClass.simpleName})") }
         emptyList()
     }
 }

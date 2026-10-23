@@ -5,13 +5,13 @@ internal enum class AutoSyncCandidateScope {
     SELECTED_ONLY,
 }
 
-internal fun decideAutoSyncStart(enabled: Boolean): AutoSyncStartAction =
-    if (enabled) AutoSyncStartAction.RUN else AutoSyncStartAction.ATTACH_ORIGINAL
-
-internal enum class AutoSyncStartAction {
-    RUN,
-    ATTACH_ORIGINAL,
-}
+/**
+ * The preference gates automatic startup selection only. An explicit user selection is an
+ * intentional AutoSync request and must still run when startup AutoSync is disabled.
+ */
+internal fun AutoSyncCandidateScope.shouldRunAutoSync(
+    preferredSubtitleAutoSyncOnStart: Boolean,
+): Boolean = this == AutoSyncCandidateScope.SELECTED_ONLY || preferredSubtitleAutoSyncOnStart
 
 internal fun AutoSyncCandidateScope.alternativeCandidates(
     candidates: List<AutoSyncSubtitleCandidate>,
