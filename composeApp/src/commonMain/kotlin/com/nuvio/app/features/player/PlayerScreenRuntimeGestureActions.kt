@@ -207,11 +207,21 @@ internal fun PlayerScreenRuntime.seekBy(offsetMs: Long) {
     }
 }
 
+internal fun playerSkipStepMs(
+    direction: PlayerSeekDirection,
+    skipBackwardSeconds: Int,
+    skipForwardSeconds: Int,
+): Long = when (direction) {
+    PlayerSeekDirection.Backward -> skipBackwardSeconds
+    PlayerSeekDirection.Forward -> skipForwardSeconds
+} * 1_000L
+
 internal fun PlayerScreenRuntime.skipStepMs(direction: PlayerSeekDirection): Long =
-    when (direction) {
-        PlayerSeekDirection.Backward -> playerSettingsUiState.skipBackwardSeconds
-        PlayerSeekDirection.Forward -> playerSettingsUiState.skipForwardSeconds
-    } * 1_000L
+    playerSkipStepMs(
+        direction = direction,
+        skipBackwardSeconds = playerSettingsUiState.skipBackwardSeconds,
+        skipForwardSeconds = playerSettingsUiState.skipForwardSeconds,
+    )
 
 internal fun PlayerScreenRuntime.handleDoubleTapSeek(direction: PlayerSeekDirection) {
     val stepMs = skipStepMs(direction)

@@ -13,6 +13,18 @@ class PlayerSkipSecondsTest {
     }
 
     @Test
+    fun backwardAndForwardSeekStepsUseTheirConfiguredDurations() {
+        assertEquals(
+            5_000L,
+            playerSkipStepMs(PlayerSeekDirection.Backward, skipBackwardSeconds = 5, skipForwardSeconds = 30),
+        )
+        assertEquals(
+            30_000L,
+            playerSkipStepMs(PlayerSeekDirection.Forward, skipBackwardSeconds = 5, skipForwardSeconds = 30),
+        )
+    }
+
+    @Test
     fun missingOrUnsupportedDurationsFallBackToTenSeconds() {
         assertEquals(10, normalizePlayerSkipSeconds(null))
         assertEquals(10, normalizePlayerSkipSeconds(0))
