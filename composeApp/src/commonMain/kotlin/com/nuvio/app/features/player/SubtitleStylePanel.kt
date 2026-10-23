@@ -99,6 +99,7 @@ fun SubtitleSyncPanel(
     onSubtitleDelayChanged: (Int) -> Unit,
     onSubtitleDelayReset: () -> Unit,
     onAutoSyncCapture: () -> Unit,
+    onSyncByEarClick: () -> Unit,
     onAutoSyncCueSelected: (SubtitleSyncCue) -> Unit,
     onAutoSyncReload: () -> Unit,
     onTogglePlayback: () -> Unit,
@@ -129,6 +130,7 @@ fun SubtitleSyncPanel(
                 onSubtitleDelayChanged = onSubtitleDelayChanged,
                 onSubtitleDelayReset = onSubtitleDelayReset,
                 onAutoSyncCapture = onAutoSyncCapture,
+                onSyncByEarClick = onSyncByEarClick,
                 onAutoSyncCueSelected = onAutoSyncCueSelected,
                 onAutoSyncReload = onAutoSyncReload,
                 onTogglePlayback = onTogglePlayback,
@@ -151,6 +153,7 @@ private fun SyncControlsCard(
     onSubtitleDelayChanged: (Int) -> Unit,
     onSubtitleDelayReset: () -> Unit,
     onAutoSyncCapture: () -> Unit,
+    onSyncByEarClick: () -> Unit,
     onAutoSyncCueSelected: (SubtitleSyncCue) -> Unit,
     onAutoSyncReload: () -> Unit,
     onTogglePlayback: () -> Unit,
@@ -198,11 +201,15 @@ private fun SyncControlsCard(
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End,
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
         ) {
             SmallActionPill(
                 text = stringResource(Res.string.compose_player_reset),
                 onClick = onSubtitleDelayReset,
+            )
+            SmallActionPill(
+                text = stringResource(Res.string.compose_player_sync_by_ear),
+                onClick = onSyncByEarClick,
             )
         }
 
@@ -409,6 +416,35 @@ private fun StyleControlsCard(
                     plusIcon = Icons.Rounded.KeyboardArrowUp,
                 )
             }
+        }
+
+        ToggleRow(
+            label = stringResource(Res.string.compose_player_shadow),
+            enabled = style.shadowEnabled,
+            onToggle = { onStyleChanged { current -> current.copy(shadowEnabled = !current.shadowEnabled) } },
+        )
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(Res.string.compose_player_shadow_strength),
+                color = colorScheme.onSurfaceVariant,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+            )
+            StepperControl(
+                value = style.shadowStrength.toString(),
+                onMinus = { onStyleChanged { current -> current.copy(shadowStrength = normalizeSubtitleShadowStrength(current.shadowStrength - 1)) } },
+                onPlus = { onStyleChanged { current -> current.copy(shadowStrength = normalizeSubtitleShadowStrength(current.shadowStrength + 1)) } },
+                buttonSize = btnSize,
+                buttonRadius = btnRadius,
+                minWidth = 46.dp,
+                minusIcon = Icons.Rounded.KeyboardArrowDown,
+                plusIcon = Icons.Rounded.KeyboardArrowUp,
+            )
         }
 
         ToggleRow(

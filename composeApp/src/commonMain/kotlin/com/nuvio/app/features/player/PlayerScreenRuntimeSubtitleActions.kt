@@ -77,3 +77,48 @@ internal fun subtitleDelayForCue(anchorPositionMs: Long, cueStartTimeMs: Long): 
         .coerceIn(SUBTITLE_DELAY_MIN_MS.toLong(), SUBTITLE_DELAY_MAX_MS.toLong())
         .toInt()
 }
+
+
+internal fun PlayerScreenRuntime.openSubtitleSyncByEar() {
+    subtitleSyncHeardPositionMs = null
+    subtitleSyncSawPositionMs = null
+    showSubtitleModal = false
+    showSubtitleSyncByEar = true
+}
+
+internal fun PlayerScreenRuntime.closeSubtitleSyncByEar() {
+    showSubtitleSyncByEar = false
+    subtitleSyncHeardPositionMs = null
+    subtitleSyncSawPositionMs = null
+}
+
+internal fun PlayerScreenRuntime.captureSubtitleSyncHeard() {
+    subtitleSyncHeardPositionMs = playbackSnapshot.positionMs.coerceAtLeast(0L)
+    applySubtitleSyncByEarIfReady()
+}
+
+internal fun PlayerScreenRuntime.captureSubtitleSyncSaw() {
+    subtitleSyncSawPositionMs = playbackSnapshot.positionMs.coerceAtLeast(0L)
+    applySubtitleSyncByEarIfReady()
+}
+
+private fun PlayerScreenRuntime.applySubtitleSyncByEarIfReady() {
+    val heardMs = subtitleSyncHeardPositionMs ?: return
+    val sawMs = subtitleSyncSawPositionMs ?: return
+    val newDelayMs = subtitleDelayAfterSyncByEar(
+        currentDelayMs = subtitleDelayMs,
+        heardPositionMs = heardMs,
+        sawPositionMs = sawMs,
+    )
+    setSubtitleDelay(newDelayMs)
+    subtitleSyncHeardPositionMs = null
+    subtitleSyncSawPositionMs = null
+}
+internal fun subtitleDelayAfterSyncByEar(
+    currentDelayMs: Int,
+    heardPositionMs: Long,
+    sawPositionMs: Long,
+): Int =
+    (currentDelayMs.toLong() + heardPositionMs - sawPositionMs)
+        .coerceIn(SUBTITLE_DELAY_MIN_MS.toLong(), SUBTITLE_DELAY_MAX_MS.toLong())
+        .toInt()

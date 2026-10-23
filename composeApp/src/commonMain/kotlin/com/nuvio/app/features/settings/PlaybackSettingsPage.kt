@@ -335,6 +335,8 @@ private fun PlaybackSettingsSection(
     var showLibmpvVideoOutputDialog by remember { mutableStateOf(false) }
     var showDecoderPriorityDialog by remember { mutableStateOf(false) }
     var showHoldToSpeedValueDialog by remember { mutableStateOf(false) }
+    var showSkipBackwardDialog by remember { mutableStateOf(false) }
+    var showSkipForwardDialog by remember { mutableStateOf(false) }
     var showIosAudioOutputDialog by remember { mutableStateOf(false) }
     var showIosHardwareDecoderDialog by remember { mutableStateOf(false) }
     var showIosTargetPrimariesDialog by remember { mutableStateOf(false) }
@@ -387,6 +389,22 @@ private fun PlaybackSettingsSection(
                     checked = showLoadingOverlay,
                     isTablet = isTablet,
                     onCheckedChange = PlayerSettingsRepository::setShowLoadingOverlay,
+                )
+                SettingsGroupDivider(isTablet = isTablet)
+                SettingsSwitchRow(
+                    title = stringResource(Res.string.settings_playback_pause_overlay),
+                    description = stringResource(Res.string.settings_playback_pause_overlay_description),
+                    checked = autoPlayPlayerSettings.pauseOverlayEnabled,
+                    isTablet = isTablet,
+                    onCheckedChange = PlayerSettingsRepository::setPauseOverlayEnabled,
+                )
+                SettingsGroupDivider(isTablet = isTablet)
+                SettingsSwitchRow(
+                    title = stringResource(Res.string.settings_playback_player_liquid_glass),
+                    description = stringResource(Res.string.settings_playback_player_liquid_glass_description),
+                    checked = autoPlayPlayerSettings.playerLiquidGlassEnabled,
+                    isTablet = isTablet,
+                    onCheckedChange = PlayerSettingsRepository::setPlayerLiquidGlassEnabled,
                 )
                 SettingsGroupDivider(isTablet = isTablet)
                 SettingsSwitchRow(
@@ -476,6 +494,10 @@ private fun PlaybackSettingsSection(
                         onClick = { showHoldToSpeedValueDialog = true },
                     )
                 }
+                SettingsGroupDivider(isTablet = isTablet)
+                SettingsNavigationRow(title = stringResource(Res.string.settings_playback_skip_backward), description = stringResource(Res.string.settings_playback_skip_seconds_value, autoPlayPlayerSettings.skipBackwardSeconds), isTablet = isTablet, onClick = { showSkipBackwardDialog = true })
+                SettingsGroupDivider(isTablet = isTablet)
+                SettingsNavigationRow(title = stringResource(Res.string.settings_playback_skip_forward), description = stringResource(Res.string.settings_playback_skip_seconds_value, autoPlayPlayerSettings.skipForwardSeconds), isTablet = isTablet, onClick = { showSkipForwardDialog = true })
             }
         }
 
@@ -569,6 +591,12 @@ private fun PlaybackSettingsSection(
                     enabled = otherSubtitleOptionsEnabled,
                     isTablet = isTablet,
                     onClick = { showAddonSubtitleStartupModeDialog = true },
+                )
+                SettingsGroupDivider(isTablet = isTablet)
+                AutoSyncPlaybackSettingsRows(
+                    isTablet = isTablet,
+                    enabled = otherSubtitleOptionsEnabled,
+                    preferredSubtitleLanguage = preferredSubtitleLanguage,
                 )
             }
         }
@@ -1608,6 +1636,8 @@ private fun PlaybackSettingsSection(
             onDismiss = { showHoldToSpeedValueDialog = false },
         )
     }
+    if (showSkipBackwardDialog) PlayerSkipSecondsDialog(stringResource(Res.string.settings_playback_skip_backward), autoPlayPlayerSettings.skipBackwardSeconds, { PlayerSettingsRepository.setPlayerSkipBackwardSeconds(it); showSkipBackwardDialog = false }) { showSkipBackwardDialog = false }
+    if (showSkipForwardDialog) PlayerSkipSecondsDialog(stringResource(Res.string.settings_playback_skip_forward), autoPlayPlayerSettings.skipForwardSeconds, { PlayerSettingsRepository.setPlayerSkipForwardSeconds(it); showSkipForwardDialog = false }) { showSkipForwardDialog = false }
 
     if (showIosHardwareDecoderDialog) {
         IosEnumSelectionDialog(
@@ -2462,6 +2492,29 @@ private fun <T> IosEnumSelectionDialog(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            }
+        }
+    }
+}
+
+@Composable
+@OptIn(ExperimentalMaterial3Api::class)
+private fun PlayerSkipSecondsDialog(title: String, selectedSeconds: Int, onSelected: (Int) -> Unit, onDismiss: () -> Unit) {
+    BasicAlertDialog(onDismissRequest = onDismiss) {
+        Surface(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surface) {
+            Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+                com.nuvio.app.features.player.PLAYER_SKIP_SECONDS_OPTIONS.forEach { seconds ->
+                    val selected = seconds == selectedSeconds
+                    Surface(modifier = Modifier.fillMaxWidth().clickable { onSelected(seconds) }, shape = RoundedCornerShape(12.dp),
+                        color = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.14f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)) {
+                        Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text(stringResource(Res.string.settings_playback_skip_seconds_value, seconds), modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+                            if (selected) Icon(Icons.Rounded.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+                }
+                TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) { Text(stringResource(Res.string.settings_playback_dialog_close)) }
             }
         }
     }

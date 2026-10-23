@@ -32,6 +32,13 @@ class PlayerSubtitleMatchingTest {
     }
 
     @Test
+    fun `detects Indonesian subtitle variants mislabeled as Malay`() {
+        assertEquals("id", SubtitleLanguageMatching.detectTrackLanguageVariant("ms", "Bahasa Indonesia", null))
+        assertEquals("id", SubtitleLanguageMatching.detectTrackLanguageVariant("msa", "Indonesian", null))
+        assertEquals("ms", SubtitleLanguageMatching.detectTrackLanguageVariant("ms", "Malay", null))
+    }
+
+    @Test
     fun `regional matching does not collapse explicit Portuguese or Spanish variants`() {
         assertTrue(SubtitleLanguageMatching.matchesLanguageCode("por", "pt"))
         assertFalse(SubtitleLanguageMatching.matchesLanguageCode("pt-br", "pt"))

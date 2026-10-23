@@ -7,9 +7,27 @@ import com.nuvio.app.features.details.MetaPerson
 import com.nuvio.app.features.details.MetaVideo
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlinx.coroutines.runBlocking
 
 class TmdbMetadataServiceTest {
+    @Test
+    fun `TMDB disabled prevents metadata use even with an API key`() {
+        assertEquals(false, TmdbSettings(enabled = false, apiKey = "configured-key").canUseMetadata)
+        assertEquals(true, TmdbSettings(enabled = true, apiKey = "configured-key").canUseMetadata)
+    }
+
+    @Test
+    fun `standalone TMDB metadata returns null when disabled even with an API key`() = runBlocking {
+        val result = TmdbMetadataService.fetchStandaloneMeta(
+            type = "movie",
+            id = "tmdb:123",
+            settings = TmdbSettings(enabled = false, apiKey = "configured-key"),
+        )
+
+        assertNull(result)
+    }
+
     @Test
     fun `buildStandaloneMeta maps tmdb enrichment without addon meta`() {
         val enrichment = TmdbEnrichment(

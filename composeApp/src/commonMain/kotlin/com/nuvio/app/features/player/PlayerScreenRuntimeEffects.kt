@@ -26,6 +26,7 @@ import org.jetbrains.compose.resources.getString
 
 @Composable
 internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
+    BindAutoSyncRuntimeEffects()
     val currentFeedback = liveGestureFeedback ?: gestureFeedback
     LaunchedEffect(currentFeedback) {
         if (currentFeedback != null) {
@@ -51,10 +52,10 @@ internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
         }
     }
 
-    LaunchedEffect(currentStreamBingeGroup, parentMetaId) {
+    LaunchedEffect(currentStreamBingeGroup, currentStreamFilename, currentStreamInfoHash, parentMetaId) {
         val bg = currentStreamBingeGroup
         if (bg != null && parentMetaId.isNotBlank()) {
-            BingeGroupCacheRepository.save(parentMetaId, bg)
+            BingeGroupCacheRepository.save(parentMetaId, bg, currentStreamFilename, currentStreamInfoHash)
         }
     }
 
@@ -357,7 +358,9 @@ internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
         selectedSubtitleIndex = -1
         useCustomSubtitles = true
         autoAddonFallbackPending = false
-        playerController?.setSubtitleUri(currentEpisodeSubtitle.url)
+        if (!maybeAutoSyncPreferredSubtitleAtStart(currentEpisodeSubtitle)) {
+            playerController?.setSubtitleUri(currentEpisodeSubtitle.url)
+        }
     }
 
     LaunchedEffect(playbackSnapshot.isLoading, playerController) {
@@ -911,6 +914,8 @@ internal fun PlayerScreenRuntime.tryRefreshCredentialedSourceAfterError(message:
         activeProviderName = stream.addonName
         activeProviderAddonId = stream.addonId
         currentStreamBingeGroup = stream.behaviorHints.bingeGroup
+        currentStreamFilename = stream.behaviorHints.filename
+        currentStreamInfoHash = stream.infoHash ?: stream.p2pInfoHash
         activeInitialPositionMs = savedPositionMs
         activeInitialProgressFraction = null
         showSourcesPanel = false

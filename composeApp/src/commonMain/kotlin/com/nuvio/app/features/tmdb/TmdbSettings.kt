@@ -19,4 +19,7 @@ data class TmdbSettings(
 ) {
     val hasApiKey: Boolean
         get() = apiKey.isNotBlank()
+
+    val canUseMetadata: Boolean
+        get() = enabled && hasApiKey
 }

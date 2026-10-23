@@ -270,11 +270,14 @@ actual object CloudStreamRepository {
         persist()
     }
 
-    actual suspend fun installPlugin(pluginId: String): CloudStreamInstallResult = installOrUpdate(pluginId)
+    actual suspend fun installPlugin(pluginId: String): CloudStreamInstallResult = scope.async { installOrUpdate(pluginId) }.await()
 
-    actual suspend fun updatePlugin(pluginId: String): CloudStreamInstallResult = installOrUpdate(pluginId)
+    actual suspend fun updatePlugin(pluginId: String): CloudStreamInstallResult = scope.async { installOrUpdate(pluginId) }.await()
 
-    actual suspend fun installAndEnablePlugins(pluginIds: List<String>): CloudStreamBulkInstallResult {
+    actual suspend fun installAndEnablePlugins(pluginIds: List<String>): CloudStreamBulkInstallResult =
+        scope.async { installAndEnablePluginsInScope(pluginIds) }.await()
+
+    private suspend fun installAndEnablePluginsInScope(pluginIds: List<String>): CloudStreamBulkInstallResult {
         initialize()
         val requestedIds = pluginIds.distinct()
         if (requestedIds.isEmpty()) {

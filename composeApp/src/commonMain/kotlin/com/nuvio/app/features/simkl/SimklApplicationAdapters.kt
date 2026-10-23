@@ -3,6 +3,7 @@ package com.nuvio.app.features.simkl
 import co.touchlab.kermit.Logger
 import com.nuvio.app.features.profiles.ProfileRepository
 import com.nuvio.app.features.tracking.TrackingHistoryItem
+import com.nuvio.app.features.tracking.TrackingListStatus
 import com.nuvio.app.features.tracking.TrackingProviderId
 import com.nuvio.app.features.tracking.TrackingProgressProvider
 import com.nuvio.app.features.tracking.TrackingProgressSnapshot
@@ -29,6 +30,7 @@ import kotlinx.coroutines.launch
 
 object SimklWatchedSyncAdapter : TrackingWatchedProvider {
     override val providerId: TrackingProviderId = TrackingProviderId.SIMKL
+    private val log = Logger.withTag("SimklWatchedSyncAdapter")
     override suspend fun pull(profileId: Int, pageSize: Int): List<WatchedItem> {
         if (profileId != ProfileRepository.activeProfileId) return emptyList()
         SimklSyncRepository.refresh(
@@ -87,7 +89,9 @@ object SimklWatchedSyncAdapter : TrackingWatchedProvider {
         if (profileId != ProfileRepository.activeProfileId || items.isEmpty()) return
         SimklSyncRepository.ensureLoaded()
         val snapshot = SimklSyncRepository.state.value.snapshot
-        val historyItems = items.map { item ->
+        val pushableItems = simklHistoryPushItems(items)
+        if (pushableItems.isEmpty()) return
+        val historyItems = pushableItems.map { item ->
             TrackingHistoryItem(
                 media = snapshot.mediaReference(
                     contentId = item.id,
@@ -104,6 +108,38 @@ object SimklWatchedSyncAdapter : TrackingWatchedProvider {
         val result = SimklMutationRepository.addToHistory(profileId = profileId, items = historyItems)
         check(result.isComplete) {
             "Simkl could not match ${result.notFoundCount} of ${result.attemptedCount} watched items"
+        }
+        markExplicitSeriesCompleted(profileId = profileId, items = items, snapshot = snapshot)
+    }
+
+    private suspend fun markExplicitSeriesCompleted(
+        profileId: Int,
+        items: Collection<WatchedItem>,
+        snapshot: SimklSyncSnapshot,
+    ) {
+        val series = simklExplicitlyCompletedSeries(items)
+        if (series.isEmpty()) return
+        val media = series.map { item ->
+            snapshot.mediaReference(
+                contentId = item.id,
+                contentType = item.type,
+                title = item.name,
+                releaseInfo = item.releaseInfo,
+            )
+        }
+        runCatching {
+            SimklMutationRepository.moveToList(
+                profileId = profileId,
+                items = media,
+                destination = TrackingListStatus.COMPLETED,
+            )
+        }.onSuccess { moveResult ->
+            if (!moveResult.isComplete) {
+                log.w { "Simkl could not move ${moveResult.notFoundCount} of ${moveResult.attemptedCount} series to Completed" }
+            }
+        }.onFailure { error ->
+            if (error is CancellationException) throw error
+            log.w(error) { "Moving ${media.size} explicitly watched series to Simkl Completed failed" }
         }
     }
 
@@ -135,6 +171,23 @@ object SimklWatchedSyncAdapter : TrackingWatchedProvider {
         }
     }
 }
+
+internal fun simklHistoryPushItems(items: Collection<WatchedItem>): List<WatchedItem> =
+    items.filterNot(WatchedItem::isWholeSeriesMark)
+
+internal fun simklExplicitlyCompletedSeries(items: Collection<WatchedItem>): List<WatchedItem> {
+    val episodeParents = items
+        .filter { item -> item.season != null && item.episode != null }
+        .mapTo(hashSetOf()) { item -> item.id }
+    return items
+        .filter { item -> item.isWholeSeriesMark() && item.id in episodeParents }
+        .distinctBy { item -> item.id }
+}
+
+private fun WatchedItem.isWholeSeriesMark(): Boolean =
+    season == null && episode == null && type.trim().lowercase() !in MOVIE_LIKE_WATCHED_TYPES
+
+private val MOVIE_LIKE_WATCHED_TYPES = setOf("movie", "film")
 
 data class SimklProgressUiState(
     val entries: List<WatchProgressEntry> = emptyList(),

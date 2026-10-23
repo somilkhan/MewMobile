@@ -1,17 +1,30 @@
 name: Mew CloudStream Build
 
+# Push and PR events for the same branch share one runner; newer revisions supersede stale checks.
+concurrency:
+  group: mew-cloudstream-${{ github.event.pull_request.head.ref || github.ref_name }}-${{ (github.event_name == 'workflow_dispatch' && inputs.build_apk == true) || (github.event_name == 'push' && contains(github.event.head_commit.message, '[build-apk]')) }}-${{ github.event_name }}
+  cancel-in-progress: true
+
 on:
   push:
     branches:
       - enhanced
       - feature/cloudstream-dynamic-repositories
+      - sync/upstream
   pull_request:
     branches:
       - enhanced
   workflow_dispatch:
+    inputs:
+      build_apk:
+        description: 'Build and upload the debug APK only for device testing or a manual build request'
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   android-full-debug:
+    # Run tests and Android compilation on every push/PR. APK packaging remains separately gated below.
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -25,6 +38,7 @@ jobs:
           java-version: "17"
 
       - name: Restore stable Mew debug keystore
+        if: (github.event_name == 'workflow_dispatch' && inputs.build_apk == true) || (github.event_name == 'push' && contains(github.event.head_commit.message, '[build-apk]'))
         env:
           MEW_DEBUG_KEYSTORE_BASE64: ${{ secrets.MEW_DEBUG_KEYSTORE_BASE64 }}
           MEW_DEBUG_KEYSTORE_PASSWORD: ${{ secrets.MEW_DEBUG_KEYSTORE_PASSWORD }}
@@ -51,7 +65,14 @@ jobs:
             exit 1
           fi
 
+      - name: Run Android host tests
+        run: ./gradlew :composeApp:testAndroidHostTest -Pnuvio.android.distribution=full --stacktrace
+
+      - name: Compile Android Kotlin sources without packaging an APK
+        run: ./gradlew :composeApp:compileAndroidMain -Pnuvio.android.distribution=full --stacktrace
+
       - name: Build Android Full debug
+        if: (github.event_name == 'workflow_dispatch' && inputs.build_apk == true) || (github.event_name == 'push' && contains(github.event.head_commit.message, '[build-apk]'))
         env:
           MEW_DEBUG_KEYSTORE_FILE: ${{ runner.temp }}/mew-debug/mew-debug.keystore
           MEW_DEBUG_KEYSTORE_PASSWORD: ${{ secrets.MEW_DEBUG_KEYSTORE_PASSWORD }}
@@ -59,7 +80,20 @@ jobs:
           MEW_DEBUG_KEY_PASSWORD: ${{ secrets.MEW_DEBUG_KEY_PASSWORD }}
         run: ./gradlew :androidApp:assembleFullDebug -Pnuvio.android.distribution=full --stacktrace
 
+      - name: Verify Mew package ID
+        if: (github.event_name == 'workflow_dispatch' && inputs.build_apk == true) || (github.event_name == 'push' && contains(github.event.head_commit.message, '[build-apk]'))
+        run: |
+          set -euo pipefail
+          APK="$(find androidApp/build/outputs/apk/full/debug -name '*.apk' -print -quit)"
+          APKANALYZER="$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer"
+          test -f "$APK"
+          test -x "$APKANALYZER"
+          APP_ID="$("$APKANALYZER" manifest application-id "$APK")"
+          echo "APK application ID: $APP_ID"
+          test "$APP_ID" = "com.mew.mobile.debug"
+
       - name: Verify debug APK signing
+        if: (github.event_name == 'workflow_dispatch' && inputs.build_apk == true) || (github.event_name == 'push' && contains(github.event.head_commit.message, '[build-apk]'))
         env:
           MEW_DEBUG_KEYSTORE_FILE: ${{ runner.temp }}/mew-debug/mew-debug.keystore
           MEW_DEBUG_KEYSTORE_PASSWORD: ${{ secrets.MEW_DEBUG_KEYSTORE_PASSWORD }}
@@ -79,8 +113,10 @@ jobs:
           test "$KEYSTORE_SHA" = "$APK_SHA"
           echo "Debug APK certificate SHA-256: $APK_SHA"
       - name: Upload APK
+        if: (github.event_name == 'workflow_dispatch' && inputs.build_apk == true) || (github.event_name == 'push' && contains(github.event.head_commit.message, '[build-apk]'))
         uses: actions/upload-artifact@v4
         with:
           name: mew-cloudstream-full-debug
           path: androidApp/build/outputs/apk/full/debug/*.apk
           if-no-files-found: error
+          retention-days: 3

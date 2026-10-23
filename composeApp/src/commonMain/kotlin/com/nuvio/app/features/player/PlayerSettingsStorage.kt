@@ -4,6 +4,14 @@ import kotlinx.serialization.json.JsonObject
 
 internal expect object PlayerSettingsStorage {
     fun loadShowLoadingOverlay(): Boolean?
+    fun loadPauseOverlayEnabled(): Boolean?
+    fun savePauseOverlayEnabled(enabled: Boolean)
+    fun loadPlayerLiquidGlassEnabled(): Boolean?
+    fun savePlayerLiquidGlassEnabled(enabled: Boolean)
+    fun loadSkipBackwardSeconds(): Int?
+    fun saveSkipBackwardSeconds(seconds: Int)
+    fun loadSkipForwardSeconds(): Int?
+    fun saveSkipForwardSeconds(seconds: Int)
     fun saveShowLoadingOverlay(enabled: Boolean)
     fun loadShowParentalGuide(): Boolean?
     fun saveShowParentalGuide(enabled: Boolean)
@@ -47,6 +55,10 @@ internal expect object PlayerSettingsStorage {
     fun saveSubtitleOutlineEnabled(enabled: Boolean)
     fun loadSubtitleOutlineWidth(): Int?
     fun saveSubtitleOutlineWidth(width: Int)
+    fun loadSubtitleShadowEnabled(): Boolean?
+    fun saveSubtitleShadowEnabled(enabled: Boolean)
+    fun loadSubtitleShadowStrength(): Int?
+    fun saveSubtitleShadowStrength(strength: Int)
     fun loadSubtitleBold(): Boolean?
     fun saveSubtitleBold(enabled: Boolean)
     fun loadSubtitleFontSizeSp(): Int?

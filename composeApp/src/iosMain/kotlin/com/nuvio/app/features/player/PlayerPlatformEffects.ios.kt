@@ -33,6 +33,9 @@ actual fun LockPlayerToLandscape() {
 }
 
 @Composable
+actual fun rememberPlayerOrientationToggleSupported(): Boolean = false
+
+@Composable
 actual fun EnterImmersivePlayerMode(keepScreenAwake: Boolean) {
     SideEffect {
         UIApplication.sharedApplication.setIdleTimerDisabled(keepScreenAwake)
