@@ -14,12 +14,17 @@ import nuvio.composeapp.generated.resources.settings_content_discovery_addons_de
 import nuvio.composeapp.generated.resources.settings_content_discovery_cloudstream_description
 import nuvio.composeapp.generated.resources.settings_content_discovery_plugins_description
 import nuvio.composeapp.generated.resources.settings_content_discovery_section_sources
+import nuvio.composeapp.generated.resources.settings_tmdb_enable_enrichment
+import nuvio.composeapp.generated.resources.settings_tmdb_enable_enrichment_description
 import org.jetbrains.compose.resources.stringResource
 
 internal fun LazyListScope.contentDiscoveryContent(
     isTablet: Boolean,
     showPluginsEntry: Boolean,
     showCloudStreamEntry: Boolean,
+    tmdbEnabled: Boolean,
+    tmdbHasApiKey: Boolean,
+    onTmdbEnabledChange: (Boolean) -> Unit,
     onAddonsClick: () -> Unit,
     onPluginsClick: () -> Unit,
     onCloudStreamClick: () -> Unit,
@@ -30,6 +35,15 @@ internal fun LazyListScope.contentDiscoveryContent(
             isTablet = isTablet,
         ) {
             SettingsGroup(isTablet = isTablet) {
+                SettingsSwitchRow(
+                    title = stringResource(Res.string.settings_tmdb_enable_enrichment),
+                    description = stringResource(Res.string.settings_tmdb_enable_enrichment_description),
+                    checked = tmdbEnabled,
+                    enabled = tmdbHasApiKey,
+                    isTablet = isTablet,
+                    onCheckedChange = onTmdbEnabledChange,
+                )
+                SettingsGroupDivider(isTablet = isTablet)
                 if (showCloudStreamEntry || showPluginsEntry) {
                     SettingsGroupDivider(isTablet = isTablet)
                 }
