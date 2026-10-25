@@ -44,9 +44,6 @@ internal fun LazyListScope.contentDiscoveryContent(
                     onCheckedChange = onTmdbEnabledChange,
                 )
                 SettingsGroupDivider(isTablet = isTablet)
-                if (showCloudStreamEntry || showPluginsEntry) {
-                    SettingsGroupDivider(isTablet = isTablet)
-                }
                 SettingsNavigationRow(
                     title = stringResource(Res.string.compose_settings_page_addons),
                     description = stringResource(
