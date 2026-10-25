@@ -893,6 +893,8 @@
     <string name="settings_tmdb_personal_api_key">Chave de API pessoal</string>
     <string name="settings_tmdb_preferred_language">Idioma</string>
     <string name="settings_tmdb_preferred_language_description">Idioma dos metadados do TMDB para título, logo e campos ativados</string>
+    <string name="settings_tmdb_original_title_language">Idioma original</string>
+    <string name="settings_tmdb_original_title_language_description">Priorize títulos, logotipos, pôsteres e fundos no idioma original. Se não estiverem disponíveis, use o idioma preferido.</string>
     <string name="settings_tmdb_section_credentials">CREDENCIAIS</string>
     <string name="settings_tmdb_section_localization">LOCALIZAÇÃO</string>
     <string name="settings_tmdb_section_modules">MÓDULOS</string>

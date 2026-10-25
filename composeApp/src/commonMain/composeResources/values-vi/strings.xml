@@ -1031,6 +1031,8 @@
     <string name="settings_tmdb_personal_api_key">Khóa API cá nhân</string>
     <string name="settings_tmdb_preferred_language">Ngôn ngữ</string>
     <string name="settings_tmdb_preferred_language_description">Ngôn ngữ dữ liệu TMDB cho tiêu đề, logo và các trường thông tin</string>
+    <string name="settings_tmdb_original_title_language">Ngôn ngữ gốc</string>
+    <string name="settings_tmdb_original_title_language_description">Ưu tiên tiêu đề, logo, áp phích và hình nền bằng ngôn ngữ gốc. Nếu không có, sẽ dùng ngôn ngữ ưu tiên của bạn.</string>
     <string name="settings_tmdb_section_credentials">THÔNG TIN XÁC THỰC</string>
     <string name="settings_tmdb_section_localization">BẢN ĐỊA HÓA</string>
     <string name="settings_tmdb_section_modules">MÔ-ĐUN</string>

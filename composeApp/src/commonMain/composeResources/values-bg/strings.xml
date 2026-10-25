@@ -987,6 +987,8 @@
     <string name="settings_tmdb_personal_api_key">Личен API ключ</string>
     <string name="settings_tmdb_preferred_language">Език</string>
     <string name="settings_tmdb_preferred_language_description">Език на TMDB метаданни за заглавие, лого и активирани полета</string>
+    <string name="settings_tmdb_original_title_language">Оригинален език</string>
+    <string name="settings_tmdb_original_title_language_description">Предпочитай оригиналните заглавия, лога, плакати и фонове. Използва се предпочитаният от вас език, когато липсват.</string>
     <string name="settings_tmdb_section_credentials">ИДЕНТИФИКАЦИОННИ ДАННИ</string>
     <string name="settings_tmdb_section_localization">ЛОКАЛИЗАЦИЯ</string>
     <string name="settings_tmdb_section_modules">МОДУЛИ</string>

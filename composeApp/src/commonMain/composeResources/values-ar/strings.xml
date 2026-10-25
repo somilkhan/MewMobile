@@ -1197,6 +1197,8 @@
     <string name="settings_tmdb_personal_api_key">مفتاح API الشخصي</string>
     <string name="settings_tmdb_preferred_language">اللغة</string>
     <string name="settings_tmdb_preferred_language_description">__لغة البيانات التعريفية NVP0__ للعنوان والشعار والتمكين الحقول</string>
+    <string name="settings_tmdb_original_title_language">اللغة الأصلية</string>
+    <string name="settings_tmdb_original_title_language_description">تفضيل العناوين والشعارات والملصقات وصور الخلفية باللغة الأصلية. استخدم لغتك المفضلة عند عدم توفرها.</string>
     <string name="settings_tmdb_section_credentials">بيانات الاعتماد</string>
     <string name="settings_tmdb_section_localization">الترجمة</string>
     <string name="settings_tmdb_section_modules">الوحدات</string>

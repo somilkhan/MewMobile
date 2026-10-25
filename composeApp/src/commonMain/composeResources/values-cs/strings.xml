@@ -1024,6 +1024,8 @@
     <string name="settings_tmdb_personal_api_key">Osobní API klíč</string>
     <string name="settings_tmdb_preferred_language">Jazyk</string>
     <string name="settings_tmdb_preferred_language_description">Jazyk metadat z TMDB pro titulek, logo a povolené pole.</string>
+    <string name="settings_tmdb_original_title_language">Původní jazyk</string>
+    <string name="settings_tmdb_original_title_language_description">Upřednostnit původní názvy, loga, plakáty a pozadí. Pokud nejsou dostupné, použije se váš preferovaný jazyk.</string>
     <string name="settings_tmdb_section_credentials">POVĚŘENÍ</string>
     <string name="settings_tmdb_section_localization">LOKALIZACE</string>
     <string name="settings_tmdb_section_modules">MODULY</string>
