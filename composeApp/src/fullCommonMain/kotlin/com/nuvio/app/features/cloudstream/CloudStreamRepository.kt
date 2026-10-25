@@ -309,6 +309,7 @@ actual object CloudStreamRepository {
         if (shouldThrottleCloudStreamAutoUpdateCheck(lastUpdateCheckProfileId, profileId, lastUpdateCheckEpochMs, now, 6 * 60 * 60 * 1_000L)) return
         lastUpdateCheckProfileId = profileId
         lastUpdateCheckEpochMs = now
+        var updateCheckCompletedSuccessfully = false
         lateinit var job: Job
         job = scope.launch(start = CoroutineStart.LAZY) {
             try {
