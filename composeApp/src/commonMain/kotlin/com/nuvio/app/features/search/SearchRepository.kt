@@ -109,7 +109,7 @@ object SearchRepository {
 
         val requestKey = buildString {
             append(normalizedQuery.lowercase())
-            append('|tmdbEnabled=')
+            append("|tmdbEnabled=")
             append(tmdbEnabled)
             append('|')
             append(HomeCatalogSettingsRepository.snapshot().hideUnreleasedContent)
