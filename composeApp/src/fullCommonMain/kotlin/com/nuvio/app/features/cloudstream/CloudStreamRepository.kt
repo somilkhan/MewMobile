@@ -253,6 +253,7 @@ actual object CloudStreamRepository {
                 },
             )
         }
+        var updateCheckCompletedSuccessfully = false
         lateinit var job: Job
         job = scope.launch(start = CoroutineStart.LAZY) {
             try {
@@ -305,7 +306,7 @@ actual object CloudStreamRepository {
         val profileId = currentProfileId
         val checkGeneration = updateCheckGeneration
         val now = currentEpochMillis()
-        if (lastUpdateCheckProfileId == profileId && now - lastUpdateCheckEpochMs < 6 * 60 * 60 * 1_000L) return
+        if (shouldThrottleCloudStreamAutoUpdateCheck(lastUpdateCheckProfileId, profileId, lastUpdateCheckEpochMs, now, 6 * 60 * 60 * 1_000L)) return
         lastUpdateCheckProfileId = profileId
         lastUpdateCheckEpochMs = now
         lateinit var job: Job
@@ -326,7 +327,10 @@ actual object CloudStreamRepository {
                     )
                 ) return@launch
 
-                val refreshedRepositories = _uiState.value.repositories
+                val repositorySnapshot = _uiState.value.repositories
+                val repositoryRefreshesSucceeded = repositorySnapshot.none { it.isRefreshing } &&
+                    repositorySnapshot.all { it.errorMessage == null }
+                val refreshedRepositories = repositorySnapshot
                     .filter { !it.isRefreshing && it.errorMessage == null }
                     .mapTo(hashSetOf()) { it.manifest.sourceUrl }
                 val candidates = _uiState.value.plugins.filter { plugin ->
@@ -338,6 +342,7 @@ actual object CloudStreamRepository {
                         plugin.metadata.repositoryManifestUrl in refreshedRepositories
                 }
 
+                var pluginUpdatesSucceeded = true
                 val updatedNames = mutableListOf<String>()
                 for (plugin in candidates) {
                     if (!shouldContinueCloudStreamAutoUpdate(
@@ -355,6 +360,7 @@ actual object CloudStreamRepository {
                             }
                         }
                         is CloudStreamInstallResult.Error -> {
+                            pluginUpdatesSucceeded = false
                             log.w { "CloudStream automatic update failed id=${plugin.metadata.id.value}: ${result.message}" }
                         }
                     }
@@ -368,7 +374,12 @@ actual object CloudStreamRepository {
                         log.w(error) { "CloudStream update notification could not be shown" }
                     }
                 }
+                updateCheckCompletedSuccessfully = repositoryRefreshesSucceeded && pluginUpdatesSucceeded
             } finally {
+                // A failed or cancelled refresh must not suppress the next eligible check for six hours.
+                if (!updateCheckCompletedSuccessfully && profileId == currentProfileId) {
+                    lastUpdateCheckEpochMs = 0L
+                }
                 if (updateCheckJob === job) updateCheckJob = null
             }
         }

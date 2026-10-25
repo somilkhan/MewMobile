@@ -19,6 +19,16 @@ class CloudStreamAutoUpdatePolicyTest {
     }
 
     @Test
+    fun updateCheckCooldownAppliesOnlyToRecentSuccessfulCheckTimestamp() {
+        val cooldownMs = 6 * 60 * 60 * 1_000L
+        assertTrue(shouldThrottleCloudStreamAutoUpdateCheck(2, 2, 10_000L, 10_001L, cooldownMs))
+        assertFalse(shouldThrottleCloudStreamAutoUpdateCheck(2, 2, 0L, 10_001L, cooldownMs))
+        assertFalse(shouldThrottleCloudStreamAutoUpdateCheck(1, 2, 10_000L, 10_001L, cooldownMs))
+        assertFalse(shouldThrottleCloudStreamAutoUpdateCheck(2, 2, 10_000L, 10_000L + cooldownMs, cooldownMs))
+        assertFalse(shouldThrottleCloudStreamAutoUpdateCheck(2, 2, 10_000L, 9_999L, cooldownMs))
+    }
+
+    @Test
     fun allowsRunOnlyWhenProfilePreferenceAndGenerationStillMatch() {
         assertTrue(
             shouldContinueCloudStreamAutoUpdate(

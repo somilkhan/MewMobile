@@ -223,6 +223,18 @@ internal fun isCloudStreamOperationCurrent(
     isCloudStreamProfileCurrent(operationProfileId, currentProfileId) &&
         operationGeneration == currentGeneration
 
+internal fun shouldThrottleCloudStreamAutoUpdateCheck(
+    lastCheckProfileId: Int,
+    currentProfileId: Int,
+    lastCheckEpochMs: Long,
+    nowEpochMs: Long,
+    cooldownMs: Long,
+): Boolean =
+    lastCheckProfileId == currentProfileId &&
+        lastCheckEpochMs > 0L &&
+        nowEpochMs >= lastCheckEpochMs &&
+        nowEpochMs - lastCheckEpochMs < cooldownMs
+
 internal fun shouldContinueCloudStreamAutoUpdate(
     checkProfileId: Int,
     currentProfileId: Int,
