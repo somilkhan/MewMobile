@@ -7,6 +7,7 @@ import com.nuvio.app.features.addons.httpRequestRaw
 import com.nuvio.app.features.plugins.currentEpochMillis
 import com.nuvio.app.core.diagnostics.RuntimeDiagnostics
 import com.nuvio.app.features.profiles.ProfileRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
@@ -20,6 +21,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import java.util.LinkedHashMap
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
@@ -40,6 +44,9 @@ actual object CloudStreamRepository {
     actual val uiState: StateFlow<CloudStreamUiState> = _uiState.asStateFlow()
 
     private var initialized = false
+    private var updateCheckJob: Job? = null
+    private var lastUpdateCheckProfileId = 1
+    private var lastUpdateCheckEpochMs = 0L
     private var currentProfileId = 1
     private val refreshJobs = mutableMapOf<String, Job>()
     private val mainPageRequestMutex = Any()
@@ -69,6 +76,10 @@ actual object CloudStreamRepository {
     }
 
     actual fun onProfileChanged(profileId: Int) {
+        updateCheckJob?.cancel()
+        updateCheckJob = null
+        lastUpdateCheckProfileId = profileId.coerceAtLeast(1)
+        lastUpdateCheckEpochMs = 0L
         refreshJobs.values.forEach { it.cancel() }
         refreshJobs.clear()
         cancelInFlightMainPageRequests()
@@ -91,6 +102,9 @@ actual object CloudStreamRepository {
     }
 
     actual fun clearLocalState() {
+        updateCheckJob?.cancel()
+        updateCheckJob = null
+        lastUpdateCheckEpochMs = 0L
         refreshJobs.values.forEach { it.cancel() }
         refreshJobs.clear()
         initialized = false
@@ -247,6 +261,69 @@ actual object CloudStreamRepository {
     actual fun refreshAll() {
         initialize()
         _uiState.value.repositories.forEach { refreshRepository(it.manifest.sourceUrl) }
+    }
+
+    actual fun checkForUpdates() {
+        initialize()
+        if (updateCheckJob?.isActive == true) return
+
+        val profileId = currentProfileId
+        val now = currentEpochMillis()
+        if (lastUpdateCheckProfileId == profileId && now - lastUpdateCheckEpochMs < 6 * 60 * 60 * 1_000L) return
+        lastUpdateCheckProfileId = profileId
+        lastUpdateCheckEpochMs = now
+        lateinit var job: Job
+        job = scope.launch(start = CoroutineStart.LAZY) {
+            try {
+                // Refresh repository metadata first; do not act on stale update information after a failed refresh.
+                refreshAll()
+                val deadline = currentEpochMillis() + 45_000L
+                while (refreshJobs.values.any { it.isActive } && currentEpochMillis() < deadline) {
+                    delay(100L)
+                }
+                if (profileId != currentProfileId) return@launch
+
+                val refreshedRepositories = _uiState.value.repositories
+                    .filter { !it.isRefreshing && it.errorMessage == null }
+                    .mapTo(hashSetOf()) { it.manifest.sourceUrl }
+                val candidates = _uiState.value.plugins.filter { plugin ->
+                    plugin.isInstalled &&
+                        plugin.hasUpdate &&
+                        !plugin.isInstalling &&
+                        plugin.metadata.status.canInstall &&
+                        plugin.compatibility.isRunnable &&
+                        plugin.metadata.repositoryManifestUrl in refreshedRepositories
+                }
+
+                val updatedNames = mutableListOf<String>()
+                for (plugin in candidates) {
+                    if (profileId != currentProfileId) return@launch
+                    when (val result = installOrUpdate(plugin.metadata.id.value)) {
+                        is CloudStreamInstallResult.Success -> {
+                            if (result.plugin.installedVersion != plugin.installedVersion) {
+                                updatedNames += plugin.metadata.name
+                            }
+                        }
+                        is CloudStreamInstallResult.Error -> {
+                            log.w { "CloudStream automatic update failed id=${plugin.metadata.id.value}: ${result.message}" }
+                        }
+                    }
+                }
+
+                if (profileId == currentProfileId && updatedNames.isNotEmpty()) {
+                    runCatching {
+                        com.nuvio.app.features.notifications.EpisodeReleaseNotificationPlatform
+                            .showCloudStreamPluginUpdates(updatedNames)
+                    }.onFailure { error ->
+                        log.w(error) { "CloudStream update notification could not be shown" }
+                    }
+                }
+            } finally {
+                if (updateCheckJob === job) updateCheckJob = null
+            }
+        }
+        updateCheckJob = job
+        job.start()
     }
 
     actual fun removeRepository(manifestUrl: String) {
@@ -607,6 +684,7 @@ private fun cancelInFlightLoadLinksRequests() {
                 item.metadata.packageUrl,
                 headers = mapOf("Accept" to "application/zip, application/octet-stream"),
             )
+            currentCoroutineContext().ensureActive()
             require(bytes.isNotEmpty()) { "Downloaded .cs3 package is empty" }
             item.metadata.fileSize?.let { expectedSize ->
                 if (bytes.size.toLong() != expectedSize) {
@@ -619,7 +697,9 @@ private fun cancelInFlightLoadLinksRequests() {
             val expectedHash = item.metadata.fileHash
             val verified = expectedHash?.matches(bytes) ?: true
             if (expectedHash != null) require(verified) { ".cs3 SHA-256 hash mismatch" }
+            currentCoroutineContext().ensureActive()
             CloudStreamPlatformRuntime.unload(pluginId)
+            currentCoroutineContext().ensureActive()
             CloudStreamPlatformStorage.savePackageAtomically(item.metadata.id.storageKey, bytes)
             val installed = item.copy(
                 installedVersion = item.metadata.version,
@@ -640,6 +720,10 @@ private fun cancelInFlightLoadLinksRequests() {
         }.fold(
             onSuccess = { CloudStreamInstallResult.Success(it) },
             onFailure = { error ->
+                if (error is CancellationException) {
+                    markInstalling(pluginId, false, null)
+                    throw error
+                }
                 log.w(error) { "CloudStream plugin installation failed id=$pluginId" }
                 markInstalling(pluginId, false, error.message ?: "Plugin installation failed")
                 CloudStreamInstallResult.Error(error.message ?: "Plugin installation failed")

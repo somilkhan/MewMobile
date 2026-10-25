@@ -150,6 +150,7 @@ fun HomeScreen(
     LaunchedEffect(Unit) {
         AddonRepository.initialize()
         CloudStreamRepository.initialize()
+        CloudStreamRepository.checkForUpdates()
         CollectionRepository.initialize()
         ContinueWatchingPreferencesRepository.ensureLoaded()
         WatchedRepository.ensureLoaded()

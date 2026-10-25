@@ -71,6 +71,7 @@ expect object CloudStreamRepository {
     suspend fun discoverRepositories(rawInput: String): Result<Int>
     fun refreshRepository(manifestUrl: String)
     fun refreshAll()
+    fun checkForUpdates()
     fun removeRepository(manifestUrl: String)
 
     suspend fun installPlugin(pluginId: String): CloudStreamInstallResult
