@@ -16,6 +16,8 @@ import nuvio.composeapp.generated.resources.settings_content_discovery_plugins_d
 import nuvio.composeapp.generated.resources.settings_content_discovery_section_sources
 import nuvio.composeapp.generated.resources.settings_tmdb_enable_enrichment
 import nuvio.composeapp.generated.resources.settings_tmdb_enable_enrichment_description
+import nuvio.composeapp.generated.resources.settings_tmdb_add_api_key_first
+import nuvio.composeapp.generated.resources.settings_tmdb_section_title
 import org.jetbrains.compose.resources.stringResource
 
 internal fun LazyListScope.contentDiscoveryContent(
@@ -25,6 +27,7 @@ internal fun LazyListScope.contentDiscoveryContent(
     tmdbEnabled: Boolean,
     tmdbHasApiKey: Boolean,
     onTmdbEnabledChange: (Boolean) -> Unit,
+    onTmdbSettingsClick: () -> Unit,
     onAddonsClick: () -> Unit,
     onPluginsClick: () -> Unit,
     onCloudStreamClick: () -> Unit,
@@ -44,6 +47,15 @@ internal fun LazyListScope.contentDiscoveryContent(
                     onCheckedChange = onTmdbEnabledChange,
                 )
                 SettingsGroupDivider(isTablet = isTablet)
+                if (!tmdbHasApiKey) {
+                    SettingsNavigationRow(
+                        title = stringResource(Res.string.settings_tmdb_section_title),
+                        description = stringResource(Res.string.settings_tmdb_add_api_key_first),
+                        isTablet = isTablet,
+                        onClick = onTmdbSettingsClick,
+                    )
+                    SettingsGroupDivider(isTablet = isTablet)
+                }
                 SettingsNavigationRow(
                     title = stringResource(Res.string.compose_settings_page_addons),
                     description = stringResource(
