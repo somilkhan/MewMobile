@@ -146,7 +146,7 @@ Comparison anchor: Enhanced `ae535226b1488a60d59613c1502fbb717cbb333f` → `a3e8
 
 - Ported the upstream title-language preference into the existing TMDB settings page rather than creating a new screen. The preference is profile-scoped on Android/iOS, included in settings sync payloads, and defaults to the existing app-language behavior.
 - TMDB enrichment and home-preview artwork cache keys now distinguish the title mode. When Original language is selected, titles prefer `original_title` / `original_name`, image requests are not restricted to the app language, and original-language artwork is preferred when available; the previous preferred-language selection remains the fallback. The preference is only enabled when TMDB enrichment is enabled and configured.
-- Added unit coverage for title selection fallback and cache separation. Translation keys were added to the default resource file; locale-specific translation coverage still needs audit.
+- Added unit coverage for title selection fallback and cache separation. Translation keys are present in the default resource file and all 23 locale-specific `strings.xml` files; a direct source audit checked both the title label and description keys in each locale.
 - This is source-level implementation pending CI and platform verification. It does not alter the TMDB enable/disable contract or CloudStream fallback behavior.
 
 
@@ -194,3 +194,6 @@ Comparison anchor: Enhanced `ae535226b1488a60d59613c1502fbb717cbb333f` → `a3e8
 - The deduplication check also used `Job.isActive`; a newly registered lazy coroutine is not active until `start()`, leaving a window where concurrent refresh requests for the same manifest could both start network requests and race version persistence.
 - Added a dedicated registry lock around refresh reservation/removal and profile-switch/clear operations. The deduplication guard now treats any non-completed registered job—including a lazy job—as reserved. Cancellation occurs outside the lock to avoid running cancellation handlers while holding the registry monitor.
 - Verification: current head before this change passed Android host tests and Android Kotlin source compilation in [run 40245881788](https://github.com/somilkhan/MewMobile/actions/runs/40245881788). The new concurrency change requires a fresh workflow; no result is claimed yet.
+
+
+- Add-on refresh registry follow-up: the new reservation predicate is now covered by a host test that specifically models a lazy coroutine job (inactive but not completed) and a cancelled/completed job. This guards the original `isActive`-based deduplication hole; the synchronized registry implementation itself is validated by the current-head CI run.

@@ -5,8 +5,29 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 
 class AddonModelsTest {
+
+    @Test
+    fun `lazy refresh job reserves its manifest before it starts`() {
+        val scope = CoroutineScope(SupervisorJob())
+        val lazyJob = scope.launch(start = CoroutineStart.LAZY) { }
+
+        assertFalse(lazyJob.isActive)
+        assertFalse(lazyJob.isCompleted)
+        assertFalse(canReserveAddonRefresh(lazyJob))
+
+        lazyJob.cancel()
+        assertTrue(lazyJob.isCompleted)
+        assertTrue(canReserveAddonRefresh(lazyJob))
+        assertTrue(canReserveAddonRefresh(null))
+        scope.cancel()
+    }
 
     @Test
     fun `first version observation is not an update`() {

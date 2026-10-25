@@ -1,5 +1,6 @@
 package com.nuvio.app.features.addons
 
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.runBlocking
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.generic_addon
@@ -99,3 +100,10 @@ internal fun addonVersionChangeFrom(
     currentVersion: String,
     pendingVersion: String?,
 ): String? = pendingVersion ?: previousVersion?.takeIf { addonVersionChanged(it, currentVersion) }
+
+
+/**
+ * Lazy jobs are reservations too: [Job.isActive] is false before start, but duplicate refreshes
+ * must still be rejected until the existing reservation completes or is cancelled.
+ */
+internal fun canReserveAddonRefresh(existingJob: Job?): Boolean = existingJob?.isCompleted != false

@@ -376,7 +376,7 @@ object AddonRepository {
         synchronized(refreshJobsLock) {
             // A lazy job is not active until start(), so checking isActive alone permits two
             // callers to reserve the same URL before either starts.
-            if (activeRefreshJobs[manifestUrl]?.isCompleted == false) return
+            if (!canReserveAddonRefresh(activeRefreshJobs[manifestUrl])) return
             val profileId = currentProfileId
             markRefreshing(manifestUrl)
             refreshJob = scope.launch(start = CoroutineStart.LAZY) {
