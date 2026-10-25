@@ -375,6 +375,7 @@ actual object CloudStreamRepository {
     actual fun removeRepository(manifestUrl: String) {
         initialize()
         val normalizedUrl = runCatching { normalizeCloudStreamRepositoryUrl(manifestUrl) }.getOrNull() ?: return
+        refreshJobs.remove(normalizedUrl)?.cancel()
         val removedPlugins = _uiState.value.plugins.filter { it.metadata.repositoryManifestUrl == normalizedUrl }
         removedPlugins.forEach {
             CloudStreamPlatformRuntime.unload(it.metadata.id.value)
@@ -796,6 +797,7 @@ private fun cancelInFlightLoadLinksRequests() {
             runCatching {
                 CloudStreamRepositoryParser.parseRepository(candidate, httpGetText(candidate))
             }.onFailure { error ->
+                if (error is CancellationException) throw error
                 lastManifestError = error
                 log.w(error) { "CloudStream repository manifest failed url=$candidate" }
             }.getOrNull()
@@ -808,6 +810,7 @@ private fun cancelInFlightLoadLinksRequests() {
             }.onSuccess {
                 loadedListCount += 1
             }.onFailure { error ->
+                if (error is CancellationException) throw error
                 log.w(error) { "CloudStream plugin list failed url=$pluginListUrl" }
             }.getOrNull()
         }
@@ -830,6 +833,9 @@ private fun cancelInFlightLoadLinksRequests() {
         plugins: List<CloudStreamPluginMetadata>,
     ) {
         _uiState.update { current ->
+            if (current.repositories.none { it.manifest.sourceUrl == repository.sourceUrl }) {
+                return@update current
+            }
             val previousById = current.plugins.associateBy { it.metadata.id.value }
             val refreshed = plugins.map { metadata ->
                 previousById[metadata.id.value]?.copy(
