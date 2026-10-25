@@ -12,6 +12,7 @@ import com.nuvio.app.features.collection.TmdbCollectionSourceResolver
 import com.nuvio.app.features.collection.catalogRouteKey
 import com.nuvio.app.features.collection.findCollectionCatalog
 import com.nuvio.app.features.cloudstream.CloudStreamPluginItem
+import com.nuvio.app.features.cloudstream.CLOUDSTREAM_DISCOVERY_TIMEOUT_MS
 import com.nuvio.app.features.cloudstream.CloudStreamRepository
 import com.nuvio.app.features.cloudstream.toMetaPreview
 import com.nuvio.app.features.tmdb.TmdbMetadataService
@@ -769,7 +770,7 @@ private const val HOME_COLLECTION_HERO_SOURCE_ITEM_LIMIT = 8
 private const val HOME_CATALOG_FETCH_BATCH_SIZE = 4
 private const val HOME_CATALOG_PREVIEW_FETCH_LIMIT = 18
 private const val HOME_CATALOG_PUBLISH_INTERVAL = 2
-private const val HOME_CLOUDSTREAM_PROVIDER_TIMEOUT_MS = 5_000L
+internal const val HOME_CLOUDSTREAM_PROVIDER_TIMEOUT_MS = CLOUDSTREAM_DISCOVERY_TIMEOUT_MS + 5_000L
 private const val HOME_CLOUDSTREAM_PROVIDER_CONCURRENCY = 4
 private const val HOME_CATALOG_REQUEST_TIMEOUT_MS = 12_000L
 private const val HOME_COLLECTION_HERO_SOURCE_TIMEOUT_MS = 10_000L

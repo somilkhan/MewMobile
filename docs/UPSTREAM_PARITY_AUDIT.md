@@ -151,3 +151,10 @@ Comparison anchor: Enhanced `ae535226b1488a60d59613c1502fbb717cbb333f` → `a3e8
 
 
 - Follow-up for the TMDB title-language port: Home's localized-hero cache key and in-flight request key now include the title-language mode, and changing the setting invalidates/rebuilds the existing hero data through `HomeRepository` instead of leaving stale titles until a full catalog refresh. When original-title mode is selected while artwork enrichment is off, the preview path can still update the title/logo without replacing posters and backdrops against the user's artwork setting. Hidden Home state does not trigger a new metadata request during invalidation.
+
+
+## Home/CloudStream timeout alignment
+
+- The current Home caller wrapped each provider's MainPage request in a 5-second deadline while the Android CloudStream runtime's default per-provider discovery deadline was 15 seconds. This outer deadline could cancel valid providers before their own discovery budget expired, matching the LogFox timeout-mismatch concern.
+- Introduced a shared 15-second discovery timeout constant used by the Android runtime and set Home's outer deadline to 20 seconds, leaving 5 seconds of orchestration headroom. Added a host test asserting the outer deadline exceeds the runtime deadline.
+- This resolves the known 5s-vs-15s mismatch at source level. It does not by itself prove provider success, progressive UI rendering, or physical-device performance; those remain verification items.

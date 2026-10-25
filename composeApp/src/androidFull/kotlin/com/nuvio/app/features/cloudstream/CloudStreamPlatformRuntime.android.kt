@@ -803,7 +803,7 @@ private class AndroidDexCloudStreamProvider(
         }
 
         private const val CLOUDSTREAM_API_CONCURRENCY = 4
-        private const val DEFAULT_DISCOVERY_TIMEOUT_MS = 15_000L
+        private const val DEFAULT_DISCOVERY_TIMEOUT_MS = CLOUDSTREAM_DISCOVERY_TIMEOUT_MS
         private const val DEFAULT_LOAD_TIMEOUT_MS = 120_000L
         private const val DEFAULT_LINK_TIMEOUT_MS = 120_000L
         private const val LEGACY_RUNTIME_DEFAULT_LOAD_TIMEOUT_MS = 5_000L
