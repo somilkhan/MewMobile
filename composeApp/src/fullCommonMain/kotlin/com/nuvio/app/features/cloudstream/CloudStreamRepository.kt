@@ -419,6 +419,8 @@ actual object CloudStreamRepository {
 
     private suspend fun installAndEnablePluginsInScope(pluginIds: List<String>): CloudStreamBulkInstallResult {
         initialize()
+        val operationProfileId = currentProfileId
+        val operationGeneration = updateCheckGeneration
         val requestedIds = pluginIds.distinct()
         if (requestedIds.isEmpty()) {
             return CloudStreamBulkInstallResult(
@@ -448,33 +450,47 @@ actual object CloudStreamRepository {
         var skippedCount = 0
         val failures = mutableListOf<CloudStreamBulkInstallFailure>()
 
-        requestedIds.forEach { pluginId ->
+        for (pluginId in requestedIds) {
+            if (!isCloudStreamOperationCurrent(operationProfileId, currentProfileId, operationGeneration, updateCheckGeneration)) {
+                failures += CloudStreamBulkInstallFailure(
+                    pluginName = "CloudStream",
+                    message = "Active profile changed during bulk install",
+                )
+                break
+            }
             val before = _uiState.value.plugins.firstOrNull { it.metadata.id.value == pluginId }
             if (before == null) {
                 failures += CloudStreamBulkInstallFailure(pluginName = pluginId, message = "CloudStream plugin was not found")
-                return@forEach
+                continue
             }
             if (before.isInstalling) {
                 skippedCount += 1
-                return@forEach
+                continue
             }
             if (!before.metadata.status.canInstall) {
                 failures += CloudStreamBulkInstallFailure(
                     pluginName = before.metadata.name,
                     message = "This CloudStream plugin is marked as down",
                 )
-                return@forEach
+                continue
             }
             if (!before.compatibility.isRunnable) {
                 failures += CloudStreamBulkInstallFailure(
                     pluginName = before.metadata.name,
                     message = before.compatibility.reason,
                 )
-                return@forEach
+                continue
             }
 
             val needsInstall = !before.isInstalled || before.hasUpdate || !before.verified
             val installResult = if (needsInstall) installOrUpdate(pluginId) else CloudStreamInstallResult.Success(before)
+            if (!isCloudStreamOperationCurrent(operationProfileId, currentProfileId, operationGeneration, updateCheckGeneration)) {
+                failures += CloudStreamBulkInstallFailure(
+                    pluginName = before.metadata.name,
+                    message = "Active profile changed during bulk install",
+                )
+                break
+            }
             when (installResult) {
                 is CloudStreamInstallResult.Success -> {
                     if (needsInstall) installedCount += 1
