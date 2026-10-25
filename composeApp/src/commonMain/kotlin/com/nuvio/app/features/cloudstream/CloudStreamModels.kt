@@ -214,6 +214,15 @@ fun CloudStreamPluginMetadata.installAction(installed: CloudStreamInstalledPlugi
 internal fun isCloudStreamProfileCurrent(operationProfileId: Int, currentProfileId: Int): Boolean =
     operationProfileId == currentProfileId
 
+internal fun isCloudStreamOperationCurrent(
+    operationProfileId: Int,
+    currentProfileId: Int,
+    operationGeneration: Long,
+    currentGeneration: Long,
+): Boolean =
+    isCloudStreamProfileCurrent(operationProfileId, currentProfileId) &&
+        operationGeneration == currentGeneration
+
 internal fun shouldContinueCloudStreamAutoUpdate(
     checkProfileId: Int,
     currentProfileId: Int,

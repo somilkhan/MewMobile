@@ -12,6 +12,13 @@ class CloudStreamAutoUpdatePolicyTest {
     }
 
     @Test
+    fun operationGuardRejectsResultsAfterProfileResetOrGenerationChange() {
+        assertTrue(isCloudStreamOperationCurrent(1, 1, 4L, 4L))
+        assertFalse(isCloudStreamOperationCurrent(1, 1, 4L, 5L))
+        assertFalse(isCloudStreamOperationCurrent(1, 2, 4L, 4L))
+    }
+
+    @Test
     fun allowsRunOnlyWhenProfilePreferenceAndGenerationStillMatch() {
         assertTrue(
             shouldContinueCloudStreamAutoUpdate(

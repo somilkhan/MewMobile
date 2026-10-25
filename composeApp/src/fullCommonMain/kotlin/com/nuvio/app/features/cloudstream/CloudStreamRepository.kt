@@ -144,6 +144,7 @@ actual object CloudStreamRepository {
     actual suspend fun addRepository(rawUrl: String): AddCloudStreamRepositoryResult {
         initialize()
         val profileId = currentProfileId
+        val operationGeneration = updateCheckGeneration
         val manifestUrl = runCatching { resolveCloudStreamRepositoryInput(rawUrl) }
             .getOrElse { return AddCloudStreamRepositoryResult.Error(it.message ?: "Invalid repository URL") }
         if (_uiState.value.repositories.any { it.manifest.sourceUrl == manifestUrl }) {
@@ -153,7 +154,7 @@ actual object CloudStreamRepository {
         return runCatching { fetchRepository(manifestUrl) }
             .fold(
                 onSuccess = { (repository, plugins) ->
-                    if (!isCloudStreamProfileCurrent(profileId, currentProfileId)) {
+                    if (!isCloudStreamOperationCurrent(profileId, currentProfileId, operationGeneration, updateCheckGeneration)) {
                         AddCloudStreamRepositoryResult.Error("Active profile changed while adding the repository")
                     } else {
                         _uiState.update { current ->
@@ -183,6 +184,7 @@ actual object CloudStreamRepository {
     actual suspend fun discoverRepositories(rawInput: String): Result<Int> {
         initialize()
         val profileId = currentProfileId
+        val operationGeneration = updateCheckGeneration
         val input = rawInput.trim()
         if (input.isBlank()) return Result.failure(IllegalArgumentException("Repository input is empty"))
 
@@ -221,7 +223,7 @@ actual object CloudStreamRepository {
                 }.mapNotNull { it.await() }
             }.distinctBy { it.sourceUrl }
 
-            if (isCloudStreamProfileCurrent(profileId, currentProfileId)) {
+            if (isCloudStreamOperationCurrent(profileId, currentProfileId, operationGeneration, updateCheckGeneration)) {
                 _uiState.update { current ->
                     current.copy(
                         discoveredRepositories = manifests.filterNot { discovered ->
@@ -243,6 +245,7 @@ actual object CloudStreamRepository {
             if (refreshJobs[normalizedUrl]?.isCompleted == false) return
         }
         val profileId = currentProfileId
+        val operationGeneration = updateCheckGeneration
         _uiState.update { current ->
             current.copy(
                 repositories = current.repositories.map { item ->
@@ -256,12 +259,12 @@ actual object CloudStreamRepository {
                 runCatching { fetchRepository(normalizedUrl) }
                     .fold(
                         onSuccess = { (repository, plugins) ->
-                            if (!isCloudStreamProfileCurrent(profileId, currentProfileId)) return@launch
+                            if (!isCloudStreamOperationCurrent(profileId, currentProfileId, operationGeneration, updateCheckGeneration)) return@launch
                             applyRepositoryRefresh(repository, plugins)
                         },
                         onFailure = { error ->
                             if (error is CancellationException) throw error
-                            if (!isCloudStreamProfileCurrent(profileId, currentProfileId)) return@launch
+                            if (!isCloudStreamOperationCurrent(profileId, currentProfileId, operationGeneration, updateCheckGeneration)) return@launch
                             log.w(error) { "CloudStream repository refresh failed url=$normalizedUrl" }
                             _uiState.update { current ->
                                 current.copy(
@@ -274,7 +277,7 @@ actual object CloudStreamRepository {
                             }
                         },
                     )
-                if (!isCloudStreamProfileCurrent(profileId, currentProfileId)) return@launch
+                if (!isCloudStreamOperationCurrent(profileId, currentProfileId, operationGeneration, updateCheckGeneration)) return@launch
                 persist()
             } finally {
                 synchronized(refreshJobsLock) {
@@ -731,6 +734,7 @@ private fun cancelInFlightLoadLinksRequests() {
     private suspend fun installOrUpdate(pluginId: String): CloudStreamInstallResult {
         initialize()
         val profileId = currentProfileId
+        val operationGeneration = updateCheckGeneration
         if (!_uiState.value.securityWarningAccepted) {
             return CloudStreamInstallResult.Error("Accept the third-party plugin security warning before installation")
         }
@@ -759,7 +763,7 @@ private fun cancelInFlightLoadLinksRequests() {
             val verified = expectedHash?.matches(bytes) ?: true
             if (expectedHash != null) require(verified) { ".cs3 SHA-256 hash mismatch" }
             currentCoroutineContext().ensureActive()
-            check(isCloudStreamProfileCurrent(profileId, currentProfileId)) {
+            check(isCloudStreamOperationCurrent(profileId, currentProfileId, operationGeneration, updateCheckGeneration)) {
                 "Active profile changed during CloudStream install"
             }
             CloudStreamPlatformRuntime.unload(pluginId)
@@ -773,7 +777,7 @@ private fun cancelInFlightLoadLinksRequests() {
                 isInstalling = false,
                 errorMessage = null,
             )
-            check(isCloudStreamProfileCurrent(profileId, currentProfileId)) {
+            check(isCloudStreamOperationCurrent(profileId, currentProfileId, operationGeneration, updateCheckGeneration)) {
                 "Active profile changed during CloudStream install"
             }
             _uiState.update { current ->
@@ -788,13 +792,13 @@ private fun cancelInFlightLoadLinksRequests() {
             onSuccess = { CloudStreamInstallResult.Success(it) },
             onFailure = { error ->
                 if (error is CancellationException) {
-                    if (isCloudStreamProfileCurrent(profileId, currentProfileId)) {
+                    if (isCloudStreamOperationCurrent(profileId, currentProfileId, operationGeneration, updateCheckGeneration)) {
                         markInstalling(pluginId, false, null)
                     }
                     throw error
                 }
                 log.w(error) { "CloudStream plugin installation failed id=$pluginId" }
-                if (isCloudStreamProfileCurrent(profileId, currentProfileId)) {
+                if (isCloudStreamOperationCurrent(profileId, currentProfileId, operationGeneration, updateCheckGeneration)) {
                     markInstalling(pluginId, false, error.message ?: "Plugin installation failed")
                 }
                 CloudStreamInstallResult.Error(error.message ?: "Plugin installation failed")
