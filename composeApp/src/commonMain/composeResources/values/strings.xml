@@ -2922,4 +2922,5 @@
     <string name="live_tv_programme_open_live">OPEN LIVE CHANNEL NOW</string>
     <string name="player_action_rotate_portrait">Watch in portrait</string>
     <string name="player_action_rotate_landscape">Watch in landscape</string>
+    <string name="addons_refresh_all">Refresh all Nuvio add-ons</string>
 </resources>
