@@ -350,6 +350,7 @@ object HomeCatalogSettingsRepository {
             updatedPreferences[itemKey] = current.copy(order = index)
         }
         preferences = updatedPreferences
+        enforcePinnedCollectionsAtTop()
         publish()
         persist()
         HomeRepository.applyCurrentSettings()
@@ -629,6 +630,7 @@ object HomeCatalogSettingsRepository {
             }
             preferences = preservedPreferences + remotePreferences
             normalizePreferences()
+            enforcePinnedCollectionsAtTop()
         }
         hasLoaded = true
         publish()
@@ -655,11 +657,8 @@ object HomeCatalogSettingsRepository {
             .toSet()
         if (pinnedCollectionKeys.isEmpty()) return
 
-        val pinnedKeys = orderedKeys.filter { it in pinnedCollectionKeys }
-        if (pinnedKeys.isEmpty()) return
-
-        val nonPinnedKeys = orderedKeys.filterNot { it in pinnedCollectionKeys }
-        val reorderedKeys = pinnedKeys + nonPinnedKeys
+        val reorderedKeys = pinnedCollectionsFirst(orderedKeys, pinnedCollectionKeys)
+        if (reorderedKeys == orderedKeys) return
         if (reorderedKeys == orderedKeys) return
 
         val updatedPreferences = preferences.toMutableMap()
@@ -732,3 +731,13 @@ internal fun buildCollectionDefinitions(collections: List<Collection>): List<Col
             isPinnedToTop = collection.pinToTop,
         )
     }
+
+
+internal fun pinnedCollectionsFirst(
+    orderedKeys: List<String>,
+    pinnedCollectionKeys: Set<String>,
+): List<String> {
+    if (orderedKeys.isEmpty() || pinnedCollectionKeys.isEmpty()) return orderedKeys
+    return orderedKeys.filter { it in pinnedCollectionKeys } +
+        orderedKeys.filterNot { it in pinnedCollectionKeys }
+}
