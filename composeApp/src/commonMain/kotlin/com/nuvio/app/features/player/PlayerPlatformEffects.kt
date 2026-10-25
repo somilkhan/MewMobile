@@ -20,9 +20,22 @@ data class PlayerAudioLevel(
 
 object PlayerOrientationPreference {
     private val _portrait = MutableStateFlow(false)
+    private var originalRequestedOrientation: Int? = null
     val portrait: StateFlow<Boolean> = _portrait.asStateFlow()
+
     fun toggle() { _portrait.value = !_portrait.value }
-    internal fun reset() { _portrait.value = false }
+
+    internal fun captureOriginalOrientation(requestedOrientation: Int): Int {
+        if (originalRequestedOrientation == null) {
+            originalRequestedOrientation = requestedOrientation
+        }
+        return originalRequestedOrientation ?: requestedOrientation
+    }
+
+    internal fun reset() {
+        _portrait.value = false
+        originalRequestedOrientation = null
+    }
 }
 
 @Composable

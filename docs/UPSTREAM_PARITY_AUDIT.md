@@ -165,3 +165,10 @@ Comparison anchor: Enhanced `ae535226b1488a60d59613c1502fbb717cbb333f` → `a3e8
 - The previous package inspector verified ZIP structure, entry names, traversal, compressed download size, and central-directory uncompressed-size limits, but required only the *presence* of `manifest.json` and `classes.dex`. A malformed manifest or a fake/invalid DEX entry could therefore pass preflight and replace a working package.
 - Android Full now streams and validates the ZIP local entries before atomic replacement: local/central-directory entry sets must match; duplicate entries are rejected; actual decompressed bytes are bounded; the manifest must parse and contain a nonblank `pluginClassName`; and `classes.dex` must have a valid DEX magic header. Android Play Store and iOS runtime stubs remain no-ops because those variants do not support Android DEX loading.
 - Added common unit tests for valid, invalid, and truncated DEX headers. Full runtime/package loading and rollback behavior still require CI and device verification.
+
+
+## Player orientation toggle lifecycle fix
+
+- The Android player orientation effect previously restored the Activity orientation and reset the global portrait toggle on every disposal. An orientation request can itself recreate the Activity, so disposal during that configuration change could erase the user's toggle and force landscape again.
+- The orientation preference now retains the pre-player requested orientation across configuration recreation and restores/resets it only when the Activity is actually leaving configuration change. Added a host unit test for preserving the original orientation across a simulated recreation.
+- This addresses the identified lifecycle race at source level. Actual device rotation, multi-window, and OEM-specific behavior remain unverified and are reserved for the Phase 5 device pass.

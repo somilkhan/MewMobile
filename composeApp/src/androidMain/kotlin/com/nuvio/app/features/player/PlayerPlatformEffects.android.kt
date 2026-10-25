@@ -32,11 +32,15 @@ actual fun LockPlayerToLandscape() {
     if (!activity.shouldForceLandscapePlayer()) return
     val portrait by PlayerOrientationPreference.portrait.collectAsState()
 
-    DisposableEffect(activity) {
-        val previousOrientation = activity.requestedOrientation
+    val originalOrientation = PlayerOrientationPreference.captureOriginalOrientation(activity.requestedOrientation)
+    DisposableEffect(activity, originalOrientation) {
         onDispose {
-            activity.requestedOrientation = previousOrientation
-            PlayerOrientationPreference.reset()
+            // Orientation requests can recreate the Activity. Preserve the toggle/session through
+            // that configuration change; restore the pre-player orientation only on final exit.
+            if (!activity.isChangingConfigurations) {
+                activity.requestedOrientation = originalOrientation
+                PlayerOrientationPreference.reset()
+            }
         }
     }
     SideEffect {
