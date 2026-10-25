@@ -138,6 +138,9 @@ object StreamsRepository {
             directRoute = cloudStreamRoute,
             groupByRepository = pluginUiState.groupStreamsByRepository,
         )
+        // Keep repository grouping as a presentation choice only. Fetch each provider
+        // independently so a slow sibling cannot hold back every result in its repository.
+        val cloudStreamProviderTasks = flattenCloudStreamProviderTasks(cloudStreamProviderGroups)
         val cloudStreamRegistryRevision = CloudStreamRepository.uiState.value.registryRevision
         val requestToken = requestToken(
             type = type,
@@ -312,8 +315,8 @@ object StreamsRepository {
             }
 
         log.d {
-            "Found ${streamAddons.size} addons and ${cloudStreamProviderGroups.size} compatible CloudStream providers " +
-                "for stream type=$type id=$videoId"
+            "Found ${streamAddons.size} addons and ${cloudStreamProviderTasks.size} compatible CloudStream provider tasks " +
+                "across ${cloudStreamProviderGroups.size} groups for stream type=$type id=$videoId"
         }
 
         if (streamAddons.isEmpty() && pluginProviderGroups.isEmpty() && cloudStreamProviderGroups.isEmpty()) {
@@ -367,9 +370,14 @@ object StreamsRepository {
                 .associate { it.addonId to it.scrapers.size }
                 .toMutableMap()
             val pluginFirstErrorByAddonId = mutableMapOf<String, String>()
+            val cloudStreamRemainingByAddonId = cloudStreamProviderTasks
+                .groupingBy { it.addonId }
+                .eachCount()
+                .toMutableMap()
+            val cloudStreamFirstErrorByAddonId = mutableMapOf<String, String>()
             val totalTasks = streamAddons.size +
                 pluginProviderGroups.sumOf { it.scrapers.size } +
-                cloudStreamProviderGroups.size
+                cloudStreamProviderTasks.size
             RuntimeDiagnostics.updateStreams(
                 groups = initialGroups.size,
                 loadingGroups = initialGroups.count { it.isLoading },
@@ -738,23 +746,23 @@ object StreamsRepository {
                 }
             }
 
-            cloudStreamProviderGroups.forEach { providerGroup ->
+            cloudStreamProviderTasks.forEach { providerTask ->
                 launch {
                     val group = withTimeoutOrNull(STREAM_PROVIDER_TIMEOUT_MS) {
                         cloudStreamSemaphore.withPermit {
                             resolveCloudStreamProviderStreams(
-                                providerGroup = providerGroup,
+                                providerGroup = providerTask,
                                 request = cloudStreamSearchRequest,
                             )
                         }
                     } ?: AddonStreamGroup(
-                        addonName = providerGroup.addonName,
-                        addonId = providerGroup.addonId,
+                        addonName = providerTask.addonName,
+                        addonId = providerTask.addonId,
                         streams = emptyList(),
                         isLoading = false,
-                        error = "${providerGroup.addonName} timed out",
+                        error = "CloudStream provider ${providerTask.providerId} timed out",
                     )
-                    publishCompletion(StreamLoadCompletion.Addon(group))
+                    publishCompletion(StreamLoadCompletion.CloudStreamProvider(group))
                 }
             }
 
@@ -767,6 +775,48 @@ object StreamsRepository {
                     is StreamLoadCompletion.Addon -> {
                         val result = completion.group
                         publishAddonGroupAfterCacheCheck(result)
+                    }
+
+                    is StreamLoadCompletion.CloudStreamProvider -> {
+                        val group = completion.group
+                        val remaining = (cloudStreamRemainingByAddonId[group.addonId] ?: 1) - 1
+                        cloudStreamRemainingByAddonId[group.addonId] = remaining.coerceAtLeast(0)
+                        if (!group.error.isNullOrBlank() && cloudStreamFirstErrorByAddonId[group.addonId].isNullOrBlank()) {
+                            cloudStreamFirstErrorByAddonId[group.addonId] = group.error
+                        }
+                        _uiState.update { current ->
+                            if (activeRequestGeneration != requestGeneration) return@update current
+                            val updated = StreamAutoPlaySelector.orderAddonStreams(
+                                groups = current.groups.map { currentGroup ->
+                                    if (currentGroup.addonId != group.addonId) {
+                                        currentGroup
+                                    } else {
+                                        val mergedStreams = (currentGroup.streams + group.streams)
+                                            .distinctBy { stream -> "${stream.addonId}:${stream.url}" }
+                                            .sortedForGroupedDisplay()
+                                        val stillLoading = remaining > 0
+                                        val finalError = if (mergedStreams.isEmpty() && !stillLoading) {
+                                            cloudStreamFirstErrorByAddonId[group.addonId]
+                                        } else {
+                                            null
+                                        }
+                                        presentStreamGroup(currentGroup.copy(
+                                            streams = mergedStreams,
+                                            isLoading = stillLoading,
+                                            error = finalError,
+                                        ))
+                                    }
+                                },
+                                installedOrder = installedAddonOrder,
+                            )
+                            val anyLoading = updated.any { it.isLoading }
+                            current.copy(
+                                groups = updated,
+                                isAnyLoading = anyLoading,
+                                emptyStateReason = updated.toEmptyStateReason(anyLoading),
+                            )
+                        }
+                        tryAutoSelectAvailableStream()
                     }
 
                     is StreamLoadCompletion.PluginScraper -> {

@@ -93,6 +93,7 @@ internal data class CloudStreamSearchRequest(
 
 internal sealed interface StreamLoadCompletion {
     data class Addon(val group: AddonStreamGroup) : StreamLoadCompletion
+    data class CloudStreamProvider(val group: AddonStreamGroup) : StreamLoadCompletion
     data class PluginScraper(
         val addonId: String,
         val streams: List<StreamItem>,
@@ -171,6 +172,24 @@ internal fun cloudStreamProviderGroupsForRequest(
             )
         }
 }
+internal fun flattenCloudStreamProviderTasks(
+    groups: List<CloudStreamProviderGroup>,
+): List<CloudStreamProviderGroup> =
+    groups.flatMap { group ->
+        if (group.providers.isEmpty()) {
+            listOf(group)
+        } else {
+            group.providers.map { target ->
+                CloudStreamProviderGroup(
+                    addonId = group.addonId,
+                    addonName = group.addonName,
+                    providerId = target.providerId,
+                    directData = target.directData,
+                )
+            }
+        }
+    }
+
 internal suspend fun resolveCloudStreamProviderStreams(
     providerGroup: CloudStreamProviderGroup,
     request: CloudStreamSearchRequest?,

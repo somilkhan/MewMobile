@@ -12,6 +12,28 @@ import kotlin.test.assertTrue
 
 class CloudStreamMatchTest {
     @Test
+    fun groupedCloudStreamProvidersBecomeIndependentTasksButKeepRepositoryIdentity() {
+        val groups = listOf(
+            CloudStreamProviderGroup(
+                addonId = "cloudstream-repo:repo-a",
+                addonName = "Repository A",
+                providerId = "provider-one",
+                providers = listOf(
+                    CloudStreamProviderTarget("provider-one", "One", "https://example/repo.json", "direct-one"),
+                    CloudStreamProviderTarget("provider-two", "Two", "https://example/repo.json"),
+                ),
+            ),
+        )
+
+        val tasks = flattenCloudStreamProviderTasks(groups)
+
+        assertEquals(listOf("provider-one", "provider-two"), tasks.map { it.providerId })
+        assertEquals(setOf("cloudstream-repo:repo-a"), tasks.map { it.addonId }.toSet())
+        assertEquals(listOf("direct-one", null), tasks.map { it.directData })
+        assertTrue(tasks.all { it.providers.isEmpty() })
+    }
+
+    @Test
     fun includesAsianDramaProvidersForSeriesRequests() {
         assertTrue(
             cloudStreamTypeSupportsRequest(
