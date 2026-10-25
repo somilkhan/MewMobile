@@ -2,6 +2,7 @@ package com.nuvio.app.features.tmdb
 
 import com.nuvio.app.core.time.EpisodeReleaseDatePlatform
 import com.nuvio.app.features.details.MetaDetailsRepository
+import com.nuvio.app.features.home.HomeRepository
 import com.nuvio.app.features.profiles.ProfileRepository
 import com.nuvio.app.features.watchprogress.ContinueWatchingEnrichmentCache
 import com.nuvio.app.features.player.DeviceLanguagePreferences
@@ -101,6 +102,7 @@ object TmdbSettingsRepository {
         TmdbSettingsStorage.saveTitleLanguage(value.storageId)
         TmdbMetadataService.clearEnrichmentCache()
         invalidateMetadata()
+        HomeRepository.invalidateLocalizedHeroArtwork()
     }
 
     fun setUseTrailers(value: Boolean) = setBoolean(

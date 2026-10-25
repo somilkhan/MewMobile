@@ -98,6 +98,18 @@ object HomeRepository {
     private var lastPublishedCatalogHeroEmpty: Boolean = true
     private var lastErrorMessage: String? = null
 
+    fun invalidateLocalizedHeroArtwork() {
+        localizedHeroArtworkCache.clear()
+        localizedHeroArtworkJob?.cancel()
+        localizedHeroArtworkJob = null
+        localizedHeroArtworkRequestKey = null
+        if (!isVisible) return
+        publishCurrentState(
+            isLoading = _uiState.value.isLoading,
+            requestKey = activeRequestKey ?: completedRequestKey,
+        )
+    }
+
     fun setVisible(visible: Boolean) {
         if (isVisible == visible) return
         isVisible = visible
@@ -419,6 +431,8 @@ object HomeRepository {
             append(requestKey.orEmpty())
             append("|tmdbHeroArtwork=")
             append(normalizedLanguage)
+            append("|titleLanguage=")
+            append(settings.titleLanguage.storageId)
             append("|items=")
             items.forEach { item ->
                 append(item.stableKey())
@@ -478,10 +492,10 @@ object HomeRepository {
     }
 
     private fun TmdbSettings.shouldLocalizeHeroArtwork(): Boolean =
-        enabled && hasApiKey && useArtwork
+        enabled && hasApiKey && (useArtwork || titleLanguage == TmdbTitleLanguage.ORIGINAL)
 
     private fun localizedHeroArtworkCacheKey(item: MetaPreview, settings: TmdbSettings): String =
-        "${item.stableKey()}:${normalizeTmdbLanguage(settings.language)}"
+        "${item.stableKey()}:${normalizeTmdbLanguage(settings.language)}:title=${settings.titleLanguage.storageId}"
 
     private suspend fun HomeCatalogDefinition.toSection(): HomeCatalogSection {
         val page = fetchCatalogPage(

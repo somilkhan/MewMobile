@@ -553,12 +553,20 @@ object TmdbMetadataService {
         ) ?: return@withContext null
 
         item.copy(
-            name = artwork.localizedTitle ?: item.name,
-            poster = artwork.poster ?: item.poster,
-            banner = artwork.backdrop ?: item.banner,
-            logo = artwork.logo ?: item.logo,
-            description = artwork.description ?: item.description,
-            releaseInfo = artwork.releaseInfo ?: item.releaseInfo,
+            name = if (settings.useArtwork || settings.titleLanguage == TmdbTitleLanguage.ORIGINAL) {
+                artwork.localizedTitle ?: item.name
+            } else {
+                item.name
+            },
+            poster = if (settings.useArtwork) artwork.poster ?: item.poster else item.poster,
+            banner = if (settings.useArtwork) artwork.backdrop ?: item.banner else item.banner,
+            logo = if (settings.useArtwork || settings.titleLanguage == TmdbTitleLanguage.ORIGINAL) {
+                artwork.logo ?: item.logo
+            } else {
+                item.logo
+            },
+            description = if (settings.useArtwork) artwork.description ?: item.description else item.description,
+            releaseInfo = if (settings.useArtwork) artwork.releaseInfo ?: item.releaseInfo else item.releaseInfo,
         )
     }
 
