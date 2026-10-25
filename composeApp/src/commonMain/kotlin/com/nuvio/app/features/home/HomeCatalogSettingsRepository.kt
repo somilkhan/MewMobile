@@ -553,6 +553,7 @@ object HomeCatalogSettingsRepository {
             updatedPreferences[itemKey] = current.copy(order = index)
         }
         preferences = updatedPreferences
+        enforcePinnedCollectionsAtTop()
 
         publish()
         persist()
