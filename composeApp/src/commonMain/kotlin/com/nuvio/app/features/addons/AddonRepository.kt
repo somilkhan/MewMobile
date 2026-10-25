@@ -335,7 +335,7 @@ object AddonRepository {
     }
 
     fun refreshAll() {
-        _uiState.value.addons.filter { it.enabled }.distinctBy { it.manifestUrl }.forEach { addon ->
+        _uiState.value.addons.distinctBy { it.manifestUrl }.forEach { addon ->
             refreshAddon(addon.manifestUrl)
         }
     }

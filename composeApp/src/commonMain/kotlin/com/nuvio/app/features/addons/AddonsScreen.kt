@@ -142,8 +142,8 @@ internal fun AddonsSettingsPageContent(
         SectionHeader(stringResource(Res.string.addons_section_installed))
         NuvioPrimaryButton(
             text = stringResource(Res.string.addons_refresh_all),
-            enabled = uiState.addons.any { it.enabled } &&
-                uiState.addons.none { it.enabled && it.isRefreshing },
+            enabled = uiState.addons.isNotEmpty() &&
+                uiState.addons.none { it.isRefreshing },
             onClick = { AddonRepository.refreshAll() },
         )
         if (uiState.addons.isEmpty()) {
