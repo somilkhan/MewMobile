@@ -776,6 +776,7 @@ private fun cancelInFlightLoadLinksRequests() {
             val bytes = httpGetBytesWithHeaders(
                 item.metadata.packageUrl,
                 headers = mapOf("Accept" to "application/zip, application/octet-stream"),
+                maxResponseBodyBytes = CloudStreamPackageInspector.MAX_PACKAGE_DOWNLOAD_BYTES,
             )
             currentCoroutineContext().ensureActive()
             require(bytes.isNotEmpty()) { "Downloaded .cs3 package is empty" }

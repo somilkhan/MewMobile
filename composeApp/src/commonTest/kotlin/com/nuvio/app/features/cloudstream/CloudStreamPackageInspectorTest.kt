@@ -16,6 +16,18 @@ class CloudStreamPackageInspectorTest {
     }
 
     @Test
+    fun rejectsPackageAboveConfiguredDownloadLimit() {
+        assertFailsWith<IllegalArgumentException> {
+            CloudStreamPackageInspector.validateDownloadSize(size = 11, maxBytes = 10)
+        }
+    }
+
+    @Test
+    fun acceptsPackageAtConfiguredDownloadLimit() {
+        CloudStreamPackageInspector.validateDownloadSize(size = 10, maxBytes = 10)
+    }
+
+    @Test
     fun rejectsPathTraversal() {
         val archive = fakeZip("manifest.json", "classes.dex", "../escape.txt")
         assertFailsWith<IllegalArgumentException> {
