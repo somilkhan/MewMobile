@@ -542,7 +542,11 @@ object TmdbMetadataService {
         item: MetaPreview,
         settings: TmdbSettings,
     ): MetaPreview? = withContext(Dispatchers.Default) {
-        if (!settings.enabled || !settings.hasApiKey || !settings.useArtwork) return@withContext null
+        if (
+            !settings.enabled ||
+            !settings.hasApiKey ||
+            (!settings.useArtwork && settings.titleLanguage != TmdbTitleLanguage.ORIGINAL)
+        ) return@withContext null
         val mediaType = normalizeMetaType(item.type)
         val tmdbId = TmdbService.ensureTmdbId(item.id, mediaType) ?: return@withContext null
         val normalizedLanguage = normalizeTmdbLanguage(settings.language)
