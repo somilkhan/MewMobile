@@ -45,6 +45,7 @@ actual object CloudStreamRepository {
 
     private var initialized = false
     private var updateCheckJob: Job? = null
+    private var updateCheckGeneration = 0L
     private var lastUpdateCheckProfileId = 1
     private var lastUpdateCheckEpochMs = 0L
     private var currentProfileId = 1
@@ -76,6 +77,7 @@ actual object CloudStreamRepository {
     }
 
     actual fun onProfileChanged(profileId: Int) {
+        updateCheckGeneration += 1
         updateCheckJob?.cancel()
         updateCheckJob = null
         lastUpdateCheckProfileId = profileId.coerceAtLeast(1)
@@ -102,6 +104,7 @@ actual object CloudStreamRepository {
     }
 
     actual fun clearLocalState() {
+        updateCheckGeneration += 1
         updateCheckJob?.cancel()
         updateCheckJob = null
         lastUpdateCheckEpochMs = 0L
@@ -269,6 +272,7 @@ actual object CloudStreamRepository {
         if (updateCheckJob?.isActive == true) return
 
         val profileId = currentProfileId
+        val checkGeneration = updateCheckGeneration
         val now = currentEpochMillis()
         if (lastUpdateCheckProfileId == profileId && now - lastUpdateCheckEpochMs < 6 * 60 * 60 * 1_000L) return
         lastUpdateCheckProfileId = profileId
@@ -282,7 +286,14 @@ actual object CloudStreamRepository {
                 while (refreshJobs.values.any { it.isActive } && currentEpochMillis() < deadline) {
                     delay(100L)
                 }
-                if (profileId != currentProfileId) return@launch
+                if (!shouldContinueCloudStreamAutoUpdate(
+                        checkProfileId = profileId,
+                        currentProfileId = currentProfileId,
+                        autoUpdatesEnabled = _uiState.value.autoUpdatesEnabled,
+                        checkGeneration = checkGeneration,
+                        currentGeneration = updateCheckGeneration,
+                    )
+                ) return@launch
 
                 val refreshedRepositories = _uiState.value.repositories
                     .filter { !it.isRefreshing && it.errorMessage == null }
@@ -298,7 +309,14 @@ actual object CloudStreamRepository {
 
                 val updatedNames = mutableListOf<String>()
                 for (plugin in candidates) {
-                    if (profileId != currentProfileId) return@launch
+                    if (!shouldContinueCloudStreamAutoUpdate(
+                            checkProfileId = profileId,
+                            currentProfileId = currentProfileId,
+                            autoUpdatesEnabled = _uiState.value.autoUpdatesEnabled,
+                            checkGeneration = checkGeneration,
+                            currentGeneration = updateCheckGeneration,
+                        )
+                    ) return@launch
                     when (val result = installOrUpdate(plugin.metadata.id.value)) {
                         is CloudStreamInstallResult.Success -> {
                             if (result.plugin.installedVersion != plugin.installedVersion) {
@@ -330,6 +348,7 @@ actual object CloudStreamRepository {
     actual fun setAutoUpdatesEnabled(enabled: Boolean) {
         initialize()
         if (_uiState.value.autoUpdatesEnabled == enabled) return
+        updateCheckGeneration += 1
         _uiState.update { it.copy(autoUpdatesEnabled = enabled) }
         persist()
         updateCheckJob?.cancel()

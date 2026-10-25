@@ -207,6 +207,21 @@ fun CloudStreamPluginMetadata.installAction(installed: CloudStreamInstalledPlugi
     else -> CloudStreamInstallAction.None
 }
 
+/**
+ * Prevents an automatic update run from continuing after its profile, preference,
+ * or generation has changed. The generation also protects rapid off/on toggles.
+ */
+internal fun shouldContinueCloudStreamAutoUpdate(
+    checkProfileId: Int,
+    currentProfileId: Int,
+    autoUpdatesEnabled: Boolean,
+    checkGeneration: Long,
+    currentGeneration: Long,
+): Boolean =
+    checkProfileId == currentProfileId &&
+        autoUpdatesEnabled &&
+        checkGeneration == currentGeneration
+
 @Serializable
 internal data class StoredCloudStreamState(
     val repositories: List<StoredCloudStreamRepository> = emptyList(),
