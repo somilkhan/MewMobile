@@ -1,9 +1,9 @@
 package com.nuvio.app.features.cloudstream
 
+import kotlinx.serialization.Serializable
+
 /** Per-provider discovery deadline enforced by the CloudStream Android runtime. */
 internal const val CLOUDSTREAM_DISCOVERY_TIMEOUT_MS = 15_000L
-
-import kotlinx.serialization.Serializable
 
 @Serializable
 data class CloudStreamRepositoryManifestDto(
