@@ -6,6 +6,12 @@ import kotlin.test.assertTrue
 
 class CloudStreamAutoUpdatePolicyTest {
     @Test
+    fun profileGuardRejectsResultsFromAnInactiveProfile() {
+        assertTrue(isCloudStreamProfileCurrent(2, 2))
+        assertFalse(isCloudStreamProfileCurrent(1, 2))
+    }
+
+    @Test
     fun allowsRunOnlyWhenProfilePreferenceAndGenerationStillMatch() {
         assertTrue(
             shouldContinueCloudStreamAutoUpdate(

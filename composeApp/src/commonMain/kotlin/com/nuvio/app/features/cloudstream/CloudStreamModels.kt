@@ -211,6 +211,9 @@ fun CloudStreamPluginMetadata.installAction(installed: CloudStreamInstalledPlugi
  * Prevents an automatic update run from continuing after its profile, preference,
  * or generation has changed. The generation also protects rapid off/on toggles.
  */
+internal fun isCloudStreamProfileCurrent(operationProfileId: Int, currentProfileId: Int): Boolean =
+    operationProfileId == currentProfileId
+
 internal fun shouldContinueCloudStreamAutoUpdate(
     checkProfileId: Int,
     currentProfileId: Int,
@@ -218,7 +221,7 @@ internal fun shouldContinueCloudStreamAutoUpdate(
     checkGeneration: Long,
     currentGeneration: Long,
 ): Boolean =
-    checkProfileId == currentProfileId &&
+    isCloudStreamProfileCurrent(checkProfileId, currentProfileId) &&
         autoUpdatesEnabled &&
         checkGeneration == currentGeneration
 
