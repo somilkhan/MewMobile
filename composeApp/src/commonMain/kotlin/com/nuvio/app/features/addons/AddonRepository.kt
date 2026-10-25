@@ -379,6 +379,7 @@ object AddonRepository {
                 }
                 if (profileId != currentProfileId) return@launch
                 _uiState.update { current ->
+                    if (profileId != currentProfileId) return@update current
                     current.copy(
                         addons = current.addons.map { addon ->
                             if (addon.manifestUrl != manifestUrl) addon
