@@ -34,6 +34,7 @@ data class CloudStreamUiState(
     val plugins: List<CloudStreamPluginItem> = emptyList(),
     val registryRevision: Long = 0L,
     val securityWarningAccepted: Boolean = false,
+    val autoUpdatesEnabled: Boolean = true,
 )
 
 sealed interface AddCloudStreamRepositoryResult {
@@ -72,6 +73,7 @@ expect object CloudStreamRepository {
     fun refreshRepository(manifestUrl: String)
     fun refreshAll()
     fun checkForUpdates()
+    fun setAutoUpdatesEnabled(enabled: Boolean)
     fun removeRepository(manifestUrl: String)
 
     suspend fun installPlugin(pluginId: String): CloudStreamInstallResult

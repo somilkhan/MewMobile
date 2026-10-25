@@ -265,6 +265,7 @@ actual object CloudStreamRepository {
 
     actual fun checkForUpdates() {
         initialize()
+        if (!_uiState.value.autoUpdatesEnabled) return
         if (updateCheckJob?.isActive == true) return
 
         val profileId = currentProfileId
@@ -310,7 +311,7 @@ actual object CloudStreamRepository {
                     }
                 }
 
-                if (profileId == currentProfileId && updatedNames.isNotEmpty()) {
+                if (profileId == currentProfileId && _uiState.value.autoUpdatesEnabled && updatedNames.isNotEmpty()) {
                     runCatching {
                         com.nuvio.app.features.notifications.EpisodeReleaseNotificationPlatform
                             .showCloudStreamPluginUpdates(updatedNames)
@@ -324,6 +325,17 @@ actual object CloudStreamRepository {
         }
         updateCheckJob = job
         job.start()
+    }
+
+    actual fun setAutoUpdatesEnabled(enabled: Boolean) {
+        initialize()
+        if (_uiState.value.autoUpdatesEnabled == enabled) return
+        _uiState.update { it.copy(autoUpdatesEnabled = enabled) }
+        persist()
+        updateCheckJob?.cancel()
+        updateCheckJob = null
+        lastUpdateCheckProfileId = currentProfileId
+        lastUpdateCheckEpochMs = 0L
     }
 
     actual fun removeRepository(manifestUrl: String) {
@@ -856,6 +868,7 @@ private fun cancelInFlightLoadLinksRequests() {
             plugins = plugins,
             registryRevision = 1,
             securityWarningAccepted = stored.securityWarningAccepted,
+            autoUpdatesEnabled = stored.autoUpdatesEnabled,
         )
     }
 
@@ -874,6 +887,7 @@ private fun cancelInFlightLoadLinksRequests() {
             },
             plugins = current.plugins.map { item -> item.toStored() },
             securityWarningAccepted = current.securityWarningAccepted,
+            autoUpdatesEnabled = current.autoUpdatesEnabled,
         )
         CloudStreamPlatformStorage.saveState(currentProfileId, json.encodeToString(stored))
     }

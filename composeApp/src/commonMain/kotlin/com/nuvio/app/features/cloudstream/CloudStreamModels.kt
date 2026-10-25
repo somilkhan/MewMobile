@@ -212,6 +212,8 @@ internal data class StoredCloudStreamState(
     val repositories: List<StoredCloudStreamRepository> = emptyList(),
     val plugins: List<StoredCloudStreamPlugin> = emptyList(),
     val securityWarningAccepted: Boolean = false,
+    // Keep the pre-existing enabled behavior when loading older saved state.
+    val autoUpdatesEnabled: Boolean = true,
 )
 
 @Serializable
