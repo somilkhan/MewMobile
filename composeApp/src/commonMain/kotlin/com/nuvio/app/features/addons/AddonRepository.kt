@@ -59,7 +59,6 @@ object AddonRepository {
     private var pulledFromServer = false
     private var currentProfileId: Int = 1
     private val activeRefreshJobs = mutableMapOf<String, Job>()
-    private val activeRefreshJobsLock = Any()
     private val versionStorageMutex = Mutex()
 
     fun initialize() {
@@ -291,7 +290,7 @@ object AddonRepository {
                 addons = current.addons.filterNot { it.manifestUrl == manifestUrl },
             )
         }
-        synchronized(activeRefreshJobsLock) { activeRefreshJobs.remove(manifestUrl)?.cancel() }
+        activeRefreshJobs.remove(manifestUrl)?.cancel()
         val profileId = currentProfileId
         scope.launch {
             versionStorageMutex.withLock {
@@ -358,9 +357,7 @@ object AddonRepository {
 
     fun refreshAddon(manifestUrl: String) {
         val profileId = currentProfileId
-        synchronized(activeRefreshJobsLock) {
-            if (activeRefreshJobs[manifestUrl]?.isCompleted == false) return
-        }
+        if (activeRefreshJobs[manifestUrl]?.isActive == true) return
         markRefreshing(manifestUrl)
         lateinit var refreshJob: Job
         refreshJob = scope.launch(start = CoroutineStart.LAZY) {
@@ -399,21 +396,17 @@ object AddonRepository {
                     )
                 }
             } finally {
-                synchronized(activeRefreshJobsLock) {
-                    if (activeRefreshJobs[manifestUrl] === refreshJob) activeRefreshJobs.remove(manifestUrl)
-                }
+                if (activeRefreshJobs[manifestUrl] === refreshJob) activeRefreshJobs.remove(manifestUrl)
             }
         }
-        synchronized(activeRefreshJobsLock) {
-            if (activeRefreshJobs[manifestUrl]?.isCompleted == false) return
-            activeRefreshJobs[manifestUrl] = refreshJob
-        }
+        activeRefreshJobs[manifestUrl] = refreshJob
         refreshJob.start()
     }
 
     fun dismissVersionChange(manifestUrl: String) {
         val profileId = currentProfileId
         _uiState.update { current ->
+            if (profileId != currentProfileId) return@update current
             current.copy(addons = current.addons.map { addon ->
                 if (addon.manifestUrl == manifestUrl) addon.copy(versionChangedFrom = null) else addon
             })
@@ -526,10 +519,8 @@ object AddonRepository {
             .mapKeys { (url, _) -> ensureManifestSuffix(url) }
 
     private fun cancelActiveRefreshes() {
-        synchronized(activeRefreshJobsLock) {
-            activeRefreshJobs.values.forEach(Job::cancel)
-            activeRefreshJobs.clear()
-        }
+        activeRefreshJobs.values.forEach(Job::cancel)
+        activeRefreshJobs.clear()
     }
 
     private fun resolveEffectiveProfileId(profileId: Int): Int {
