@@ -107,3 +107,13 @@ Comparison anchor: Enhanced `ae535226b1488a60d59613c1502fbb717cbb333f` → `a3e8
 - Enhanced's latest notch-safe padding fix targets its newer `PlayerToolbarLayout` / `PlayerTimelineDetails` structure, which is not present in Mew. It is therefore not a safe copy-paste port; reassess if/when the corresponding toolbar layout is integrated.
 - **Selective reliability port made on Mew:** commit `bb6efa5717315257d56b2e5e6939a2fa50ca4fd4` adapts Enhanced's Trakt snapshot-preservation fix. Failed episode-history pages now invalidate the whole history refresh rather than publishing a partial Continue Watching snapshot; failed dropped-show pagination preserves the last complete hidden set; failed playback refresh clears the consumed activity fingerprint so a later poll retries. Added paging regression tests. CI for this current head is pending/not yet observed green; no runtime or device claim is made.
 - Existing Mew policy remains: port compatible fixes selectively, preserve Mew's CloudStream/TMDB-optional/player/profile behavior, and defer high-risk native or broad UI changes until their dependencies, licenses, regression coverage and device behavior are reviewed.
+
+
+## Phase 5 readiness recheck — 2026-10-26
+
+- Candidate source head before the device-test build: `179d9a7cd264bc22da892dbb79dffd3755613579`.
+- CI run [40229032370](https://github.com/somilkhan/MewMobile/actions/runs/40229032370) completed successfully on this head: Android host tests, Android Kotlin source compilation, and localized Mew branding validation passed. Routine APK packaging was correctly skipped.
+- Run [40228756123](https://github.com/somilkhan/MewMobile/actions/runs/40228756123) was cancelled during Android host tests and is not counted as a pass.
+- Rechecked upstream refs: Nuvio Mobile `cmp-rewrite` resolves to `56ae37081afaff820b6073da84e711320238de36`; Nuvio Enhanced `enhanced` resolves to `a66716a4dc360559d8e2f570c70e7dc9e3fe7da6`. Comparisons against those recorded SHAs are identical; no newer branch delta was exposed by this recheck.
+- Latest source fix `179d9a7cd264bc22da892dbb79dffd3755613579` stops CloudStream bulk installation when the active profile changes, checking profile/generation both before each install and after the awaited result.
+- **Phase 5 gate:** run the dedicated Full Debug APK build against this updated audit checkpoint; require host tests, Android source compilation, branding check, APK assembly, application ID `com.mew.mobile.debug`, signing-certificate verification, and artifact upload to pass before handing the artifact to the user. Physical-device verification remains the user's next step; do not merge PR #38.
