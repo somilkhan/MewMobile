@@ -41,6 +41,7 @@ import java.io.File
 import java.lang.ref.WeakReference
 import java.util.Collections
 import java.util.zip.ZipFile
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.sync.Mutex
@@ -408,13 +409,16 @@ internal actual object CloudStreamPlatformRuntime {
 
         log.i { "[CS-DYN] repository-import-start url=$normalized" }
         RuntimeDiagnostics.recordLog("CloudStream repository-import-start url=" + normalized)
-        val result = runCatching { CloudStreamRepository.addRepository(normalized) }
-            .getOrElse { error ->
-                log.w(error) {
-                    "[CS-DYN] repository-import-failed url=$normalized error=" + error.message
-                }
-                return
+        val result = try {
+            CloudStreamRepository.addRepository(normalized)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Throwable) {
+            log.w(error) {
+                "[CS-DYN] repository-import-failed url=$normalized error=" + error.message
             }
+            return
+        }
 
         when (result) {
             is AddCloudStreamRepositoryResult.Success -> {

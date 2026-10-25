@@ -111,8 +111,10 @@ actual object CloudStreamRepository {
         updateCheckJob?.cancel()
         updateCheckJob = null
         lastUpdateCheckEpochMs = 0L
-        refreshJobs.values.forEach { it.cancel() }
-        refreshJobs.clear()
+        synchronized(refreshJobsLock) {
+            refreshJobs.values.forEach { it.cancel() }
+            refreshJobs.clear()
+        }
         initialized = false
         currentProfileId = 1
         _uiState.value = CloudStreamUiState()
