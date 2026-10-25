@@ -618,6 +618,10 @@ object PlayerStreamsRepository {
                         publishStreamGroupAfterCacheCheck(completion.group)
                     }
 
+                    is StreamLoadCompletion.CloudStreamProvider -> {
+                        publishStreamGroupAfterCacheCheck(completion.group)
+                    }
+
                     is StreamLoadCompletion.PluginScraper -> {
                         val remaining = (pluginRemainingByAddonId[completion.addonId] ?: 1) - 1
                         pluginRemainingByAddonId[completion.addonId] = remaining.coerceAtLeast(0)

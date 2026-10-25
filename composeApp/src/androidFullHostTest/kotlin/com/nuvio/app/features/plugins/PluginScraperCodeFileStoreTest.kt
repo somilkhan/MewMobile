@@ -41,6 +41,8 @@ class CloudStreamCompatibilityAbiTest {
             "getDefaultSharedPrefs",
             android.content.Context::class.java,
         )
-        Class.forName("com.lagradost.cloudstream3.syncproviders.SyncRepo")
+        val syncApi = Class.forName("com.lagradost.cloudstream3.syncproviders.SyncAPI")
+        val syncRepo = Class.forName("com.lagradost.cloudstream3.syncproviders.SyncRepo")
+        syncRepo.getConstructor(syncApi)
     }
 }
