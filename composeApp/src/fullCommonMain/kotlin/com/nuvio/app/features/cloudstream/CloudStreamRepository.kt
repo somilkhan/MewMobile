@@ -50,6 +50,7 @@ actual object CloudStreamRepository {
     private var lastUpdateCheckEpochMs = 0L
     private var currentProfileId = 1
     private val refreshJobs = mutableMapOf<String, Job>()
+    private val refreshJobsLock = Any()
     private val mainPageRequestMutex = Any()
     private val mainPageRequests =
         mutableMapOf<String, Deferred<Result<List<Pair<String, List<CloudStreamSearchItem>>>>>>()
@@ -82,8 +83,10 @@ actual object CloudStreamRepository {
         updateCheckJob = null
         lastUpdateCheckProfileId = profileId.coerceAtLeast(1)
         lastUpdateCheckEpochMs = 0L
-        refreshJobs.values.forEach { it.cancel() }
-        refreshJobs.clear()
+        synchronized(refreshJobsLock) {
+            refreshJobs.values.forEach { it.cancel() }
+            refreshJobs.clear()
+        }
         cancelInFlightMainPageRequests()
         cancelInFlightLoadLinksRequests()
         loadLinksCacheMutex.tryLock().let { locked ->
@@ -233,7 +236,10 @@ actual object CloudStreamRepository {
     actual fun refreshRepository(manifestUrl: String) {
         initialize()
         val normalizedUrl = runCatching { normalizeCloudStreamRepositoryUrl(manifestUrl) }.getOrNull() ?: return
-        if (refreshJobs[normalizedUrl]?.isActive == true) return
+        if (_uiState.value.repositories.none { it.manifest.sourceUrl == normalizedUrl }) return
+        synchronized(refreshJobsLock) {
+            if (refreshJobs[normalizedUrl]?.isCompleted == false) return
+        }
         val profileId = currentProfileId
         _uiState.update { current ->
             current.copy(
@@ -269,10 +275,15 @@ actual object CloudStreamRepository {
                 if (!isCloudStreamProfileCurrent(profileId, currentProfileId)) return@launch
                 persist()
             } finally {
-                if (refreshJobs[normalizedUrl] === job) refreshJobs.remove(normalizedUrl)
+                synchronized(refreshJobsLock) {
+                    if (refreshJobs[normalizedUrl] === job) refreshJobs.remove(normalizedUrl)
+                }
             }
         }
-        refreshJobs[normalizedUrl] = job
+        synchronized(refreshJobsLock) {
+            if (refreshJobs[normalizedUrl]?.isCompleted == false) return
+            refreshJobs[normalizedUrl] = job
+        }
         job.start()
     }
 
@@ -298,7 +309,7 @@ actual object CloudStreamRepository {
                 // Refresh repository metadata first; do not act on stale update information after a failed refresh.
                 refreshAll()
                 val deadline = currentEpochMillis() + 45_000L
-                while (refreshJobs.values.any { it.isActive } && currentEpochMillis() < deadline) {
+                while (synchronized(refreshJobsLock) { refreshJobs.values.any { it.isActive } } && currentEpochMillis() < deadline) {
                     delay(100L)
                 }
                 if (!shouldContinueCloudStreamAutoUpdate(
@@ -375,7 +386,7 @@ actual object CloudStreamRepository {
     actual fun removeRepository(manifestUrl: String) {
         initialize()
         val normalizedUrl = runCatching { normalizeCloudStreamRepositoryUrl(manifestUrl) }.getOrNull() ?: return
-        refreshJobs.remove(normalizedUrl)?.cancel()
+        synchronized(refreshJobsLock) { refreshJobs.remove(normalizedUrl)?.cancel() }
         val removedPlugins = _uiState.value.plugins.filter { it.metadata.repositoryManifestUrl == normalizedUrl }
         removedPlugins.forEach {
             CloudStreamPlatformRuntime.unload(it.metadata.id.value)
