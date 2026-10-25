@@ -158,3 +158,10 @@ Comparison anchor: Enhanced `ae535226b1488a60d59613c1502fbb717cbb333f` → `a3e8
 - The current Home caller wrapped each provider's MainPage request in a 5-second deadline while the Android CloudStream runtime's default per-provider discovery deadline was 15 seconds. This outer deadline could cancel valid providers before their own discovery budget expired, matching the LogFox timeout-mismatch concern.
 - Introduced a shared 15-second discovery timeout constant used by the Android runtime and set Home's outer deadline to 20 seconds, leaving 5 seconds of orchestration headroom. Added a host test asserting the outer deadline exceeds the runtime deadline.
 - This resolves the known 5s-vs-15s mismatch at source level. It does not by itself prove provider success, progressive UI rendering, or physical-device performance; those remain verification items.
+
+
+## .cs3 content validation before replacement
+
+- The previous package inspector verified ZIP structure, entry names, traversal, compressed download size, and central-directory uncompressed-size limits, but required only the *presence* of `manifest.json` and `classes.dex`. A malformed manifest or a fake/invalid DEX entry could therefore pass preflight and replace a working package.
+- Android Full now streams and validates the ZIP local entries before atomic replacement: local/central-directory entry sets must match; duplicate entries are rejected; actual decompressed bytes are bounded; the manifest must parse and contain a nonblank `pluginClassName`; and `classes.dex` must have a valid DEX magic header. Android Play Store and iOS runtime stubs remain no-ops because those variants do not support Android DEX loading.
+- Added common unit tests for valid, invalid, and truncated DEX headers. Full runtime/package loading and rollback behavior still require CI and device verification.

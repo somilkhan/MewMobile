@@ -37,10 +37,13 @@ import com.lagradost.cloudstream3.utils.ExtractorLinkType
 import com.lagradost.cloudstream3.utils.extractorApis
 import com.nuvio.app.core.diagnostics.RuntimeDiagnostics
 import dalvik.system.PathClassLoader
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.lang.ref.WeakReference
 import java.util.Collections
 import java.util.zip.ZipFile
+import java.util.zip.ZipInputStream
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -88,6 +91,57 @@ internal actual object CloudStreamPlatformRuntime {
         appContext = applicationContext
         activityReference = (androidContext as? Activity)?.let(::WeakReference)
         hostInitialized = false
+    }
+
+    actual fun validatePackage(bytes: ByteArray, inspection: CloudStreamPackageInspection) {
+        val expectedNames = inspection.entries.map { it.name }
+        val localNames = mutableListOf<String>()
+        val manifestBytes = ByteArrayOutputStream()
+        var dexHeader: ByteArray? = null
+        var totalUncompressedBytes = 0L
+        ZipInputStream(ByteArrayInputStream(bytes)).use { archive ->
+            while (true) {
+                val entry = archive.nextEntry ?: break
+                require(localNames.size < 256) { "CloudStream package has too many entries" }
+                require(entry.name !in localNames) { "CloudStream package has duplicate entries" }
+                localNames += entry.name
+                val isManifest = entry.name == "manifest.json"
+                val isDex = entry.name == "classes.dex"
+                val dexBytes = if (isDex) ByteArrayOutputStream(8) else null
+                val buffer = ByteArray(8 * 1024)
+                while (true) {
+                    val count = archive.read(buffer)
+                    if (count < 0) break
+                    totalUncompressedBytes += count
+                    require(totalUncompressedBytes <= 50L * 1024L * 1024L) {
+                        "CloudStream package is too large when extracted"
+                    }
+                    if (isManifest) {
+                        require(manifestBytes.size() + count <= 1024 * 1024) {
+                            "CloudStream manifest is too large"
+                        }
+                        manifestBytes.write(buffer, 0, count)
+                    }
+                    if (dexBytes != null && dexBytes.size() < 8) {
+                        dexBytes.write(buffer, 0, minOf(count, 8 - dexBytes.size()))
+                    }
+                }
+                if (isDex) dexHeader = dexBytes?.toByteArray()
+                archive.closeEntry()
+            }
+        }
+        require(localNames.size == expectedNames.size && localNames.toSet() == expectedNames.toSet()) {
+            "CloudStream ZIP headers do not match the central directory"
+        }
+        val manifest = json.decodeFromString<CloudStreamCs3Manifest>(
+            manifestBytes.toString(Charsets.UTF_8.name()),
+        )
+        require(!manifest.pluginClassName.isNullOrBlank()) {
+            "CloudStream manifest has no pluginClassName"
+        }
+        require(CloudStreamPackageInspector.hasValidDexMagic(dexHeader ?: byteArrayOf())) {
+            "CloudStream package has an invalid classes.dex header"
+        }
     }
 
     actual suspend fun provider(plugin: CloudStreamPluginItem): CloudStreamProvider? {

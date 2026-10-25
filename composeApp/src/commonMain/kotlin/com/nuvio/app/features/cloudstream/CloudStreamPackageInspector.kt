@@ -72,6 +72,17 @@ object CloudStreamPackageInspector {
         }
     }
 
+    internal fun hasValidDexMagic(header: ByteArray): Boolean =
+        header.size >= 8 &&
+            header[0] == 'd'.code.toByte() &&
+            header[1] == 'e'.code.toByte() &&
+            header[2] == 'x'.code.toByte() &&
+            header[3] == '\n'.code.toByte() &&
+            (header[4].toInt() and 0xff) in '0'.code..'9'.code &&
+            (header[5].toInt() and 0xff) in '0'.code..'9'.code &&
+            (header[6].toInt() and 0xff) in '0'.code..'9'.code &&
+            header[7] == 0.toByte()
+
     private fun findEndOfCentralDirectory(bytes: ByteArray): Int {
         val minimum = (bytes.size - 65_557).coerceAtLeast(0)
         for (offset in bytes.size - 22 downTo minimum) {

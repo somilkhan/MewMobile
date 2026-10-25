@@ -2,6 +2,7 @@ package com.nuvio.app.features.cloudstream
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
@@ -25,6 +26,21 @@ class CloudStreamPackageInspectorTest {
     @Test
     fun acceptsPackageAtConfiguredDownloadLimit() {
         CloudStreamPackageInspector.validateDownloadSize(size = 10, maxBytes = 10)
+    }
+
+    @Test
+    fun acceptsAValidDexHeader() {
+        val header = byteArrayOf(
+            'd'.code.toByte(), 'e'.code.toByte(), 'x'.code.toByte(), '\n'.code.toByte(),
+            '0'.code.toByte(), '3'.code.toByte(), '5'.code.toByte(), 0,
+        )
+        assertTrue(CloudStreamPackageInspector.hasValidDexMagic(header))
+    }
+
+    @Test
+    fun rejectsInvalidOrTruncatedDexHeaders() {
+        assertFalse(CloudStreamPackageInspector.hasValidDexMagic("not-dex!".encodeToByteArray()))
+        assertFalse(CloudStreamPackageInspector.hasValidDexMagic(byteArrayOf(1, 2, 3)))
     }
 
     @Test
