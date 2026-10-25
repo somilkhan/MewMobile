@@ -51,6 +51,8 @@ actual object CloudStreamRepository {
     private var currentProfileId = 1
     private val refreshJobs = mutableMapOf<String, Job>()
     private val refreshJobsLock = Any()
+    /** Serializes profile changes with the final package/state commit. */
+    private val profileMutationLock = Any()
     private val mainPageRequestMutex = Any()
     private val mainPageRequests =
         mutableMapOf<String, Deferred<Result<List<Pair<String, List<CloudStreamSearchItem>>>>>>()
@@ -69,20 +71,27 @@ actual object CloudStreamRepository {
 
     actual fun initialize() {
         val profileId = ProfileRepository.activeProfileId.coerceAtLeast(1)
-        if (initialized && currentProfileId == profileId) return
-        currentProfileId = profileId
-        CloudStreamPlatformStorage.setActiveProfile(profileId)
-        initialized = true
-        _uiState.value = restoreState(profileId)
-
+        synchronized(profileMutationLock) {
+            if (initialized && currentProfileId == profileId) return
+            currentProfileId = profileId
+            CloudStreamPlatformStorage.setActiveProfile(profileId)
+            initialized = true
+            _uiState.value = restoreState(profileId)
+        }
     }
 
     actual fun onProfileChanged(profileId: Int) {
-        updateCheckGeneration += 1
         updateCheckJob?.cancel()
         updateCheckJob = null
-        lastUpdateCheckProfileId = profileId.coerceAtLeast(1)
-        lastUpdateCheckEpochMs = 0L
+        synchronized(profileMutationLock) {
+            updateCheckGeneration += 1
+            lastUpdateCheckProfileId = profileId.coerceAtLeast(1)
+            lastUpdateCheckEpochMs = 0L
+            currentProfileId = profileId.coerceAtLeast(1)
+            CloudStreamPlatformStorage.setActiveProfile(currentProfileId)
+            initialized = false
+            _uiState.value = CloudStreamUiState()
+        }
         synchronized(refreshJobsLock) {
             refreshJobs.values.forEach { it.cancel() }
             refreshJobs.clear()
@@ -100,24 +109,23 @@ actual object CloudStreamRepository {
             }
         }
         CloudStreamPlatformRuntime.clear()
-        currentProfileId = profileId.coerceAtLeast(1)
-        CloudStreamPlatformStorage.setActiveProfile(currentProfileId)
-        initialized = false
-        _uiState.value = CloudStreamUiState()
     }
 
     actual fun clearLocalState() {
-        updateCheckGeneration += 1
         updateCheckJob?.cancel()
         updateCheckJob = null
-        lastUpdateCheckEpochMs = 0L
+        synchronized(profileMutationLock) {
+            updateCheckGeneration += 1
+            lastUpdateCheckEpochMs = 0L
+            initialized = false
+            currentProfileId = 1
+            CloudStreamPlatformStorage.setActiveProfile(1)
+            _uiState.value = CloudStreamUiState()
+        }
         synchronized(refreshJobsLock) {
             refreshJobs.values.forEach { it.cancel() }
             refreshJobs.clear()
         }
-        initialized = false
-        currentProfileId = 1
-        _uiState.value = CloudStreamUiState()
         cancelInFlightMainPageRequests()
         cancelInFlightLoadLinksRequests()
         loadLinksCacheMutex.tryLock().let { locked ->
@@ -390,14 +398,16 @@ actual object CloudStreamRepository {
 
     actual fun setAutoUpdatesEnabled(enabled: Boolean) {
         initialize()
-        if (_uiState.value.autoUpdatesEnabled == enabled) return
-        updateCheckGeneration += 1
-        _uiState.update { it.copy(autoUpdatesEnabled = enabled) }
-        persist()
+        synchronized(profileMutationLock) {
+            if (_uiState.value.autoUpdatesEnabled == enabled) return
+            updateCheckGeneration += 1
+            _uiState.update { it.copy(autoUpdatesEnabled = enabled) }
+            persist()
+            lastUpdateCheckProfileId = currentProfileId
+            lastUpdateCheckEpochMs = 0L
+        }
         updateCheckJob?.cancel()
         updateCheckJob = null
-        lastUpdateCheckProfileId = currentProfileId
-        lastUpdateCheckEpochMs = 0L
     }
 
     actual fun removeRepository(manifestUrl: String) {
@@ -792,31 +802,30 @@ private fun cancelInFlightLoadLinksRequests() {
             val verified = expectedHash?.matches(bytes) ?: true
             if (expectedHash != null) require(verified) { ".cs3 SHA-256 hash mismatch" }
             currentCoroutineContext().ensureActive()
-            check(isCloudStreamOperationCurrent(profileId, currentProfileId, operationGeneration, updateCheckGeneration)) {
-                "Active profile changed during CloudStream install"
-            }
-            CloudStreamPlatformRuntime.unload(pluginId)
-            currentCoroutineContext().ensureActive()
-            CloudStreamPlatformStorage.savePackageAtomically(item.metadata.id.storageKey, bytes)
-            val installed = item.copy(
-                installedVersion = item.metadata.version,
-                installedAtEpochMs = currentEpochMillis(),
-                enabled = item.enabled && verified && item.compatibility.isRunnable,
-                verified = verified,
-                isInstalling = false,
-                errorMessage = null,
-            )
-            check(isCloudStreamOperationCurrent(profileId, currentProfileId, operationGeneration, updateCheckGeneration)) {
-                "Active profile changed during CloudStream install"
-            }
-            _uiState.update { current ->
-                current.copy(
-                    plugins = current.plugins.map { if (it.metadata.id.value == pluginId) installed else it },
-                    registryRevision = current.registryRevision + 1,
+            synchronized(profileMutationLock) {
+                check(isCloudStreamOperationCurrent(profileId, currentProfileId, operationGeneration, updateCheckGeneration)) {
+                    "Active profile changed during CloudStream install"
+                }
+                // Keep the active profile stable from the package replacement through state persistence.
+                CloudStreamPlatformRuntime.unload(pluginId)
+                CloudStreamPlatformStorage.savePackageAtomically(item.metadata.id.storageKey, bytes)
+                val installed = item.copy(
+                    installedVersion = item.metadata.version,
+                    installedAtEpochMs = currentEpochMillis(),
+                    enabled = item.enabled && verified && item.compatibility.isRunnable,
+                    verified = verified,
+                    isInstalling = false,
+                    errorMessage = null,
                 )
+                _uiState.update { current ->
+                    current.copy(
+                        plugins = current.plugins.map { if (it.metadata.id.value == pluginId) installed else it },
+                        registryRevision = current.registryRevision + 1,
+                    )
+                }
+                persist()
+                installed
             }
-            persist()
-            installed
         }.fold(
             onSuccess = { CloudStreamInstallResult.Success(it) },
             onFailure = { error ->

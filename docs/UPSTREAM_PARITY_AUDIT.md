@@ -133,3 +133,10 @@ Comparison anchor: Enhanced `ae535226b1488a60d59613c1502fbb717cbb333f` → `a3e8
 - Source review found the .cs3 installer used `httpGetBytesWithHeaders` without overriding its default `Int.MAX_VALUE` response limit. The ZIP inspector already limited entry count and total uncompressed size, but that check happened only after the entire response had been buffered in memory.
 - The installer now supplies a 50 MiB maximum response size to the platform HTTP implementation, which rejects an oversized declared Content-Length and enforces the cap while reading. The package inspector independently enforces the same maximum as defense in depth. Added unit coverage for the size validator boundary.
 - This addresses the bounded-download portion of the plugin-safety checklist at source level. Runtime download/cancellation behavior and atomic replacement still require the automated workflow and device/build verification; no runtime claim is made.
+
+
+## Profile-isolation race fix — 2026-10-26
+
+- Review of the CloudStream install path found a race between checking the active profile and calling `savePackageAtomically`: Android package storage chooses its directory from a mutable active-profile field. A profile switch in that gap could route a downloaded package into the newly active profile, then fail the post-write guard while leaving the file behind.
+- Added a shared profile-mutation lock around profile/state changes and the final package replacement + state persistence. The operation generation and profile guard are checked inside the same critical section. The lock also serializes AutoUpdates preference changes and local-state clearing against that commit path.
+- This is a source-level concurrency fix; it still requires CI and regression/runtime verification. The broader checklist remains open.
