@@ -7,6 +7,8 @@ internal expect object AddonStorage {
     fun saveAddonEnabledStates(profileId: Int, states: Map<String, Boolean>)
     fun loadKnownAddonVersions(profileId: Int): Map<String, String>
     fun saveKnownAddonVersions(profileId: Int, versions: Map<String, String>)
+    fun loadPendingAddonVersionChanges(profileId: Int): Map<String, String>
+    fun savePendingAddonVersionChanges(profileId: Int, changes: Map<String, String>)
 }
 
 data class RawHttpResponse(

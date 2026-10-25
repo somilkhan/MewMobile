@@ -35,6 +35,7 @@ actual object AddonStorage {
     private const val addonUrlsKey = "installed_manifest_urls"
     private const val addonEnabledStatesKey = "installed_manifest_enabled_states"
     private const val addonKnownVersionsKey = "installed_manifest_known_versions"
+    private const val addonPendingVersionsKey = "installed_manifest_pending_version_changes"
 
     private var preferences: SharedPreferences? = null
 
@@ -84,6 +85,19 @@ actual object AddonStorage {
     actual fun saveKnownAddonVersions(profileId: Int, versions: Map<String, String>) {
         val payload = versions.entries.joinToString(separator = "\n") { (url, version) -> "$url\t$version" }
         preferences?.edit()?.putString("${addonKnownVersionsKey}_$profileId", payload)?.apply()
+    }
+
+    actual fun loadPendingAddonVersionChanges(profileId: Int): Map<String, String> =
+        preferences?.getString("${addonPendingVersionsKey}_$profileId", null).orEmpty()
+            .lineSequence().mapNotNull { line ->
+                val url = line.substringBefore("\t").trim()
+                val version = line.substringAfter("\t", "").trim()
+                if (url.isNotEmpty() && version.isNotEmpty()) url to version else null
+            }.toMap()
+
+    actual fun savePendingAddonVersionChanges(profileId: Int, changes: Map<String, String>) {
+        val payload = changes.entries.joinToString(separator = "\n") { (url, version) -> "$url\t$version" }
+        preferences?.edit()?.putString("${addonPendingVersionsKey}_$profileId", payload)?.apply()
     }
 }
 

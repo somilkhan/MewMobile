@@ -2,7 +2,9 @@ package com.nuvio.app.features.addons
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class AddonModelsTest {
@@ -21,6 +23,16 @@ class AddonModelsTest {
     @Test
     fun `changed version is detected`() {
         assertTrue(addonVersionChanged("1.0.0", "1.1.0"))
+    }
+
+    @Test
+    fun `pending version notice survives a newer refresh version`() {
+        assertEquals("1.0.0", addonVersionChangeFrom("1.1.0", "1.2.0", "1.0.0"))
+    }
+
+    @Test
+    fun `version change helper does not flag first observation`() {
+        assertNull(addonVersionChangeFrom(null, "1.0.0", null))
     }
 
     @Test

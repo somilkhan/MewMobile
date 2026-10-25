@@ -93,3 +93,9 @@ sealed interface AddAddonResult {
 
 internal fun addonVersionChanged(previousVersion: String?, currentVersion: String): Boolean =
     !previousVersion.isNullOrBlank() && currentVersion.isNotBlank() && previousVersion != currentVersion
+
+internal fun addonVersionChangeFrom(
+    previousVersion: String?,
+    currentVersion: String,
+    pendingVersion: String?,
+): String? = pendingVersion ?: previousVersion?.takeIf { addonVersionChanged(it, currentVersion) }

@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowDownward
 import androidx.compose.material.icons.rounded.ArrowUpward
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Extension
 import androidx.compose.material.icons.rounded.Refresh
@@ -181,6 +182,7 @@ internal fun AddonsSettingsPageContent(
                         null
                     },
                     onDeleteClick = { AddonRepository.removeAddon(addon.manifestUrl) },
+                    onDismissVersionChange = { AddonRepository.dismissVersionChange(addon.manifestUrl) },
                 )
             }
         }
@@ -399,6 +401,7 @@ private fun InstalledAddonCard(
     onEnabledChange: (Boolean) -> Unit,
     onConfigureClick: (() -> Unit)?,
     onDeleteClick: () -> Unit,
+    onDismissVersionChange: () -> Unit,
 ) {
     val manifest = addon.manifest
 
@@ -426,7 +429,20 @@ private fun InstalledAddonCard(
                     Text(text = stringResource(Res.string.addons_version_format, version), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     addon.versionChangedFrom?.let { previousVersion ->
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text(text = stringResource(Res.string.addons_version_changed, previousVersion, version), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.tertiary)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = stringResource(Res.string.addons_version_changed, previousVersion, version),
+                                modifier = Modifier.weight(1f),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.tertiary,
+                            )
+                            NuvioIconActionButton(
+                                icon = Icons.Rounded.Close,
+                                contentDescription = stringResource(Res.string.addons_dismiss_version_change),
+                                tint = MaterialTheme.colorScheme.tertiary,
+                                onClick = onDismissVersionChange,
+                            )
+                        }
                     }
                 }
             }
