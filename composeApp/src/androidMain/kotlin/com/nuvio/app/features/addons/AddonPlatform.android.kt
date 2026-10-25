@@ -34,6 +34,7 @@ actual object AddonStorage {
     private const val preferencesName = "nuvio_addons"
     private const val addonUrlsKey = "installed_manifest_urls"
     private const val addonEnabledStatesKey = "installed_manifest_enabled_states"
+    private const val addonKnownVersionsKey = "installed_manifest_known_versions"
 
     private var preferences: SharedPreferences? = null
 
@@ -69,10 +70,20 @@ actual object AddonStorage {
         val payload = states.entries.joinToString(separator = "\n") { (url, enabled) ->
             "$url\t$enabled"
         }
-        preferences
-            ?.edit()
-            ?.putString("${addonEnabledStatesKey}_$profileId", payload)
-            ?.apply()
+        preferences?.edit()?.putString("${addonEnabledStatesKey}_$profileId", payload)?.apply()
+    }
+
+    actual fun loadKnownAddonVersions(profileId: Int): Map<String, String> =
+        preferences?.getString("${addonKnownVersionsKey}_$profileId", null).orEmpty()
+            .lineSequence().mapNotNull { line ->
+                val url = line.substringBefore("\t").trim()
+                val version = line.substringAfter("\t", "").trim()
+                if (url.isNotEmpty() && version.isNotEmpty()) url to version else null
+            }.toMap()
+
+    actual fun saveKnownAddonVersions(profileId: Int, versions: Map<String, String>) {
+        val payload = versions.entries.joinToString(separator = "\n") { (url, version) -> "$url\t$version" }
+        preferences?.edit()?.putString("${addonKnownVersionsKey}_$profileId", payload)?.apply()
     }
 }
 

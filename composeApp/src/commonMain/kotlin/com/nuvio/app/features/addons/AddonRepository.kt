@@ -261,6 +261,7 @@ object AddonRepository {
                 ),
             )
         }
+        saveKnownVersion(manifestUrl, manifest.version)
         persist()
         pushToServer()
         return AddAddonResult.Success(manifest)
@@ -274,6 +275,9 @@ object AddonRepository {
                 addons = current.addons.filterNot { it.manifestUrl == manifestUrl },
             )
         }
+        val knownVersions = AddonStorage.loadKnownAddonVersions(currentProfileId).toMutableMap()
+        knownVersions.remove(manifestUrl)
+        AddonStorage.saveKnownAddonVersions(currentProfileId, knownVersions)
         persist()
         pushToServer()
     }
@@ -342,6 +346,9 @@ object AddonRepository {
                         payload = payload,
                     )
                 }
+                val previousVersion = AddonStorage.loadKnownAddonVersions(currentProfileId)[manifestUrl]
+                    ?: _uiState.value.addons.firstOrNull { it.manifestUrl == manifestUrl }?.manifest?.version
+                result.getOrNull()?.let { manifest -> saveKnownVersion(manifestUrl, manifest.version) }
 
                 _uiState.update { current ->
                     current.copy(
@@ -355,6 +362,7 @@ object AddonRepository {
                                             manifest = manifest,
                                             isRefreshing = false,
                                             errorMessage = null,
+                                            versionChangedFrom = previousVersion.takeIf { addonVersionChanged(it, manifest.version) },
                                         )
                                     },
                                     onFailure = { error ->
@@ -435,6 +443,13 @@ object AddonRepository {
             currentProfileId,
             addons.associate { it.manifestUrl to it.enabled },
         )
+    }
+
+    private fun saveKnownVersion(manifestUrl: String, version: String) {
+        if (version.isBlank()) return
+        val versions = AddonStorage.loadKnownAddonVersions(currentProfileId).toMutableMap()
+        versions[manifestUrl] = version
+        AddonStorage.saveKnownAddonVersions(currentProfileId, versions)
     }
 
     private fun loadLocalEnabledStates(): Map<String, Boolean> =

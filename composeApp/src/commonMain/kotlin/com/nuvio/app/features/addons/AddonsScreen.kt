@@ -423,11 +423,11 @@ private fun InstalledAddonCard(
                 )
                 manifest?.version?.let { version ->
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = stringResource(Res.string.addons_version_format, version),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    Text(text = stringResource(Res.string.addons_version_format, version), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    addon.versionChangedFrom?.let { previousVersion ->
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(text = stringResource(Res.string.addons_version_changed, previousVersion, version), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.tertiary)
+                    }
                 }
             }
             Spacer(modifier = Modifier.width(12.dp))

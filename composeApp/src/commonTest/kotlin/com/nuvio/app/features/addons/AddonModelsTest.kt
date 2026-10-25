@@ -8,6 +8,22 @@ import kotlin.test.assertTrue
 class AddonModelsTest {
 
     @Test
+    fun `first version observation is not an update`() {
+        assertFalse(addonVersionChanged(null, "1.0.0"))
+        assertFalse(addonVersionChanged("", "1.0.0"))
+    }
+
+    @Test
+    fun `same version is not an update`() {
+        assertFalse(addonVersionChanged("1.0.0", "1.0.0"))
+    }
+
+    @Test
+    fun `changed version is detected`() {
+        assertTrue(addonVersionChanged("1.0.0", "1.1.0"))
+    }
+
+    @Test
     fun `disabled addon is installed but not active`() {
         val addon = ManagedAddon(
             manifestUrl = "https://example.test/manifest.json",

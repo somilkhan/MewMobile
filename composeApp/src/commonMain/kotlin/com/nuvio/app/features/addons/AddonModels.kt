@@ -53,6 +53,7 @@ data class ManagedAddon(
     val enabled: Boolean = true,
     val isRefreshing: Boolean = false,
     val errorMessage: String? = null,
+    val versionChangedFrom: String? = null,
 ) {
     val isActive: Boolean
         get() = enabled && manifest != null
@@ -89,3 +90,6 @@ sealed interface AddAddonResult {
     data class Success(val manifest: AddonManifest) : AddAddonResult
     data class Error(val message: String) : AddAddonResult
 }
+
+internal fun addonVersionChanged(previousVersion: String?, currentVersion: String): Boolean =
+    !previousVersion.isNullOrBlank() && currentVersion.isNotBlank() && previousVersion != currentVersion
