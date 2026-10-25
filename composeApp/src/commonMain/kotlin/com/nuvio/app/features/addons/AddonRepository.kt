@@ -58,6 +58,9 @@ object AddonRepository {
     private var initialized = false
     private var pulledFromServer = false
     private var currentProfileId: Int = 1
+    // This repository uses Dispatchers.Default, so UI calls and refresh-job completion can
+    // access the registry concurrently. Keep reservation/removal/profile-switch atomic.
+    private val refreshJobsLock = Any()
     private val activeRefreshJobs = mutableMapOf<String, Job>()
     private val versionStorageMutex = Mutex()
 
@@ -98,20 +101,30 @@ object AddonRepository {
 
     fun onProfileChanged(profileId: Int) {
         val effectiveProfileId = resolveEffectiveProfileId(profileId)
-        if (effectiveProfileId == currentProfileId && initialized) return
-        cancelActiveRefreshes()
-        currentProfileId = effectiveProfileId
-        initialized = false
-        pulledFromServer = false
-        _uiState.value = AddonsUiState()
+        val jobsToCancel = synchronized(refreshJobsLock) {
+            if (effectiveProfileId == currentProfileId && initialized) return
+            val jobs = activeRefreshJobs.values.toList()
+            activeRefreshJobs.clear()
+            currentProfileId = effectiveProfileId
+            initialized = false
+            pulledFromServer = false
+            _uiState.value = AddonsUiState()
+            jobs
+        }
+        jobsToCancel.forEach(Job::cancel)
     }
 
     fun clearLocalState() {
-        cancelActiveRefreshes()
-        currentProfileId = 1
-        initialized = false
-        pulledFromServer = false
-        _uiState.value = AddonsUiState()
+        val jobsToCancel = synchronized(refreshJobsLock) {
+            val jobs = activeRefreshJobs.values.toList()
+            activeRefreshJobs.clear()
+            currentProfileId = 1
+            initialized = false
+            pulledFromServer = false
+            _uiState.value = AddonsUiState()
+            jobs
+        }
+        jobsToCancel.forEach(Job::cancel)
     }
 
     suspend fun pullFromServer(profileId: Int) {
@@ -290,7 +303,10 @@ object AddonRepository {
                 addons = current.addons.filterNot { it.manifestUrl == manifestUrl },
             )
         }
-        activeRefreshJobs.remove(manifestUrl)?.cancel()
+        val refreshToCancel = synchronized(refreshJobsLock) {
+            activeRefreshJobs.remove(manifestUrl)
+        }
+        refreshToCancel?.cancel()
         val profileId = currentProfileId
         scope.launch {
             versionStorageMutex.withLock {
@@ -356,50 +372,56 @@ object AddonRepository {
     }
 
     fun refreshAddon(manifestUrl: String) {
-        val profileId = currentProfileId
-        if (activeRefreshJobs[manifestUrl]?.isActive == true) return
-        markRefreshing(manifestUrl)
         lateinit var refreshJob: Job
-        refreshJob = scope.launch(start = CoroutineStart.LAZY) {
-            try {
-                val result = runCatching {
-                    val payload = httpGetText(manifestUrl)
-                    AddonManifestParser.parse(manifestUrl = manifestUrl, payload = payload)
-                }.onFailure { error ->
-                    if (error is CancellationException) throw error
+        synchronized(refreshJobsLock) {
+            // A lazy job is not active until start(), so checking isActive alone permits two
+            // callers to reserve the same URL before either starts.
+            if (activeRefreshJobs[manifestUrl]?.isCompleted == false) return
+            val profileId = currentProfileId
+            markRefreshing(manifestUrl)
+            refreshJob = scope.launch(start = CoroutineStart.LAZY) {
+                try {
+                    val result = runCatching {
+                        val payload = httpGetText(manifestUrl)
+                        AddonManifestParser.parse(manifestUrl = manifestUrl, payload = payload)
+                    }.onFailure { error ->
+                        if (error is CancellationException) throw error
+                    }
+                    if (profileId != currentProfileId) return@launch
+                    val fallbackPreviousVersion = _uiState.value.addons
+                        .firstOrNull { it.manifestUrl == manifestUrl }?.manifest?.version
+                    val versionChangedFrom = result.getOrNull()?.let { manifest ->
+                        recordManifestVersion(profileId, manifestUrl, manifest.version, fallbackPreviousVersion)
+                    }
+                    if (profileId != currentProfileId) return@launch
+                    _uiState.update { current ->
+                        if (profileId != currentProfileId) return@update current
+                        current.copy(
+                            addons = current.addons.map { addon ->
+                                if (addon.manifestUrl != manifestUrl) addon
+                                else result.fold(
+                                    onSuccess = { manifest -> addon.copy(
+                                        manifest = manifest,
+                                        isRefreshing = false,
+                                        errorMessage = null,
+                                        versionChangedFrom = versionChangedFrom,
+                                    ) },
+                                    onFailure = { error -> addon.copy(
+                                        isRefreshing = false,
+                                        errorMessage = error.message ?: getString(Res.string.addon_load_manifest_failed),
+                                    ) },
+                                )
+                            },
+                        )
+                    }
+                } finally {
+                    synchronized(refreshJobsLock) {
+                        if (activeRefreshJobs[manifestUrl] === refreshJob) activeRefreshJobs.remove(manifestUrl)
+                    }
                 }
-                if (profileId != currentProfileId) return@launch
-                val fallbackPreviousVersion = _uiState.value.addons
-                    .firstOrNull { it.manifestUrl == manifestUrl }?.manifest?.version
-                val versionChangedFrom = result.getOrNull()?.let { manifest ->
-                    recordManifestVersion(profileId, manifestUrl, manifest.version, fallbackPreviousVersion)
-                }
-                if (profileId != currentProfileId) return@launch
-                _uiState.update { current ->
-                    if (profileId != currentProfileId) return@update current
-                    current.copy(
-                        addons = current.addons.map { addon ->
-                            if (addon.manifestUrl != manifestUrl) addon
-                            else result.fold(
-                                onSuccess = { manifest -> addon.copy(
-                                    manifest = manifest,
-                                    isRefreshing = false,
-                                    errorMessage = null,
-                                    versionChangedFrom = versionChangedFrom,
-                                ) },
-                                onFailure = { error -> addon.copy(
-                                    isRefreshing = false,
-                                    errorMessage = error.message ?: getString(Res.string.addon_load_manifest_failed),
-                                ) },
-                            )
-                        },
-                    )
-                }
-            } finally {
-                if (activeRefreshJobs[manifestUrl] === refreshJob) activeRefreshJobs.remove(manifestUrl)
             }
+            activeRefreshJobs[manifestUrl] = refreshJob
         }
-        activeRefreshJobs[manifestUrl] = refreshJob
         refreshJob.start()
     }
 
@@ -519,8 +541,10 @@ object AddonRepository {
             .mapKeys { (url, _) -> ensureManifestSuffix(url) }
 
     private fun cancelActiveRefreshes() {
-        activeRefreshJobs.values.forEach(Job::cancel)
-        activeRefreshJobs.clear()
+        val jobs = synchronized(refreshJobsLock) {
+            activeRefreshJobs.values.toList().also { activeRefreshJobs.clear() }
+        }
+        jobs.forEach(Job::cancel)
     }
 
     private fun resolveEffectiveProfileId(profileId: Int): Int {

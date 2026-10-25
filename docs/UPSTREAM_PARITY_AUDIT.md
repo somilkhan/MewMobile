@@ -186,3 +186,11 @@ Comparison anchor: Enhanced `ae535226b1488a60d59613c1502fbb717cbb333f` → `a3e8
 - Workflow run `40244559430` failed in `:composeApp:compileAndroidMain` with two concrete errors: the CloudStream runtime expect declaration had a one-argument `validatePackage` signature while all actual implementations and the caller used the inspection argument; and the new TMDB string accessors were referenced without importing their generated resource symbols.
 - Corrected the expect signature to `validatePackage(bytes, inspection)` and added the two generated Compose resource imports. The 23 locale files were already present; missing imports, not absent translations, caused the unresolved references.
 - The next current-head workflow is required to verify these corrections; the failed run is not counted as a pass.
+
+
+## Add-on refresh job registry race — 2026-10-26
+
+- `AddonRepository` runs refresh coroutines on `Dispatchers.Default`, but its per-manifest `activeRefreshJobs` map was accessed from caller threads and coroutine completion without synchronization.
+- The deduplication check also used `Job.isActive`; a newly registered lazy coroutine is not active until `start()`, leaving a window where concurrent refresh requests for the same manifest could both start network requests and race version persistence.
+- Added a dedicated registry lock around refresh reservation/removal and profile-switch/clear operations. The deduplication guard now treats any non-completed registered job—including a lazy job—as reserved. Cancellation occurs outside the lock to avoid running cancellation handlers while holding the registry monitor.
+- Verification: current head before this change passed Android host tests and Android Kotlin source compilation in [run 40245881788](https://github.com/somilkhan/MewMobile/actions/runs/40245881788). The new concurrency change requires a fresh workflow; no result is claimed yet.
