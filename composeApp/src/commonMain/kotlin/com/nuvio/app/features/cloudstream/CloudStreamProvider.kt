@@ -13,7 +13,7 @@ internal expect object CloudStreamPlatformRuntime {
     val supportsAndroidDex: Boolean
 
     fun initialize(context: Any?)
-    fun validatePackage(bytes: ByteArray)
+    fun validatePackage(bytes: ByteArray, inspection: CloudStreamPackageInspection)
     suspend fun provider(plugin: CloudStreamPluginItem): CloudStreamProvider?
     fun unload(pluginId: String)
     suspend fun registerNativeRepository(url: String, name: String, iconUrl: String?)

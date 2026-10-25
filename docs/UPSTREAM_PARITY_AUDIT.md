@@ -179,3 +179,10 @@ Comparison anchor: Enhanced `ae535226b1488a60d59613c1502fbb717cbb333f` → `a3e8
 - Source review found SearchRepository still searched installed CloudStream providers regardless of the TMDB toggle, and Discover always listed CloudStream catalogs when no regular add-ons were enabled. This contradicted the agreed invariant that CloudStream extensions are the fallback only while TMDB is disabled.
 - Search and Discover now gate CloudStream provider use on `!TmdbSettingsRepository.snapshot().enabled`. The TMDB-enabled state is included in the search request key and SearchScreen effects observe the TMDB settings StateFlow, so toggling the option reruns search/discovery without restarting the app. Regular non-CloudStream add-ons remain available.
 - Added a focused routing-policy unit test in this change batch. CI and runtime toggle behavior remain pending verification.
+
+
+## CI compile diagnostics and correction — 2026-10-26
+
+- Workflow run `40244559430` failed in `:composeApp:compileAndroidMain` with two concrete errors: the CloudStream runtime expect declaration had a one-argument `validatePackage` signature while all actual implementations and the caller used the inspection argument; and the new TMDB string accessors were referenced without importing their generated resource symbols.
+- Corrected the expect signature to `validatePackage(bytes, inspection)` and added the two generated Compose resource imports. The 23 locale files were already present; missing imports, not absent translations, caused the unresolved references.
+- The next current-head workflow is required to verify these corrections; the failed run is not counted as a pass.
