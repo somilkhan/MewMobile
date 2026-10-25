@@ -12,6 +12,13 @@ import kotlinx.coroutines.runBlocking
 
 class TmdbMetadataServiceTest {
     @Test
+    fun originalTitleModePrefersOriginalTitleAndFallsBackToLocalizedTitle() {
+        assertEquals("Spirited Away", selectTmdbDisplayTitle(TmdbTitleLanguage.ORIGINAL, "Chihiro's Journey", "Spirited Away"))
+        assertEquals("Localized title", selectTmdbDisplayTitle(TmdbTitleLanguage.ORIGINAL, "Localized title", null))
+        assertEquals("Localized title", selectTmdbDisplayTitle(TmdbTitleLanguage.APP, "Localized title", "Original title"))
+    }
+
+    @Test
     fun `TMDB disabled prevents metadata use even with an API key`() {
         assertEquals(false, TmdbSettings(enabled = false, apiKey = "configured-key").canUseMetadata)
         assertEquals(true, TmdbSettings(enabled = true, apiKey = "configured-key").canUseMetadata)
@@ -336,6 +343,7 @@ class TmdbMetadataServiceTest {
         assertEquals(false, baseKey == tmdbEnrichmentCacheKey("1", "tv", "fr-FR", base.copy(useMoreLikeThis = true)))
         assertEquals(false, baseKey == tmdbEnrichmentCacheKey("1", "tv", "fr-FR", base.copy(useTrailers = true)))
         assertEquals(false, baseKey == tmdbEnrichmentCacheKey("1", "tv", "fr-FR", base.copy(useCollections = true)))
+        assertEquals(false, baseKey == tmdbEnrichmentCacheKey("1", "tv", "fr-FR", base.copy(titleLanguage = TmdbTitleLanguage.ORIGINAL)))
     }
 
     @Test

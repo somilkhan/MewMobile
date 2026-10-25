@@ -33,6 +33,7 @@ object TmdbSettingsRepository {
     private var useSeasonPosters = true
     private var useMoreLikeThis = true
     private var useCollections = true
+    private var titleLanguage = TmdbTitleLanguage.APP
 
     fun ensureLoaded() {
         if (hasLoaded) return
@@ -90,6 +91,16 @@ object TmdbSettingsRepository {
         language = normalized
         publish()
         TmdbSettingsStorage.saveLanguage(normalized)
+    }
+
+    fun setTitleLanguage(value: TmdbTitleLanguage) {
+        ensureLoaded()
+        if (titleLanguage == value) return
+        titleLanguage = value
+        publish()
+        TmdbSettingsStorage.saveTitleLanguage(value.storageId)
+        TmdbMetadataService.clearEnrichmentCache()
+        invalidateMetadata()
     }
 
     fun setUseTrailers(value: Boolean) = setBoolean(
@@ -212,6 +223,7 @@ object TmdbSettingsRepository {
         useSeasonPosters = TmdbSettingsStorage.loadUseSeasonPosters() ?: true
         useMoreLikeThis = TmdbSettingsStorage.loadUseMoreLikeThis() ?: true
         useCollections = TmdbSettingsStorage.loadUseCollections() ?: true
+        titleLanguage = TmdbTitleLanguage.fromStorageId(TmdbSettingsStorage.loadTitleLanguage())
         publish()
     }
 
@@ -237,6 +249,7 @@ object TmdbSettingsRepository {
             useSeasonPosters = useSeasonPosters,
             useMoreLikeThis = useMoreLikeThis,
             useCollections = useCollections,
+            titleLanguage = titleLanguage,
         )
     }
 

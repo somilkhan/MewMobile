@@ -60,6 +60,13 @@ object TmdbMetadataService {
         synchronized(cacheLock) { cache[key] = value }
     }
 
+    internal fun clearEnrichmentCache() {
+        synchronized(cacheLock) {
+            enrichmentCache.clear()
+            previewArtworkCache.clear()
+        }
+    }
+
     suspend fun fetchPersonDetail(
         personId: Int,
         preferCrewCredits: Boolean? = null,
@@ -561,7 +568,9 @@ object TmdbMetadataService {
         language: String,
     ): TmdbPreviewArtwork? = withContext(Dispatchers.Default) {
         val normalizedLanguage = normalizeTmdbLanguage(language)
-        val cacheKey = "$tmdbId:$mediaType:$normalizedLanguage:previewArtwork"
+        val settings = TmdbSettingsRepository.snapshot()
+        val useOriginalTitle = settings.enabled && settings.titleLanguage == TmdbTitleLanguage.ORIGINAL
+        val cacheKey = "$tmdbId:$mediaType:$normalizedLanguage:title=${settings.titleLanguage.storageId}:previewArtwork"
         cacheGet(previewArtworkCache, cacheKey)?.let { return@withContext it }
         TmdbPreviewArtworkStorage.load(cacheKey)
             ?.let { cachedPayload ->
@@ -574,7 +583,7 @@ object TmdbMetadataService {
                 return@withContext cachedArtwork
             }
         val numericId = tmdbId.toIntOrNull() ?: return@withContext null
-        val includeImageLanguage = buildString {
+        val includeImageLanguage = if (useOriginalTitle) null else buildString {
             append(normalizedLanguage.substringBefore("-"))
             append(",")
             append(normalizedLanguage)
@@ -591,26 +600,42 @@ object TmdbMetadataService {
             val imagesDeferred = async {
                 fetch<TmdbImagesResponse>(
                     endpoint = "$mediaType/$numericId/images",
-                    query = mapOf("include_image_language" to includeImageLanguage),
+                    query = includeImageLanguage?.let { mapOf("include_image_language" to it) }.orEmpty(),
                 )
             }
             detailsDeferred.await() to imagesDeferred.await()
         }
         val resolvedDetails = details ?: return@withContext null
+        val originalLanguage = resolvedDetails.originalLanguage?.trim()?.lowercase()?.takeIf(String::isNotBlank)
+        val artworkLanguage = originalLanguage.takeIf { useOriginalTitle }
+        val localizedTitle = listOf(resolvedDetails.title, resolvedDetails.name)
+            .firstNotNullOfOrNull { it?.trim()?.takeIf(String::isNotBlank) }
+        val originalTitle = listOf(resolvedDetails.originalTitle, resolvedDetails.originalName)
+            .firstNotNullOfOrNull { it?.trim()?.takeIf(String::isNotBlank) }
         val artwork = TmdbPreviewArtwork(
-            localizedTitle = listOf(resolvedDetails.title, resolvedDetails.name)
-                .firstNotNullOfOrNull { it?.trim()?.takeIf(String::isNotBlank) },
+            localizedTitle = selectTmdbDisplayTitle(
+                settings.titleLanguage.takeIf { useOriginalTitle } ?: TmdbTitleLanguage.APP,
+                localizedTitle,
+                originalTitle,
+            ),
             description = resolvedDetails.overview?.trim()?.takeIf(String::isNotBlank),
             poster = buildImageUrl(
-                images?.posters.orEmpty().selectBestLocalizedImagePath(normalizedLanguage),
+                originalImagePath(images?.posters, artworkLanguage)
+                    ?: images?.posters.orEmpty().selectBestLocalizedImagePath(normalizedLanguage)
+                    ?: resolvedDetails.posterPath,
                 "w780",
-            ) ?: buildImageUrl(resolvedDetails.posterPath, "w500"),
+            ),
             backdrop = buildImageUrl(
-                images?.backdrops.orEmpty().selectBestTextlessImagePath(normalizedLanguage),
+                originalImagePath(images?.backdrops, artworkLanguage)
+                    ?: images?.backdrops.orEmpty().selectBestTextlessImagePath(normalizedLanguage)
+                    ?: resolvedDetails.backdropPath,
                 "w1280",
-            ) ?: buildImageUrl(resolvedDetails.backdropPath, "w1280"),
+            ),
             logo = buildImageUrl(
-                images?.logos.orEmpty().selectBestLocalizedImagePath(normalizedLanguage),
+                images?.logos.orEmpty().selectOriginalOrLocalizedImagePath(
+                    normalizedLanguage = normalizedLanguage,
+                    originalLanguage = artworkLanguage,
+                ),
                 "w500",
             ),
             releaseInfo = resolvedDetails.releaseDate ?: resolvedDetails.firstAirDate,
@@ -838,6 +863,13 @@ object TmdbMetadataService {
             )
         }
 
+        if (enrichment != null && settings.titleLanguage == TmdbTitleLanguage.ORIGINAL) {
+            updated = updated.copy(
+                name = enrichment.localizedTitle ?: updated.name,
+                logo = enrichment.logo ?: updated.logo,
+            )
+        }
+
         if (enrichment != null && settings.useBasicInfo) {
             updated = updated.copy(
                 name = enrichment.localizedTitle ?: updated.name,
@@ -962,7 +994,8 @@ object TmdbMetadataService {
         cacheGet(enrichmentCache, cacheKey)?.let { return@withContext it }
 
         val numericId = tmdbId.toIntOrNull() ?: return@withContext null
-        val includeImageLanguage = buildString {
+        val useOriginalTitle = settings.enabled && settings.titleLanguage == TmdbTitleLanguage.ORIGINAL
+        val includeImageLanguage = if (useOriginalTitle) null else buildString {
             append(normalizedLanguage.substringBefore("-"))
             append(",")
             append(normalizedLanguage)
@@ -985,7 +1018,7 @@ object TmdbMetadataService {
             val images = async {
                 fetch<TmdbImagesResponse>(
                     endpoint = "$mediaType/$numericId/images",
-                    query = mapOf("include_image_language" to includeImageLanguage),
+                    query = includeImageLanguage?.let { mapOf("include_image_language" to it) }.orEmpty(),
                 )
             }
             val ageRating = async {
@@ -1039,9 +1072,17 @@ object TmdbMetadataService {
         val genres = details.genres.mapNotNull { it.name?.trim()?.takeIf(String::isNotBlank) }
         val description = details.overview?.trim()?.takeIf(String::isNotBlank)
         val releaseInfo = details.releaseDate ?: details.firstAirDate
-        val localizedTitle = listOf(details.title, details.name).firstNotNullOfOrNull { it?.trim()?.takeIf(String::isNotBlank) }
+        val localizedTitleFromApi = listOf(details.title, details.name).firstNotNullOfOrNull { it?.trim()?.takeIf(String::isNotBlank) }
         val originalTitle = listOf(details.originalTitle, details.originalName)
             .firstNotNullOfOrNull { it?.trim()?.takeIf(String::isNotBlank) }
+        val localizedTitle = selectTmdbDisplayTitle(
+            titleLanguage = settings.titleLanguage.takeIf { useOriginalTitle } ?: TmdbTitleLanguage.APP,
+            localizedTitle = localizedTitleFromApi,
+            originalTitle = originalTitle,
+        )
+        val originalArtworkLanguage = details.originalLanguage?.trim()?.lowercase()
+            ?.takeIf(String::isNotBlank)
+            ?.takeIf { useOriginalTitle }
         val people = buildPeople(details = details, credits = credits, mediaType = mediaType)
         val directors = buildDirectors(details = details, credits = credits, mediaType = mediaType)
         val writers = buildWriters(credits = credits, mediaType = mediaType, hasDirectors = directors.isNotEmpty())
@@ -1053,14 +1094,24 @@ object TmdbMetadataService {
             description = description,
             genres = genres,
             backdrop = buildImageUrl(
-                images?.backdrops.orEmpty().selectBestTextlessImagePath(normalizedLanguage),
+                originalImagePath(images?.backdrops, originalArtworkLanguage)
+                    ?: images?.backdrops.orEmpty().selectBestTextlessImagePath(normalizedLanguage)
+                    ?: details.backdropPath,
                 "w1280",
-            ) ?: buildImageUrl(details.backdropPath, "w1280"),
-            logo = buildImageUrl(images?.logos.orEmpty().selectBestLocalizedImagePath(normalizedLanguage), "w500"),
+            ),
+            logo = buildImageUrl(
+                images?.logos.orEmpty().selectOriginalOrLocalizedImagePath(
+                    normalizedLanguage = normalizedLanguage,
+                    originalLanguage = originalArtworkLanguage,
+                ),
+                "w500",
+            ),
             poster = buildImageUrl(
-                images?.posters.orEmpty().selectBestTextlessImagePath(normalizedLanguage),
+                originalImagePath(images?.posters, originalArtworkLanguage)
+                    ?: images?.posters.orEmpty().selectBestTextlessImagePath(normalizedLanguage)
+                    ?: details.posterPath,
                 "w780",
-            ) ?: buildImageUrl(details.posterPath, "w500"),
+            ),
             people = people,
             director = directors,
             writer = writers,
@@ -1603,7 +1654,7 @@ internal fun tmdbEnrichmentCacheKey(
     normalizedLanguage: String,
     settings: TmdbSettings,
 ): String = "$tmdbId:$mediaType:$normalizedLanguage" +
-    ":more=${settings.useMoreLikeThis}:trailers=${settings.useTrailers}:collections=${settings.useCollections}"
+    ":title=${settings.titleLanguage.storageId}:more=${settings.useMoreLikeThis}:trailers=${settings.useTrailers}:collections=${settings.useCollections}"
 
 internal suspend fun requestTmdbText(
     maxAttempts: Int = 3,
@@ -1783,6 +1834,28 @@ private fun List<TmdbImage>.selectBestLocalizedImagePath(normalizedLanguage: Str
             .thenByDescending { it.iso6391 == "en" }
             .thenByDescending { it.iso6391 == null },
     ).firstOrNull()?.filePath
+}
+
+private fun List<TmdbImage>.selectOriginalOrLocalizedImagePath(
+    normalizedLanguage: String,
+    originalLanguage: String?,
+): String? {
+    if (!originalLanguage.isNullOrBlank()) {
+        firstOrNull { !it.filePath.isNullOrBlank() && it.iso6391.equals(originalLanguage, ignoreCase = true) }
+            ?.filePath
+            ?.trim()
+            ?.takeIf(String::isNotBlank)
+            ?.let { return it }
+    }
+    return selectBestLocalizedImagePath(normalizedLanguage)
+}
+
+private fun originalImagePath(images: List<TmdbImage>?, originalLanguage: String?): String? {
+    originalLanguage ?: return null
+    return images.orEmpty()
+        .firstOrNull { !it.filePath.isNullOrBlank() && it.iso6391.equals(originalLanguage, ignoreCase = true) }
+        ?.filePath
+        ?.trim()
 }
 
 private fun List<TmdbImage>.selectBestTextlessImagePath(normalizedLanguage: String): String? {

@@ -140,3 +140,11 @@ Comparison anchor: Enhanced `ae535226b1488a60d59613c1502fbb717cbb333f` → `a3e8
 - Review of the CloudStream install path found a race between checking the active profile and calling `savePackageAtomically`: Android package storage chooses its directory from a mutable active-profile field. A profile switch in that gap could route a downloaded package into the newly active profile, then fail the post-write guard while leaving the file behind.
 - Added a shared profile-mutation lock around profile/state changes and the final package replacement + state persistence. The operation generation and profile guard are checked inside the same critical section. The lock also serializes AutoUpdates preference changes and local-state clearing against that commit path.
 - This is a source-level concurrency fix; it still requires CI and regression/runtime verification. The broader checklist remains open.
+
+
+## TMDB original-language title preference — selective upstream port
+
+- Ported the upstream title-language preference into the existing TMDB settings page rather than creating a new screen. The preference is profile-scoped on Android/iOS, included in settings sync payloads, and defaults to the existing app-language behavior.
+- TMDB enrichment and home-preview artwork cache keys now distinguish the title mode. When Original language is selected, titles prefer `original_title` / `original_name`, image requests are not restricted to the app language, and original-language artwork is preferred when available; the previous preferred-language selection remains the fallback. The preference is only enabled when TMDB enrichment is enabled and configured.
+- Added unit coverage for title selection fallback and cache separation. Translation keys were added to the default resource file; locale-specific translation coverage still needs audit.
+- This is source-level implementation pending CI and platform verification. It does not alter the TMDB enable/disable contract or CloudStream fallback behavior.
