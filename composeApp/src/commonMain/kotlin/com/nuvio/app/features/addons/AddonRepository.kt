@@ -18,6 +18,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -55,6 +57,7 @@ object AddonRepository {
     private var pulledFromServer = false
     private var currentProfileId: Int = 1
     private val activeRefreshJobs = mutableMapOf<String, Job>()
+    private val versionStorageMutex = Mutex()
 
     fun initialize() {
         val effectiveProfileId = resolveEffectiveProfileId(ProfileRepository.activeProfileId)
@@ -261,7 +264,7 @@ object AddonRepository {
                 ),
             )
         }
-        saveKnownVersion(manifestUrl, manifest.version)
+        saveKnownVersion(currentProfileId, manifestUrl, manifest.version)
         persist()
         pushToServer()
         return AddAddonResult.Success(manifest)
@@ -275,9 +278,15 @@ object AddonRepository {
                 addons = current.addons.filterNot { it.manifestUrl == manifestUrl },
             )
         }
-        val knownVersions = AddonStorage.loadKnownAddonVersions(currentProfileId).toMutableMap()
-        knownVersions.remove(manifestUrl)
-        AddonStorage.saveKnownAddonVersions(currentProfileId, knownVersions)
+        activeRefreshJobs.remove(manifestUrl)?.cancel()
+        val profileId = currentProfileId
+        scope.launch {
+            versionStorageMutex.withLock {
+                val knownVersions = AddonStorage.loadKnownAddonVersions(profileId).toMutableMap()
+                knownVersions.remove(manifestUrl)
+                AddonStorage.saveKnownAddonVersions(profileId, knownVersions)
+            }
+        }
         persist()
         pushToServer()
     }
@@ -336,6 +345,7 @@ object AddonRepository {
         if (existingJob?.isActive == true) return
 
         markRefreshing(manifestUrl)
+        val profileId = currentProfileId
         var refreshJob: Job? = null
         refreshJob = scope.launch {
             try {
@@ -346,9 +356,10 @@ object AddonRepository {
                         payload = payload,
                     )
                 }
-                val previousVersion = AddonStorage.loadKnownAddonVersions(currentProfileId)[manifestUrl]
-                    ?: _uiState.value.addons.firstOrNull { it.manifestUrl == manifestUrl }?.manifest?.version
-                result.getOrNull()?.let { manifest -> saveKnownVersion(manifestUrl, manifest.version) }
+                val previousVersion = versionStorageMutex.withLock {
+                    AddonStorage.loadKnownAddonVersions(profileId)[manifestUrl]
+                } ?: _uiState.value.addons.firstOrNull { it.manifestUrl == manifestUrl }?.manifest?.version
+                result.getOrNull()?.let { manifest -> saveKnownVersion(profileId, manifestUrl, manifest.version) }
 
                 _uiState.update { current ->
                     current.copy(
@@ -445,11 +456,13 @@ object AddonRepository {
         )
     }
 
-    private fun saveKnownVersion(manifestUrl: String, version: String) {
+    private suspend fun saveKnownVersion(profileId: Int, manifestUrl: String, version: String) {
         if (version.isBlank()) return
-        val versions = AddonStorage.loadKnownAddonVersions(currentProfileId).toMutableMap()
-        versions[manifestUrl] = version
-        AddonStorage.saveKnownAddonVersions(currentProfileId, versions)
+        versionStorageMutex.withLock {
+            val versions = AddonStorage.loadKnownAddonVersions(profileId).toMutableMap()
+            versions[manifestUrl] = version
+            AddonStorage.saveKnownAddonVersions(profileId, versions)
+        }
     }
 
     private fun loadLocalEnabledStates(): Map<String, Boolean> =
