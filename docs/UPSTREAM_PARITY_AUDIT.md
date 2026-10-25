@@ -172,3 +172,10 @@ Comparison anchor: Enhanced `ae535226b1488a60d59613c1502fbb717cbb333f` → `a3e8
 - The Android player orientation effect previously restored the Activity orientation and reset the global portrait toggle on every disposal. An orientation request can itself recreate the Activity, so disposal during that configuration change could erase the user's toggle and force landscape again.
 - The orientation preference now retains the pre-player requested orientation across configuration recreation and restores/resets it only when the Activity is actually leaving configuration change. Added a host unit test for preserving the original orientation across a simulated recreation.
 - This addresses the identified lifecycle race at source level. Actual device rotation, multi-window, and OEM-specific behavior remain unverified and are reserved for the Phase 5 device pass.
+
+
+## TMDB toggle / CloudStream fallback routing
+
+- Source review found SearchRepository still searched installed CloudStream providers regardless of the TMDB toggle, and Discover always listed CloudStream catalogs when no regular add-ons were enabled. This contradicted the agreed invariant that CloudStream extensions are the fallback only while TMDB is disabled.
+- Search and Discover now gate CloudStream provider use on `!TmdbSettingsRepository.snapshot().enabled`. The TMDB-enabled state is included in the search request key and SearchScreen effects observe the TMDB settings StateFlow, so toggling the option reruns search/discovery without restarting the app. Regular non-CloudStream add-ons remain available.
+- Added a focused routing-policy unit test in this change batch. CI and runtime toggle behavior remain pending verification.
