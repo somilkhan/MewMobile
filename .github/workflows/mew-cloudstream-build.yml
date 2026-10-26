@@ -2,7 +2,7 @@ name: Mew CloudStream Build
 
 # Push and PR events for the same branch share one runner; newer revisions supersede stale checks.
 concurrency:
-  group: mew-cloudstream-${{ github.event.pull_request.head.ref || github.ref_name }}-${{ (github.event_name == 'workflow_dispatch' && inputs.build_apk == true) || (github.event_name == 'push' && contains(github.event.head_commit.message, '[build-apk]')) }}-${{ github.event_name }}
+  group: mew-cloudstream-${{ github.event.pull_request.head.ref || github.ref_name }}-${{ (github.event_name == 'workflow_dispatch' && inputs.build_apk == true) || (github.event_name == 'push' && contains(github.event.head_commit.message, '[build-apk]')) }}
   cancel-in-progress: true
 
 on:

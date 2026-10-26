@@ -30,6 +30,18 @@ class AddonModelsTest {
     }
 
     @Test
+    fun `profile session rejects work from an older generation even if profile id matches again`() {
+        assertTrue(isAddonProfileSessionCurrent(1, 8L, 1, 8L, 1))
+        assertFalse(isAddonProfileSessionCurrent(1, 7L, 1, 8L, 1))
+    }
+
+    @Test
+    fun `profile session rejects a changed current or active profile`() {
+        assertFalse(isAddonProfileSessionCurrent(1, 8L, 2, 8L, 2))
+        assertFalse(isAddonProfileSessionCurrent(1, 8L, 1, 8L, 2))
+    }
+
+    @Test
     fun `first version observation is not an update`() {
         assertFalse(addonVersionChanged(null, "1.0.0"))
         assertFalse(addonVersionChanged("", "1.0.0"))

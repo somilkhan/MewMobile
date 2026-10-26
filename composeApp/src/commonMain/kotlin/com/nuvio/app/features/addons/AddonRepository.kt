@@ -424,6 +424,7 @@ object AddonRepository {
             // callers to reserve the same URL before either starts.
             if (!canReserveAddonRefresh(activeRefreshJobs[manifestUrl])) return
             val profileId = currentProfileId
+            val generation = expectedGeneration ?: profileGeneration
             markRefreshing(manifestUrl)
             refreshJob = scope.launch(start = CoroutineStart.LAZY) {
                 try {
@@ -433,33 +434,41 @@ object AddonRepository {
                     }.onFailure { error ->
                         if (error is CancellationException) throw error
                     }
-                    if (profileId != currentProfileId) return@launch
+                    if (!isCurrentProfile(profileId, generation)) return@launch
                     val fallbackPreviousVersion = _uiState.value.addons
                         .firstOrNull { it.manifestUrl == manifestUrl }?.manifest?.version
                     val versionChangedFrom = result.getOrNull()?.let { manifest ->
-                        recordManifestVersion(profileId, manifestUrl, manifest.version, fallbackPreviousVersion)
+                        recordManifestVersion(profileId, generation, manifestUrl, manifest.version, fallbackPreviousVersion)
                     }
-                    if (profileId != currentProfileId) return@launch
-                    _uiState.update { current ->
-                        if (profileId != currentProfileId) return@update current
-                        current.copy(
-                            addons = current.addons.map { addon ->
-                                if (addon.manifestUrl != manifestUrl) addon
-                                else result.fold(
-                                    onSuccess = { manifest -> addon.copy(
-                                        manifest = manifest,
-                                        isRefreshing = false,
-                                        errorMessage = null,
-                                        versionChangedFrom = versionChangedFrom,
-                                    ) },
-                                    onFailure = { error -> addon.copy(
-                                        isRefreshing = false,
-                                        errorMessage = error.message ?: getString(Res.string.addon_load_manifest_failed),
-                                    ) },
+                    if (!isCurrentProfile(profileId, generation)) return@launch
+                    val applied = synchronized(refreshJobsLock) {
+                        if (!isCurrentProfileLocked(profileId, generation)) {
+                            false
+                        } else {
+                            _uiState.update { current ->
+                                if (!isCurrentProfileLocked(profileId, generation)) return@update current
+                                current.copy(
+                                    addons = current.addons.map { addon ->
+                                        if (addon.manifestUrl != manifestUrl) addon
+                                        else result.fold(
+                                            onSuccess = { manifest -> addon.copy(
+                                                manifest = manifest,
+                                                isRefreshing = false,
+                                                errorMessage = null,
+                                                versionChangedFrom = versionChangedFrom,
+                                            ) },
+                                            onFailure = { error -> addon.copy(
+                                                isRefreshing = false,
+                                                errorMessage = error.message ?: getString(Res.string.addon_load_manifest_failed),
+                                            ) },
+                                        )
+                                    },
                                 )
-                            },
-                        )
+                            }
+                            true
+                        }
                     }
+                    if (!applied) return@launch
                 } finally {
                     synchronized(refreshJobsLock) {
                         if (activeRefreshJobs[manifestUrl] === refreshJob) activeRefreshJobs.remove(manifestUrl)
@@ -559,14 +568,16 @@ object AddonRepository {
 
     private suspend fun recordManifestVersion(
         profileId: Int,
+        generation: Long,
         manifestUrl: String,
         currentVersion: String,
         fallbackPreviousVersion: String?,
-    ): String? {
-        if (currentVersion.isBlank()) return versionStorageMutex.withLock {
-            AddonStorage.loadPendingAddonVersionChanges(profileId)[manifestUrl]
-        }
-        return versionStorageMutex.withLock {
+    ): String? = versionStorageMutex.withLock {
+        synchronized(refreshJobsLock) {
+            if (!isCurrentProfileLocked(profileId, generation)) return@synchronized null
+            if (currentVersion.isBlank()) {
+                return@synchronized AddonStorage.loadPendingAddonVersionChanges(profileId)[manifestUrl]
+            }
             val knownVersions = AddonStorage.loadKnownAddonVersions(profileId).toMutableMap()
             val pendingChanges = AddonStorage.loadPendingAddonVersionChanges(profileId).toMutableMap()
             val pendingVersion = addonVersionChangeFrom(
@@ -587,11 +598,16 @@ object AddonRepository {
             .mapKeys { (url, _) -> ensureManifestSuffix(url) }
 
     private fun isCurrentProfile(profileId: Int, generation: Long): Boolean =
-        synchronized(refreshJobsLock) {
-            currentProfileId == profileId &&
-                profileGeneration == generation &&
-                resolveEffectiveProfileId(ProfileRepository.activeProfileId) == profileId
-        }
+        synchronized(refreshJobsLock) { isCurrentProfileLocked(profileId, generation) }
+
+    private fun isCurrentProfileLocked(profileId: Int, generation: Long): Boolean =
+        isAddonProfileSessionCurrent(
+            requestProfileId = profileId,
+            requestGeneration = generation,
+            currentProfileId = currentProfileId,
+            currentGeneration = profileGeneration,
+            effectiveActiveProfileId = resolveEffectiveProfileId(ProfileRepository.activeProfileId),
+        )
 
     private fun cancelActiveRefreshes() {
         val jobs = synchronized(refreshJobsLock) {

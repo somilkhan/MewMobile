@@ -279,3 +279,11 @@ Comparison anchor: Enhanced `ae535226b1488a60d59613c1502fbb717cbb333f` → `a3e8
 - Adapted Enhanced commit `4f5eebc17e` to Mew's existing home-hero rendering path. In Mew, `HomeRepository` already resolves the selected TMDB title/logo into each `MetaPreview`, while the hero separately fetches base detail metadata.
 - The hero previously preferred `detailMeta.name/logo` unconditionally, which could mask the selected original-language title/logo. It now prefers the TMDB-selected item title/logo only when TMDB is enabled and title language is `ORIGINAL`; the existing app-language preference still prioritizes detail metadata. Empty values retain the existing fallback behavior.
 - Added common tests for both title modes, blank-value fallback, and matching logo selection. Validation is required on the new head; this is a source-level port until CI completes.
+
+
+## Add-on profile-session generation follow-up — 2026-10-26
+
+- A second source review found that refresh jobs checked only the numeric profile ID after network completion. Switching away from profile 1 and back to profile 1 could therefore make stale work appear current again even though the profile session had changed.
+- Refresh jobs now retain the profile generation token through manifest-version persistence and UI application. Version writes and state updates reject stale generations; host tests cover generation mismatch even when the profile ID matches again.
+- CI concurrency was also tightened so push and pull-request events for the same branch/build mode share one concurrency group instead of running duplicate Gradle host-test jobs. This does not skip validation; it prevents redundant runs.
+- This follow-up requires a fresh workflow result. No CI pass is claimed here.

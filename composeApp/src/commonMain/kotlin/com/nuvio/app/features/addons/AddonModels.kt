@@ -107,3 +107,16 @@ internal fun addonVersionChangeFrom(
  * must still be rejected until the existing reservation completes or is cancelled.
  */
 internal fun canReserveAddonRefresh(existingJob: Job?): Boolean = existingJob?.isCompleted != false
+
+/** Rejects stale async work even if the active profile later returns to the same numeric ID. */
+internal fun isAddonProfileSessionCurrent(
+    requestProfileId: Int,
+    requestGeneration: Long,
+    currentProfileId: Int,
+    currentGeneration: Long,
+    effectiveActiveProfileId: Int,
+): Boolean =
+    requestProfileId == currentProfileId &&
+        requestGeneration == currentGeneration &&
+        requestProfileId == effectiveActiveProfileId
+
