@@ -264,3 +264,11 @@ Comparison anchor: Enhanced `ae535226b1488a60d59613c1502fbb717cbb333f` → `a3e8
 - Added focused tests for MAL episode video ID resolution, alias deduplication retaining the latest activity, and removing a Next Up item claimed by another active series.
 - **Intentionally not ported:** Enhanced also compares TVDB IDs to detect series aliases; Mew's current `MetaDetails` model does not expose `tvdbId`, and adding a new metadata contract across all sources is a separate architecture change. The canonical Simkl IDs and video-ID mapping are the supported partial port.
 - CI is required on the new head; the earlier green run does not validate this commit.
+
+
+## iOS system-volume gesture feedback — 2026-10-26
+
+- Adapted Nuvio Mobile commit `f32dce5f31`: `IOSPlayerGestureController.currentVolume()` now reads `AVAudioSession.sharedInstance().outputVolume` rather than inferring system volume from the hidden `MPVolumeView` slider. The `MPVolumeView` remains in place for the existing `setVolume()` path.
+- This makes gesture feedback report the system's actual output level even when the private slider view has not been populated. The upstream Kotlin/Native imports and API usage were reviewed; **iOS compilation and device behavior are still unverified** because the available CI workflow is Android-only.
+- **Upstream notch-safe padding assessment:** Enhanced's latest player padding change was not copied line-for-line. Mew's `PlayerControlsShell` already wraps `PlayerHeader` and the progress controls in a container padded by `horizontalSafePadding`, and the header also applies top `WindowInsets.safeContent`. The upstream patch targets a different nesting structure, so this specific padding delta appears covered by Mew's existing layout. Physical-device notch/cutout behavior remains a Phase 5 check.
+- Current Android CI for head `180afd691a018b871be8ff2d5ccb9eb4173c6a8a` was running when this note was written. The new Swift/Kotlin-Native source change requires separate iOS build/runtime verification and is not covered by Android CI.
