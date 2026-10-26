@@ -41,7 +41,7 @@ private val PlayerToolbarButton.labelRes: StringResource
     get() = when (this) {
         PlayerToolbarButton.RESIZE -> Res.string.player_toolbar_button_resize
         PlayerToolbarButton.SPEED -> Res.string.player_toolbar_button_speed
-        PlayerToolbarButton.SUBTITLES -> Res.string.compose_player_subtitles
+        PlayerToolbarButton.SUBTITLES -> Res.string.compose_player_subs
         PlayerToolbarButton.SUBTITLE_SYNC -> Res.string.compose_player_sync_short
         PlayerToolbarButton.AUDIO -> Res.string.compose_player_audio
         PlayerToolbarButton.QUALITY -> Res.string.player_toolbar_button_quality

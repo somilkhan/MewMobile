@@ -214,3 +214,6 @@ Comparison anchor: Enhanced `ae535226b1488a60d59613c1502fbb717cbb333f` → `a3e8
 
 
 - Toolbar dialog review: bound the settings dialog to the repository StateFlow so reorder/show/hide edits recompose the dialog immediately instead of reading a one-time `.value` snapshot. This follow-up is included in the next CI candidate.
+
+
+- Static resource review corrected the toolbar dialog's subtitle action label to use Mew's existing `compose_player_subs` resource key. The latest CI run was started before this correction, so a fresh run on the corrected head is required.
