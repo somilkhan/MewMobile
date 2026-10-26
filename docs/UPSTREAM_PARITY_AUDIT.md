@@ -220,3 +220,6 @@ Comparison anchor: Enhanced `ae535226b1488a60d59613c1502fbb717cbb333f` → `a3e8
 
 
 - **Toolbar settings compile review:** the reactive-state follow-up initially collected the whole `PlayerSettingsUiState` into a variable named `toolbarLayout`, but the dialog expects `PlayerToolbarLayout`. Corrected the binding to collect `playerSettings` and read `playerSettings.toolbarLayout`. A fresh CI run on this corrected head is required; earlier runs do not verify this correction.
+
+
+- **Toolbar dialog compile failure diagnosis:** current-head CI exposed unresolved `DialogSurface`, `DialogButton`, `DialogButtonStyle`, and `DialogButtons` imports; those helpers are not part of Mew's UI library. Reworked the editor to use Mew's existing Material 3 `BasicAlertDialog`/`Surface`/`TextButton` pattern instead of importing nonexistent upstream dialog abstractions. The next current-head CI run must verify this correction.
