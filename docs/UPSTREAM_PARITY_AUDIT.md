@@ -223,3 +223,8 @@ Comparison anchor: Enhanced `ae535226b1488a60d59613c1502fbb717cbb333f` → `a3e8
 
 
 - **Toolbar dialog compile failure diagnosis:** current-head CI exposed unresolved `DialogSurface`, `DialogButton`, `DialogButtonStyle`, and `DialogButtons` imports; those helpers are not part of Mew's UI library. Reworked the editor to use Mew's existing Material 3 `BasicAlertDialog`/`Surface`/`TextButton` pattern instead of importing nonexistent upstream dialog abstractions. The next current-head CI run must verify this correction.
+
+
+## Stream badge filter cache — 2026-10-26
+
+- Adapted Nuvio's `a0735005d3` optimization: compiled badge regex filters are cached against the immutable `StreamBadgeRules` value and rebuilt only when rules change. The cache uses atomicfu synchronization because this common code runs on Android and iOS. Added regression coverage for repeated use, changed rules, empty rules, and restoring earlier rules. Current-head CI must verify the port.
