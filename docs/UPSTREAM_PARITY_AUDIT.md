@@ -272,3 +272,10 @@ Comparison anchor: Enhanced `ae535226b1488a60d59613c1502fbb717cbb333f` → `a3e8
 - This makes gesture feedback report the system's actual output level even when the private slider view has not been populated. The upstream Kotlin/Native imports and API usage were reviewed; **iOS compilation and device behavior are still unverified** because the available CI workflow is Android-only.
 - **Upstream notch-safe padding assessment:** Enhanced's latest player padding change was not copied line-for-line. Mew's `PlayerControlsShell` already wraps `PlayerHeader` and the progress controls in a container padded by `horizontalSafePadding`, and the header also applies top `WindowInsets.safeContent`. The upstream patch targets a different nesting structure, so this specific padding delta appears covered by Mew's existing layout. Physical-device notch/cutout behavior remains a Phase 5 check.
 - Current Android CI for head `180afd691a018b871be8ff2d5ccb9eb4173c6a8a` was running when this note was written. The new Swift/Kotlin-Native source change requires separate iOS build/runtime verification and is not covered by Android CI.
+
+
+## TMDB original-language home hero title selection — 2026-10-26
+
+- Adapted Enhanced commit `4f5eebc17e` to Mew's existing home-hero rendering path. In Mew, `HomeRepository` already resolves the selected TMDB title/logo into each `MetaPreview`, while the hero separately fetches base detail metadata.
+- The hero previously preferred `detailMeta.name/logo` unconditionally, which could mask the selected original-language title/logo. It now prefers the TMDB-selected item title/logo only when TMDB is enabled and title language is `ORIGINAL`; the existing app-language preference still prioritizes detail metadata. Empty values retain the existing fallback behavior.
+- Added common tests for both title modes, blank-value fallback, and matching logo selection. Validation is required on the new head; this is a source-level port until CI completes.

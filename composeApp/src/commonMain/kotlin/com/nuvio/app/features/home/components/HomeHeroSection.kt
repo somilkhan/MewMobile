@@ -118,6 +118,7 @@ import com.nuvio.app.features.settings.NuvioHeroArtworkSource
 import com.nuvio.app.features.settings.NuvioHeroDisplayMode
 import com.nuvio.app.features.tmdb.TmdbMetadataService
 import com.nuvio.app.features.tmdb.TmdbSettingsRepository
+import com.nuvio.app.features.tmdb.TmdbTitleLanguage
 import com.nuvio.app.features.trailer.TrailerPlaybackResolver
 import com.nuvio.app.features.trailer.TrailerPlaybackSource
 import com.nuvio.app.features.watchprogress.CurrentDateProvider
@@ -773,6 +774,34 @@ private fun homeHeroRefreshScaleY(easedProgress: Float): Float =
 private fun homeHeroRefreshTranslationY(easedProgress: Float): Float =
     HERO_REFRESH_TRANSLATION_Y_PX * easedProgress.coerceIn(0f, 1f)
 
+
+internal fun selectHomeHeroDisplayTitle(
+    itemTitle: String,
+    detailTitle: String?,
+    preferItemTitle: Boolean,
+): String {
+    val item = itemTitle.takeIf(String::isNotBlank)
+    val detail = detailTitle?.takeIf(String::isNotBlank)
+    return if (preferItemTitle) detailFallback(item, detail) else detailFallback(detail, item)
+}
+
+internal fun selectHomeHeroLogoUrl(
+    itemLogo: String?,
+    detailLogo: String?,
+    preferItemLogo: Boolean,
+): String? {
+    val item = itemLogo?.takeIf(String::isNotBlank)
+    val detail = detailLogo?.takeIf(String::isNotBlank)
+    return if (preferItemLogo) detailFallback(item, detail) else detailFallback(detail, item)
+}
+
+private fun <T> detailFallback(preferred: T?, fallback: T?): T? = preferred ?: fallback
+
+private fun shouldPreferOriginalTmdbHeroTitle(): Boolean {
+    val settings = TmdbSettingsRepository.snapshot()
+    return settings.enabled && settings.titleLanguage == TmdbTitleLanguage.ORIGINAL
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun StreamingShowcaseHeroPage(
@@ -804,8 +833,17 @@ private fun StreamingShowcaseHeroPage(
 ) {
     val motionVisibility = if (motionPreviewEnabled) 1f else 0f
     val motionPulse = if (motionPreviewEnabled) cinematicPulse else 0.5f
-    val title = detailMeta?.name?.takeIf { it.isNotBlank() } ?: item.name
-    val logoUrl = detailMeta?.logo?.takeIf { it.isNotBlank() } ?: item.logo?.takeIf { it.isNotBlank() }
+    val preferOriginalTitle = shouldPreferOriginalTmdbHeroTitle()
+    val title = selectHomeHeroDisplayTitle(
+        itemTitle = item.name,
+        detailTitle = detailMeta?.name,
+        preferItemTitle = preferOriginalTitle,
+    )
+    val logoUrl = selectHomeHeroLogoUrl(
+        itemLogo = item.logo,
+        detailLogo = detailMeta?.logo,
+        preferItemLogo = preferOriginalTitle,
+    )
     var logoLoadError by remember(item.type, item.id, logoUrl) {
         mutableStateOf(false)
     }
@@ -1844,8 +1882,17 @@ private fun PosterArtHeroPage(
 ) {
     val motionVisibility = if (motionPreviewEnabled) 1f else 0f
     val motionPulse = if (motionPreviewEnabled) cinematicPulse else 0.5f
-    val title = detailMeta?.name?.takeIf { it.isNotBlank() } ?: item.name
-    val logoUrl = detailMeta?.logo?.takeIf { it.isNotBlank() } ?: item.logo?.takeIf { it.isNotBlank() }
+    val preferOriginalTitle = shouldPreferOriginalTmdbHeroTitle()
+    val title = selectHomeHeroDisplayTitle(
+        itemTitle = item.name,
+        detailTitle = detailMeta?.name,
+        preferItemTitle = preferOriginalTitle,
+    )
+    val logoUrl = selectHomeHeroLogoUrl(
+        itemLogo = item.logo,
+        detailLogo = detailMeta?.logo,
+        preferItemLogo = preferOriginalTitle,
+    )
     var logoLoadError by remember(item.type, item.id, logoUrl) {
         mutableStateOf(false)
     }
@@ -2264,7 +2311,12 @@ private fun HeroContentBlock(
     originalNuvioHeroBannerEnabled: Boolean,
     onItemClick: ((MetaPreview) -> Unit)?,
 ) {
-    val logoUrl = detailMeta?.logo?.takeIf { it.isNotBlank() } ?: item.logo?.takeIf { it.isNotBlank() }
+    val preferOriginalTitle = shouldPreferOriginalTmdbHeroTitle()
+    val logoUrl = selectHomeHeroLogoUrl(
+        itemLogo = item.logo,
+        detailLogo = detailMeta?.logo,
+        preferItemLogo = preferOriginalTitle,
+    )
     var logoLoadError by remember(item.type, item.id, logoUrl) {
         mutableStateOf(false)
     }
