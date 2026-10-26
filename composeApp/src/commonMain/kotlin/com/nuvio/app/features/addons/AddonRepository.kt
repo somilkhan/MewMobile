@@ -72,6 +72,9 @@ object AddonRepository {
         val activeProfileId = ProfileRepository.activeProfileId
         val effectiveProfileId = resolveEffectiveProfileId(activeProfileId)
         val generation = synchronized(refreshJobsLock) {
+            // Do not overwrite a newer onProfileChanged() session with an active-profile snapshot
+            // captured before that profile switch acquired this lock.
+            if (activeProfileId != ProfileRepository.activeProfileId) return
             if (initialized) return
             activeProfileIdAtSession = activeProfileId
             currentProfileId = effectiveProfileId

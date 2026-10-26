@@ -322,3 +322,8 @@ Comparison anchor: Enhanced `ae535226b1488a60d59613c1502fbb717cbb333f` → `a3e8
 - A source review found a subtle case not covered by effective profile ID alone: switching from profile 1 to a secondary profile that reuses primary add-ons leaves the effective add-on profile ID at 1. An in-flight add-on mutation could therefore pass a numeric profile/generation check even though the active profile had changed.
 - The repository now tracks the actual active profile ID separately from the effective add-on profile ID, invalidates sessions on either change, and checks the active-profile context before accepting async work. Explicit pushes retain the already-validated profile snapshot instead of being suppressed by a later profile switch. Added a regression test for the same-effective-profile case.
 - Last verified head `711b6846a311c2953b6b5e5de45199a911468f4a` passed Android host tests and Android Kotlin compilation in run [40254947274](https://github.com/somilkhan/MewMobile/actions/runs/40254947274). The shared-primary context fix on this new head requires fresh CI validation.
+
+
+## Initialization snapshot race guard — 2026-10-26
+
+- A final concurrency review found a narrow interleaving where `initialize()` could read the old active profile, lose the lock to `onProfileChanged()`, then overwrite the new session using its stale snapshot. Initialization now compares the captured active profile against the live active profile again while holding the repository lock before changing session state. Fresh CI on this head is required.
