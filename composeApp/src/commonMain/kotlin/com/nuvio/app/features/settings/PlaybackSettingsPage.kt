@@ -319,7 +319,8 @@ private fun PlaybackSettingsSection(
     useLibass: Boolean,
     libassRenderType: String,
 ) {
-    val toolbarLayout by PlayerSettingsRepository.uiState.collectAsStateWithLifecycle()
+    val playerSettings by PlayerSettingsRepository.uiState.collectAsStateWithLifecycle()
+    val toolbarLayout = playerSettings.toolbarLayout
     var showPreferredAudioDialog by remember { mutableStateOf(false) }
     var showSecondaryAudioDialog by remember { mutableStateOf(false) }
     var showPreferredSubtitleDialog by remember { mutableStateOf(false) }

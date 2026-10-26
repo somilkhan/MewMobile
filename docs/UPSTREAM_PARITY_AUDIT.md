@@ -217,3 +217,6 @@ Comparison anchor: Enhanced `ae535226b1488a60d59613c1502fbb717cbb333f` → `a3e8
 
 
 - Static resource review corrected the toolbar dialog's subtitle action label to use Mew's existing `compose_player_subs` resource key. The latest CI run was started before this correction, so a fresh run on the corrected head is required.
+
+
+- **Toolbar settings compile review:** the reactive-state follow-up initially collected the whole `PlayerSettingsUiState` into a variable named `toolbarLayout`, but the dialog expects `PlayerToolbarLayout`. Corrected the binding to collect `playerSettings` and read `playerSettings.toolbarLayout`. A fresh CI run on this corrected head is required; earlier runs do not verify this correction.
