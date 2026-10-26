@@ -441,6 +441,8 @@ object AddonRepository {
                         recordManifestVersion(profileId, generation, manifestUrl, manifest.version, fallbackPreviousVersion)
                     }
                     if (!isCurrentProfile(profileId, generation)) return@launch
+                    // Resource lookup is suspending; resolve it before entering the synchronized section.
+                    val defaultRefreshErrorMessage = getString(Res.string.addon_load_manifest_failed)
                     val applied = synchronized(refreshJobsLock) {
                         if (!isCurrentProfileLocked(profileId, generation)) {
                             false
@@ -459,7 +461,7 @@ object AddonRepository {
                                             ) },
                                             onFailure = { error -> addon.copy(
                                                 isRefreshing = false,
-                                                errorMessage = error.message ?: getString(Res.string.addon_load_manifest_failed),
+                                                errorMessage = error.message ?: defaultRefreshErrorMessage,
                                             ) },
                                         )
                                     },

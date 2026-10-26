@@ -287,3 +287,6 @@ Comparison anchor: Enhanced `ae535226b1488a60d59613c1502fbb717cbb333f` → `a3e8
 - Refresh jobs now retain the profile generation token through manifest-version persistence and UI application. Version writes and state updates reject stale generations; host tests cover generation mismatch even when the profile ID matches again.
 - CI concurrency was also tightened so push and pull-request events for the same branch/build mode share one concurrency group instead of running duplicate Gradle host-test jobs. This does not skip validation; it prevents redundant runs.
 - This follow-up requires a fresh workflow result. No CI pass is claimed here.
+
+
+- **CI failure diagnosis on `b3cb493e29328defac7a33182668e7fcc76b56a9`:** Kotlin compilation rejected a suspending `getString` call inside the new synchronized profile-state critical section (`AddonRepository.kt:462`). The localized fallback message is now resolved before acquiring the lock; the next CI run must verify the correction.
