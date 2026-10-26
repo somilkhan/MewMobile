@@ -22,6 +22,7 @@ actual object PlayerSettingsStorage {
     private const val playerLiquidGlassEnabledKey = "player_liquid_glass_enabled"
     private const val skipBackwardSecondsKey = "player_skip_backward_seconds"
     private const val skipForwardSecondsKey = "player_skip_forward_seconds"
+    private const val toolbarLayoutKey = "player_toolbar_layout"
     private const val showParentalGuideKey = "show_parental_guide"
     private const val resizeModeKey = "resize_mode"
     private const val holdToSpeedEnabledKey = "hold_to_speed_enabled"
@@ -108,6 +109,7 @@ actual object PlayerSettingsStorage {
         playerLiquidGlassEnabledKey,
         skipBackwardSecondsKey,
         skipForwardSecondsKey,
+        toolbarLayoutKey,
         showParentalGuideKey,
         resizeModeKey,
         holdToSpeedEnabledKey,
@@ -208,6 +210,11 @@ actual object PlayerSettingsStorage {
     actual fun saveSkipBackwardSeconds(seconds: Int) = saveInt(skipBackwardSecondsKey, seconds)
     actual fun loadSkipForwardSeconds(): Int? = loadInt(skipForwardSecondsKey)
     actual fun saveSkipForwardSeconds(seconds: Int) = saveInt(skipForwardSecondsKey, seconds)
+    actual fun loadToolbarLayout(): String? =
+        NSUserDefaults.standardUserDefaults.stringForKey(ProfileScopedKey.of(toolbarLayoutKey))
+    actual fun saveToolbarLayout(layout: String) {
+        NSUserDefaults.standardUserDefaults.setObject(layout, forKey = ProfileScopedKey.of(toolbarLayoutKey))
+    }
 
     actual fun loadPauseOverlayEnabled(): Boolean? {
         val defaults = NSUserDefaults.standardUserDefaults
@@ -1057,6 +1064,7 @@ actual object PlayerSettingsStorage {
         loadPlayerLiquidGlassEnabled()?.let { put(playerLiquidGlassEnabledKey, encodeSyncBoolean(it)) }
         loadSkipBackwardSeconds()?.let { put(skipBackwardSecondsKey, encodeSyncInt(it)) }
         loadSkipForwardSeconds()?.let { put(skipForwardSecondsKey, encodeSyncInt(it)) }
+        loadToolbarLayout()?.let { put(toolbarLayoutKey, encodeSyncString(it)) }
         loadShowParentalGuide()?.let { put(showParentalGuideKey, encodeSyncBoolean(it)) }
         loadResizeMode()?.let { put(resizeModeKey, encodeSyncString(it)) }
         loadHoldToSpeedEnabled()?.let { put(holdToSpeedEnabledKey, encodeSyncBoolean(it)) }
@@ -1146,6 +1154,7 @@ actual object PlayerSettingsStorage {
         payload.decodeSyncBoolean(playerLiquidGlassEnabledKey)?.let(::savePlayerLiquidGlassEnabled)
         payload.decodeSyncInt(skipBackwardSecondsKey)?.let(::saveSkipBackwardSeconds)
         payload.decodeSyncInt(skipForwardSecondsKey)?.let(::saveSkipForwardSeconds)
+        payload.decodeSyncString(toolbarLayoutKey)?.let(::saveToolbarLayout)
         payload.decodeSyncBoolean(showParentalGuideKey)?.let(::saveShowParentalGuide)
         payload.decodeSyncString(resizeModeKey)?.let(::saveResizeMode)
         payload.decodeSyncBoolean(holdToSpeedEnabledKey)?.let(::saveHoldToSpeedEnabled)

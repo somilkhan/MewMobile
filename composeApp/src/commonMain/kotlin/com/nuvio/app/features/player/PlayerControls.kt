@@ -63,6 +63,7 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -881,6 +882,8 @@ private fun ProgressControls(
     nextEpisodeReady: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
+    val playerSettings by PlayerSettingsRepository.uiState.collectAsState()
+    val toolbarLayout = playerSettings.toolbarLayout
     val seekableDurationMs = playbackSnapshot.durationMs.takeIf { it > 0L }
     val durationMs = seekableDurationMs ?: 1L
     val aspectRatioPainter = appIconPainter(AppIconResource.PlayerAspectRatio)
@@ -943,102 +946,106 @@ private fun ProgressControls(
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    PlayerActionPillButton(
-                        label = stringResource(resizeMode.labelRes),
-                        metrics = metrics,
-                        painter = aspectRatioPainter,
-                        onClick = onResizeModeClick,
-                    )
-                    PlayerActionPillButton(
-                        label = formatPlaybackSpeedLabel(playbackSnapshot.playbackSpeed),
-                        metrics = metrics,
-                        icon = Icons.Rounded.Speed,
-                        onClick = onSpeedClick,
-                    )
-                    if (onSubtitleClick != null) {
-                        PlayerActionPillButton(
-                            label = stringResource(Res.string.compose_player_subs),
-                            metrics = metrics,
-                            painter = subtitlesPainter,
-                            onClick = onSubtitleClick,
-                        )
-                    }
-                    if (onSubtitleSyncClick != null) {
-                        PlayerActionPillButton(
-                            label = stringResource(Res.string.compose_player_sync_short),
-                            metrics = metrics,
-                            icon = Icons.Rounded.Tune,
-                            onClick = onSubtitleSyncClick,
-                        )
-                    }
-                    if (onAudioClick != null) {
-                        PlayerActionPillButton(
-                            label = stringResource(Res.string.compose_player_audio),
-                            metrics = metrics,
-                            painter = audioPainter,
-                            onClick = onAudioClick,
-                        )
-                    }
-                    if (onQualityClick != null) {
-                        PlayerActionPillButton(
-                            label = qualityLabel?.takeIf { it.isNotBlank() } ?: "Quality",
-                            metrics = metrics,
-                            onClick = onQualityClick,
-                        )
-                    }
-                    if (onChannelsClick != null) {
-                        PlayerActionPillButton(
-                            label = stringResource(Res.string.live_tv_player_channels),
-                            metrics = metrics,
-                            icon = Icons.Rounded.Tv,
-                            onClick = onChannelsClick,
-                        )
-                    }
-                    if (onSourcesClick != null) {
-                        PlayerActionPillButton(
-                            label = stringResource(Res.string.compose_player_sources),
-                            metrics = metrics,
-                            icon = Icons.Rounded.SwapHoriz,
-                            onClick = onSourcesClick,
-                        )
-                    }
-                    if (onEpisodesClick != null) {
-                        PlayerActionPillButton(
-                            label = stringResource(Res.string.compose_player_episodes),
-                            metrics = metrics,
-                            icon = Icons.Rounded.VideoLibrary,
-                            onClick = onEpisodesClick,
-                        )
-                    }
-                    if (onNextEpisodeClick != null) {
-                        PlayerActionPillButton(
-                            label = stringResource(Res.string.compose_player_next_ep),
-                            metrics = metrics,
-                            icon = Icons.Filled.SkipNext,
-                            onClick = onNextEpisodeClick,
-                            statusIndicator = when {
-                                nextEpisodeSearching -> {
-                                    @Composable {
-                                        androidx.compose.material3.CircularProgressIndicator(
-                                            color = Color(0xFF8AC7FF),
-                                            strokeWidth = 2.dp,
-                                            modifier = Modifier.size(14.dp),
-                                        )
-                                    }
-                                }
-                                nextEpisodeReady -> {
-                                    @Composable {
-                                        Icon(
-                                            imageVector = Icons.Rounded.Check,
-                                            contentDescription = null,
-                                            tint = Color(0xFF72E6A1),
-                                            modifier = Modifier.size(14.dp),
-                                        )
-                                    }
-                                }
-                                else -> null
-                            },
-                        )
+                    toolbarLayout.visibleButtons.forEach { button ->
+                        when (button) {
+                            PlayerToolbarButton.RESIZE -> PlayerActionPillButton(
+                                label = stringResource(resizeMode.labelRes),
+                                metrics = metrics,
+                                painter = aspectRatioPainter,
+                                onClick = onResizeModeClick,
+                            )
+                            PlayerToolbarButton.SPEED -> PlayerActionPillButton(
+                                label = formatPlaybackSpeedLabel(playbackSnapshot.playbackSpeed),
+                                metrics = metrics,
+                                icon = Icons.Rounded.Speed,
+                                onClick = onSpeedClick,
+                            )
+                            PlayerToolbarButton.SUBTITLES -> if (onSubtitleClick != null) {
+                                PlayerActionPillButton(
+                                    label = stringResource(Res.string.compose_player_subs),
+                                    metrics = metrics,
+                                    painter = subtitlesPainter,
+                                    onClick = onSubtitleClick,
+                                )
+                            }
+                            PlayerToolbarButton.SUBTITLE_SYNC -> if (onSubtitleSyncClick != null) {
+                                PlayerActionPillButton(
+                                    label = stringResource(Res.string.compose_player_sync_short),
+                                    metrics = metrics,
+                                    icon = Icons.Rounded.Tune,
+                                    onClick = onSubtitleSyncClick,
+                                )
+                            }
+                            PlayerToolbarButton.AUDIO -> if (onAudioClick != null) {
+                                PlayerActionPillButton(
+                                    label = stringResource(Res.string.compose_player_audio),
+                                    metrics = metrics,
+                                    painter = audioPainter,
+                                    onClick = onAudioClick,
+                                )
+                            }
+                            PlayerToolbarButton.QUALITY -> if (onQualityClick != null) {
+                                PlayerActionPillButton(
+                                    label = qualityLabel?.takeIf { it.isNotBlank() } ?: "Quality",
+                                    metrics = metrics,
+                                    onClick = onQualityClick,
+                                )
+                            }
+                            PlayerToolbarButton.CHANNELS -> if (onChannelsClick != null) {
+                                PlayerActionPillButton(
+                                    label = stringResource(Res.string.live_tv_player_channels),
+                                    metrics = metrics,
+                                    icon = Icons.Rounded.Tv,
+                                    onClick = onChannelsClick,
+                                )
+                            }
+                            PlayerToolbarButton.SOURCES -> if (onSourcesClick != null) {
+                                PlayerActionPillButton(
+                                    label = stringResource(Res.string.compose_player_sources),
+                                    metrics = metrics,
+                                    icon = Icons.Rounded.SwapHoriz,
+                                    onClick = onSourcesClick,
+                                )
+                            }
+                            PlayerToolbarButton.EPISODES -> if (onEpisodesClick != null) {
+                                PlayerActionPillButton(
+                                    label = stringResource(Res.string.compose_player_episodes),
+                                    metrics = metrics,
+                                    icon = Icons.Rounded.VideoLibrary,
+                                    onClick = onEpisodesClick,
+                                )
+                            }
+                            PlayerToolbarButton.NEXT_EPISODE -> if (onNextEpisodeClick != null) {
+                                PlayerActionPillButton(
+                                    label = stringResource(Res.string.compose_player_next_ep),
+                                    metrics = metrics,
+                                    icon = Icons.Filled.SkipNext,
+                                    onClick = onNextEpisodeClick,
+                                    statusIndicator = when {
+                                        nextEpisodeSearching -> {
+                                            @Composable {
+                                                androidx.compose.material3.CircularProgressIndicator(
+                                                    color = Color(0xFF8AC7FF),
+                                                    strokeWidth = 2.dp,
+                                                    modifier = Modifier.size(14.dp),
+                                                )
+                                            }
+                                        }
+                                        nextEpisodeReady -> {
+                                            @Composable {
+                                                Icon(
+                                                    imageVector = Icons.Rounded.Check,
+                                                    contentDescription = null,
+                                                    tint = Color(0xFF72E6A1),
+                                                    modifier = Modifier.size(14.dp),
+                                                )
+                                            }
+                                        }
+                                        else -> null
+                                    },
+                                )
+                            }
+                        }
                     }
                 }
             }

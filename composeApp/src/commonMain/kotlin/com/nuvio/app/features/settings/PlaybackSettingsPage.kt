@@ -337,6 +337,7 @@ private fun PlaybackSettingsSection(
     var showHoldToSpeedValueDialog by remember { mutableStateOf(false) }
     var showSkipBackwardDialog by remember { mutableStateOf(false) }
     var showSkipForwardDialog by remember { mutableStateOf(false) }
+    var showToolbarLayoutDialog by remember { mutableStateOf(false) }
     var showIosAudioOutputDialog by remember { mutableStateOf(false) }
     var showIosHardwareDecoderDialog by remember { mutableStateOf(false) }
     var showIosTargetPrimariesDialog by remember { mutableStateOf(false) }
@@ -498,6 +499,13 @@ private fun PlaybackSettingsSection(
                 SettingsNavigationRow(title = stringResource(Res.string.settings_playback_skip_backward), description = stringResource(Res.string.settings_playback_skip_seconds_value, autoPlayPlayerSettings.skipBackwardSeconds), isTablet = isTablet, onClick = { showSkipBackwardDialog = true })
                 SettingsGroupDivider(isTablet = isTablet)
                 SettingsNavigationRow(title = stringResource(Res.string.settings_playback_skip_forward), description = stringResource(Res.string.settings_playback_skip_seconds_value, autoPlayPlayerSettings.skipForwardSeconds), isTablet = isTablet, onClick = { showSkipForwardDialog = true })
+                SettingsGroupDivider(isTablet = isTablet)
+                SettingsNavigationRow(
+                    title = stringResource(Res.string.settings_playback_toolbar_layout),
+                    description = stringResource(Res.string.settings_playback_toolbar_note),
+                    isTablet = isTablet,
+                    onClick = { showToolbarLayoutDialog = true },
+                )
             }
         }
 
@@ -1638,6 +1646,13 @@ private fun PlaybackSettingsSection(
     }
     if (showSkipBackwardDialog) PlayerSkipSecondsDialog(stringResource(Res.string.settings_playback_skip_backward), autoPlayPlayerSettings.skipBackwardSeconds, { PlayerSettingsRepository.setPlayerSkipBackwardSeconds(it); showSkipBackwardDialog = false }) { showSkipBackwardDialog = false }
     if (showSkipForwardDialog) PlayerSkipSecondsDialog(stringResource(Res.string.settings_playback_skip_forward), autoPlayPlayerSettings.skipForwardSeconds, { PlayerSettingsRepository.setPlayerSkipForwardSeconds(it); showSkipForwardDialog = false }) { showSkipForwardDialog = false }
+    if (showToolbarLayoutDialog) {
+        PlayerToolbarSettingsDialog(
+            layout = PlayerSettingsRepository.uiState.value.toolbarLayout,
+            onLayoutChange = PlayerSettingsRepository::setPlayerToolbarLayout,
+            onDismiss = { showToolbarLayoutDialog = false },
+        )
+    }
 
     if (showIosHardwareDecoderDialog) {
         IosEnumSelectionDialog(

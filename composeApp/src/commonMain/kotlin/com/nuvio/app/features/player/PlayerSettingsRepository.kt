@@ -41,6 +41,7 @@ data class PlayerSettingsUiState(
     val playerLiquidGlassEnabled: Boolean = false,
     val skipBackwardSeconds: Int = PLAYER_SKIP_SECONDS_DEFAULT,
     val skipForwardSeconds: Int = PLAYER_SKIP_SECONDS_DEFAULT,
+    val toolbarLayout: PlayerToolbarLayout = PlayerToolbarLayout.Default,
     val showParentalGuide: Boolean = true,
     val resizeMode: PlayerResizeMode = PlayerResizeMode.Fit,
     val holdToSpeedEnabled: Boolean = true,
@@ -119,6 +120,7 @@ object PlayerSettingsRepository {
     private var playerLiquidGlassEnabled = false
     private var skipBackwardSeconds = PLAYER_SKIP_SECONDS_DEFAULT
     private var skipForwardSeconds = PLAYER_SKIP_SECONDS_DEFAULT
+    private var toolbarLayout = PlayerToolbarLayout.Default
     private var showParentalGuide = true
     private var resizeMode = PlayerResizeMode.Fit
     private var holdToSpeedEnabled = true
@@ -202,6 +204,7 @@ object PlayerSettingsRepository {
         playerLiquidGlassEnabled = false
         skipBackwardSeconds = PLAYER_SKIP_SECONDS_DEFAULT
         skipForwardSeconds = PLAYER_SKIP_SECONDS_DEFAULT
+        toolbarLayout = PlayerToolbarLayout.Default
         showParentalGuide = true
         resizeMode = PlayerResizeMode.Fit
         holdToSpeedEnabled = true
@@ -278,6 +281,7 @@ object PlayerSettingsRepository {
         playerLiquidGlassEnabled = PlayerSettingsStorage.loadPlayerLiquidGlassEnabled() ?: false
         skipBackwardSeconds = normalizePlayerSkipSeconds(PlayerSettingsStorage.loadSkipBackwardSeconds())
         skipForwardSeconds = normalizePlayerSkipSeconds(PlayerSettingsStorage.loadSkipForwardSeconds())
+        toolbarLayout = PlayerToolbarLayout.decode(PlayerSettingsStorage.loadToolbarLayout())
         showParentalGuide = PlayerSettingsStorage.loadShowParentalGuide() ?: true
         resizeMode = PlayerSettingsStorage.loadResizeMode()
             ?.let { runCatching { PlayerResizeMode.valueOf(it) }.getOrNull() }
@@ -446,6 +450,15 @@ object PlayerSettingsRepository {
         skipForwardSeconds = normalized
         publish()
         PlayerSettingsStorage.saveSkipForwardSeconds(normalized)
+    }
+
+    fun setPlayerToolbarLayout(layout: PlayerToolbarLayout) {
+        ensureLoaded()
+        val normalized = PlayerToolbarLayout.decode(layout.encode())
+        if (toolbarLayout == normalized) return
+        toolbarLayout = normalized
+        publish()
+        PlayerSettingsStorage.saveToolbarLayout(normalized.encode())
     }
 
     fun setPauseOverlayEnabled(enabled: Boolean) {
@@ -1093,6 +1106,7 @@ object PlayerSettingsRepository {
             playerLiquidGlassEnabled = playerLiquidGlassEnabled,
             skipBackwardSeconds = skipBackwardSeconds,
             skipForwardSeconds = skipForwardSeconds,
+            toolbarLayout = toolbarLayout,
             showParentalGuide = showParentalGuide,
             resizeMode = resizeMode,
             holdToSpeedEnabled = holdToSpeedEnabled,

@@ -2927,4 +2927,16 @@
     <string name="player_action_rotate_portrait">Watch in portrait</string>
     <string name="player_action_rotate_landscape">Watch in landscape</string>
     <string name="addons_refresh_all">Refresh all Nuvio add-ons</string>
+    <string name="player_toolbar_button_resize">Resize</string>
+    <string name="player_toolbar_button_speed">Speed</string>
+    <string name="player_toolbar_button_quality">Quality</string>
+    <string name="settings_playback_toolbar_layout">Player toolbar buttons</string>
+    <string name="settings_playback_toolbar_note">Choose which action buttons appear and arrange their order.</string>
+    <string name="settings_playback_toolbar_shown">Shown</string>
+    <string name="settings_playback_toolbar_hidden">Hidden</string>
+    <string name="settings_playback_toolbar_empty">No buttons in this group.</string>
+    <string name="settings_playback_toolbar_move_up">Move button up</string>
+    <string name="settings_playback_toolbar_move_down">Move button down</string>
+    <string name="settings_playback_toolbar_hide">Hide button</string>
+    <string name="settings_playback_toolbar_show">Show button</string>
 </resources>

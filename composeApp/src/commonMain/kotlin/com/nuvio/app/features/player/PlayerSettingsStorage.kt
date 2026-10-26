@@ -12,6 +12,8 @@ internal expect object PlayerSettingsStorage {
     fun saveSkipBackwardSeconds(seconds: Int)
     fun loadSkipForwardSeconds(): Int?
     fun saveSkipForwardSeconds(seconds: Int)
+    fun loadToolbarLayout(): String?
+    fun saveToolbarLayout(layout: String)
     fun saveShowLoadingOverlay(enabled: Boolean)
     fun loadShowParentalGuide(): Boolean?
     fun saveShowParentalGuide(enabled: Boolean)
