@@ -319,6 +319,7 @@ private fun PlaybackSettingsSection(
     useLibass: Boolean,
     libassRenderType: String,
 ) {
+    val toolbarLayout by PlayerSettingsRepository.uiState.collectAsStateWithLifecycle()
     var showPreferredAudioDialog by remember { mutableStateOf(false) }
     var showSecondaryAudioDialog by remember { mutableStateOf(false) }
     var showPreferredSubtitleDialog by remember { mutableStateOf(false) }
@@ -1648,7 +1649,7 @@ private fun PlaybackSettingsSection(
     if (showSkipForwardDialog) PlayerSkipSecondsDialog(stringResource(Res.string.settings_playback_skip_forward), autoPlayPlayerSettings.skipForwardSeconds, { PlayerSettingsRepository.setPlayerSkipForwardSeconds(it); showSkipForwardDialog = false }) { showSkipForwardDialog = false }
     if (showToolbarLayoutDialog) {
         PlayerToolbarSettingsDialog(
-            layout = PlayerSettingsRepository.uiState.value.toolbarLayout,
+            layout = toolbarLayout,
             onLayoutChange = PlayerSettingsRepository::setPlayerToolbarLayout,
             onDismiss = { showToolbarLayoutDialog = false },
         )

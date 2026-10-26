@@ -211,3 +211,6 @@ Comparison anchor: Enhanced `ae535226b1488a60d59613c1502fbb717cbb333f` → `a3e8
 
 
 - Follow-up review also added the invariant at the end of `normalizePreferences()`, covering reset-to-defaults and any other normalization caller. Removed a duplicated no-op comparison in the ordering helper integration. The newest CI run must validate this follow-up before it is marked passed.
+
+
+- Toolbar dialog review: bound the settings dialog to the repository StateFlow so reorder/show/hide edits recompose the dialog immediately instead of reading a one-time `.value` snapshot. This follow-up is included in the next CI candidate.
