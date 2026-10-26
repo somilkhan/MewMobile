@@ -297,3 +297,9 @@ Comparison anchor: Enhanced `ae535226b1488a60d59613c1502fbb717cbb333f` → `a3e8
 - Review found that a profile could switch after the server response's initial generation check but before the pull applied state. The previous path could then persist the old response under the new current profile and could read that profile's enabled-state map while migrating the old profile.
 - Server-pull state application now rechecks the profile ID and generation while holding the repository lock, writes storage using the captured request profile ID, and starts manifest refreshes with that same generation. Local enabled-state reads are profile-explicit. A stale response is discarded rather than applied to the newly active profile.
 - Fresh Android host tests and Kotlin source compilation are required to validate this fix; iOS/device behavior remains separate verification.
+
+
+## Add-on mutation/server-push snapshot hardening — 2026-10-26
+
+- The profile-session review also found that `addAddon` checked only the numeric profile ID after its network fetch, and generic server pushes read the profile ID and UI list at separate times. Rapid profile switching could therefore apply a stale add result or pair one profile's ID with another profile's rows.
+- Add-on creation now captures and validates the profile generation, atomically applies/persists to the captured profile, and pushes a fixed snapshot. Generic pushes capture profile ID and add-on rows together under the repository lock. Validation is pending on the current head.

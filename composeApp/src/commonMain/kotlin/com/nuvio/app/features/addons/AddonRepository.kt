@@ -296,6 +296,11 @@ object AddonRepository {
         if (isUsingPrimaryAddonsFromSecondaryProfile()) {
             return AddAddonResult.Error(getString(Res.string.profile_primary_addons_required))
         }
+        val requestSession = synchronized(refreshJobsLock) {
+            currentProfileId to profileGeneration
+        }
+        val profileId = requestSession.first
+        val generation = requestSession.second
         log.i { "addAddon() — rawUrl=$rawUrl" }
         val manifestUrl = try {
             normalizeManifestUrl(rawUrl)
@@ -303,11 +308,13 @@ object AddonRepository {
             return AddAddonResult.Error(error.message ?: getString(Res.string.addon_invalid_url))
         }
 
+        if (!isCurrentProfile(profileId, generation)) {
+            return AddAddonResult.Error("Active profile changed while adding the add-on")
+        }
         if (_uiState.value.addons.any { it.manifestUrl == manifestUrl }) {
             return AddAddonResult.Error(getString(Res.string.addon_already_installed))
         }
 
-        val profileId = currentProfileId
         val manifest = try {
             withContext(Dispatchers.Default) {
                 val payload = httpGetText(manifestUrl)
@@ -321,23 +328,25 @@ object AddonRepository {
         } catch (error: Throwable) {
             return AddAddonResult.Error(error.message ?: getString(Res.string.addon_load_manifest_failed))
         }
-        if (profileId != currentProfileId) {
-            return AddAddonResult.Error("Active profile changed while adding the add-on")
-        }
 
-        _uiState.update { current ->
-            current.copy(
-                addons = current.addons + ManagedAddon(
+        val updatedAddons = synchronized(refreshJobsLock) {
+            if (!isCurrentProfileLocked(profileId, generation)) {
+                null
+            } else {
+                val nextAddons = _uiState.value.addons + ManagedAddon(
                     manifestUrl = manifestUrl,
                     manifest = manifest,
                     isRefreshing = false,
                     errorMessage = null,
-                ),
-            )
-        }
+                )
+                _uiState.value = _uiState.value.copy(addons = nextAddons)
+                persistForProfile(profileId, nextAddons)
+                nextAddons
+            }
+        } ?: return AddAddonResult.Error("Active profile changed while adding the add-on")
+
         saveKnownVersion(profileId, manifestUrl, manifest.version)
-        persist()
-        pushToServer()
+        pushToServer(profileId, updatedAddons)
         return AddAddonResult.Success(manifest)
     }
 
@@ -519,22 +528,28 @@ object AddonRepository {
     }
 
     private fun pushToServer() {
+        val snapshot = synchronized(refreshJobsLock) {
+            if (isUsingPrimaryAddonsFromSecondaryProfile()) return
+            currentProfileId to _uiState.value.addons
+        }
+        pushToServer(snapshot.first, snapshot.second)
+    }
+
+    /** Push a fixed profile/state snapshot so a profile switch cannot mix IDs and add-on rows. */
+    private fun pushToServer(profileId: Int, sourceAddons: List<ManagedAddon>) {
+        if (isUsingPrimaryAddonsFromSecondaryProfile() && profileId == currentProfileId) return
+        val addons = sourceAddons
+            .distinctBy { it.manifestUrl }
+            .mapIndexed { index, addon ->
+                AddonPushItem(
+                    url = addon.manifestUrl,
+                    name = addon.userSetName?.takeIf { it.isNotBlank() } ?: addon.manifest?.name ?: "",
+                    enabled = addon.enabled,
+                    sortOrder = index,
+                )
+            }
         scope.launch {
             runCatching {
-                if (isUsingPrimaryAddonsFromSecondaryProfile()) {
-                    return@runCatching
-                }
-                val profileId = currentProfileId
-                val addons = _uiState.value.addons
-                    .distinctBy { it.manifestUrl }
-                    .mapIndexed { index, addon ->
-                        AddonPushItem(
-                            url = addon.manifestUrl,
-                            name = addon.userSetName?.takeIf { it.isNotBlank() } ?: addon.manifest?.name ?: "",
-                            enabled = addon.enabled,
-                            sortOrder = index,
-                        )
-                    }
                 log.d { "pushToServer() — profileId=$profileId, pushing ${addons.size} addons" }
                 val params = buildJsonObject {
                     put("p_profile_id", profileId)
@@ -544,6 +559,7 @@ object AddonRepository {
                 SupabaseProvider.client.postgrest.rpc("sync_push_addons", params)
                 log.d { "pushToServer() — success" }
             }.onFailure { e ->
+                if (e is CancellationException) throw e
                 log.e(e) { "pushToServer() — FAILED" }
             }
         }
