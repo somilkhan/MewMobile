@@ -435,6 +435,7 @@ object HomeCatalogSettingsRepository {
             )
         }
         preferences = normalized
+        enforcePinnedCollectionsAtTop()
     }
 
     private fun publish() {
@@ -659,7 +660,6 @@ object HomeCatalogSettingsRepository {
         if (pinnedCollectionKeys.isEmpty()) return
 
         val reorderedKeys = pinnedCollectionsFirst(orderedKeys, pinnedCollectionKeys)
-        if (reorderedKeys == orderedKeys) return
         if (reorderedKeys == orderedKeys) return
 
         val updatedPreferences = preferences.toMutableMap()
