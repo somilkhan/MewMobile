@@ -246,3 +246,11 @@ Comparison anchor: Enhanced `ae535226b1488a60d59613c1502fbb717cbb333f` → `a3e8
 - This green run validates the Mew-adapted player toolbar layout, the Mew Material 3 toolbar editor, pinned-collection ordering invariants, cached stream-badge filters, and debrid metadata/fact reuse. It does not establish iOS compilation or runtime verification.
 - Adapted Nuvio Mobile's iOS player resize fix `d995e6834a`: when the drawable size changes, Mew now refreshes mpv's ASS subtitle events after committing the Metal layer layout, preventing stale subtitle overlays when a paused video is resized. The upstream's Picture-in-Picture display-layer assignment was not copied because the inspected Mew `MPVPlayerBridge.swift` has no corresponding PiP controller/API; this port is limited to the shared renderer behavior.
 - **Unverified:** the iOS Swift change has not been built or device-tested. The current Android workflow cannot validate Swift code; iOS compile/runtime verification remains outstanding.
+
+
+## Continue Watching dismissal reset — 2026-10-26
+
+- Ported Enhanced commit `6fefbcdab4`'s watched-action behavior into Mew's existing `WatchedRepository`: marking an episode watched clears dismissed Next Up entries for its parent content ID.
+- Fixed the associated key filter to remove both a content-level key equal to the ID and episode-specific keys with the `contentId|` prefix. This prevents stale dismissals from surviving a watched action while keeping similarly prefixed IDs (for example `show-1` versus `show-10`) isolated.
+- Added pure regression tests for exact-key removal, episode-key removal, unrelated-ID preservation, and blank IDs. Current-head CI must verify this new batch; no result is claimed yet.
+- Review note: Enhanced's iOS Now Playing publication-throttling implementation (`99d0e36e9a`) is already present in Mew's `NowPlayingController.swift` (published-state/time tracking and 1.5-second drift threshold), so no duplicate port was made.

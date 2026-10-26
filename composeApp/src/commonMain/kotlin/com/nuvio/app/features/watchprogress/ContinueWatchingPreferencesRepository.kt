@@ -170,7 +170,10 @@ object ContinueWatchingPreferencesRepository {
         val normalizedContentId = contentId.trim()
         if (normalizedContentId.isBlank()) return
         val prefix = "$normalizedContentId|"
-        val filtered = _uiState.value.dismissedNextUpKeys.filterNot { it.startsWith(prefix) }.toSet()
+        val filtered = filterDismissedNextUpKeysForContent(
+            dismissedKeys = _uiState.value.dismissedNextUpKeys,
+            contentId = normalizedContentId,
+        )
         if (filtered == _uiState.value.dismissedNextUpKeys) return
         _uiState.value = _uiState.value.copy(dismissedNextUpKeys = filtered)
         persist()
@@ -193,4 +196,17 @@ object ContinueWatchingPreferencesRepository {
             ),
         )
     }
+}
+
+
+internal fun filterDismissedNextUpKeysForContent(
+    dismissedKeys: Set<String>,
+    contentId: String,
+): Set<String> {
+    val normalizedContentId = contentId.trim()
+    if (normalizedContentId.isBlank()) return dismissedKeys
+    val prefix = "$normalizedContentId|"
+    return dismissedKeys.filterNot { key ->
+        key == normalizedContentId || key.startsWith(prefix)
+    }.toSet()
 }
