@@ -228,3 +228,10 @@ Comparison anchor: Enhanced `ae535226b1488a60d59613c1502fbb717cbb333f` → `a3e8
 ## Stream badge filter cache — 2026-10-26
 
 - Adapted Nuvio's `a0735005d3` optimization: compiled badge regex filters are cached against the immutable `StreamBadgeRules` value and rebuilt only when rules change. The cache uses atomicfu synchronization because this common code runs on Android and iOS. Added regression coverage for repeated use, changed rules, empty rules, and restoring earlier rules. Current-head CI must verify the port.
+
+
+## Debrid stream metadata performance port — 2026-10-26
+
+- Adapted Nuvio's `def203a96a`: stream facts computed for filter/sort/limit are reused by formatting instead of recalculated. Frequently used metadata regexes are reused, and token regexes are cached behind an atomicfu lock suitable for shared Android/iOS code. Added regression coverage for filtered and formatted output equivalence.
+- Reviewed Nuvio Mobile's new half-open Duo/fold controls from the `duo-half-open` merge. Deferred: this is a new foldable-specific playback mode with video/control splitting, idle dimming, gestures, and platform-specific brightness/volume behavior, not a small compatibility fix. Mew's existing player layout remains intact until the feature can be tested on actual foldable hardware.
+- The debrid performance port is source-level only until current-head CI passes.
