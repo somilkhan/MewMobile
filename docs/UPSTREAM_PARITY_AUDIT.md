@@ -290,3 +290,10 @@ Comparison anchor: Enhanced `ae535226b1488a60d59613c1502fbb717cbb333f` → `a3e8
 
 
 - **CI failure diagnosis on `b3cb493e29328defac7a33182668e7fcc76b56a9`:** Kotlin compilation rejected a suspending `getString` call inside the new synchronized profile-state critical section (`AddonRepository.kt:462`). The localized fallback message is now resolved before acquiring the lock; the next CI run must verify the correction.
+
+
+## Add-on server-pull profile race follow-up — 2026-10-26
+
+- Review found that a profile could switch after the server response's initial generation check but before the pull applied state. The previous path could then persist the old response under the new current profile and could read that profile's enabled-state map while migrating the old profile.
+- Server-pull state application now rechecks the profile ID and generation while holding the repository lock, writes storage using the captured request profile ID, and starts manifest refreshes with that same generation. Local enabled-state reads are profile-explicit. A stale response is discarded rather than applied to the newly active profile.
+- Fresh Android host tests and Kotlin source compilation are required to validate this fix; iOS/device behavior remains separate verification.
