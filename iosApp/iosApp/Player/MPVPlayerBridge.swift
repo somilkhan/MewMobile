@@ -523,12 +523,17 @@ final class MPVPlayerViewController: UIViewController {
         metalLayer.contentsScale = scale
         metalLayer.position = .zero
         metalLayer.bounds = CGRect(origin: .zero, size: bounds.size)
-        if drawableSize != lastAppliedDrawableSize {
+        let drawableSizeChanged = drawableSize != lastAppliedDrawableSize
+        if drawableSizeChanged {
             // mpv's moltenvk context polls drawableSize and resizes its swapchain.
             metalLayer.drawableSize = drawableSize
             lastAppliedDrawableSize = drawableSize
         }
         CATransaction.commit()
+        if drawableSizeChanged {
+            // Rebuild ASS subtitle events after a surface resize so paused subtitles are refreshed.
+            command("osd-overlay", args: ["1", "ass-events", ""], checkForErrors: false)
+        }
 #endif
     }
 

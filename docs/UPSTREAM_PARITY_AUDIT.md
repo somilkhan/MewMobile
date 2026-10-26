@@ -238,3 +238,11 @@ Comparison anchor: Enhanced `ae535226b1488a60d59613c1502fbb717cbb333f` → `a3e8
 
 
 - **Debrid cache source-review correction:** follow-up review found malformed generated regex declarations/interpolation in the first draft of the cache port. Corrected the static regex declarations and Kotlin interpolation before accepting CI evidence; the next run must verify the corrected head.
+
+
+## Current-head verification and iOS subtitle resize adaptation — 2026-10-26
+
+- Android CI run [40250131692](https://github.com/somilkhan/MewMobile/actions/runs/40250131692) passed on source head `9cd4e0ea2a58bd6b945adeb033b964387959692c`: Android host tests, Android Kotlin compilation, and Mew localized-resource branding validation all succeeded. APK assembly, package-ID assertion, signing verification, and artifact upload were skipped as designed before Phase 5.
+- This green run validates the Mew-adapted player toolbar layout, the Mew Material 3 toolbar editor, pinned-collection ordering invariants, cached stream-badge filters, and debrid metadata/fact reuse. It does not establish iOS compilation or runtime verification.
+- Adapted Nuvio Mobile's iOS player resize fix `d995e6834a`: when the drawable size changes, Mew now refreshes mpv's ASS subtitle events after committing the Metal layer layout, preventing stale subtitle overlays when a paused video is resized. The upstream's Picture-in-Picture display-layer assignment was not copied because the inspected Mew `MPVPlayerBridge.swift` has no corresponding PiP controller/API; this port is limited to the shared renderer behavior.
+- **Unverified:** the iOS Swift change has not been built or device-tested. The current Android workflow cannot validate Swift code; iOS compile/runtime verification remains outstanding.
