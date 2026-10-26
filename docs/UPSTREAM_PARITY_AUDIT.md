@@ -254,3 +254,13 @@ Comparison anchor: Enhanced `ae535226b1488a60d59613c1502fbb717cbb333f` → `a3e8
 - Fixed the associated key filter to remove both a content-level key equal to the ID and episode-specific keys with the `contentId|` prefix. This prevents stale dismissals from surviving a watched action while keeping similarly prefixed IDs (for example `show-1` versus `show-10`) isolated.
 - Added pure regression tests for exact-key removal, episode-key removal, unrelated-ID preservation, and blank IDs. Current-head CI must verify this new batch; no result is claimed yet.
 - Review note: Enhanced's iOS Now Playing publication-throttling implementation (`99d0e36e9a`) is already present in Mew's `NowPlayingController.swift` (published-state/time tracking and 1.5-second drift threshold), so no duplicate port was made.
+
+
+## Simkl multi-season Continue Watching identity — 2026-10-26
+
+- Adapted the Enhanced anime multi-season dedupe fix to Mew's existing `TrackingProgressProvider` abstraction. The provider-neutral hook defaults to identity, while Simkl resolves catalog IDs and anime video IDs through its existing `SimklSyncSnapshot` and respects the configured anime ID preference.
+- Home completed-episode seed candidates now deduplicate by canonical identity after ranking candidates by latest activity. Cached/live Next Up items are also filtered when their next video belongs to a different currently represented canonical series, avoiding two franchise cards claiming the same upcoming episode.
+- Simkl progress parent normalization now uses the episode video ID as a fallback when the parent catalog ID cannot be resolved from the current snapshot.
+- Added focused tests for MAL episode video ID resolution, alias deduplication retaining the latest activity, and removing a Next Up item claimed by another active series.
+- **Intentionally not ported:** Enhanced also compares TVDB IDs to detect series aliases; Mew's current `MetaDetails` model does not expose `tvdbId`, and adding a new metadata contract across all sources is a separate architecture change. The canonical Simkl IDs and video-ID mapping are the supported partial port.
+- CI is required on the new head; the earlier green run does not validate this commit.
