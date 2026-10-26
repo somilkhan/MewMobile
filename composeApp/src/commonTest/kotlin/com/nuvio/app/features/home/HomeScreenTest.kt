@@ -643,7 +643,7 @@ class HomeScreenTest {
             markedAtEpochMs = 3_000L,
         )
 
-        val result = listOf(olderAlias, newerAlias).distinctBySeedContentIdentity { id ->
+        val result = listOf(newerAlias, olderAlias).distinctBySeedContentIdentity { id ->
             if (id == "mal:123" || id == "mal:4372") "tt2560140" else id
         }
 
