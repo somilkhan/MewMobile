@@ -160,9 +160,9 @@ object DebridStreamPresentation {
 internal object DebridStreamMetadata {
     private val tokenRegexLock = SynchronizedObject()
     private val tokenRegexCache = HashMap<String, Regex>()
-            dolbyVisionRegex.containsMatchIn(searchText)
-            hdrRegex.containsMatchIn(searchText)
-        releaseGroupRegex
+    private val dolbyVisionRegex = Regex("(^|[^a-z0-9])(dv|dovi|dolby[ ._-]?vision)([^a-z0-9]|\$)")
+    private val hdrRegex = Regex("(^|[^a-z0-9])(hdr|hdr10|hdr10plus|hdr10\\+|hlg)([^a-z0-9]|\$)")
+    private val releaseGroupRegex = Regex("-([a-z0-9][a-z0-9._]{1,24})($|\\.)", RegexOption.IGNORE_CASE)
     private val nonAlphanumericRegex = Regex("[^a-z0-9]")
     private val nonAlphanumericOrPlusRegex = Regex("[^a-z0-9+]")
     private val resolutionTokens = listOf(
@@ -403,13 +403,13 @@ internal object DebridStreamMetadata {
         values.minOfOrNull { rank(it, preferred) } ?: Int.MAX_VALUE
 
     private fun resolutionRegex(vararg tokens: String): Regex =
-        Regex("(^|[^a-z0-9])(\${tokens.joinToString("|")})([^a-z0-9]|\$)")
+        Regex("(^|[^a-z0-9])(${tokens.joinToString("|")})([^a-z0-9]|\$)")
 
     /** The receiver is already lowercase at every call site. */
     private fun String.hasToken(token: String): Boolean {
         val regex = synchronized(tokenRegexLock) {
             tokenRegexCache.getOrPut(token) {
-                Regex("(^|[^a-z0-9])\${Regex.escape(token.lowercase())}([^a-z0-9]|\$)")
+                Regex("(^|[^a-z0-9])${Regex.escape(token.lowercase())}([^a-z0-9]|\$)")
             }
         }
         return regex.containsMatchIn(this)

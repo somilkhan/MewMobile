@@ -235,3 +235,6 @@ Comparison anchor: Enhanced `ae535226b1488a60d59613c1502fbb717cbb333f` → `a3e8
 - Adapted Nuvio's `def203a96a`: stream facts computed for filter/sort/limit are reused by formatting instead of recalculated. Frequently used metadata regexes are reused, and token regexes are cached behind an atomicfu lock suitable for shared Android/iOS code. Added regression coverage for filtered and formatted output equivalence.
 - Reviewed Nuvio Mobile's new half-open Duo/fold controls from the `duo-half-open` merge. Deferred: this is a new foldable-specific playback mode with video/control splitting, idle dimming, gestures, and platform-specific brightness/volume behavior, not a small compatibility fix. Mew's existing player layout remains intact until the feature can be tested on actual foldable hardware.
 - The debrid performance port is source-level only until current-head CI passes.
+
+
+- **Debrid cache source-review correction:** follow-up review found malformed generated regex declarations/interpolation in the first draft of the cache port. Corrected the static regex declarations and Kotlin interpolation before accepting CI evidence; the next run must verify the corrected head.
