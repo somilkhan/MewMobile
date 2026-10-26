@@ -782,7 +782,7 @@ internal fun selectHomeHeroDisplayTitle(
 ): String {
     val item = itemTitle.takeIf(String::isNotBlank)
     val detail = detailTitle?.takeIf(String::isNotBlank)
-    return if (preferItemTitle) detailFallback(item, detail) else detailFallback(detail, item)
+    return if (preferItemTitle) item ?: detail ?: itemTitle else detail ?: item ?: itemTitle
 }
 
 internal fun selectHomeHeroLogoUrl(
@@ -792,10 +792,8 @@ internal fun selectHomeHeroLogoUrl(
 ): String? {
     val item = itemLogo?.takeIf(String::isNotBlank)
     val detail = detailLogo?.takeIf(String::isNotBlank)
-    return if (preferItemLogo) detailFallback(item, detail) else detailFallback(detail, item)
+    return if (preferItemLogo) item ?: detail else detail ?: item
 }
-
-private fun <T> detailFallback(preferred: T?, fallback: T?): T? = preferred ?: fallback
 
 private fun shouldPreferOriginalTmdbHeroTitle(): Boolean {
     val settings = TmdbSettingsRepository.snapshot()
