@@ -58,6 +58,8 @@ object AddonRepository {
     private var initialized = false
     private var pulledFromServer = false
     private var currentProfileId: Int = 1
+    // The active profile can change while add-ons still resolve to the primary profile.
+    private var activeProfileIdAtSession: Int = 1
     // Invalidates initialization work that finishes after a profile switch.
     private var profileGeneration: Long = 0L
     // This repository uses Dispatchers.Default, so UI calls and refresh-job completion can
@@ -67,9 +69,11 @@ object AddonRepository {
     private val versionStorageMutex = Mutex()
 
     fun initialize() {
-        val effectiveProfileId = resolveEffectiveProfileId(ProfileRepository.activeProfileId)
+        val activeProfileId = ProfileRepository.activeProfileId
+        val effectiveProfileId = resolveEffectiveProfileId(activeProfileId)
         val generation = synchronized(refreshJobsLock) {
             if (initialized) return
+            activeProfileIdAtSession = activeProfileId
             currentProfileId = effectiveProfileId
             initialized = true
             profileGeneration
@@ -119,10 +123,11 @@ object AddonRepository {
     fun onProfileChanged(profileId: Int) {
         val effectiveProfileId = resolveEffectiveProfileId(profileId)
         val jobsToCancel = synchronized(refreshJobsLock) {
-            if (effectiveProfileId == currentProfileId && initialized) return
+            if (profileId == activeProfileIdAtSession && effectiveProfileId == currentProfileId && initialized) return
             val jobs = activeRefreshJobs.values.toList()
             activeRefreshJobs.clear()
             profileGeneration += 1
+            activeProfileIdAtSession = profileId
             currentProfileId = effectiveProfileId
             initialized = false
             pulledFromServer = false
@@ -137,6 +142,7 @@ object AddonRepository {
             val jobs = activeRefreshJobs.values.toList()
             activeRefreshJobs.clear()
             profileGeneration += 1
+            activeProfileIdAtSession = 1
             currentProfileId = 1
             initialized = false
             pulledFromServer = false
@@ -147,8 +153,8 @@ object AddonRepository {
     }
 
     suspend fun pullFromServer(profileId: Int) {
-        val effectiveProfileId = resolveEffectiveProfileId(profileId)
-        onProfileChanged(effectiveProfileId)
+        // Keep the actual active profile ID: it may differ from the effective shared add-on profile.
+        onProfileChanged(profileId)
         val requestSession = synchronized(refreshJobsLock) {
             currentProfileId to profileGeneration
         }
@@ -293,14 +299,18 @@ object AddonRepository {
     }
 
     suspend fun addAddon(rawUrl: String): AddAddonResult {
-        if (isUsingPrimaryAddonsFromSecondaryProfile()) {
+        val requestState = synchronized(refreshJobsLock) {
+            Triple(
+                isUsingPrimaryAddonsFromSecondaryProfile(),
+                currentProfileId,
+                profileGeneration,
+            )
+        }
+        if (requestState.first) {
             return AddAddonResult.Error(getString(Res.string.profile_primary_addons_required))
         }
-        val requestSession = synchronized(refreshJobsLock) {
-            currentProfileId to profileGeneration
-        }
-        val profileId = requestSession.first
-        val generation = requestSession.second
+        val profileId = requestState.second
+        val generation = requestState.third
         log.i { "addAddon() — rawUrl=$rawUrl" }
         val manifestUrl = try {
             normalizeManifestUrl(rawUrl)
@@ -537,7 +547,8 @@ object AddonRepository {
 
     /** Push a fixed profile/state snapshot so a profile switch cannot mix IDs and add-on rows. */
     private fun pushToServer(profileId: Int, sourceAddons: List<ManagedAddon>) {
-        if (isUsingPrimaryAddonsFromSecondaryProfile() && profileId == currentProfileId) return
+        // This explicit snapshot belongs to an already-validated mutation. A later profile switch
+        // must not suppress the push for that original profile.
         val addons = sourceAddons
             .distinctBy { it.manifestUrl }
             .mapIndexed { index, addon ->
@@ -662,6 +673,8 @@ object AddonRepository {
             currentProfileId = currentProfileId,
             currentGeneration = profileGeneration,
             effectiveActiveProfileId = resolveEffectiveProfileId(ProfileRepository.activeProfileId),
+            trackedActiveProfileId = activeProfileIdAtSession,
+            actualActiveProfileId = ProfileRepository.activeProfileId,
         )
 
     private fun cancelActiveRefreshes() {

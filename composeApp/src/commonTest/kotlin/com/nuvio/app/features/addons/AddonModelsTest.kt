@@ -42,6 +42,21 @@ class AddonModelsTest {
     }
 
     @Test
+    fun `profile session rejects shared-primary profile switch with same effective profile id`() {
+        assertFalse(
+            isAddonProfileSessionCurrent(
+                requestProfileId = 1,
+                requestGeneration = 8L,
+                currentProfileId = 1,
+                currentGeneration = 8L,
+                effectiveActiveProfileId = 1,
+                trackedActiveProfileId = 1,
+                actualActiveProfileId = 2,
+            ),
+        )
+    }
+
+    @Test
     fun `first version observation is not an update`() {
         assertFalse(addonVersionChanged(null, "1.0.0"))
         assertFalse(addonVersionChanged("", "1.0.0"))

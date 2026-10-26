@@ -115,8 +115,11 @@ internal fun isAddonProfileSessionCurrent(
     currentProfileId: Int,
     currentGeneration: Long,
     effectiveActiveProfileId: Int,
+    trackedActiveProfileId: Int = effectiveActiveProfileId,
+    actualActiveProfileId: Int = trackedActiveProfileId,
 ): Boolean =
     requestProfileId == currentProfileId &&
         requestGeneration == currentGeneration &&
-        requestProfileId == effectiveActiveProfileId
+        requestProfileId == effectiveActiveProfileId &&
+        trackedActiveProfileId == actualActiveProfileId
 
