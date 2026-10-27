@@ -335,3 +335,11 @@ Comparison anchor: Enhanced `ae535226b1488a60d59613c1502fbb717cbb333f` → `a3e8
 
 - The remaining reviewed upstream deltas are now explicitly categorized as already present in Mew, adapted to Mew's existing architecture, or intentionally deferred with the concrete risk/reason recorded in the parity matrix. The native libass renderer, Discord Rich Presence/token storage, cinematic stream-filter glass, player audio-language badge surface, and engine-specific buffering controls are not silently treated as completed.
 - This does not mark iOS/Xcode compilation or physical-device behavior as verified. The current head must pass its own Android host-test and Kotlin-source-compile workflow before the Phase 5 APK build is triggered.
+
+## Phase 5 device-test handoff gate — 2026-10-27
+
+- Current integration branch head before the APK trigger: `908b81f25771a49692e87463ddfc5faf9289f184` (`docs(upstream): close remaining parity dispositions`).
+- Current-head GitHub Actions run [40256313048](https://github.com/somilkhan/MewMobile/actions/runs/40256313048) passed the Mew branding check, Android host tests, and Android Kotlin source compilation. The APK build, package-ID assertion, signing verification, and artifact upload were intentionally skipped by the routine CI gate.
+- The Android CI gate is now satisfied for entering Phase 5. This commit requests a Full Debug APK build through the workflow's explicit `[build-apk]` trigger. Build, package ID, signing, and artifact upload remain pending until the resulting run is observed.
+- Device verification remains pending. The APK is for maintainer smoke testing; specifically verify fresh install, package coexistence/data migration expectations, TMDB-disabled behavior, CloudStream repository/provider discovery and playback, settings/navigation, and player rotation/PiP/subtitle behavior.
+- This handoff does not claim iOS/Xcode compilation or physical-device verification. Keep the PR open and draft until the device-test findings are reviewed.
