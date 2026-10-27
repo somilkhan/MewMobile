@@ -413,7 +413,7 @@ internal object DebridStreamMetadata {
     }
 
     private fun languageRegex(tokens: List<String>): Regex =
-        Regex("(^|[^a-z0-9])(\${tokens.joinToString("|") { Regex.escape(it) }})([^a-z0-9]|\$)")
+        Regex("(^|[^a-z0-9])(${tokens.joinToString("|") { Regex.escape(it) }})([^a-z0-9]|\$)")
 
     private fun releaseGroupFromText(text: String): String =
         releaseGroupRegex
@@ -516,7 +516,7 @@ internal object DebridStreamMetadata {
     private fun titleRegex(title: String): Regex? {
         val words = title.lowercase().split(nonAlphanumericRunRegex).filter { it.isNotEmpty() }
         if (words.isEmpty()) return null
-        return Regex("(^|[^a-z0-9])\${words.joinToString("[^a-z0-9]+")}(?=[^a-z0-9]|\$)")
+        return Regex("(^|[^a-z0-9])${words.joinToString("[^a-z0-9]+")}(?=[^a-z0-9]|\$)")
     }
 }
 
