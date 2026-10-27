@@ -265,7 +265,8 @@ internal object DebridStreamMetadata {
         val audioChannels = streamAudioChannels(parsed?.channels.orEmpty(), searchText)
         val encode = streamEncode(parsed?.codec, searchText)
         val languages = parsed?.languages.orEmpty().mapNotNull { languageFor(it) }.ifEmpty {
-            DebridStreamLanguage.entries.filter { searchText.hasToken(it.code) }
+            val languageText = languageSearchText(stream)
+            languageRegexes.filter { (_, regex) -> regex.containsMatchIn(languageText) }.map { it.first }
         }
         val releaseGroup = parsed?.group?.takeIf { it.isNotBlank() } ?: releaseGroupFromText(searchText)
         return DebridStreamFacts(
@@ -380,12 +381,39 @@ internal object DebridStreamMetadata {
         }
     }
 
+    // Release names use words as well as language codes. Short aliases that commonly occur
+    // in titles (for example "por", "chi", and "fra") are deliberately excluded.
+    private val languageAliases = mapOf(
+        DebridStreamLanguage.EN to listOf("eng", "english"),
+        DebridStreamLanguage.HI to listOf("hin", "hindi"),
+        DebridStreamLanguage.IT to listOf("ita", "italian", "italiano"),
+        DebridStreamLanguage.ES to listOf("spa", "esp", "spanish", "espanol", "castellano"),
+        DebridStreamLanguage.FR to listOf("fre", "french", "truefrench"),
+        DebridStreamLanguage.DE to listOf("ger", "deu", "german", "deutsch"),
+        DebridStreamLanguage.PT to listOf("portuguese", "portugues"),
+        DebridStreamLanguage.PL to listOf("pol", "polish"),
+        DebridStreamLanguage.CS to listOf("cze", "czech"),
+        DebridStreamLanguage.LA to listOf("latino"),
+        DebridStreamLanguage.JA to listOf("jpn", "japanese"),
+        DebridStreamLanguage.KO to listOf("kor", "korean"),
+        DebridStreamLanguage.ZH to listOf("chinese"),
+    )
+    private val languageRegexes = DebridStreamLanguage.entries.map { language ->
+        language to languageRegex(listOf(language.code) + languageAliases[language].orEmpty())
+    }
+    private val nonAlphanumericRunRegex = Regex("[^a-z0-9]+")
+
     private fun languageFor(value: String): DebridStreamLanguage? {
-        val normalized = value.lowercase()
+        val normalized = value.trim().lowercase()
         return DebridStreamLanguage.entries.firstOrNull {
-            normalized == it.code || normalized == it.label.lowercase()
+            normalized == it.code ||
+                normalized == it.label.lowercase() ||
+                normalized in languageAliases[it].orEmpty()
         }
     }
+
+    private fun languageRegex(tokens: List<String>): Regex =
+        Regex("(^|[^a-z0-9])(\${tokens.joinToString("|") { Regex.escape(it) }})([^a-z0-9]|\$)")
 
     private fun releaseGroupFromText(text: String): String =
         releaseGroupRegex
@@ -454,6 +482,41 @@ internal object DebridStreamMetadata {
             parsed?.hdr?.joinToString(" "),
             parsed?.audio?.joinToString(" "),
         ).joinToString(" ").lowercase()
+    }
+
+    private fun streamTexts(stream: StreamItem): List<String> {
+        val resolve = stream.clientResolve
+        val raw = resolve?.stream?.raw
+        return listOfNotNull(
+            stream.name,
+            stream.title,
+            stream.description,
+            stream.behaviorHints.filename,
+            stream.debridCacheStatus?.cachedName,
+            resolve?.torrentName,
+            resolve?.filename,
+            raw?.torrentName,
+            raw?.filename,
+        )
+    }
+
+    // Remove the media title before matching language words. "The French Dispatch" must not
+    // be classified as French audio, and "The Italian Job" must not satisfy an Italian filter.
+    private fun languageSearchText(stream: StreamItem): String {
+        val resolve = stream.clientResolve
+        val titleRegexes = listOfNotNull(resolve?.stream?.raw?.parsed?.parsedTitle, resolve?.title)
+            .mapNotNull { titleRegex(it) }
+            .distinctBy { it.pattern }
+            .sortedByDescending { it.pattern.length }
+        return streamTexts(stream).joinToString(" ") { text ->
+            titleRegexes.fold(text.lowercase()) { remaining, regex -> regex.replaceFirst(remaining, " ") }
+        }
+    }
+
+    private fun titleRegex(title: String): Regex? {
+        val words = title.lowercase().split(nonAlphanumericRunRegex).filter { it.isNotEmpty() }
+        if (words.isEmpty()) return null
+        return Regex("(^|[^a-z0-9])\${words.joinToString("[^a-z0-9]+")}(?=[^a-z0-9]|\$)")
     }
 }
 
