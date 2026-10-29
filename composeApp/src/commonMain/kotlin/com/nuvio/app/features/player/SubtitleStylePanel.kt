@@ -267,10 +267,10 @@ private fun StyleControlsCard(
             StepperControl(
                 value = stringResource(Res.string.compose_player_font_size_value, style.fontSizeSp),
                 onMinus = {
-                    onStyleChanged { current -> current.copy(fontSizeSp = (current.fontSizeSp - 2).coerceAtLeast(12)) }
+                    onStyleChanged { current -> current.copy(fontSizeSp = (current.fontSizeSp - 1).coerceAtLeast(12)) }
                 },
                 onPlus = {
-                    onStyleChanged { current -> current.copy(fontSizeSp = (current.fontSizeSp + 2).coerceAtMost(40)) }
+                    onStyleChanged { current -> current.copy(fontSizeSp = (current.fontSizeSp + 1).coerceAtMost(40)) }
                 },
                 buttonSize = btnSize,
                 buttonRadius = btnRadius,
