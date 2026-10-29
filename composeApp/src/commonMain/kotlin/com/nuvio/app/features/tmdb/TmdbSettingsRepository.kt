@@ -69,10 +69,12 @@ object TmdbSettingsRepository {
         publish()
         TmdbSettingsStorage.saveEnabled(value)
         invalidateMetadata()
+        HomeRepository.onTmdbEnabledChanged()
     }
 
     fun setApiKey(value: String) {
         ensureLoaded()
+        val wasEnabled = enabled
         val normalized = value.trim()
         if (apiKey == normalized) return
         apiKey = normalized
@@ -83,6 +85,7 @@ object TmdbSettingsRepository {
         publish()
         TmdbSettingsStorage.saveApiKey(normalized, EpisodeReleaseDatePlatform.nowEpochMs())
         invalidateMetadata()
+        if (wasEnabled != enabled) HomeRepository.onTmdbEnabledChanged()
     }
 
     fun setLanguage(value: String) {

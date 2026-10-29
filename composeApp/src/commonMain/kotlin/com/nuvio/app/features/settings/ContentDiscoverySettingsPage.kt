@@ -82,6 +82,7 @@ internal fun LazyListScope.contentDiscoveryContent(
                     SettingsNavigationRow(
                         title = stringResource(Res.string.compose_settings_page_cloudstream),
                         description = stringResource(Res.string.settings_content_discovery_cloudstream_description),
+                        enabled = !tmdbEnabled,
                         isTablet = isTablet,
                         onClick = onCloudStreamClick,
                     )

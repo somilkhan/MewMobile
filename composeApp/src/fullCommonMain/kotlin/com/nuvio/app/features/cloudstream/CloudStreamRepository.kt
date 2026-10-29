@@ -7,6 +7,7 @@ import com.nuvio.app.features.addons.httpRequestRaw
 import com.nuvio.app.features.plugins.currentEpochMillis
 import com.nuvio.app.core.diagnostics.RuntimeDiagnostics
 import com.nuvio.app.features.profiles.ProfileRepository
+import com.nuvio.app.features.tmdb.TmdbSettingsRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
@@ -600,6 +601,7 @@ actual object CloudStreamRepository {
         providerId: String,
         page: Int,
     ): Result<List<Pair<String, List<CloudStreamSearchItem>>>> {
+        if (!isDiscoveryAllowed()) return Result.failure(discoveryDisabledFailure())
         val normalizedPage = page.coerceAtLeast(1)
         val requestKey = providerId + ":" + normalizedPage
         RuntimeDiagnostics.recordLog("cs-mainpage-start id=$providerId page=$normalizedPage")
@@ -644,6 +646,7 @@ actual object CloudStreamRepository {
         providerId: String?,
     ): List<Result<List<CloudStreamSearchItem>>> {
         initialize()
+        if (!isDiscoveryAllowed()) return emptyList()
         val activeIds = runnableProviderIds().filter { providerId == null || it == providerId }
         val startedAt = currentEpochMillis()
         RuntimeDiagnostics.recordLog("cs-search-start providers=${activeIds.size}")
@@ -666,6 +669,7 @@ actual object CloudStreamRepository {
 
     actual suspend fun load(providerId: String, data: String): Result<CloudStreamLoadItem> {
         initialize()
+        if (!isDiscoveryAllowed()) return Result.failure(discoveryDisabledFailure())
         val cacheKey = "$providerId\\u0000$data"
         loadResultCacheMutex.withLock {
             loadResultCache[cacheKey]
@@ -709,6 +713,7 @@ actual object CloudStreamRepository {
 
     actual suspend fun loadLinks(providerId: String, data: String): Result<List<CloudStreamPlaybackSource>> {
         initialize()
+        if (!isDiscoveryAllowed()) return Result.failure(discoveryDisabledFailure())
         val requestKey = "$providerId\\u0000$data"
         val now = currentEpochMillis()
         loadLinksCacheMutex.withLock {
@@ -1046,8 +1051,18 @@ private fun cancelInFlightLoadLinksRequests() {
         )
     }
 
+    private fun isDiscoveryAllowed(): Boolean =
+        isCloudStreamDiscoveryAllowed(TmdbSettingsRepository.snapshot().enabled)
+
+    private fun discoveryDisabledFailure(): IllegalStateException =
+        IllegalStateException("CloudStream discovery is disabled while TMDB is enabled")
+
     private fun runnableProviderIds(): List<String> =
-        _uiState.value.plugins.filter(CloudStreamPluginItem::isRunnable).map { it.metadata.id.value }
+        if (isDiscoveryAllowed()) {
+            _uiState.value.plugins.filter(CloudStreamPluginItem::isRunnable).map { it.metadata.id.value }
+        } else {
+            emptyList()
+        }
 
     private fun resolveCompatibility(metadata: CloudStreamPluginMetadata): CloudStreamCompatibility =
         CloudStreamCompatibilityResolver.resolve(
@@ -1060,6 +1075,7 @@ private fun cancelInFlightLoadLinksRequests() {
         block: suspend CloudStreamProvider.() -> T,
     ): Result<T> {
         initialize()
+        if (!isDiscoveryAllowed()) return Result.failure(discoveryDisabledFailure())
         if (providerId !in runnableProviderIds()) {
             return Result.failure(IllegalStateException("CloudStream provider is disabled or incompatible"))
         }
@@ -1069,7 +1085,9 @@ private fun cancelInFlightLoadLinksRequests() {
             val provider = CloudStreamProviderRegistry.find(providerId)
                 ?: CloudStreamPlatformRuntime.provider(plugin)
                 ?: error("CloudStream provider adapter was not found")
-            provider.block()
+            val result = provider.block()
+            check(isDiscoveryAllowed()) { "CloudStream discovery was disabled while the provider request was running" }
+            result
         }
             .onFailure { log.w(it) { "CloudStream provider request failed id=$providerId" } }
     }

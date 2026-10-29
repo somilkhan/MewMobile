@@ -14,6 +14,7 @@ import com.nuvio.app.features.collection.findCollectionCatalog
 import com.nuvio.app.features.cloudstream.CloudStreamPluginItem
 import com.nuvio.app.features.cloudstream.CLOUDSTREAM_DISCOVERY_TIMEOUT_MS
 import com.nuvio.app.features.cloudstream.CloudStreamRepository
+import com.nuvio.app.features.cloudstream.isCloudStreamDiscoveryAllowed
 import com.nuvio.app.features.cloudstream.toMetaPreview
 import com.nuvio.app.features.tmdb.TmdbMetadataService
 import com.nuvio.app.features.tmdb.TmdbSettings
@@ -126,6 +127,21 @@ object HomeRepository {
         }
     }
 
+    /**
+     * Recompute Home immediately when TMDB mode changes so stale CloudStream sections and
+     * hero items disappear before another provider scan can publish.
+     */
+    fun onTmdbEnabledChanged() {
+        cachedCloudSections = emptyList()
+        completedRequestKey = null
+        if (!isVisible) return
+        publishCurrentState(
+            isLoading = _uiState.value.isLoading,
+            requestKey = activeRequestKey ?: completedRequestKey,
+        )
+        refresh(AddonRepository.uiState.value.addons.enabledAddons())
+    }
+
     fun refresh(addons: List<ManagedAddon>, force: Boolean = false) {
         if (!isVisible) return
         HomeCatalogSettingsRepository.snapshot()
@@ -141,9 +157,13 @@ object HomeRepository {
             selectedProviderId = _selectedCloudStreamProviderId.value,
             hasAddonCatalogs = hasAddonCatalogs,
         )
-        val cloudPlugins = cloudState.plugins
-            .filter(CloudStreamPluginItem::isRunnable)
-            .filter { selectedProviderId == null || it.metadata.id.value == selectedProviderId }
+        val cloudPlugins = if (isCloudStreamDiscoveryAllowed(TmdbSettingsRepository.snapshot().enabled)) {
+            cloudState.plugins
+                .filter(CloudStreamPluginItem::isRunnable)
+                .filter { selectedProviderId == null || it.metadata.id.value == selectedProviderId }
+        } else {
+            emptyList()
+        }
         val requests = buildHomeCatalogDefinitions(activeAddons)
         currentDefinitions = requests
         val requestCacheKeys = requests.mapTo(mutableSetOf(), HomeCatalogDefinition::cacheKey)

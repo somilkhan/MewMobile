@@ -624,6 +624,11 @@ kotlin {
             }
         }
         getByName("androidHostTest") {
+            dependencies {
+                implementation("org.robolectric:robolectric:4.16")
+                implementation("androidx.compose.ui:ui-test-junit4:${libs.versions.composeMultiplatform.get()}")
+                implementation("androidx.compose.ui:ui-test-manifest:${libs.versions.composeMultiplatform.get()}")
+            }
             if (androidDistribution == "full") {
                 kotlin.srcDir(project.file("src/androidFullHostTest/kotlin"))
             }
