@@ -21,7 +21,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34], manifest = "AndroidManifest.xml")
+@Config(sdk = [34], manifest = "composeApp/src/androidHostTest/resources/AndroidManifest.xml")
 class PlayerSurfaceGesturesTest {
     @get:Rule
     val compose = createComposeRule()
@@ -80,26 +80,22 @@ class PlayerSurfaceGesturesTest {
     @Test
     fun lockedSurfaceTapSurvivesSmallFingerDrift() {
         setContent()
-
         compose.onNodeWithTag("surface").performTouchInput {
             down(center)
             moveBy(Offset(1f, 0f))
             up()
         }
-
         compose.runOnIdle { assertEquals(1, taps) }
     }
 
     @Test
     fun lockedStateDoesNotCancelTheUnlockButtonTap() {
         setContent(showUnlockTarget = true)
-
         compose.onNodeWithTag("unlock").performTouchInput {
             down(center)
             moveBy(Offset(1f, 0f))
             up()
         }
-
         compose.runOnIdle { assertEquals(1, unlocks) }
     }
 }
