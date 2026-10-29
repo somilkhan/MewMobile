@@ -12,6 +12,7 @@ import android.util.TypedValue
 import android.graphics.RectF
 import android.graphics.Typeface
 import android.os.Build
+import android.os.Handler
 import android.view.View
 import android.view.SurfaceHolder
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
@@ -59,6 +60,10 @@ import androidx.media3.exoplayer.DecoderReuseEvaluation
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.ForwardingRenderer
 import androidx.media3.exoplayer.Renderer
+import androidx.media3.exoplayer.audio.AudioRendererEventListener
+import androidx.media3.exoplayer.audio.AudioSink
+import androidx.media3.exoplayer.mediacodec.MediaCodecInfo
+import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.MergingMediaSource
@@ -2968,6 +2973,31 @@ private class SubtitleOffsetRenderersFactory(
     private val shouldNormalizeCuePositionProvider: () -> Boolean,
     private val videoBoundsFractionProvider: () -> RectF?,
 ) : DefaultRenderersFactory(context) {
+    override fun buildAudioRenderers(
+        context: Context,
+        extensionRendererMode: Int,
+        mediaCodecSelector: MediaCodecSelector,
+        enableDecoderFallback: Boolean,
+        audioSink: AudioSink,
+        eventHandler: Handler,
+        eventListener: AudioRendererEventListener,
+        out: ArrayList<Renderer>,
+    ) {
+        super.buildAudioRenderers(
+            context,
+            extensionRendererMode,
+            DolbyFreeMediaCodecSelector(
+                delegate = mediaCodecSelector,
+                extensionRenderersEnabled = extensionRendererMode != DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF,
+            ),
+            enableDecoderFallback,
+            audioSink,
+            eventHandler,
+            eventListener,
+            out,
+        )
+    }
+
     override fun buildTextRenderers(
         context: Context,
         output: TextOutput,
@@ -2987,6 +3017,39 @@ private class SubtitleOffsetRenderersFactory(
                 baseRenderer = out[index],
                 subtitleDelayUsProvider = subtitleDelayUsProvider,
             )
+        }
+    }
+}
+
+internal fun shouldExcludeDolbyPlatformDecoder(
+    mimeType: String,
+    decoderName: String,
+    extensionRenderersEnabled: Boolean,
+): Boolean =
+    extensionRenderersEnabled &&
+        (mimeType == MimeTypes.AUDIO_AC3 ||
+            mimeType == MimeTypes.AUDIO_E_AC3 ||
+            mimeType == MimeTypes.AUDIO_E_AC3_JOC) &&
+        decoderName.contains("dolby", ignoreCase = true)
+
+@androidx.annotation.OptIn(UnstableApi::class)
+private class DolbyFreeMediaCodecSelector(
+    private val delegate: MediaCodecSelector,
+    private val extensionRenderersEnabled: Boolean,
+) : MediaCodecSelector {
+    override fun getDecoderInfos(
+        mimeType: String,
+        requiresSecureDecoder: Boolean,
+        requiresTunnelingDecoder: Boolean,
+    ): List<MediaCodecInfo> {
+        val decoderInfos = delegate.getDecoderInfos(
+            mimeType,
+            requiresSecureDecoder,
+            requiresTunnelingDecoder,
+        )
+        if (!extensionRenderersEnabled) return decoderInfos
+        return decoderInfos.filterNot { decoder ->
+            shouldExcludeDolbyPlatformDecoder(mimeType, decoder.name, extensionRenderersEnabled)
         }
     }
 }

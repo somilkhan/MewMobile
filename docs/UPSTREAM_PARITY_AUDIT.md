@@ -1,5 +1,7 @@
 # MewMobile Upstream Parity Audit
 
+> **Authoritative current state — 2026-10-30:** This document contains historical audit sections below; older branch heads and status statements are not current. Use this block and the final dated sections for present status. Current upstreams are Nuvio Mobile `cmp-rewrite` `53869a0279c59abdef23da2962eb2a1c80e6caa5` and Nuvio Enhanced `enhanced` `781157e0033db40361b662525b06126e184ffd1c`. PR [#38](https://github.com/somilkhan/MewMobile/pull/38) remains draft and unmerged. Phase 5 is **NOT READY**: candidate CI must pass for the exact current head, an installable APK must be built and verified at the Phase 5 gate, and physical-device verification remains pending.
+
 **Audit date:** 2026-10-23  
 **Target:** Android-first Mew app, preserving Mew-specific CloudStream integration and existing player/profile behavior.  
 **Policy:** Full relevant feature parity is the objective; implementation is dependency-aware and selective by design. Never wholesale-copy upstream files where Mew has diverged.
@@ -394,3 +396,12 @@ Comparison anchor: Enhanced `ae535226b1488a60d59613c1502fbb717cbb333f` → `a3e8
 - **LogFox:** repository tree/code search found no LogFox module, symbol, or integration. External LogFox behavior remains **NOT VERIFIED / NOT FOUND IN REPO**.
 - **Server watched-state sync:** Mew has library sync/reconciliation but no `features/servers` source tree and no `customServerConnectionsEnabled` feature-policy flag. Upstream `ServerWatched` depends on a broader server catalog/matcher/capability/user-state subsystem. Defer that full feature group until product scope and dependencies are reviewed.
 - **Enhanced PublicMetaDB:** deferred separately because it adds account/auth/tracking/sync/data-model behavior and needs a privacy/data-retention review.
+
+
+## Selective player reliability ports — 2026-10-30
+
+- **Nuvio Mobile Dolby decoder workaround adapted:** the Android ExoPlayer renderer now filters Dolby-named platform decoders for AC-3, E-AC-3 and E-AC-3 JOC only when extension renderers are enabled, allowing the bundled extension decoder to handle affected streams while preserving the platform decoder if the user disables extensions. Added Android host policy tests. This is source-implemented; candidate CI is pending.
+- **Enhanced overlapping skip intervals adapted:** Mew now chooses the active skip interval with the furthest safe seek target rather than the first active interval, and rejects malformed/non-finite ranges and overflow seek targets. Added common regression tests. Candidate CI is pending.
+- **Robolectric manifest correction:** the previous candidate's XML report confirmed the failure was `couldn't find 'src/androidHostTest/AndroidManifest.xml'` on the classpath. The test manifest is now exposed under `src/androidHostTest/resources/AndroidManifest.xml` and `@Config` points to the classpath resource name. The next CI run must confirm that both gesture tests execute and pass.
+- **Latest Enhanced delta:** `781157e0033db40361b662525b06126e184ffd1c` is six commits ahead of the previously recorded `58d1edb895c37bc638f87fe137f3fd714b6a9a14`, adding MPV night-mode UI/audio behavior across Android, common player/settings and iOS bridge. Defer this feature group until Mew's Android/iOS engine behavior, persistence and controls can be verified together; do not cherry-pick it wholesale.
+- Current candidate automated verification must be checked on the exact branch head. The prior host-test run was still in progress when this follow-up was prepared; it is not evidence of a pass. Routine CI remains test/compile focused, and APK packaging/upload stays gated to Phase 5.
