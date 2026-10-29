@@ -66,7 +66,19 @@ jobs:
           fi
 
       - name: Run Android host tests
+        id: android_host_tests
         run: ./gradlew :composeApp:testAndroidHostTest -Pnuvio.android.distribution=full --stacktrace
+
+      - name: Upload Android host test reports on failure
+        if: failure() && steps.android_host_tests.outcome == 'failure'
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-host-test-reports-${{ github.run_id }}
+          path: |
+            composeApp/build/reports/tests/testAndroidHostTest/
+            composeApp/build/test-results/testAndroidHostTest/
+          if-no-files-found: warn
+          retention-days: 3
 
       - name: Compile Android Kotlin sources without packaging an APK
         run: ./gradlew :composeApp:compileAndroidMain -Pnuvio.android.distribution=full --stacktrace
