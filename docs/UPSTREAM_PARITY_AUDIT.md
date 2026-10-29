@@ -412,3 +412,10 @@ Comparison anchor: Enhanced `ae535226b1488a60d59613c1502fbb717cbb333f` → `a3e8
 - Failure artifact `android-host-test-reports-40952751433` (artifact ID `12931684095`) confirms the classpath manifest is found now; the failure changed from resource lookup to an activity-component package mismatch. Both `PlayerSurfaceGesturesTest` cases fail before gesture assertions because the launch component resolves as `org.robolectric.default/androidx.activity.ComponentActivity`, while the test manifest declares package `com.nuvio.app.hosttest`.
 - The follow-up sets `packageName = "com.nuvio.app.hosttest"` in the test's `@Config`. The old `src/androidHostTest/AndroidManifest.xml` file is deleted; the only test manifest is `src/androidHostTest/resources/AndroidManifest.xml`.
 - The combined candidate also adds the Dolby decoder policy and overlapping skip interval selection ports described above. Run CI against the exact new head; do not count the previous run as a pass.
+
+
+## Robolectric config and cross-platform Mew identity correction — 2026-10-30
+
+- CI on the prior candidate rejected `@Config(packageName = ...)` at Kotlin compilation (`No parameter with name 'packageName' found`). That attempted annotation override is not a valid fix. The current candidate instead aligns the isolated host-test manifest package with the observed Robolectric launch package, `org.robolectric.default`; only fresh host-test results can confirm the runtime fix.
+- Android app IDs remain `com.mew.mobile` (release) and `com.mew.mobile.debug` (debug). iOS bundle IDs have been aligned to `com.mew.mobile` and `com.mew.mobile.DownloadsWidgetExtension`; the URL type name is Mew-owned while legacy `nuvioenhanced` and `nuvio` URL schemes remain registered to avoid silently breaking existing callback links.
+- **Not verified:** no Xcode/iOS build or physical device test has run for this identity change. Confirm signing/provisioning, authentication callbacks, widget embedding, and install/update behavior before claiming cross-platform readiness. Bundle-ID changes are install/update boundaries and do not imply automatic app-data migration.
