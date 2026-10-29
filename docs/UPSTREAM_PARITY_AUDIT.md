@@ -378,3 +378,19 @@ Comparison anchor: Enhanced `ae535226b1488a60d59613c1502fbb717cbb333f` → `a3e8
 - Current candidate run [40935809526](https://github.com/somilkhan/MewMobile/actions/runs/40935809526) completed the host test task in 7m03s, with 1,099 tests completed and two failures: `PlayerSurfaceGesturesTest > lockedSurfaceTapSurvivesSmallFingerDrift` and `PlayerSurfaceGesturesTest > lockedStateDoesNotCancelTheUnlockButtonTap`. Both summaries report `java.lang.RuntimeException at RoboMonitoringInstrumentation.java:102`.
 - The console log does not contain the nested exception stack or XML report. The current test source already has the correct `androidx.compose.ui.test.junit4.createComposeRule` import and `@Config(sdk = [34])`; do not repeat either change or claim a cause without the report.
 - Workflow correction: `.github/workflows/mew-cloudstream-build.yml` now uploads the Android host-test HTML/XML reports only when the host-test step fails. This is a short-retention diagnostic artifact, not an APK artifact, and does not upload on successful routine CI. Use it to identify the actual runtime exception before changing the test or dependencies.
+
+
+## Confirmed Robolectric manifest root cause — 2026-10-30
+
+- Failure-only report artifact for run [40937363802](https://github.com/somilkhan/MewMobile/actions/runs/40937363802), XML `TEST-com.nuvio.app.features.player.PlayerSurfaceGesturesTest.xml`, gives the exact failure: `Unable to resolve activity for Intent ... cmp=org.robolectric.default/androidx.activity.ComponentActivity`. Both gesture tests fail before executing their assertions. The stack shows `ActivityScenarioRule` trying to launch Compose's `ComponentActivity`; Robolectric has no manifest declaring it.
+- The `ui-test-manifest` dependency was declared only in the `androidHostTest` source-set classpath, which does not merge its manifest into the host test's Robolectric manifest. The correction removes that ineffective declaration, adds an isolated `src/androidHostTest/AndroidManifest.xml` declaring `androidx.activity.ComponentActivity`, and points the test's `@Config` to that manifest. It does not add a launcher activity to the production app manifest.
+- The report artifact and XML were inspected directly; this is the confirmed cause, not a guess. New CI must verify the test-only manifest fix.
+
+
+## Checklist disposition — current source inspection
+
+- **CloudStream update safety:** existing `CloudStreamAutoUpdatePolicyTest` and repository guards cover update cooldown, failed refresh, and plugin state/generation changes. Preserve these controls; current-head CI still needs to pass after changes.
+- **AutoSync:** Mew has a dedicated subtitle cue parser, AutoSync UI/runtime actions, and tests. Preserve this Mew-specific implementation and port only compatible offline-fetch guards.
+- **LogFox:** repository tree/code search found no LogFox module, symbol, or integration. External LogFox behavior remains **NOT VERIFIED / NOT FOUND IN REPO**.
+- **Server watched-state sync:** Mew has library sync/reconciliation but no `features/servers` source tree and no `customServerConnectionsEnabled` feature-policy flag. Upstream `ServerWatched` depends on a broader server catalog/matcher/capability/user-state subsystem. Defer that full feature group until product scope and dependencies are reviewed.
+- **Enhanced PublicMetaDB:** deferred separately because it adds account/auth/tracking/sync/data-model behavior and needs a privacy/data-retention review.
