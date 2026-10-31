@@ -9,6 +9,7 @@ import com.nuvio.app.features.addons.buildAddonResourceUrl
 import com.nuvio.app.features.addons.enabledAddons
 import com.nuvio.app.features.addons.httpGetText
 import com.nuvio.app.features.cloudstream.CloudStreamRepository
+import com.nuvio.app.features.cloudstream.isCloudStreamDiscoveryAllowed
 import com.nuvio.app.features.cloudstream.parseCloudStreamRouteId
 import com.nuvio.app.features.cloudstream.toStreamItem
 import com.nuvio.app.features.debrid.DirectDebridStreamPreparer
@@ -17,6 +18,7 @@ import com.nuvio.app.features.debrid.DebridStreamPresentation
 import com.nuvio.app.features.debrid.LocalDebridAvailabilityService
 import com.nuvio.app.features.details.MetaDetailsRepository
 import com.nuvio.app.features.player.PlayerSettingsRepository
+import com.nuvio.app.features.tmdb.TmdbSettingsRepository
 import com.nuvio.app.features.plugins.PluginRepository
 import com.nuvio.app.features.plugins.pluginContentId
 import com.nuvio.app.features.plugins.PluginsUiState
@@ -115,6 +117,8 @@ object StreamsRepository {
         searchTitle: String?,
         forceRefresh: Boolean,
     ) {
+        TmdbSettingsRepository.ensureLoaded()
+        val tmdbEnabled = TmdbSettingsRepository.snapshot().enabled
         val pluginUiState = if (AppFeaturePolicy.pluginsEnabled) {
             PluginRepository.initialize()
             PluginRepository.uiState.value
@@ -141,7 +145,11 @@ object StreamsRepository {
         // Keep repository grouping as a presentation choice only. Fetch each provider
         // independently so a slow sibling cannot hold back every result in its repository.
         val cloudStreamProviderTasks = flattenCloudStreamProviderTasks(cloudStreamProviderGroups)
-        val cloudStreamRegistryRevision = CloudStreamRepository.uiState.value.registryRevision
+        val cloudStreamRegistryRevision = if (isCloudStreamDiscoveryAllowed(tmdbEnabled)) {
+            CloudStreamRepository.uiState.value.registryRevision
+        } else {
+            0L
+        }
         val requestToken = requestToken(
             type = type,
             videoId = videoId,
@@ -153,7 +161,8 @@ object StreamsRepository {
         val stableContentRequestKey = "$type::$videoId::$season::$episode" +
             "::pluginsGrouped=${pluginUiState.groupStreamsByRepository}" +
             "::pluginQuality=$pluginQualityKey" +
-            "::cloudTarget=${cloudStreamSearchRequest?.cacheKey.orEmpty()}"
+            "::cloudTarget=${cloudStreamSearchRequest?.cacheKey.orEmpty()}" +
+            "::tmdbEnabled=$tmdbEnabled"
         val contentRequestKey = "$stableContentRequestKey::cloudstream=$cloudStreamRegistryRevision"
         val requestKey = "$contentRequestKey::manualSelection=$manualSelection"
         val currentState = _uiState.value

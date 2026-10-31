@@ -13,6 +13,7 @@ import com.nuvio.app.features.addons.enabledAddons
 import com.nuvio.app.features.addons.httpGetText
 import com.nuvio.app.features.cloudstream.CloudStreamRepository
 import com.nuvio.app.features.cloudstream.CloudStreamRouteData
+import com.nuvio.app.features.cloudstream.isCloudStreamDiscoveryAllowed
 import com.nuvio.app.features.cloudstream.parseCloudStreamRouteId
 import com.nuvio.app.features.cloudstream.toMetaDetails
 import com.nuvio.app.features.home.HomeCatalogSettingsRepository
@@ -83,8 +84,22 @@ object MetaDetailsRepository {
     fun load(type: String, id: String, trigger: MetadataLoadTrigger = MetadataLoadTrigger.Initial) {
         log.d { "load() called — type=$type id=$id" }
         val requestKey = metaDetailsRequestKey(type, id)
-        parseCloudStreamRouteId(id)?.let { route ->
-            loadCloudStream(type = type, id = id, requestKey = requestKey, route = route, trigger = trigger)
+        val cloudStreamRoute = parseCloudStreamRouteId(id)
+        if (cloudStreamRoute != null) {
+            if (!isCloudStreamRouteAllowed(id)) {
+                activeRequestGeneration += 1
+                activeJob?.cancel()
+                activeJob = null
+                activeRequestKey = requestKey
+                activeSettingsFingerprint = null
+                _uiState.value = MetaDetailsUiState(
+                    requestKey = requestKey,
+                    errorMessage = "CloudStream detail could not be loaded",
+                )
+                RuntimeDiagnostics.updateMetadataLoading(false)
+                return
+            }
+            loadCloudStream(type = type, id = id, requestKey = requestKey, route = cloudStreamRoute, trigger = trigger)
             return
         }
         val currentState = _uiState.value
@@ -356,6 +371,7 @@ object MetaDetailsRepository {
         cacheResult: Boolean,
         includeOptionalEnrichment: Boolean,
     ): MetaDetails? {
+        if (!isCloudStreamRouteAllowed(id)) return null
         val requestKey = metaDetailsRequestKey(type, id)
         cachedEntry(requestKey)?.let {
             RuntimeDiagnostics.recordMetadataCacheHit(MetadataLoadTrigger.Background)
@@ -400,6 +416,12 @@ object MetaDetailsRepository {
                 durationMs = diagnosticStart.elapsedNow().inWholeMilliseconds,
             )
         }
+    }
+
+    private fun isCloudStreamRouteAllowed(id: String): Boolean {
+        if (parseCloudStreamRouteId(id) == null) return true
+        TmdbSettingsRepository.ensureLoaded()
+        return isCloudStreamDiscoveryAllowed(TmdbSettingsRepository.snapshot().enabled)
     }
 
     private const val FETCH_TIMEOUT_MS = 5_000L

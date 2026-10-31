@@ -11,6 +11,7 @@ import com.nuvio.app.features.cloudstream.CloudStreamRepository
 import com.nuvio.app.features.cloudstream.CloudStreamSearchItem
 import com.nuvio.app.features.cloudstream.CloudStreamSearchRouteIndex
 import com.nuvio.app.features.cloudstream.CloudStreamTvType
+import com.nuvio.app.features.cloudstream.isCloudStreamDiscoveryAllowed
 import com.nuvio.app.features.cloudstream.CloudStreamPlaybackSource
 import com.nuvio.app.features.cloudstream.sha256Hex
 import com.nuvio.app.features.cloudstream.sortCloudStreamEpisodes
@@ -18,6 +19,7 @@ import com.nuvio.app.features.cloudstream.toStreamItem
 import com.nuvio.app.features.details.MetaDetailsRepository
 import com.nuvio.app.features.player.PlayerQualityResolver
 import com.nuvio.app.features.player.PlayerQualityVariant
+import com.nuvio.app.features.tmdb.TmdbSettingsRepository
 import com.nuvio.app.features.plugins.PluginRepositoryItem
 import com.nuvio.app.features.plugins.PluginRuntimeResult
 import com.nuvio.app.features.plugins.PluginScraper
@@ -110,6 +112,10 @@ internal fun cloudStreamProviderGroupsForRequest(
     directRoute: CloudStreamRouteData? = null,
     groupByRepository: Boolean = false,
 ): List<CloudStreamProviderGroup> {
+    TmdbSettingsRepository.ensureLoaded()
+    if (!isCloudStreamDiscoveryAllowed(TmdbSettingsRepository.snapshot().enabled)) {
+        return emptyList()
+    }
     CloudStreamRepository.initialize()
     val state = CloudStreamRepository.uiState.value
     val repositoryNames = state.repositories.associate { repository ->
