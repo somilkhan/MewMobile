@@ -1,5 +1,8 @@
 package com.nuvio.app.features.watching.domain
 
+import com.nuvio.app.core.i18n.localizedPlayLabel
+import com.nuvio.app.core.i18n.localizedResumeLabel
+import com.nuvio.app.core.i18n.localizedUpNextLabel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -164,7 +167,7 @@ class SeriesContinuityTest {
         )
 
         assertNotNull(action)
-        assertEquals("Next Up • S1E3", action.label)
+        assertEquals(localizedUpNextLabel(1, 3), action.label)
         assertEquals("show:1:3", action.videoId)
         assertEquals(3, action.episodeNumber)
     }
@@ -196,7 +199,7 @@ class SeriesContinuityTest {
         )
 
         assertNotNull(action)
-        assertEquals("Resume S1E2", action.label)
+        assertEquals(localizedResumeLabel(1, 2), action.label)
         assertEquals("show:1:2", action.videoId)
         assertEquals(1_500L, action.resumePositionMs)
     }
@@ -218,7 +221,7 @@ class SeriesContinuityTest {
         )
 
         assertNotNull(action)
-        assertEquals("Play S1E1", action.label)
+        assertEquals(localizedPlayLabel(1, 1), action.label)
         assertEquals("show:1:1", action.videoId)
     }
 
@@ -320,7 +323,7 @@ class SeriesContinuityTest {
         )
 
         assertNotNull(action)
-        assertEquals("Play S0E1", action.label)
+        assertEquals(localizedPlayLabel(0, 1), action.label)
     }
 
     @Test
@@ -350,7 +353,7 @@ class SeriesContinuityTest {
         )
 
         assertNotNull(action)
-        assertEquals("Next Up • S2E2", action.label)
+        assertEquals(localizedUpNextLabel(2, 2), action.label)
         assertEquals("show:2:2", action.videoId)
     }
 }

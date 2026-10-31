@@ -17,6 +17,7 @@ actual object TmdbSettingsStorage {
     private const val apiKeyKey = "tmdb_api_key"
     private const val apiKeyUpdatedAtKey = "tmdb_api_key_updated_at"
     private const val languageKey = "tmdb_language"
+    private const val titleLanguageKey = "tmdb_title_language"
     private const val useTrailersKey = "tmdb_use_trailers"
     private const val useArtworkKey = "tmdb_use_artwork"
     private const val useBasicInfoKey = "tmdb_use_basic_info"
@@ -33,6 +34,7 @@ actual object TmdbSettingsStorage {
         enabledKey,
         apiKeyKey,
         languageKey,
+        titleLanguageKey,
         useTrailersKey,
         useArtworkKey,
         useBasicInfoKey,
@@ -83,6 +85,13 @@ actual object TmdbSettingsStorage {
             ?.edit()
             ?.putString(ProfileScopedKey.of(languageKey), language)
             ?.apply()
+    }
+
+    actual fun loadTitleLanguage(): String? =
+        preferences?.getString(ProfileScopedKey.of(titleLanguageKey), null)
+
+    actual fun saveTitleLanguage(value: String) {
+        preferences?.edit()?.putString(ProfileScopedKey.of(titleLanguageKey), value)?.apply()
     }
 
     actual fun loadUseTrailers(): Boolean? = loadBoolean(useTrailersKey)
@@ -178,6 +187,7 @@ actual object TmdbSettingsStorage {
         loadEnabled()?.let { put(enabledKey, encodeSyncBoolean(it)) }
         loadApiKey()?.let { put(apiKeyKey, encodeSyncString(it)) }
         loadLanguage()?.let { put(languageKey, encodeSyncString(it)) }
+        loadTitleLanguage()?.let { put(titleLanguageKey, encodeSyncString(it)) }
         loadUseTrailers()?.let { put(useTrailersKey, encodeSyncBoolean(it)) }
         loadUseArtwork()?.let { put(useArtworkKey, encodeSyncBoolean(it)) }
         loadUseBasicInfo()?.let { put(useBasicInfoKey, encodeSyncBoolean(it)) }
@@ -199,6 +209,7 @@ actual object TmdbSettingsStorage {
 
         payload.decodeSyncBoolean(enabledKey)?.let(::saveEnabled)
         payload.decodeSyncString(languageKey)?.let(::saveLanguage)
+        payload.decodeSyncString(titleLanguageKey)?.let(::saveTitleLanguage)
         payload.decodeSyncBoolean(useTrailersKey)?.let(::saveUseTrailers)
         payload.decodeSyncBoolean(useArtworkKey)?.let(::saveUseArtwork)
         payload.decodeSyncBoolean(useBasicInfoKey)?.let(::saveUseBasicInfo)

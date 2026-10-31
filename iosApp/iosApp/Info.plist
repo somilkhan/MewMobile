@@ -14,7 +14,7 @@
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
 			<key>CFBundleURLName</key>
-			<string>com.nuvio.app.auth</string>
+			<string>com.mew.mobile.auth</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>nuvioenhanced</string>

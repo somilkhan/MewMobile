@@ -12,6 +12,8 @@ import android.util.TypedValue
 import android.graphics.RectF
 import android.graphics.Typeface
 import android.os.Build
+import android.os.Handler
+import android.view.View
 import android.view.SurfaceHolder
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.util.AttributeSet
@@ -26,6 +28,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
@@ -57,6 +60,10 @@ import androidx.media3.exoplayer.DecoderReuseEvaluation
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.ForwardingRenderer
 import androidx.media3.exoplayer.Renderer
+import androidx.media3.exoplayer.audio.AudioRendererEventListener
+import androidx.media3.exoplayer.audio.AudioSink
+import androidx.media3.exoplayer.mediacodec.MediaCodecInfo
+import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.MergingMediaSource
@@ -70,7 +77,13 @@ import androidx.media3.ui.PlayerView
 import androidx.media3.ui.SubtitleView
 import androidx.media3.ui.CaptionStyleCompat
 import com.nuvio.app.R
+import com.nuvio.app.core.network.SharedOkHttpClient
 import com.nuvio.app.features.streams.normalizeStreamType
+import com.nuvio.app.features.autosync.AutoSyncExtractorsFactory
+import com.nuvio.app.features.autosync.AutoSyncPreferencesRepository
+import com.nuvio.app.features.autosync.rememberAutoSyncCoordinator
+import com.nuvio.app.features.autosync.rememberLibmpvAutoSyncCoordinator
+import com.nuvio.app.features.autosync.LIBMPV_AUTOSYNC_FILE_PREFIX
 import `is`.xyz.mpv.BaseMPVView
 import `is`.xyz.mpv.MPV
 import `is`.xyz.mpv.MPVNode
@@ -87,10 +100,10 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.net.HttpURLConnection
 import java.net.URI
-import java.net.URL
 import java.util.Locale
+import java.util.concurrent.TimeUnit
+import okhttp3.Request
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
@@ -197,6 +210,7 @@ actual fun PlatformPlayerSurface(
                 sourceAudioUrl = sourceAudioUrl,
                 sourceHeaders = sourceHeaders,
                 externalSubtitles = externalSubtitles,
+                preferredSubtitleLanguage = playerSettings.preferredSubtitleLanguage,
                 modifier = modifier,
                 playWhenReady = playWhenReady,
                 resizeMode = resizeMode,
@@ -324,10 +338,16 @@ private fun ExoPlayerSurface(
     var resolvedMediaItem by remember(playerSourceKey) { mutableStateOf(initialMediaItem) }
     var probeAttempted by remember(playerSourceKey) { mutableStateOf(false) }
 
-    val extractorsFactory = remember {
-        DefaultExtractorsFactory()
+    val extractorsFactory = remember(playerSourceKey) {
+        val factory = DefaultExtractorsFactory()
             .setTsExtractorFlags(DefaultTsPayloadReaderFactory.FLAG_ENABLE_HDMV_DTS_AUDIO_STREAMS)
             .setTsExtractorTimestampSearchBytes(1500 * TsExtractor.TS_PACKET_SIZE)
+        AutoSyncPreferencesRepository.ensureLoaded()
+        if (AutoSyncPreferencesRepository.preferredSubtitleAutoSyncOnStart.value) {
+            AutoSyncExtractorsFactory(factory, sourceUrl)
+        } else {
+            factory
+        }
     }
     val dataSourceFactory = remember(
         context,
@@ -424,27 +444,27 @@ private fun ExoPlayerSurface(
 
         val loadControl = buildAndroidLoadControl(playerSettings.androidMemorySafeBufferEnabled)
 
+        val playerBuilder = ExoPlayer.Builder(context)
+            .setAudioAttributes(playbackAudioAttributes, true)
+            .setTrackSelector(trackSelector)
+            .setLoadControl(loadControl)
+
         val player = if (useLibass) {
-            ExoPlayer.Builder(context)
-                .setTrackSelector(trackSelector)
-                .setLoadControl(loadControl)
-                .buildWithAssSupportCompat(
-                    context = context,
-                    renderType = libassRenderType.toAssRenderType(),
-                    dataSourceFactory = dataSourceFactory,
-                    extractorsFactory = extractorsFactory,
-                    renderersFactory = renderersFactory
-                )
+            playerBuilder.buildWithAssSupportCompat(
+                context = context,
+                renderType = libassRenderType.toAssRenderType(),
+                dataSourceFactory = dataSourceFactory,
+                extractorsFactory = extractorsFactory,
+                renderersFactory = renderersFactory
+            )
         } else {
             val mediaSourceFactory = DefaultMediaSourceFactory(
                 dataSourceFactory,
                 extractorsFactory,
             )
 
-            ExoPlayer.Builder(context)
+            playerBuilder
                 .setRenderersFactory(renderersFactory)
-                .setTrackSelector(trackSelector)
-                .setLoadControl(loadControl)
                 .setMediaSourceFactory(mediaSourceFactory)
                 .build()
         }
@@ -512,7 +532,21 @@ private fun ExoPlayerSurface(
         mutableStateOf(playerSettings.volumeBoostPercent / 100f)
     }
     val isInPip = rememberIsInPictureInPicture()
-    val pipSubtitleScale by rememberUpdatedState(if (isInPip) 0.4f else 1.0f)
+    var playerSizeOutsidePip by remember { mutableStateOf(IntSize.Zero) }
+    val pipVideoHeightPx by rememberUpdatedState(
+        if (isInPip) {
+            val videoSize = exoPlayer.videoSize
+            calculateFittedVideoHeightPx(
+                viewWidthPx = playerSizeOutsidePip.width.toFloat(),
+                viewHeightPx = playerSizeOutsidePip.height.toFloat(),
+                videoWidthPx = videoSize.width,
+                videoHeightPx = videoSize.height,
+                pixelWidthHeightRatio = videoSize.pixelWidthHeightRatio,
+            ) ?: 0f
+        } else {
+            null
+        },
+    )
     val sidecarController = remember(exoPlayer, coroutineScope) {
         SidecarSubtitleController(
             scope = coroutineScope,
@@ -520,6 +554,24 @@ private fun ExoPlayerSurface(
             getSubtitleDelayMs = { (subtitleDelayUs.get() / 1_000L).toInt() },
         )
     }
+
+    val autoSyncCoordinator = rememberAutoSyncCoordinator(
+        scope = coroutineScope,
+        player = exoPlayer,
+        sidecar = sidecarController,
+        playerSourceKey = playerSourceKey,
+        sourceUrl = sourceUrl,
+        sourceHeaders = sanitizedSourceHeaders,
+        externalSubtitles = externalSubtitles,
+        useLibass = useLibass,
+        preferredSubtitleLanguage = playerSettings.preferredSubtitleLanguage,
+        onMimeTypeSelected = { selectedExternalSubtitleMimeType = it },
+        onSubtitleDelayChanged = { delayMs ->
+            subtitleDelayUs.set(
+                delayMs.coerceIn(SUBTITLE_DELAY_MIN_MS, SUBTITLE_DELAY_MAX_MS).toLong() * 1_000L,
+            )
+        },
+    )
 
     fun syncPlayerViewKeepScreenOn() {
         playerViewRef?.keepScreenOn = exoPlayer.shouldKeepPlayerScreenOn()
@@ -908,7 +960,7 @@ private fun ExoPlayerSurface(
 
     LaunchedEffect(exoPlayer) {
         onControllerReady(
-            object : PlayerEngineController {
+            autoSyncCoordinator.wrap(object : PlayerEngineController {
                 override fun play() {
                     exoPlayer.playWhenReady = true
                     exoPlayer.play()
@@ -933,6 +985,15 @@ private fun ExoPlayerSurface(
 
                 override fun setPlaybackSpeed(speed: Float) {
                     exoPlayer.setPlaybackSpeed(speed)
+                }
+
+                override fun setVideoZoom(scale: Float) {
+                    val playerView = playerViewRef ?: return
+                    val target = playerView.findViewById<View>(androidx.media3.ui.R.id.exo_content_frame)
+                        ?: playerView.videoSurfaceView
+                        ?: return
+                    target.scaleX = scale
+                    target.scaleY = scale
                 }
 
                 override fun setVolumeBoost(multiplier: Float) {
@@ -1092,7 +1153,7 @@ private fun ExoPlayerSurface(
 
                 override fun applySubtitleStyle(style: SubtitleStyleState) {
                     currentSubtitleStyle = style
-                    playerViewRef?.applySubtitleStyle(style, pipSubtitleScale)
+                    playerViewRef?.applySubtitleStyle(style, pipVideoHeightPx)
                 }
 
                 override fun applySubtitlePreferences(
@@ -1123,7 +1184,7 @@ private fun ExoPlayerSurface(
                 override fun refreshSubtitlePosition(positionMs: Long) {
                     exoPlayer.seekTo(positionMs.coerceAtLeast(0L))
                 }
-            }
+            })
         )
     }
 
@@ -1176,12 +1237,21 @@ private fun ExoPlayerSurface(
                 setShutterBackgroundColor(android.graphics.Color.BLACK)
                 playerViewRef = this
                 sidecarController.bindSubtitleView(subtitleView)
+                subtitleView?.addOnLayoutChangeListener { view, _, _, _, _, _, _, _, _ ->
+                    val inPip = Build.VERSION.SDK_INT >= Build.VERSION_CODES.N &&
+                        context.findActivity()?.isInPictureInPictureMode == true
+                    val width = view.width - view.paddingLeft - view.paddingRight
+                    val height = view.height - view.paddingTop - view.paddingBottom
+                    if (!inPip && width > 0 && height > 0) {
+                        playerSizeOutsidePip = IntSize(width, height)
+                    }
+                }
                 syncLibassOverlay(
                     player = exoPlayer,
                     enabled = useLibass,
                     renderType = libassRenderType,
                 )
-                applySubtitleStyle(currentSubtitleStyle, pipSubtitleScale)
+                applySubtitleStyle(currentSubtitleStyle, pipVideoHeightPx)
             }
         },
         update = { playerView ->
@@ -1196,7 +1266,7 @@ private fun ExoPlayerSurface(
                 enabled = useLibass,
                 renderType = libassRenderType,
             )
-            playerView.applySubtitleStyle(currentSubtitleStyle, pipSubtitleScale)
+            playerView.applySubtitleStyle(currentSubtitleStyle, pipVideoHeightPx)
         },
     )
 }
@@ -1207,6 +1277,7 @@ private fun LibmpvPlayerSurface(
     sourceAudioUrl: String?,
     sourceHeaders: Map<String, String>,
     externalSubtitles: List<com.nuvio.app.features.streams.StreamSubtitle>,
+    preferredSubtitleLanguage: String?,
     modifier: Modifier,
     playWhenReady: Boolean,
     resizeMode: PlayerResizeMode,
@@ -1226,7 +1297,20 @@ private fun LibmpvPlayerSurface(
     val sanitizedSourceHeaders = remember(sourceHeaders) {
         sanitizePlaybackHeaders(sourceHeaders)
     }
+    val autoSyncCoordinator = rememberLibmpvAutoSyncCoordinator(
+        scope = coroutineScope,
+        sourceUrl = sourceUrl,
+        sourceHeaders = sanitizedSourceHeaders,
+        externalSubtitles = externalSubtitles,
+        preferredSubtitleLanguage = preferredSubtitleLanguage,
+    )
     var playerViewRef by remember { mutableStateOf<NuvioLibmpvView?>(null) }
+    val audioFocus = remember(context) {
+        PlayerAudioFocus(context) { playerViewRef?.setPaused(true) }
+    }
+    DisposableEffect(audioFocus) {
+        onDispose { audioFocus.abandon() }
+    }
     val nowPlayingController = remember(context, playerViewRef) {
         playerViewRef?.let { view ->
             AndroidPlayerNowPlayingController(
@@ -1294,6 +1378,9 @@ private fun LibmpvPlayerSurface(
                 }
             }
             override fun eventProperty(property: String, value: Boolean) {
+                if (property == "pause" && !value) {
+                    coroutineScope.launch(Dispatchers.Main.immediate) { audioFocus.request() }
+                }
                 if (property == "eof-reached" || property == "pause" || property == "paused-for-cache" || property == "seeking") {
                     dispatchSnapshot(updateKeepScreenOn = true)
                 }
@@ -1393,7 +1480,12 @@ private fun LibmpvPlayerSurface(
 
     LaunchedEffect(playerViewRef, sourceUrl, sourceAudioUrl, sanitizedSourceHeaders, externalSubtitles) {
         val view = playerViewRef ?: return@LaunchedEffect
-        onControllerReady(view.controller(context, nowPlayingController))
+        onControllerReady(
+            autoSyncCoordinator.wrap(
+                view.controller(context, nowPlayingController),
+                view::replaceExternalSubtitle,
+            ),
+        )
     }
 
     LaunchedEffect(playerViewRef) {
@@ -1943,6 +2035,11 @@ private class NuvioLibmpvView(
                 }
             }
 
+            override fun setVideoZoom(scale: Float) {
+                val zoom = kotlin.math.ln(scale.coerceIn(0.25f, 4f).toDouble()) / kotlin.math.ln(2.0)
+                executeMpv("videoZoom") { mpv.setPropertyDouble("video-zoom", zoom) }
+            }
+
             override fun updateNowPlayingMetadata(info: PlayerNowPlayingInfo) {
                 nowPlayingController?.updateMetadata(info)
             }
@@ -2018,11 +2115,11 @@ private class NuvioLibmpvView(
                 executeMpv("subtitleStyle") {
                     currentSubtitleStyle = style
                     mpv.setPropertyString("sub-color", style.textColor.toMpvColor())
-                    mpv.setPropertyString("sub-back-color", style.backgroundColor.toMpvColor())
+                    mpv.setPropertyString("sub-back-color", style.toMpvSubtitleBackColor())
                     mpv.setPropertyString("sub-outline-color", style.outlineColor.toMpvColor())
                     mpv.setPropertyString("sub-border-color", style.outlineColor.toMpvColor())
                     mpv.setPropertyString("sub-border-style", style.toMpvSubtitleBorderStyle())
-                    mpv.setPropertyInt("sub-shadow-offset", 0)
+                    mpv.setPropertyDouble("sub-shadow-offset", style.toMpvSubtitleShadowOffset())
                     mpv.setPropertyString("sub-bold", if (style.bold) "yes" else "no")
                     style.customFontDirectory()?.let { mpv.setPropertyString("sub-fonts-dir", it) }
                     style.toMpvSubtitleFont()?.let { mpv.setPropertyString("sub-font", it) }
@@ -2057,6 +2154,39 @@ private class NuvioLibmpvView(
             .map { (key, value) -> "${key}: ${value.replace(",", "\\,")}" }
             .joinToString(",")
         mpv.setPropertyString("http-header-fields", serialized)
+    }
+
+    /**
+     * Replace an external subtitle with its retimed local copy while preserving its track label.
+     * Earlier AutoSync copies are removed to avoid accumulating duplicate tracks.
+     */
+    fun replaceExternalSubtitle(replacedUrl: String, path: String) {
+        executeMpv("replaceExternalSubtitle") {
+            fun externalSubtitleTracks() = mpv.getPropertyNode("track-list")?.asArray()?.toList().orEmpty()
+                .filter { node -> node.nodeString("type") == "sub" && node.nodeBoolean("external") == true }
+
+            val replacedSource = replacedUrl.toLibmpvLoadPath()
+            val earlierCopyPrefix = "${path.substringBeforeLast('/')}/$LIBMPV_AUTOSYNC_FILE_PREFIX"
+            val replaced = externalSubtitleTracks()
+                .lastOrNull { node -> node.nodeString("external-filename") == replacedSource }
+            val title = replaced?.let { node ->
+                node.nodeString("title") ?: node.nodeString("external-filename")?.substringAfterLast('/')
+            }
+            val language = replaced?.nodeString("lang")
+            when {
+                title != null && language != null -> mpv.command("sub-add", path, "cached", title, language)
+                title != null -> mpv.command("sub-add", path, "cached", title)
+                else -> mpv.command("sub-add", path, "cached")
+            }
+            externalSubtitleTracks()
+                .filter { node ->
+                    val filename = node.nodeString("external-filename") ?: return@filter false
+                    filename != path &&
+                        (filename == replacedSource || filename.startsWith(earlierCopyPrefix))
+                }
+                .mapNotNull { node -> node.nodeInt("id") }
+                .forEach { id -> mpv.command("sub-remove", id.toString()) }
+        }
     }
 
     fun onTrackListChanged() {
@@ -2313,6 +2443,19 @@ private fun SubtitleStyleState.toMpvSubtitleBorderStyle(): String =
 private const val MPV_SUBTITLE_FONT_SIZE_SCALE = 55.0 / 18.0
 private const val MPV_SUBTITLE_FONT_SIZE_MIN = 36
 private const val MPV_SUBTITLE_FONT_SIZE_MAX = 122
+private const val MPV_SUBTITLE_SHADOW_OFFSET_SCALE = 1.5
+private const val MPV_SUBTITLE_SHADOW_COLOR = "#B3000000"
+
+private fun SubtitleStyleState.toMpvSubtitleShadowOffset(): Double =
+    if (shadowEnabled && toMpvSubtitleBorderStyle() != "opaque-box") {
+        normalizeSubtitleShadowStrength(shadowStrength) * MPV_SUBTITLE_SHADOW_OFFSET_SCALE
+    } else {
+        0.0
+    }
+
+private fun SubtitleStyleState.toMpvSubtitleBackColor(): String =
+    if (shadowEnabled && backgroundColor.alphaByte() == 0) MPV_SUBTITLE_SHADOW_COLOR
+    else backgroundColor.toMpvColor()
 
 private fun buildAndroidLoadControl(memorySafeBufferEnabled: Boolean): DefaultLoadControl =
     DefaultLoadControl.Builder().apply {
@@ -2545,7 +2688,9 @@ private fun android.widget.FrameLayout.removeAssOverlayChildren() {
     }
 }
 
-private fun PlayerView.applySubtitleStyle(style: SubtitleStyleState, pipScale: Float = 1.0f) {
+private const val PIP_FALLBACK_SUBTITLE_SCALE = 0.4f
+
+private fun PlayerView.applySubtitleStyle(style: SubtitleStyleState, pipVideoHeightPx: Float? = null) {
     subtitleView?.apply {
         val baseBottomPaddingFraction = SubtitleView.DEFAULT_BOTTOM_PADDING_FRACTION * 2f / 3f
         val offsetFraction = (style.bottomOffset / 1000f).coerceIn(0f, 0.2f)
@@ -2564,7 +2709,18 @@ private fun PlayerView.applySubtitleStyle(style: SubtitleStyleState, pipScale: F
                 style.toAndroidSubtitleTypeface(),
             )
         )
-        setFixedTextSize(TypedValue.COMPLEX_UNIT_SP, style.fontSizeSp.toFloat() * pipScale)
+        val fontSizeSp = style.fontSizeSp.toFloat()
+        when {
+            pipVideoHeightPx == null -> setFixedTextSize(TypedValue.COMPLEX_UNIT_SP, fontSizeSp)
+            pipVideoHeightPx > 0f -> setFractionalTextSize(
+                TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, fontSizeSp, resources.displayMetrics) /
+                    pipVideoHeightPx,
+            )
+            else -> setFixedTextSize(
+                TypedValue.COMPLEX_UNIT_SP,
+                fontSizeSp * PIP_FALLBACK_SUBTITLE_SCALE,
+            )
+        }
     }
 }
 
@@ -2817,6 +2973,31 @@ private class SubtitleOffsetRenderersFactory(
     private val shouldNormalizeCuePositionProvider: () -> Boolean,
     private val videoBoundsFractionProvider: () -> RectF?,
 ) : DefaultRenderersFactory(context) {
+    override fun buildAudioRenderers(
+        context: Context,
+        extensionRendererMode: Int,
+        mediaCodecSelector: MediaCodecSelector,
+        enableDecoderFallback: Boolean,
+        audioSink: AudioSink,
+        eventHandler: Handler,
+        eventListener: AudioRendererEventListener,
+        out: ArrayList<Renderer>,
+    ) {
+        super.buildAudioRenderers(
+            context,
+            extensionRendererMode,
+            DolbyFreeMediaCodecSelector(
+                delegate = mediaCodecSelector,
+                extensionRenderersEnabled = extensionRendererMode != DefaultRenderersFactory.EXTENSION_RENDERER_MODE_OFF,
+            ),
+            enableDecoderFallback,
+            audioSink,
+            eventHandler,
+            eventListener,
+            out,
+        )
+    }
+
     override fun buildTextRenderers(
         context: Context,
         output: TextOutput,
@@ -2836,6 +3017,39 @@ private class SubtitleOffsetRenderersFactory(
                 baseRenderer = out[index],
                 subtitleDelayUsProvider = subtitleDelayUsProvider,
             )
+        }
+    }
+}
+
+internal fun shouldExcludeDolbyPlatformDecoder(
+    mimeType: String,
+    decoderName: String,
+    extensionRenderersEnabled: Boolean,
+): Boolean =
+    extensionRenderersEnabled &&
+        (mimeType == MimeTypes.AUDIO_AC3 ||
+            mimeType == MimeTypes.AUDIO_E_AC3 ||
+            mimeType == MimeTypes.AUDIO_E_AC3_JOC) &&
+        decoderName.contains("dolby", ignoreCase = true)
+
+@androidx.annotation.OptIn(UnstableApi::class)
+private class DolbyFreeMediaCodecSelector(
+    private val delegate: MediaCodecSelector,
+    private val extensionRenderersEnabled: Boolean,
+) : MediaCodecSelector {
+    override fun getDecoderInfos(
+        mimeType: String,
+        requiresSecureDecoder: Boolean,
+        requiresTunnelingDecoder: Boolean,
+    ): List<MediaCodecInfo> {
+        val decoderInfos = delegate.getDecoderInfos(
+            mimeType,
+            requiresSecureDecoder,
+            requiresTunnelingDecoder,
+        )
+        if (!extensionRenderersEnabled) return decoderInfos
+        return decoderInfos.filterNot { decoder ->
+            shouldExcludeDolbyPlatformDecoder(mimeType, decoder.name, extensionRenderersEnabled)
         }
     }
 }
@@ -2872,6 +3086,7 @@ private class CueNormalizingTextOutput(
                 }
             }
         }
+        processed = SubtitleShadowCue.apply(processed, PlayerSettingsRepository.uiState.value.subtitleStyle)
         return processed
     }
 
@@ -2962,25 +3177,27 @@ private fun probeSubtitleHeaders(url: String, headers: Map<String, String>? = nu
     val methods = listOf("HEAD", "GET")
     methods.forEach { method ->
         runCatching {
-            val connection = (URL(url).openConnection() as HttpURLConnection).apply {
-                requestMethod = method
-                connectTimeout = 5_000
-                readTimeout = 5_000
-                instanceFollowRedirects = true
-                setRequestProperty("Accept", "*/*")
-                headers?.forEach { (key, value) ->
-                    setRequestProperty(key, value)
-                }
-            }
-            try {
-                connection.responseCode
-                connection.contentType to connection.getHeaderField("Content-Disposition")
-            } finally {
-                connection.disconnect()
+            val request = Request.Builder()
+                .url(url)
+                .method(method, null)
+                .header("Accept", "*/*")
+                .apply { headers?.forEach { (key, value) -> header(key, value) } }
+                .build()
+            subtitleProbeHttpClient.newCall(request).execute().use { response ->
+                response.header("Content-Type") to response.header("Content-Disposition")
             }
         }.getOrNull()?.let { return it }
     }
     return null
+}
+
+private val subtitleProbeHttpClient by lazy {
+    SharedOkHttpClient.base.newBuilder()
+        .connectTimeout(5, TimeUnit.SECONDS)
+        .readTimeout(5, TimeUnit.SECONDS)
+        .followRedirects(true)
+        .followSslRedirects(true)
+        .build()
 }
 
 private fun mapSubtitleMime(contentType: String?): String? {

@@ -41,6 +41,8 @@ object StreamAutoPlaySelector {
         selectedAddons: Set<String>,
         selectedPlugins: Set<String>,
         preferredBingeGroup: String? = null,
+        preferredFilename: String? = null,
+        preferredInfoHash: String? = null,
         preferBingeGroupInSelection: Boolean = false,
         bingeGroupOnly: Boolean = false,
         debridEnabled: Boolean = true,
@@ -55,6 +57,8 @@ object StreamAutoPlaySelector {
             selectedAddons = selectedAddons,
             selectedPlugins = selectedPlugins,
             preferredBingeGroup = preferredBingeGroup,
+            preferredFilename = preferredFilename,
+            preferredInfoHash = preferredInfoHash,
             preferBingeGroupInSelection = preferBingeGroupInSelection,
             bingeGroupOnly = bingeGroupOnly,
             debridEnabled = debridEnabled,
@@ -70,6 +74,8 @@ object StreamAutoPlaySelector {
         selectedAddons: Set<String>,
         selectedPlugins: Set<String>,
         preferredBingeGroup: String? = null,
+        preferredFilename: String? = null,
+        preferredInfoHash: String? = null,
         preferBingeGroupInSelection: Boolean = false,
         bingeGroupOnly: Boolean = false,
         debridEnabled: Boolean = true,
@@ -101,7 +107,34 @@ object StreamAutoPlaySelector {
         } else {
             emptyList()
         }
-        val preferredReadyStream = bingeGroupCandidates.firstOrNull { stream ->
+        val expectedEpisodeIsKnown = preferBingeGroupInSelection &&
+            targetBingeGroup.isNotEmpty() &&
+            FilenameEpisodeMatcher.extractSeasonEpisode(preferredFilename.orEmpty()) != null
+        // A persisted binge group is a preference, not permission to play a different episode.
+        // Prefer an exact episode from that group; if the group is stale or missing this episode,
+        // search all candidates for the exact target instead of falling back to the first stream.
+        val matchingBingeGroupEpisodes = if (expectedEpisodeIsKnown) {
+            bingeGroupCandidates.filter {
+                FilenameEpisodeMatcher.matchesEpisode(it.behaviorHints.filename, preferredFilename)
+            }
+        } else {
+            emptyList()
+        }
+        val episodeScopedCandidateStreams = when {
+            !expectedEpisodeIsKnown -> candidateStreams
+            matchingBingeGroupEpisodes.isNotEmpty() -> matchingBingeGroupEpisodes
+            else -> candidateStreams.filter {
+                FilenameEpisodeMatcher.matchesEpisode(it.behaviorHints.filename, preferredFilename)
+            }
+        }
+
+        val preferredReadyStream = preferredIdentityMatch(
+            streams = bingeGroupCandidates,
+            filename = preferredFilename,
+            infoHash = preferredInfoHash,
+            debridEnabled = debridEnabled,
+            activeResolverProviderId = activeResolverProviderId,
+        ) ?: if (expectedEpisodeIsKnown) null else bingeGroupCandidates.firstOrNull { stream ->
             stream.isAutoPlayable(debridEnabled, activeResolverProviderId)
         }
         if (bingeGroupOnly) {
@@ -119,16 +152,19 @@ object StreamAutoPlaySelector {
             return StreamAutoPlayEvaluation()
         }
         val preferredStream = if (preferBingeGroupInSelection && targetBingeGroup.isNotEmpty()) {
-            candidateStreams.firstOrNull { stream ->
-                stream.behaviorHints.bingeGroup == targetBingeGroup &&
-                    stream.isAutoPlayable(debridEnabled, activeResolverProviderId)
+            preferredIdentityMatch(
+                streams = bingeGroupCandidates,
+                filename = preferredFilename,
+                infoHash = preferredInfoHash,
+                debridEnabled = debridEnabled,
+                activeResolverProviderId = activeResolverProviderId,
+            ) ?: if (expectedEpisodeIsKnown) null else bingeGroupCandidates.firstOrNull { stream ->
+                stream.isAutoPlayable(debridEnabled, activeResolverProviderId)
             }
-        } else {
-            null
-        }
+        } else null
         val matchingStreams = when (mode) {
             StreamAutoPlayMode.MANUAL -> emptyList()
-            StreamAutoPlayMode.FIRST_STREAM -> candidateStreams
+            StreamAutoPlayMode.FIRST_STREAM -> episodeScopedCandidateStreams
             StreamAutoPlayMode.REGEX_MATCH -> {
                 val pattern = regexPattern.trim()
 
@@ -150,7 +186,7 @@ object StreamAutoPlaySelector {
                     )
                 } else null
 
-                candidateStreams.filter { stream ->
+                episodeScopedCandidateStreams.filter { stream ->
                     val url = stream.playableDirectUrl.orEmpty()
 
                     val searchableText = buildString {
@@ -194,6 +230,32 @@ object StreamAutoPlaySelector {
                 it.isPendingDebridAutoPlay(debridEnabled, activeResolverProviderId)
             },
         )
+    }
+
+    private fun preferredIdentityMatch(
+        streams: List<StreamItem>,
+        filename: String?,
+        infoHash: String?,
+        debridEnabled: Boolean,
+        activeResolverProviderId: String?,
+    ): StreamItem? {
+        val filenameMatch = filename?.takeIf(String::isNotBlank)?.let { expected ->
+            streams.firstOrNull { stream ->
+                FilenameEpisodeMatcher.matches(stream.behaviorHints.filename, expected) &&
+                    stream.isAutoPlayable(debridEnabled, activeResolverProviderId)
+            } ?: streams.firstOrNull { stream ->
+                FilenameEpisodeMatcher.matchesEpisode(stream.behaviorHints.filename, expected) &&
+                    stream.isAutoPlayable(debridEnabled, activeResolverProviderId)
+            }
+        }
+        if (filenameMatch != null) return filenameMatch
+        if (FilenameEpisodeMatcher.extractSeasonEpisode(filename.orEmpty()) != null) return null
+        return infoHash?.takeIf(String::isNotBlank)?.let { expected ->
+            streams.firstOrNull { stream ->
+                stream.infoHash?.equals(expected, ignoreCase = true) == true &&
+                    stream.isAutoPlayable(debridEnabled, activeResolverProviderId)
+            }
+        }
     }
 
     private fun StreamItem.isAutoPlayable(

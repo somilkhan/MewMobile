@@ -2,6 +2,9 @@ package com.nuvio.app.features.cloudstream
 
 import kotlinx.serialization.Serializable
 
+/** Per-provider discovery deadline enforced by the CloudStream Android runtime. */
+internal const val CLOUDSTREAM_DISCOVERY_TIMEOUT_MS = 15_000L
+
 @Serializable
 data class CloudStreamRepositoryManifestDto(
     val name: String? = null,
@@ -207,11 +210,52 @@ fun CloudStreamPluginMetadata.installAction(installed: CloudStreamInstalledPlugi
     else -> CloudStreamInstallAction.None
 }
 
+/**
+ * Prevents an automatic update run from continuing after its profile, preference,
+ * or generation has changed. The generation also protects rapid off/on toggles.
+ */
+internal fun isCloudStreamProfileCurrent(operationProfileId: Int, currentProfileId: Int): Boolean =
+    operationProfileId == currentProfileId
+
+internal fun isCloudStreamOperationCurrent(
+    operationProfileId: Int,
+    currentProfileId: Int,
+    operationGeneration: Long,
+    currentGeneration: Long,
+): Boolean =
+    isCloudStreamProfileCurrent(operationProfileId, currentProfileId) &&
+        operationGeneration == currentGeneration
+
+internal fun shouldThrottleCloudStreamAutoUpdateCheck(
+    lastCheckProfileId: Int,
+    currentProfileId: Int,
+    lastCheckEpochMs: Long,
+    nowEpochMs: Long,
+    cooldownMs: Long,
+): Boolean =
+    lastCheckProfileId == currentProfileId &&
+        lastCheckEpochMs > 0L &&
+        nowEpochMs >= lastCheckEpochMs &&
+        nowEpochMs - lastCheckEpochMs < cooldownMs
+
+internal fun shouldContinueCloudStreamAutoUpdate(
+    checkProfileId: Int,
+    currentProfileId: Int,
+    autoUpdatesEnabled: Boolean,
+    checkGeneration: Long,
+    currentGeneration: Long,
+): Boolean =
+    isCloudStreamProfileCurrent(checkProfileId, currentProfileId) &&
+        autoUpdatesEnabled &&
+        checkGeneration == currentGeneration
+
 @Serializable
 internal data class StoredCloudStreamState(
     val repositories: List<StoredCloudStreamRepository> = emptyList(),
     val plugins: List<StoredCloudStreamPlugin> = emptyList(),
     val securityWarningAccepted: Boolean = false,
+    // Keep the pre-existing enabled behavior when loading older saved state.
+    val autoUpdatesEnabled: Boolean = true,
 )
 
 @Serializable

@@ -9,6 +9,7 @@ import com.nuvio.app.features.addons.buildAddonResourceUrl
 import com.nuvio.app.features.addons.enabledAddons
 import com.nuvio.app.features.addons.httpGetText
 import com.nuvio.app.features.cloudstream.CloudStreamRepository
+import com.nuvio.app.features.cloudstream.isCloudStreamDiscoveryAllowed
 import com.nuvio.app.features.cloudstream.parseCloudStreamRouteId
 import com.nuvio.app.features.cloudstream.toStreamItem
 import com.nuvio.app.features.debrid.DirectDebridStreamPreparer
@@ -17,6 +18,7 @@ import com.nuvio.app.features.debrid.DebridStreamPresentation
 import com.nuvio.app.features.debrid.LocalDebridAvailabilityService
 import com.nuvio.app.features.details.MetaDetailsRepository
 import com.nuvio.app.features.player.PlayerSettingsRepository
+import com.nuvio.app.features.tmdb.TmdbSettingsRepository
 import com.nuvio.app.features.plugins.PluginRepository
 import com.nuvio.app.features.plugins.pluginContentId
 import com.nuvio.app.features.plugins.PluginsUiState
@@ -115,6 +117,8 @@ object StreamsRepository {
         searchTitle: String?,
         forceRefresh: Boolean,
     ) {
+        TmdbSettingsRepository.ensureLoaded()
+        val tmdbEnabled = TmdbSettingsRepository.snapshot().enabled
         val pluginUiState = if (AppFeaturePolicy.pluginsEnabled) {
             PluginRepository.initialize()
             PluginRepository.uiState.value
@@ -130,12 +134,18 @@ object StreamsRepository {
             episode = episode,
             searchTitle = searchTitle,
         )
-        val cloudStreamProviderGroups = if (AppFeaturePolicy.pluginsEnabled) {
-            cloudStreamProviderGroupsForRequest(type, cloudStreamSearchRequest)
-        } else {
-            emptyList()
-        }
-        val cloudStreamRegistryRevision = if (AppFeaturePolicy.pluginsEnabled) {
+        val cloudStreamRoute = parseCloudStreamRouteId(videoId)
+        // CloudStream is independent of the Nuvio plugin feature switch.
+        val cloudStreamProviderGroups = cloudStreamProviderGroupsForRequest(
+            type = type,
+            request = cloudStreamSearchRequest,
+            directRoute = cloudStreamRoute,
+            groupByRepository = pluginUiState.groupStreamsByRepository,
+        )
+        // Keep repository grouping as a presentation choice only. Fetch each provider
+        // independently so a slow sibling cannot hold back every result in its repository.
+        val cloudStreamProviderTasks = flattenCloudStreamProviderTasks(cloudStreamProviderGroups)
+        val cloudStreamRegistryRevision = if (isCloudStreamDiscoveryAllowed(tmdbEnabled)) {
             CloudStreamRepository.uiState.value.registryRevision
         } else {
             0L
@@ -151,7 +161,8 @@ object StreamsRepository {
         val stableContentRequestKey = "$type::$videoId::$season::$episode" +
             "::pluginsGrouped=${pluginUiState.groupStreamsByRepository}" +
             "::pluginQuality=$pluginQualityKey" +
-            "::cloudTarget=${cloudStreamSearchRequest?.cacheKey.orEmpty()}"
+            "::cloudTarget=${cloudStreamSearchRequest?.cacheKey.orEmpty()}" +
+            "::tmdbEnabled=$tmdbEnabled"
         val contentRequestKey = "$stableContentRequestKey::cloudstream=$cloudStreamRegistryRevision"
         val requestKey = "$contentRequestKey::manualSelection=$manualSelection"
         val currentState = _uiState.value
@@ -219,6 +230,14 @@ object StreamsRepository {
         ) {
             parentMetaId?.let { BingeGroupCacheRepository.get(it) }
         } else null
+        val persistedFilename = if (persistedBingeGroup != null) parentMetaId?.let(BingeGroupCacheRepository::getFilename) else null
+        val persistedInfoHash = if (persistedBingeGroup != null) parentMetaId?.let(BingeGroupCacheRepository::getInfoHash) else null
+        val persistedNextFilename = persistedFilename?.let { filename ->
+            val extracted = FilenameEpisodeMatcher.extractSeasonEpisode(filename)
+            if (extracted != null && episode != null && episode > 0) {
+                FilenameEpisodeMatcher.buildNextFilename(filename, extracted.first, extracted.second, season, episode) ?: filename
+            } else filename
+        }
         val isDirectAutoPlayFlow = isAutoPlayEnabled
 
         if (isDirectAutoPlayFlow) {
@@ -253,84 +272,13 @@ object StreamsRepository {
             return
         }
 
-        val cloudStreamRoute = parseCloudStreamRouteId(videoId)
-        if (cloudStreamRoute != null) {
-            CloudStreamRepository.initialize()
-            val providerItem = CloudStreamRepository.uiState.value.plugins
-                .firstOrNull { it.metadata.id.value == cloudStreamRoute.providerId }
-            val providerName = providerItem?.metadata?.name ?: "CloudStream"
-            val providerAddonId = cloudStreamAddonId(cloudStreamRoute.providerId)
-            _uiState.value = StreamsUiState(
-                requestToken = requestToken,
-                groups = listOf(
-                    AddonStreamGroup(
-                        addonName = providerName,
-                        addonId = providerAddonId,
-                        streams = emptyList(),
-                        isLoading = true,
-                    ),
-                ),
-                activeAddonIds = setOf(providerAddonId),
-                isAnyLoading = true,
-            )
-            RuntimeDiagnostics.updateStreams(groups = 1, loadingGroups = 1, providerTasks = 1)
-            activeJob = scope.launch {
-                val result = runCatchingUnlessCancelled {
-                    withTimeoutOrNull(STREAM_PROVIDER_TIMEOUT_MS) {
-                        CloudStreamRepository.loadLinks(cloudStreamRoute.providerId, cloudStreamRoute.data)
-                    } ?: error("$providerName timed out")
-                }.fold(
-                    onSuccess = { it },
-                    onFailure = { Result.failure(it) },
-                )
-                if (
-                    activeRequestGeneration != requestGeneration
-                ) return@launch
-                result.fold(
-                        onSuccess = { sources ->
-                            val streams = cloudStreamSourcesToStreamItems(
-                                providerId = cloudStreamRoute.providerId,
-                                providerName = providerName,
-                                sources = sources,
-                            )
-                            _uiState.value = StreamsUiState(
-                            requestToken = _uiState.value.requestToken,
-                                groups = listOf(
-                                    AddonStreamGroup(
-                                        addonName = providerName,
-                                        addonId = providerAddonId,
-                                        streams = streams,
-                                        isLoading = false,
-                                        error = if (streams.isEmpty()) "No links found" else null,
-                                    ),
-                                ),
-                                activeAddonIds = setOf(providerAddonId),
-                                isAnyLoading = false,
-                                emptyStateReason = if (streams.isEmpty()) StreamsEmptyStateReason.NoStreamsFound else null,
-                            )
-                        },
-                        onFailure = { error ->
-                            log.w(error) { "CloudStream link resolution failed provider=${cloudStreamRoute.providerId}" }
-                            _uiState.value = StreamsUiState(
-                            requestToken = _uiState.value.requestToken,
-                                groups = listOf(
-                                    AddonStreamGroup(
-                                        addonName = providerName,
-                                        addonId = providerAddonId,
-                                        streams = emptyList(),
-                                        isLoading = false,
-                                        error = error.message ?: "CloudStream link resolution failed",
-                                    ),
-                                ),
-                                activeAddonIds = setOf(providerAddonId),
-                                isAnyLoading = false,
-                                emptyStateReason = StreamsEmptyStateReason.StreamFetchFailed,
-                            )
-                        },
-                    )
-            }
-            activeJob?.let { job -> finalizeJob(job, requestGeneration) }
-            return
+        // Addon stream endpoints generally require an external ID. Never send an
+        // opaque CloudStream route to unrelated addons; plugin scrapers may still try
+        // title-based lookup when no external ID is available.
+        val streamLookupId = if (cloudStreamRoute != null) {
+            cloudStreamSearchRequest?.externalId ?: cloudStreamSearchRequest?.title.orEmpty()
+        } else {
+            videoId
         }
 
         val installedAddons = AddonRepository.uiState.value.addons.enabledAddons()
@@ -357,11 +305,14 @@ object StreamsRepository {
         val streamAddons = installedAddons
             .mapNotNull { addon ->
                 val manifest = addon.manifest ?: return@mapNotNull null
+                if (cloudStreamRoute != null && cloudStreamSearchRequest?.externalId == null) {
+                    return@mapNotNull null
+                }
                 val supportsRequestedStream = manifest.resources.any { resource ->
                     resource.name == "stream" &&
                         resource.types.contains(type) &&
                         (resource.idPrefixes.isEmpty() ||
-                            resource.idPrefixes.any { videoId.startsWith(it) })
+                            resource.idPrefixes.any { streamLookupId.startsWith(it) })
                 }
                 if (!supportsRequestedStream) return@mapNotNull null
 
@@ -373,8 +324,8 @@ object StreamsRepository {
             }
 
         log.d {
-            "Found ${streamAddons.size} addons and ${cloudStreamProviderGroups.size} compatible CloudStream providers " +
-                "for stream type=$type id=$videoId"
+            "Found ${streamAddons.size} addons and ${cloudStreamProviderTasks.size} compatible CloudStream provider tasks " +
+                "across ${cloudStreamProviderGroups.size} groups for stream type=$type id=$videoId"
         }
 
         if (streamAddons.isEmpty() && pluginProviderGroups.isEmpty() && cloudStreamProviderGroups.isEmpty()) {
@@ -428,9 +379,14 @@ object StreamsRepository {
                 .associate { it.addonId to it.scrapers.size }
                 .toMutableMap()
             val pluginFirstErrorByAddonId = mutableMapOf<String, String>()
+            val cloudStreamRemainingByAddonId = cloudStreamProviderTasks
+                .groupingBy { it.addonId }
+                .eachCount()
+                .toMutableMap()
+            val cloudStreamFirstErrorByAddonId = mutableMapOf<String, String>()
             val totalTasks = streamAddons.size +
                 pluginProviderGroups.sumOf { it.scrapers.size } +
-                cloudStreamProviderGroups.size
+                cloudStreamProviderTasks.size
             RuntimeDiagnostics.updateStreams(
                 groups = initialGroups.size,
                 loadingGroups = initialGroups.count { it.isLoading },
@@ -482,6 +438,8 @@ object StreamsRepository {
                     selectedAddons = playerSettings.streamAutoPlaySelectedAddons,
                     selectedPlugins = playerSettings.streamAutoPlaySelectedPlugins,
                     preferredBingeGroup = persistedBingeGroup,
+                    preferredFilename = persistedNextFilename,
+                    preferredInfoHash = persistedInfoHash,
                     preferBingeGroupInSelection = persistedBingeGroup != null,
                     bingeGroupOnly = bingeGroupOnly,
                     debridEnabled = debridSettings.canResolvePlayableLinks,
@@ -561,6 +519,8 @@ object StreamsRepository {
                                 selectedAddons = playerSettings.streamAutoPlaySelectedAddons,
                                 selectedPlugins = playerSettings.streamAutoPlaySelectedPlugins,
                                 preferredBingeGroup = persistedBingeGroup,
+                    preferredFilename = persistedNextFilename,
+                    preferredInfoHash = persistedInfoHash,
                                 preferBingeGroupInSelection = true,
                                 bingeGroupOnly = true,
                                 debridEnabled = debridSettings.canResolvePlayableLinks,
@@ -627,6 +587,8 @@ object StreamsRepository {
                                         selectedAddons = playerSettings.streamAutoPlaySelectedAddons,
                                         selectedPlugins = playerSettings.streamAutoPlaySelectedPlugins,
                                         preferredBingeGroup = persistedBingeGroup,
+                    preferredFilename = persistedNextFilename,
+                    preferredInfoHash = persistedInfoHash,
                                         preferBingeGroupInSelection = persistedBingeGroup != null,
                                         bingeGroupOnly = false,
                                         debridEnabled = debridSettings.canResolvePlayableLinks,
@@ -665,6 +627,8 @@ object StreamsRepository {
                                     selectedAddons = playerSettings.streamAutoPlaySelectedAddons,
                                     selectedPlugins = playerSettings.streamAutoPlaySelectedPlugins,
                                     preferredBingeGroup = persistedBingeGroup,
+                    preferredFilename = persistedNextFilename,
+                    preferredInfoHash = persistedInfoHash,
                                     preferBingeGroupInSelection = persistedBingeGroup != null,
                                     bingeGroupOnly = false,
                                     debridEnabled = debridSettings.canResolvePlayableLinks,
@@ -701,7 +665,7 @@ object StreamsRepository {
                         manifestUrl = addon.manifest.transportUrl,
                         resource = "stream",
                         type = type,
-                        id = videoId,
+                        id = streamLookupId,
                     )
                     log.d { "Fetching streams from: $url" }
 
@@ -750,7 +714,7 @@ object StreamsRepository {
                                 PluginRepository.executeScraper(
                                 scraper = scraper,
                                 tmdbId = pluginContentId(
-                                    videoId = videoId,
+                                    videoId = streamLookupId,
                                     season = season,
                                     episode = episode,
                                 ),
@@ -791,23 +755,23 @@ object StreamsRepository {
                 }
             }
 
-            cloudStreamProviderGroups.forEach { providerGroup ->
+            cloudStreamProviderTasks.forEach { providerTask ->
                 launch {
                     val group = withTimeoutOrNull(STREAM_PROVIDER_TIMEOUT_MS) {
                         cloudStreamSemaphore.withPermit {
                             resolveCloudStreamProviderStreams(
-                                providerGroup = providerGroup,
+                                providerGroup = providerTask,
                                 request = cloudStreamSearchRequest,
                             )
                         }
                     } ?: AddonStreamGroup(
-                        addonName = providerGroup.addonName,
-                        addonId = providerGroup.addonId,
+                        addonName = providerTask.addonName,
+                        addonId = providerTask.addonId,
                         streams = emptyList(),
                         isLoading = false,
-                        error = "${providerGroup.addonName} timed out",
+                        error = "CloudStream provider ${providerTask.providerId} timed out",
                     )
-                    publishCompletion(StreamLoadCompletion.Addon(group))
+                    publishCompletion(StreamLoadCompletion.CloudStreamProvider(group))
                 }
             }
 
@@ -820,6 +784,48 @@ object StreamsRepository {
                     is StreamLoadCompletion.Addon -> {
                         val result = completion.group
                         publishAddonGroupAfterCacheCheck(result)
+                    }
+
+                    is StreamLoadCompletion.CloudStreamProvider -> {
+                        val group = completion.group
+                        val remaining = (cloudStreamRemainingByAddonId[group.addonId] ?: 1) - 1
+                        cloudStreamRemainingByAddonId[group.addonId] = remaining.coerceAtLeast(0)
+                        if (!group.error.isNullOrBlank() && cloudStreamFirstErrorByAddonId[group.addonId].isNullOrBlank()) {
+                            cloudStreamFirstErrorByAddonId[group.addonId] = group.error
+                        }
+                        _uiState.update { current ->
+                            if (activeRequestGeneration != requestGeneration) return@update current
+                            val updated = StreamAutoPlaySelector.orderAddonStreams(
+                                groups = current.groups.map { currentGroup ->
+                                    if (currentGroup.addonId != group.addonId) {
+                                        currentGroup
+                                    } else {
+                                        val mergedStreams = (currentGroup.streams + group.streams)
+                                            .distinctBy { stream -> "${stream.addonId}:${stream.url}" }
+                                            .sortedForGroupedDisplay()
+                                        val stillLoading = remaining > 0
+                                        val finalError = if (mergedStreams.isEmpty() && !stillLoading) {
+                                            cloudStreamFirstErrorByAddonId[group.addonId]
+                                        } else {
+                                            null
+                                        }
+                                        presentStreamGroup(currentGroup.copy(
+                                            streams = mergedStreams,
+                                            isLoading = stillLoading,
+                                            error = finalError,
+                                        ))
+                                    }
+                                },
+                                installedOrder = installedAddonOrder,
+                            )
+                            val anyLoading = updated.any { it.isLoading }
+                            current.copy(
+                                groups = updated,
+                                isAnyLoading = anyLoading,
+                                emptyStateReason = updated.toEmptyStateReason(anyLoading),
+                            )
+                        }
+                        tryAutoSelectAvailableStream()
                     }
 
                     is StreamLoadCompletion.PluginScraper -> {
@@ -896,6 +902,8 @@ object StreamsRepository {
                             selectedAddons = playerSettings.streamAutoPlaySelectedAddons,
                             selectedPlugins = playerSettings.streamAutoPlaySelectedPlugins,
                             preferredBingeGroup = persistedBingeGroup,
+                    preferredFilename = persistedNextFilename,
+                    preferredInfoHash = persistedInfoHash,
                             preferBingeGroupInSelection = true,
                             bingeGroupOnly = !timeoutElapsed,
                             debridEnabled = debridSettings.canResolvePlayableLinks,
@@ -946,6 +954,8 @@ object StreamsRepository {
                                 selectedAddons = playerSettings.streamAutoPlaySelectedAddons,
                                 selectedPlugins = playerSettings.streamAutoPlaySelectedPlugins,
                                 preferredBingeGroup = persistedBingeGroup,
+                    preferredFilename = persistedNextFilename,
+                    preferredInfoHash = persistedInfoHash,
                                 preferBingeGroupInSelection = true,
                                 bingeGroupOnly = !timeoutElapsed,
                                 debridEnabled = debridSettings.canResolvePlayableLinks,
@@ -976,6 +986,8 @@ object StreamsRepository {
                                 selectedAddons = playerSettings.streamAutoPlaySelectedAddons,
                                 selectedPlugins = playerSettings.streamAutoPlaySelectedPlugins,
                                 preferredBingeGroup = persistedBingeGroup,
+                    preferredFilename = persistedNextFilename,
+                    preferredInfoHash = persistedInfoHash,
                                 preferBingeGroupInSelection = persistedBingeGroup != null,
                                 bingeGroupOnly = false,
                                 debridEnabled = debridSettings.canResolvePlayableLinks,
@@ -998,6 +1010,8 @@ object StreamsRepository {
                                 selectedAddons = playerSettings.streamAutoPlaySelectedAddons,
                                 selectedPlugins = playerSettings.streamAutoPlaySelectedPlugins,
                                 preferredBingeGroup = persistedBingeGroup,
+                    preferredFilename = persistedNextFilename,
+                    preferredInfoHash = persistedInfoHash,
                                 preferBingeGroupInSelection = true,
                                 bingeGroupOnly = true,
                                 debridEnabled = debridSettings.canResolvePlayableLinks,
@@ -1027,6 +1041,8 @@ object StreamsRepository {
                     selectedAddons = playerSettings.streamAutoPlaySelectedAddons,
                     selectedPlugins = playerSettings.streamAutoPlaySelectedPlugins,
                     preferredBingeGroup = persistedBingeGroup,
+                    preferredFilename = persistedNextFilename,
+                    preferredInfoHash = persistedInfoHash,
                     preferBingeGroupInSelection = persistedBingeGroup != null,
                     bingeGroupOnly = false,
                     debridEnabled = debridSettings.canResolvePlayableLinks,

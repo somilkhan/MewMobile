@@ -40,4 +40,6 @@ internal data class PlayerScreenArgs(
     val initialProgressFraction: Float?,
     val contentLanguage: String? = null,
     val randomEpisodeMode: Boolean = false,
+    val initialStreamFilename: String? = null,
+    val initialStreamInfoHash: String? = null,
 )

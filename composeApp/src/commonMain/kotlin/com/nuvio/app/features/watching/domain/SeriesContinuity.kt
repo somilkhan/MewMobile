@@ -137,6 +137,7 @@ fun decideSeriesPrimaryAction(
     preferFurthestEpisode: Boolean = true,
     showUnairedNextUp: Boolean = false,
     defaultVideoId: String? = null,
+    allowRewatch: Boolean = false,
 ): WatchingSeriesPrimaryAction? {
     val resumeRecord = resumeProgressForSeries(
         content = content,
@@ -153,33 +154,34 @@ fun decideSeriesPrimaryAction(
         return resumeRecord?.toResumeAction()
     }
 
-    val nextEpisode = if (latestCompletedEpisode != null) {
+    // Only a genuinely upcoming episode is an "Up Next" action. For a first-play
+    // selection, leave this null so the fallback below labels it as "Play".
+    val nextEpisode = latestCompletedEpisode?.let { completed ->
         nextReleasedEpisodeAfter(
             content = content,
             episodes = episodes,
-            seasonNumber = latestCompletedEpisode.seasonNumber,
-            episodeNumber = latestCompletedEpisode.episodeNumber,
+            seasonNumber = completed.seasonNumber,
+            episodeNumber = completed.episodeNumber,
             todayIsoDate = todayIsoDate,
             showUnairedNextUp = showUnairedNextUp,
         )
-    } else {
-        val sorted = episodes
-            .sortedWith(compareBy<WatchingReleasedEpisode>({ normalizeSeasonNumber(it.seasonNumber) }, { it.episodeNumber ?: 0 }))
+    }
+
+    if (latestCompletedEpisode != null && nextEpisode == null && !allowRewatch) return null
+
+    val playbackEpisode = nextEpisode ?: run {
+        val sorted = episodes.sortedWith(compareBy<WatchingReleasedEpisode>({ normalizeSeasonNumber(it.seasonNumber) }, { it.episodeNumber ?: 0 }))
         val released = sorted.filter { episode ->
-            isReleasedBy(
-                todayIsoDate = todayIsoDate,
-                releasedDate = episode.releasedDate,
-                available = episode.available,
-            )
+            isReleasedBy(todayIsoDate = todayIsoDate, releasedDate = episode.releasedDate, available = episode.available)
         }
-        defaultVideoId?.let { videoId -> released.firstOrNull { it.videoId == videoId } }
+        defaultVideoId?.takeIf { latestCompletedEpisode == null }?.let { videoId -> released.firstOrNull { it.videoId == videoId } }
             ?: released.firstOrNull { normalizeSeasonNumber(it.seasonNumber) > 0 }
             ?: released.firstOrNull()
     }
 
-    return nextEpisode?.let { episode ->
+    return playbackEpisode?.let { episode ->
         WatchingSeriesPrimaryAction(
-            label = if (latestCompletedEpisode != null) {
+            label = if (nextEpisode != null) {
                 upNextLabel(episode.seasonNumber, episode.episodeNumber)
             } else {
                 playLabel(episode.seasonNumber, episode.episodeNumber)

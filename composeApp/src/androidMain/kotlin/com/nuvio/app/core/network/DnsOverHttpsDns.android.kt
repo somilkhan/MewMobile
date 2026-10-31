@@ -32,3 +32,31 @@ private fun DnsOverHttpsProvider.bootstrapHosts(): List<InetAddress> =
     }.map { address ->
         InetAddress.getByName(address)
     }
+
+/**
+ * Delegates lookups to the currently selected DNS provider. The resolver is rebuilt only when
+ * the setting changes, so long-lived OkHttp clients observe provider changes without recreation.
+ */
+internal object ConfiguredDnsOverHttps : Dns {
+    @Volatile
+    private var cachedProvider: DnsOverHttpsProvider? = null
+
+    @Volatile
+    private var cachedResolver: Dns? = null
+
+    override fun lookup(hostname: String): List<InetAddress> {
+        val selected = DnsOverHttpsSettingsRepository.snapshot().provider
+        var resolver = cachedResolver
+        if (cachedProvider != selected || resolver == null) {
+            synchronized(this) {
+                resolver = cachedResolver
+                if (cachedProvider != selected || resolver == null) {
+                    resolver = selected.toOkHttpDns()
+                    cachedResolver = resolver
+                    cachedProvider = selected
+                }
+            }
+        }
+        return checkNotNull(resolver).lookup(hostname)
+    }
+}

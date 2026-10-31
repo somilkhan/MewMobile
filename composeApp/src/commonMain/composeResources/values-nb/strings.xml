@@ -891,6 +891,8 @@
     <string name="settings_tmdb_personal_api_key">Personlig API-nøkkel</string>
     <string name="settings_tmdb_preferred_language">Språk</string>
     <string name="settings_tmdb_preferred_language_description">TMDB metadata-språk for tittel, logo og aktiverte felt</string>
+    <string name="settings_tmdb_original_title_language">Originalspråk</string>
+    <string name="settings_tmdb_original_title_language_description">Foretrekk titler, logoer, plakater og bakgrunnsbilder på originalspråket. Foretrukket språk brukes hvis de ikke er tilgjengelige.</string>
     <string name="settings_tmdb_section_credentials">LEGITIMASJONER</string>
     <string name="settings_tmdb_section_localization">LOKALISERING</string>
     <string name="settings_tmdb_section_modules">MODULER</string>

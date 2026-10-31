@@ -62,6 +62,8 @@
     <string name="addons_section_overview">Overview</string>
     <string name="addons_summary_id_rules">%1$d id rules</string>
     <string name="addons_version_format">Version %1$s</string>
+    <string name="addons_version_changed">Version changed: %1$s → %2$s</string>
+    <string name="addons_dismiss_version_change">Dismiss version notice</string>
     <string name="cd_selected">Selected</string>
     <string name="collections_copy_json">Copy JSON</string>
     <string name="collections_copy_json_error">The collection data is too large for the clipboard on this device.</string>
@@ -356,6 +358,14 @@
     <string name="compose_player_audio_tracks">Audio Tracks</string>
     <string name="compose_player_audio">Audio</string>
     <string name="compose_player_auto_sync">Auto Sync</string>
+    <string name="compose_player_sync_by_ear">Sync by ear</string>
+    <string name="compose_player_sync_by_ear_hint">Tap when you hear a line and when its subtitle shows, in either order.</string>
+    <string name="compose_player_sync_by_ear_heard">Heard</string>
+    <string name="compose_player_sync_by_ear_saw">Saw</string>
+    <string name="compose_player_sync_by_ear_in_sync">Now: In sync</string>
+    <string name="compose_player_sync_by_ear_offset">Now: %1$s</string>
+    <string name="compose_player_sync_by_ear_waiting_saw">Heard captured. Tap Saw when its subtitle shows.</string>
+    <string name="compose_player_sync_by_ear_waiting_heard">Saw captured. Tap Heard when you hear the line.</string>
     <string name="compose_player_bold">Bold</string>
     <string name="compose_player_built_in">Built-in</string>
     <string name="compose_player_bottom_offset">Bottom Offset</string>
@@ -379,6 +389,8 @@
     <string name="compose_player_no_streams_found">No streams found</string>
     <string name="compose_player_none">None</string>
     <string name="compose_player_outline">Outline</string>
+    <string name="compose_player_shadow">Subtitle shadow</string>
+    <string name="compose_player_shadow_strength">Shadow strength</string>
     <string name="compose_player_outline_thickness">Outline Thickness</string>
     <string name="compose_player_outline_color">Outline Color</string>
     <string name="compose_player_panel_episodes">Episodes</string>
@@ -616,7 +628,8 @@
     <string name="settings_nav_bar_style_adaptive">Adaptive</string>
     <string name="settings_nav_bar_style_expanded">Always Expanded</string>
     <string name="settings_nav_bar_style_compact">Always Compact</string>
-    <string name="settings_nav_bar_style_classic">Classic</string>
+    <string name="settings_nav_bar_style_classic">Mew Classic</string>
+    <string name="settings_nav_bar_style_liquid_glass">Liquid Glass</string>
     <string name="settings_appearance_continue_watching_description">Settings for the Continue Watching section.</string>
     <string name="settings_appearance_liquid_glass">Liquid Glass</string>
     <string name="settings_appearance_liquid_glass_description">Use the native iPhone tab bar on iOS 26 and later.</string>
@@ -987,6 +1000,9 @@
     <string name="settings_playback_player_preference_external">External</string>
     <string name="settings_playback_player_preference_description">Choose which player handles new playback.</string>
     <string name="settings_playback_hold_speed">Hold Speed</string>
+    <string name="settings_playback_skip_backward">Skip Backward</string>
+    <string name="settings_playback_skip_forward">Skip Forward</string>
+    <string name="settings_playback_skip_seconds_value">%1$d seconds</string>
     <string name="settings_playback_hold_to_speed">Hold To Speed</string>
     <string name="settings_playback_hold_to_speed_description">Long-press anywhere on the player surface to temporarily boost playback speed.</string>
     <string name="settings_playback_touch_gestures">Touch Gestures</string>
@@ -1065,6 +1081,12 @@
     <string name="settings_playback_section_subtitle_audio">SUBTITLE AND AUDIO</string>
     <string name="settings_playback_section_subtitle_rendering">SUBTITLE RENDERING</string>
     <string name="settings_playback_selected_count">%1$d selected</string>
+    <string name="settings_playback_player_liquid_glass">Liquid Glass player controls</string>
+    <string name="settings_playback_player_liquid_glass_description">Use translucent glass surfaces on player controls. Video-frame capture is only active while this option is enabled and controls are visible.</string>
+    <string name="compose_player_seek_back_seconds">Seek backward %1$d seconds</string>
+    <string name="compose_player_seek_forward_seconds">Seek forward %1$d seconds</string>
+    <string name="settings_playback_pause_overlay">Pause Overlay</string>
+    <string name="settings_playback_pause_overlay_description">Show details overlay after 5 seconds while paused.</string>
     <string name="settings_playback_show_loading_overlay">Loading Overlay</string>
     <string name="settings_playback_show_loading_overlay_description">Show loading screen until first video frame appears.</string>
     <string name="settings_playback_parental_guide">Content Warnings</string>
@@ -1149,6 +1171,8 @@
     <string name="settings_tmdb_personal_api_key">Personal API key</string>
     <string name="settings_tmdb_preferred_language">Language</string>
     <string name="settings_tmdb_preferred_language_description">TMDB metadata language for title, logo, and enabled fields</string>
+    <string name="settings_tmdb_original_title_language">Original language</string>
+    <string name="settings_tmdb_original_title_language_description">Prefer original-language titles, logos, posters, and backdrops. Falls back to your preferred language when unavailable.</string>
     <string name="settings_tmdb_section_credentials">CREDENTIALS</string>
     <string name="settings_tmdb_section_localization">LOCALIZATION</string>
     <string name="settings_tmdb_section_modules">MODULES</string>
@@ -2900,4 +2924,19 @@
     <string name="live_tv_programme_detail_status">Status</string>
     <string name="live_tv_programme_watch_live">WATCH LIVE</string>
     <string name="live_tv_programme_open_live">OPEN LIVE CHANNEL NOW</string>
+    <string name="player_action_rotate_portrait">Watch in portrait</string>
+    <string name="player_action_rotate_landscape">Watch in landscape</string>
+    <string name="addons_refresh_all">Refresh all Nuvio add-ons</string>
+    <string name="player_toolbar_button_resize">Resize</string>
+    <string name="player_toolbar_button_speed">Speed</string>
+    <string name="player_toolbar_button_quality">Quality</string>
+    <string name="settings_playback_toolbar_layout">Player toolbar buttons</string>
+    <string name="settings_playback_toolbar_note">Choose which action buttons appear and arrange their order.</string>
+    <string name="settings_playback_toolbar_shown">Shown</string>
+    <string name="settings_playback_toolbar_hidden">Hidden</string>
+    <string name="settings_playback_toolbar_empty">No buttons in this group.</string>
+    <string name="settings_playback_toolbar_move_up">Move button up</string>
+    <string name="settings_playback_toolbar_move_down">Move button down</string>
+    <string name="settings_playback_toolbar_hide">Hide button</string>
+    <string name="settings_playback_toolbar_show">Show button</string>
 </resources>

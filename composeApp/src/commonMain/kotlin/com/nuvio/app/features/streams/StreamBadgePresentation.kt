@@ -1,8 +1,14 @@
 package com.nuvio.app.features.streams
 
+import kotlinx.atomicfu.locks.SynchronizedObject
+import kotlinx.atomicfu.locks.synchronized
+
 object StreamBadgePresentation {
+    private val filterCacheLock = SynchronizedObject()
+    private var cachedRules: StreamBadgeRules? = null
+    private var cachedFilters: List<CompiledStreamBadgeFilter> = emptyList()
     fun apply(groups: List<AddonStreamGroup>, rules: StreamBadgeRules): List<AddonStreamGroup> {
-        val filters = StreamBadgeMatcher.compile(rules)
+        val filters = compiledFilters(rules)
         if (filters.isEmpty()) return groups
         return groups.map { group ->
             group.copy(
@@ -17,6 +23,16 @@ object StreamBadgePresentation {
             )
         }
     }
+
+    // Grouped stream lists reuse the same rules; only rebuild filters when those rules change.
+    private fun compiledFilters(rules: StreamBadgeRules): List<CompiledStreamBadgeFilter> =
+        synchronized(filterCacheLock) {
+            if (cachedRules != rules) {
+                cachedFilters = StreamBadgeMatcher.compile(rules)
+                cachedRules = rules
+            }
+            cachedFilters
+        }
 
     private fun mergeBadges(existing: List<StreamBadge>, matched: List<StreamBadge>): List<StreamBadge> {
         if (existing.isEmpty()) return matched

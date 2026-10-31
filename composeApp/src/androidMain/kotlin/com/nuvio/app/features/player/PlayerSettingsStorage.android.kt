@@ -20,6 +20,11 @@ import kotlinx.serialization.json.put
 actual object PlayerSettingsStorage {
     private const val preferencesName = "nuvio_player_settings"
     private const val showLoadingOverlayKey = "show_loading_overlay"
+    private const val pauseOverlayEnabledKey = "pause_overlay_enabled"
+    private const val playerLiquidGlassEnabledKey = "player_liquid_glass_enabled"
+    private const val skipBackwardSecondsKey = "player_skip_backward_seconds"
+    private const val skipForwardSecondsKey = "player_skip_forward_seconds"
+    private const val toolbarLayoutKey = "player_toolbar_layout"
     private const val showParentalGuideKey = "show_parental_guide"
     private const val resizeModeKey = "resize_mode"
     private const val holdToSpeedEnabledKey = "hold_to_speed_enabled"
@@ -41,6 +46,8 @@ actual object PlayerSettingsStorage {
     private const val subtitleOutlineColorKey = "subtitle_outline_color"
     private const val subtitleOutlineEnabledKey = "subtitle_outline_enabled"
     private const val subtitleOutlineWidthKey = "subtitle_outline_width"
+    private const val subtitleShadowEnabledKey = "subtitle_shadow_enabled"
+    private const val subtitleShadowStrengthKey = "subtitle_shadow_strength"
     private const val subtitleBoldKey = "subtitle_bold"
     private const val subtitleFontSizeSpKey = "subtitle_font_size_sp"
     private const val subtitleFontFamilyKey = "subtitle_font_family"
@@ -100,6 +107,11 @@ actual object PlayerSettingsStorage {
     private const val iosGammaKey = "ios_gamma"
     private val syncKeys = listOf(
         showLoadingOverlayKey,
+        pauseOverlayEnabledKey,
+        playerLiquidGlassEnabledKey,
+        skipBackwardSecondsKey,
+        skipForwardSecondsKey,
+        toolbarLayoutKey,
         showParentalGuideKey,
         resizeModeKey,
         holdToSpeedEnabledKey,
@@ -120,6 +132,8 @@ actual object PlayerSettingsStorage {
         subtitleOutlineColorKey,
         subtitleOutlineEnabledKey,
         subtitleOutlineWidthKey,
+        subtitleShadowEnabledKey,
+        subtitleShadowStrengthKey,
         subtitleBoldKey,
         subtitleFontSizeSpKey,
         subtitleBottomOffsetKey,
@@ -187,6 +201,44 @@ actual object PlayerSettingsStorage {
 
     private fun saveBoolean(keyBase: String, enabled: Boolean) {
         preferences?.edit()?.putBoolean(ProfileScopedKey.of(keyBase), enabled)?.apply()
+    }
+
+    actual fun loadSkipBackwardSeconds(): Int? = preferences?.let { prefs ->
+        val key = ProfileScopedKey.of(skipBackwardSecondsKey)
+        if (prefs.contains(key)) prefs.getInt(key, PLAYER_SKIP_SECONDS_DEFAULT) else null
+    }
+    actual fun saveSkipBackwardSeconds(seconds: Int) {
+        preferences?.edit()?.putInt(ProfileScopedKey.of(skipBackwardSecondsKey), seconds)?.apply()
+    }
+    actual fun loadSkipForwardSeconds(): Int? = preferences?.let { prefs ->
+        val key = ProfileScopedKey.of(skipForwardSecondsKey)
+        if (prefs.contains(key)) prefs.getInt(key, PLAYER_SKIP_SECONDS_DEFAULT) else null
+    }
+    actual fun saveSkipForwardSeconds(seconds: Int) {
+        preferences?.edit()?.putInt(ProfileScopedKey.of(skipForwardSecondsKey), seconds)?.apply()
+    }
+    actual fun loadToolbarLayout(): String? = preferences?.let { prefs ->
+        val key = ProfileScopedKey.of(toolbarLayoutKey)
+        if (prefs.contains(key)) prefs.getString(key, null) else null
+    }
+    actual fun saveToolbarLayout(layout: String) {
+        preferences?.edit()?.putString(ProfileScopedKey.of(toolbarLayoutKey), layout)?.apply()
+    }
+
+    actual fun loadPauseOverlayEnabled(): Boolean? = preferences?.let { prefs ->
+        val key = ProfileScopedKey.of(pauseOverlayEnabledKey)
+        if (prefs.contains(key)) prefs.getBoolean(key, true) else null
+    }
+    actual fun savePauseOverlayEnabled(enabled: Boolean) {
+        preferences?.edit()?.putBoolean(ProfileScopedKey.of(pauseOverlayEnabledKey), enabled)?.apply()
+    }
+
+    actual fun loadPlayerLiquidGlassEnabled(): Boolean? = preferences?.let { prefs ->
+        val key = ProfileScopedKey.of(playerLiquidGlassEnabledKey)
+        if (prefs.contains(key)) prefs.getBoolean(key, false) else null
+    }
+    actual fun savePlayerLiquidGlassEnabled(enabled: Boolean) {
+        preferences?.edit()?.putBoolean(ProfileScopedKey.of(playerLiquidGlassEnabledKey), enabled)?.apply()
     }
 
     actual fun loadShowLoadingOverlay(): Boolean? =
@@ -519,6 +571,26 @@ actual object PlayerSettingsStorage {
             ?.edit()
             ?.putInt(ProfileScopedKey.of(subtitleOutlineWidthKey), width)
             ?.apply()
+    }
+
+    actual fun loadSubtitleShadowEnabled(): Boolean? =
+        preferences?.let { sharedPreferences ->
+            val key = ProfileScopedKey.of(subtitleShadowEnabledKey)
+            if (sharedPreferences.contains(key)) sharedPreferences.getBoolean(key, SubtitleStyleState.DEFAULT.shadowEnabled) else null
+        }
+
+    actual fun saveSubtitleShadowEnabled(enabled: Boolean) {
+        preferences?.edit()?.putBoolean(ProfileScopedKey.of(subtitleShadowEnabledKey), enabled)?.apply()
+    }
+
+    actual fun loadSubtitleShadowStrength(): Int? =
+        preferences?.let { sharedPreferences ->
+            val key = ProfileScopedKey.of(subtitleShadowStrengthKey)
+            if (sharedPreferences.contains(key)) sharedPreferences.getInt(key, SubtitleStyleState.DEFAULT.shadowStrength) else null
+        }
+
+    actual fun saveSubtitleShadowStrength(strength: Int) {
+        preferences?.edit()?.putInt(ProfileScopedKey.of(subtitleShadowStrengthKey), normalizeSubtitleShadowStrength(strength))?.apply()
     }
 
     actual fun loadSubtitleBold(): Boolean? =
@@ -1234,6 +1306,11 @@ actual object PlayerSettingsStorage {
 
     actual fun exportToSyncPayload(): JsonObject = buildJsonObject {
         loadShowLoadingOverlay()?.let { put(showLoadingOverlayKey, encodeSyncBoolean(it)) }
+        loadPauseOverlayEnabled()?.let { put(pauseOverlayEnabledKey, encodeSyncBoolean(it)) }
+        loadPlayerLiquidGlassEnabled()?.let { put(playerLiquidGlassEnabledKey, encodeSyncBoolean(it)) }
+        loadSkipBackwardSeconds()?.let { put(skipBackwardSecondsKey, encodeSyncInt(it)) }
+        loadSkipForwardSeconds()?.let { put(skipForwardSecondsKey, encodeSyncInt(it)) }
+        loadToolbarLayout()?.let { put(toolbarLayoutKey, encodeSyncString(it)) }
         loadShowParentalGuide()?.let { put(showParentalGuideKey, encodeSyncBoolean(it)) }
         loadResizeMode()?.let { put(resizeModeKey, encodeSyncString(it)) }
         loadHoldToSpeedEnabled()?.let { put(holdToSpeedEnabledKey, encodeSyncBoolean(it)) }
@@ -1254,6 +1331,8 @@ actual object PlayerSettingsStorage {
         loadSubtitleOutlineColor()?.let { put(subtitleOutlineColorKey, encodeSyncString(it)) }
         loadSubtitleOutlineEnabled()?.let { put(subtitleOutlineEnabledKey, encodeSyncBoolean(it)) }
         loadSubtitleOutlineWidth()?.let { put(subtitleOutlineWidthKey, encodeSyncInt(it)) }
+        loadSubtitleShadowEnabled()?.let { put(subtitleShadowEnabledKey, encodeSyncBoolean(it)) }
+        loadSubtitleShadowStrength()?.let { put(subtitleShadowStrengthKey, encodeSyncInt(it)) }
         loadSubtitleBold()?.let { put(subtitleBoldKey, encodeSyncBoolean(it)) }
         loadSubtitleFontSizeSp()?.let { put(subtitleFontSizeSpKey, encodeSyncInt(it)) }
         loadSubtitleBottomOffset()?.let { put(subtitleBottomOffsetKey, encodeSyncInt(it)) }
@@ -1318,6 +1397,11 @@ actual object PlayerSettingsStorage {
         }?.apply()
 
         payload.decodeSyncBoolean(showLoadingOverlayKey)?.let(::saveShowLoadingOverlay)
+        payload.decodeSyncBoolean(pauseOverlayEnabledKey)?.let(::savePauseOverlayEnabled)
+        payload.decodeSyncBoolean(playerLiquidGlassEnabledKey)?.let(::savePlayerLiquidGlassEnabled)
+        payload.decodeSyncInt(skipBackwardSecondsKey)?.let(::saveSkipBackwardSeconds)
+        payload.decodeSyncInt(skipForwardSecondsKey)?.let(::saveSkipForwardSeconds)
+        payload.decodeSyncString(toolbarLayoutKey)?.let(::saveToolbarLayout)
         payload.decodeSyncBoolean(showParentalGuideKey)?.let(::saveShowParentalGuide)
         payload.decodeSyncString(resizeModeKey)?.let(::saveResizeMode)
         payload.decodeSyncBoolean(holdToSpeedEnabledKey)?.let(::saveHoldToSpeedEnabled)
@@ -1338,6 +1422,8 @@ actual object PlayerSettingsStorage {
         payload.decodeSyncString(subtitleOutlineColorKey)?.let(::saveSubtitleOutlineColor)
         payload.decodeSyncBoolean(subtitleOutlineEnabledKey)?.let(::saveSubtitleOutlineEnabled)
         payload.decodeSyncInt(subtitleOutlineWidthKey)?.let(::saveSubtitleOutlineWidth)
+        payload.decodeSyncBoolean(subtitleShadowEnabledKey)?.let(::saveSubtitleShadowEnabled)
+        payload.decodeSyncInt(subtitleShadowStrengthKey)?.let(::saveSubtitleShadowStrength)
         payload.decodeSyncBoolean(subtitleBoldKey)?.let(::saveSubtitleBold)
         payload.decodeSyncInt(subtitleFontSizeSpKey)?.let(::saveSubtitleFontSizeSp)
         payload.decodeSyncInt(subtitleBottomOffsetKey)?.let(::saveSubtitleBottomOffset)

@@ -42,6 +42,8 @@ fun PlayerScreen(
     initialProgressFraction: Float? = null,
     contentLanguage: String? = null,
     randomEpisodeMode: Boolean = false,
+    initialStreamFilename: String? = null,
+    initialStreamInfoHash: String? = null,
 ) {
     PlayerScreenContent(
         PlayerScreenArgs(
@@ -82,6 +84,8 @@ fun PlayerScreen(
             initialProgressFraction = initialProgressFraction,
             contentLanguage = contentLanguage,
             randomEpisodeMode = randomEpisodeMode,
+            initialStreamFilename = initialStreamFilename,
+            initialStreamInfoHash = initialStreamInfoHash,
         )
     )
 }

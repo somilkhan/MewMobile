@@ -64,4 +64,60 @@ class HomeHeroSectionTest {
         assertEquals(false, layout.isTablet)
         assertEquals(268f, layout.heroHeight.value, 0.001f)
     }
+    @Test
+    fun `original TMDB title mode prefers the title selected for the home item`() {
+        assertEquals(
+            "Original title",
+            selectHomeHeroDisplayTitle(
+                itemTitle = "Original title",
+                detailTitle = "Localized title",
+                preferItemTitle = true,
+            ),
+        )
+        assertEquals(
+            "Localized title",
+            selectHomeHeroDisplayTitle(
+                itemTitle = "Original title",
+                detailTitle = "Localized title",
+                preferItemTitle = false,
+            ),
+        )
+    }
+
+    @Test
+    fun `hero title selection falls back when preferred source is blank`() {
+        assertEquals(
+            "Fallback title",
+            selectHomeHeroDisplayTitle(
+                itemTitle = " ",
+                detailTitle = "Fallback title",
+                preferItemTitle = true,
+            ),
+        )
+        assertEquals(
+            "Fallback title",
+            selectHomeHeroDisplayTitle(
+                itemTitle = "Fallback title",
+                detailTitle = " ",
+                preferItemTitle = false,
+            ),
+        )
+    }
+
+    @Test
+    fun `original title mode prefers matching hero artwork logo`() {
+        assertEquals(
+            "original-logo.png",
+            selectHomeHeroLogoUrl("original-logo.png", "localized-logo.png", preferItemLogo = true),
+        )
+        assertEquals(
+            "localized-logo.png",
+            selectHomeHeroLogoUrl("original-logo.png", "localized-logo.png", preferItemLogo = false),
+        )
+        assertEquals(
+            "detail-logo.png",
+            selectHomeHeroLogoUrl(" ", "detail-logo.png", preferItemLogo = true),
+        )
+    }
+
 }

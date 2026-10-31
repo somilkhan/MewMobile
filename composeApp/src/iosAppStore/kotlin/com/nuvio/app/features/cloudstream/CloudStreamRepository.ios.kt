@@ -14,6 +14,8 @@ actual object CloudStreamRepository {
     actual suspend fun addRepository(rawUrl: String): AddCloudStreamRepositoryResult = AddCloudStreamRepositoryResult.Error("CloudStream is available only in full builds")
     actual fun refreshRepository(manifestUrl: String) = Unit
     actual fun refreshAll() = Unit
+    actual fun checkForUpdates() = Unit
+    actual fun setAutoUpdatesEnabled(enabled: Boolean) = Unit
     actual fun removeRepository(manifestUrl: String) = Unit
     actual suspend fun installPlugin(pluginId: String): CloudStreamInstallResult = CloudStreamInstallResult.Error("CloudStream is available only in full builds")
     actual suspend fun updatePlugin(pluginId: String): CloudStreamInstallResult = CloudStreamInstallResult.Error("CloudStream is available only in full builds")

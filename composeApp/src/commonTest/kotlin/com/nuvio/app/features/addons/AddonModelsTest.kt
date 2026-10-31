@@ -3,9 +3,84 @@ package com.nuvio.app.features.addons
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 
 class AddonModelsTest {
+
+    @Test
+    fun `lazy refresh job reserves its manifest before it starts`() {
+        val scope = CoroutineScope(SupervisorJob())
+        val lazyJob = scope.launch(start = CoroutineStart.LAZY) { }
+
+        assertFalse(lazyJob.isActive)
+        assertFalse(lazyJob.isCompleted)
+        assertFalse(canReserveAddonRefresh(lazyJob))
+
+        lazyJob.cancel()
+        assertTrue(lazyJob.isCompleted)
+        assertTrue(canReserveAddonRefresh(lazyJob))
+        assertTrue(canReserveAddonRefresh(null))
+        scope.cancel()
+    }
+
+    @Test
+    fun `profile session rejects work from an older generation even if profile id matches again`() {
+        assertTrue(isAddonProfileSessionCurrent(1, 8L, 1, 8L, 1))
+        assertFalse(isAddonProfileSessionCurrent(1, 7L, 1, 8L, 1))
+    }
+
+    @Test
+    fun `profile session rejects a changed current or active profile`() {
+        assertFalse(isAddonProfileSessionCurrent(1, 8L, 2, 8L, 2))
+        assertFalse(isAddonProfileSessionCurrent(1, 8L, 1, 8L, 2))
+    }
+
+    @Test
+    fun `profile session rejects shared-primary profile switch with same effective profile id`() {
+        assertFalse(
+            isAddonProfileSessionCurrent(
+                requestProfileId = 1,
+                requestGeneration = 8L,
+                currentProfileId = 1,
+                currentGeneration = 8L,
+                effectiveActiveProfileId = 1,
+                trackedActiveProfileId = 1,
+                actualActiveProfileId = 2,
+            ),
+        )
+    }
+
+    @Test
+    fun `first version observation is not an update`() {
+        assertFalse(addonVersionChanged(null, "1.0.0"))
+        assertFalse(addonVersionChanged("", "1.0.0"))
+    }
+
+    @Test
+    fun `same version is not an update`() {
+        assertFalse(addonVersionChanged("1.0.0", "1.0.0"))
+    }
+
+    @Test
+    fun `changed version is detected`() {
+        assertTrue(addonVersionChanged("1.0.0", "1.1.0"))
+    }
+
+    @Test
+    fun `pending version notice survives a newer refresh version`() {
+        assertEquals("1.0.0", addonVersionChangeFrom("1.1.0", "1.2.0", "1.0.0"))
+    }
+
+    @Test
+    fun `version change helper does not flag first observation`() {
+        assertNull(addonVersionChangeFrom(null, "1.0.0", null))
+    }
 
     @Test
     fun `disabled addon is installed but not active`() {

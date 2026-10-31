@@ -79,7 +79,11 @@ object SearchRepository {
         }
 
         CloudStreamRepository.initialize()
-        val cloudPlugins = if (normalizedQuery.length >= CLOUDSTREAM_SEARCH_MIN_QUERY_LENGTH) {
+        val tmdbEnabled = TmdbSettingsRepository.snapshot().enabled
+        val cloudPlugins = if (
+            shouldUseCloudStreamExtensions(tmdbEnabled) &&
+            normalizedQuery.length >= CLOUDSTREAM_SEARCH_MIN_QUERY_LENGTH
+        ) {
             CloudStreamRepository.uiState.value.plugins.filter(CloudStreamPluginItem::isRunnable)
         } else {
             emptyList()
@@ -105,6 +109,8 @@ object SearchRepository {
 
         val requestKey = buildString {
             append(normalizedQuery.lowercase())
+            append("|tmdbEnabled=")
+            append(tmdbEnabled)
             append('|')
             append(HomeCatalogSettingsRepository.snapshot().hideUnreleasedContent)
             append('|')
@@ -314,7 +320,12 @@ object SearchRepository {
     fun refreshDiscover(addons: List<ManagedAddon>) {
         val activeAddons = addons.enabledAddons().filter { it.manifest != null }
         CloudStreamRepository.initialize()
-        val cloudProviders = CloudStreamRepository.uiState.value.plugins.filter(CloudStreamPluginItem::isRunnable)
+        val tmdbEnabled = TmdbSettingsRepository.snapshot().enabled
+        val cloudProviders = if (shouldUseCloudStreamExtensions(tmdbEnabled)) {
+            CloudStreamRepository.uiState.value.plugins.filter(CloudStreamPluginItem::isRunnable)
+        } else {
+            emptyList()
+        }
 
         val sources = if (activeAddons.isEmpty()) {
             cloudProviders.map { plugin ->
@@ -342,7 +353,10 @@ object SearchRepository {
         lastDiscoverHideUnreleasedContent = hideUnreleasedContent
         if (sources.isEmpty()) {
             _discoverUiState.value = DiscoverUiState(
-                emptyStateReason = if (CloudStreamRepository.uiState.value.plugins.any(CloudStreamPluginItem::isRunnable)) DiscoverEmptyStateReason.NoResults else DiscoverEmptyStateReason.NoActiveAddons,
+                emptyStateReason = if (
+                    shouldUseCloudStreamExtensions(TmdbSettingsRepository.snapshot().enabled) &&
+                    CloudStreamRepository.uiState.value.plugins.any(CloudStreamPluginItem::isRunnable)
+                ) DiscoverEmptyStateReason.NoResults else DiscoverEmptyStateReason.NoActiveAddons,
             )
             return
         }
@@ -736,6 +750,8 @@ private fun String.typeSortKey(): String =
         "anime" -> "2_anime"
         else -> "9_$this"
     }
+
+internal fun shouldUseCloudStreamExtensions(tmdbEnabled: Boolean): Boolean = !tmdbEnabled
 
 private const val CLOUDSTREAM_SEARCH_MIN_QUERY_LENGTH = 3
 private const val CLOUDSTREAM_SEARCH_CONCURRENCY = 8

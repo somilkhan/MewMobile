@@ -137,6 +137,17 @@ internal fun CloudStreamSettingsSection() {
         )
     }
 
+    NuvioSurfaceCard {
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = copy.autoUpdateTitle, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(6.dp))
+                Text(text = copy.autoUpdateDescription, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Switch(checked = state.autoUpdatesEnabled, onCheckedChange = CloudStreamRepository::setAutoUpdatesEnabled)
+        }
+    }
+
     if (!state.securityWarningAccepted) {
         NuvioSurfaceCard {
             Text(
@@ -576,6 +587,12 @@ private class CloudStreamSettingsCopy private constructor(
         } else {
             "Standard .cs3 packages are downloaded third-party code. Android full builds can run them with the embedded CloudStream runtime; iOS can only use compatibility adapters compiled into the app. Only install repositories and plugins you trust."
         }
+    val autoUpdateTitle: String = if (turkish) "Kurulu eklentileri otomatik güncelle" else "Automatically update installed extensions"
+    val autoUpdateDescription: String = if (turkish) {
+        "Etkin olduğunda Mew, Ana Sayfa açılışında uyumlu yeni sürümleri denetler. Her etkin profil için denetim en fazla altı saatte bir yapılır."
+    } else {
+        "When enabled, Mew checks for newer compatible versions on Home startup, at most once every six hours per active profile."
+    }
     val securityWarningTitle: String =
         if (turkish) "Üçüncü taraf kod güvenlik uyarısı" else "Third-party code security warning"
     val securityWarningBody: String =

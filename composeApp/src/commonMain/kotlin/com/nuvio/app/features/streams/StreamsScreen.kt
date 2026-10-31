@@ -100,6 +100,7 @@ import com.nuvio.app.features.debrid.toastMessage
 import com.nuvio.app.features.player.PlayerSettingsRepository
 import com.nuvio.app.features.settings.NuvioEnhancedSettingsRepository
 import com.nuvio.app.features.watchprogress.WatchProgressRepository
+import com.nuvio.app.features.tmdb.TmdbSettingsRepository
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import nuvio.composeapp.generated.resources.*
@@ -159,6 +160,10 @@ fun StreamsScreen(
         NuvioEnhancedSettingsRepository.ensureLoaded()
         NuvioEnhancedSettingsRepository.uiState
     }.collectAsStateWithLifecycle()
+    val tmdbSettingsUiState by remember {
+        TmdbSettingsRepository.ensureLoaded()
+        TmdbSettingsRepository.uiState
+    }.collectAsStateWithLifecycle()
     remember {
         DownloadsRepository.ensureLoaded()
     }
@@ -206,7 +211,7 @@ fun StreamsScreen(
         }
     }
 
-    LaunchedEffect(type, videoId, seasonNumber, episodeNumber, manualSelection, title) {
+    LaunchedEffect(type, videoId, seasonNumber, episodeNumber, manualSelection, title, tmdbSettingsUiState.enabled) {
         StreamsRepository.load(
             type = type,
             videoId = videoId,

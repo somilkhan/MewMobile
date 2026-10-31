@@ -270,6 +270,11 @@ actual fun PlatformPlayerSurface(
                     backgroundColor = style.backgroundColor.toMpvColorString(),
                     outlineColor = style.outlineColor.toMpvColorString(),
                     outlineSize = if (style.outlineEnabled) style.outlineWidth.toFloat() else 0f,
+                    shadowOffset = if (style.shadowEnabled) {
+                        normalizeSubtitleShadowStrength(style.shadowStrength) * MPV_SUBTITLE_SHADOW_OFFSET_SCALE
+                    } else {
+                        0f
+                    },
                     bold = style.bold,
                     fontSize = style.toMpvSubtitleFontSize(),
                     fontFamily = style.toIosMpvSubtitleFont(),
@@ -444,6 +449,8 @@ private fun Color.toMpvColorString(): String {
 
 private fun SubtitleStyleState.toMpvSubtitlePosition(): Int =
     (100 - (bottomOffset / 2)).coerceIn(0, 150)
+
+private const val MPV_SUBTITLE_SHADOW_OFFSET_SCALE = 1.5f
 
 private fun SubtitleStyleState.toMpvSubtitleFontSize(): Float =
     (fontSizeSp * 3f).coerceIn(24f, 96f)

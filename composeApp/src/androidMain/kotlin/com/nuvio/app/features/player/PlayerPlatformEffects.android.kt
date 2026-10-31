@@ -11,6 +11,7 @@ import android.provider.Settings
 import android.view.WindowManager
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -29,15 +30,30 @@ import kotlin.math.roundToInt
 actual fun LockPlayerToLandscape() {
     val activity = LocalContext.current.findActivity() ?: return
     if (!activity.shouldForceLandscapePlayer()) return
+    val portrait by PlayerOrientationPreference.portrait.collectAsState()
 
-    DisposableEffect(activity) {
-        val previousOrientation = activity.requestedOrientation
-        activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-
+    val originalOrientation = PlayerOrientationPreference.captureOriginalOrientation(activity.requestedOrientation)
+    DisposableEffect(activity, originalOrientation) {
         onDispose {
-            activity.requestedOrientation = previousOrientation
+            // Orientation requests can recreate the Activity. Preserve the toggle/session through
+            // that configuration change; restore the pre-player orientation only on final exit.
+            if (!activity.isChangingConfigurations) {
+                activity.requestedOrientation = originalOrientation
+                PlayerOrientationPreference.reset()
+            }
         }
     }
+    SideEffect {
+        val target = if (portrait) ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        else ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+        if (activity.requestedOrientation != target) activity.requestedOrientation = target
+    }
+}
+
+@Composable
+actual fun rememberPlayerOrientationToggleSupported(): Boolean {
+    val activity = LocalContext.current.findActivity() ?: return false
+    return activity.shouldForceLandscapePlayer()
 }
 
 @Composable

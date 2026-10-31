@@ -48,8 +48,10 @@ internal class SidecarSubtitleController(
     private val generation = SidecarGeneration()
     private var activeGeneration: Long? = null
     private var sidecarSubtitleJob: Job? = null
-    private var activeSidecarSubtitleKey: String? = null
-    private var sidecarTimedCues: List<CuesWithTiming> = emptyList()
+    private var activeSidecarSubtitleKeyState: String? = null
+    internal val activeSidecarSubtitleKey: String? get() = activeSidecarSubtitleKeyState
+    private var sidecarTimedCuesState: List<CuesWithTiming> = emptyList()
+    internal val sidecarTimedCues: List<CuesWithTiming> get() = sidecarTimedCuesState
     private var lastSidecarCueSignature: Long? = null
     private var exoSubtitleViewRef: WeakReference<SubtitleView>? = null
 
@@ -66,13 +68,41 @@ internal class SidecarSubtitleController(
         if (sidecarTimedCues.isNotEmpty()) renderSidecarCuesAtCurrentPosition()
     }
 
+    fun currentGenerationFor(url: String): Long? {
+        val current = activeGeneration ?: return null
+        return current.takeIf {
+            activeSidecarSubtitleKeyState == url && generation.isCurrent(it)
+        }
+    }
+
+    /**
+     * Atomically replace the active subtitle's prepared cue timeline only if the original
+     * subtitle generation is still current. This prevents a late AutoSync result from overwriting
+     * a user-selected subtitle or a newer attach operation.
+     */
+    fun commitPreparedSidecarSubtitle(
+        expectedCurrentUrl: String,
+        newUrl: String,
+        cues: List<CuesWithTiming>,
+        expectedGeneration: Long,
+    ): Boolean {
+        val currentGeneration = currentGenerationFor(expectedCurrentUrl) ?: return false
+        if (currentGeneration != expectedGeneration || cues.isEmpty()) return false
+
+        activeSidecarSubtitleKeyState = newUrl
+        sidecarTimedCuesState = cues
+        lastSidecarCueSignature = null
+        renderSidecarCuesAtCurrentPosition()
+        return true
+    }
+
     fun stopSidecarAddonSubtitle(clearView: Boolean = true) {
         generation.invalidate()
         sidecarSubtitleJob?.cancel()
         sidecarSubtitleJob = null
         activeGeneration = null
-        activeSidecarSubtitleKey = null
-        sidecarTimedCues = emptyList()
+        activeSidecarSubtitleKeyState = null
+        sidecarTimedCuesState = emptyList()
         lastSidecarCueSignature = null
         if (clearView) {
             postToSubtitleView { view ->
@@ -86,15 +116,16 @@ internal class SidecarSubtitleController(
         url: String,
         headers: Map<String, String> = emptyMap(),
         useLibass: Boolean = false,
+        rawBodyLoader: (suspend () -> String)? = null,
     ): Boolean {
         if (!canAttachAddonSubtitleViaSidecar(url, useLibass)) return false
 
         sidecarSubtitleJob?.cancel()
         val requestGeneration = generation.next()
         activeGeneration = requestGeneration
-        activeSidecarSubtitleKey = url
+        activeSidecarSubtitleKeyState = url
         lastSidecarCueSignature = null
-        sidecarTimedCues = emptyList()
+        sidecarTimedCuesState = emptyList()
         postToSubtitleView { view ->
             view.setTag(R.id.player_view_sidecar_generation_tag, requestGeneration)
             view.setCues(emptyList())
@@ -102,7 +133,7 @@ internal class SidecarSubtitleController(
 
         sidecarSubtitleJob = scope.launch {
             try {
-                val rawBody = withContext(Dispatchers.IO) {
+                val rawBody = rawBodyLoader?.invoke() ?: withContext(Dispatchers.IO) {
                     httpGetTextWithHeaders(url = url, headers = headers)
                 }
                 if (!isActiveGeneration(requestGeneration)) return@launch
@@ -116,7 +147,7 @@ internal class SidecarSubtitleController(
                 if (parseResult.cues.isEmpty()) {
                     Log.w(
                         SIDECAR_TAG,
-                        "Sidecar subtitle parse empty for url=$url " +
+                        "Sidecar subtitle parse empty for url=${redactSubtitleUrlForLogs(url)} " +
                             "urlMime=${PlayerSubtitleUtils.mimeTypeFromUrl(url)} sniffed=$resolvedMime " +
                             "(buffer preserved; no media reload)",
                     )
@@ -124,10 +155,10 @@ internal class SidecarSubtitleController(
                     return@launch
                 }
 
-                sidecarTimedCues = parseResult.cues
+                sidecarTimedCuesState = parseResult.cues
                 Log.d(
                     SIDECAR_TAG,
-                    "Sidecar subtitle ready url=$url cues=${parseResult.cues.size} " +
+                    "Sidecar subtitle ready url=${redactSubtitleUrlForLogs(url)} cues=${parseResult.cues.size} " +
                         "mime=${parseResult.effectiveMime} source=${parseResult.source} (buffer preserved)",
                 )
                 while (isActive && isActiveGeneration(requestGeneration)) {
@@ -140,7 +171,7 @@ internal class SidecarSubtitleController(
                 if (!isActiveGeneration(requestGeneration)) return@launch
                 Log.w(
                     SIDECAR_TAG,
-                    "Sidecar subtitle failed url=$url: ${error.message} (buffer preserved; no media reload)",
+                    "Sidecar subtitle failed url=${redactSubtitleUrlForLogs(url)} (${error.javaClass.simpleName}; buffer preserved; no media reload)",
                 )
                 clearGeneration(requestGeneration)
             }
@@ -173,8 +204,8 @@ internal class SidecarSubtitleController(
         if (!isActiveGeneration(candidate)) return
         generation.invalidate()
         activeGeneration = null
-        activeSidecarSubtitleKey = null
-        sidecarTimedCues = emptyList()
+        activeSidecarSubtitleKeyState = null
+        sidecarTimedCuesState = emptyList()
         lastSidecarCueSignature = null
         postToSubtitleView { view ->
             if (view.getTag(R.id.player_view_sidecar_generation_tag) == candidate) {
@@ -253,7 +284,7 @@ private fun parseSidecarTimedCuesWithMime(rawText: String, mimeType: String): Li
         output.sortBy { it.startTimeUs }
         output
     } catch (error: Exception) {
-        runCatching { Log.d(SIDECAR_TAG, "Sidecar Media3 parse failed mime=$mimeType: ${error.message}") }
+        runCatching { Log.d(SIDECAR_TAG, "Sidecar Media3 parse failed mime=$mimeType (${error.javaClass.simpleName})") }
         emptyList()
     }
 }

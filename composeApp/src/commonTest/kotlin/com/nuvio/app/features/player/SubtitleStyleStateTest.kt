@@ -12,6 +12,15 @@ class SubtitleStyleStateTest {
     }
 
     @Test
+    fun subtitleShadowDefaultsToDisabledWithBoundedStrength() {
+        assertFalse(SubtitleStyleState.DEFAULT.shadowEnabled)
+        assertEquals(SUBTITLE_SHADOW_STRENGTH_DEFAULT, SubtitleStyleState.DEFAULT.shadowStrength)
+        assertEquals(SUBTITLE_SHADOW_STRENGTH_MIN, normalizeSubtitleShadowStrength(Int.MIN_VALUE))
+        assertEquals(SUBTITLE_SHADOW_STRENGTH_MAX, normalizeSubtitleShadowStrength(Int.MAX_VALUE))
+        assertEquals(SUBTITLE_SHADOW_STRENGTH_DEFAULT, normalizeSubtitleShadowStrength(SUBTITLE_SHADOW_STRENGTH_DEFAULT))
+    }
+
+    @Test
     fun customFontDisablesLibassToKeepTheSelectedTypeface() {
         val style = SubtitleStyleState(
             fontFamily = SubtitleFontFamily.Custom,

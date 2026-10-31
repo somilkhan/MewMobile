@@ -36,6 +36,32 @@ class PlayerScreenRuntimeStateTest {
     }
 
     @Test
+    fun initialTorrentIdentityIsAvailableForBingeGroupCache() {
+        val runtime = PlayerScreenRuntime(
+            testPlayerScreenArgs().copy(
+                torrentInfoHash = "abc123",
+                torrentFilename = "Show.S01E02.mkv",
+            ),
+        )
+
+        assertEquals("Show.S01E02.mkv", runtime.currentStreamFilename)
+        assertEquals("abc123", runtime.currentStreamInfoHash)
+    }
+
+    @Test
+    fun initialDirectStreamIdentityIsAvailableForBingeGroupCache() {
+        val runtime = PlayerScreenRuntime(
+            testPlayerScreenArgs().copy(
+                initialStreamFilename = "Show.S01E02.1080p.mkv",
+                initialStreamInfoHash = "direct-source-hash",
+            ),
+        )
+
+        assertEquals("Show.S01E02.1080p.mkv", runtime.currentStreamFilename)
+        assertEquals("direct-source-hash", runtime.currentStreamInfoHash)
+    }
+
+    @Test
     fun seekScrobbleUpdate_requiresActiveIncompletePlayback() {
         assertTrue(
             shouldUpdateTrackingScrobbleAfterSeek(

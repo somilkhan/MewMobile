@@ -146,6 +146,9 @@ interface TrackingProgressProvider {
     fun shouldUseAsNextUpSeed(entry: WatchProgressEntry, nowEpochMs: Long): Boolean =
         entry.shouldUseAsCompletedSeedForContinueWatching()
 
+    /** Canonical content identity for suppressing duplicate Next Up entries across provider aliases. */
+    fun nextUpSeedContentId(contentId: String): String = contentId
+
     /** Maps provider episode numbering into the application's metadata numbering when needed. */
     suspend fun prepareNextUpProgressEntries(
         entries: List<WatchProgressEntry>,

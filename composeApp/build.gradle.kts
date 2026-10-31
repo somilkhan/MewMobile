@@ -360,6 +360,7 @@ val requestedAndroidDistributions = requestedGradleTasks.mapNotNull { taskName -
 val isAndroidHostTestRequested = requestedGradleTasks.any { taskName ->
     "androidhosttest" in taskName
 }
+
 require(requestedAndroidDistributions.size <= 1) {
     "Build Android full and playstore distributions separately, or set -Pnuvio.android.distribution=full|playstore."
 }
@@ -488,7 +489,7 @@ kotlin {
         }
         minSdk = libs.versions.android.minSdk.get().toInt()
         androidResources.enable = true
-        withHostTest {}
+        withHostTest { isIncludeAndroidResources = true }
 
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_11)
@@ -624,6 +625,11 @@ kotlin {
             }
         }
         getByName("androidHostTest") {
+            dependencies {
+                implementation(libs.androidx.activity.compose)
+                implementation("org.robolectric:robolectric:4.16")
+                implementation("androidx.compose.ui:ui-test-junit4:${libs.versions.composeMultiplatform.get()}")
+            }
             if (androidDistribution == "full") {
                 kotlin.srcDir(project.file("src/androidFullHostTest/kotlin"))
             }
@@ -642,6 +648,7 @@ kotlin {
                 exclude(group = "org.jetbrains.skiko", module = "skiko")
             }
             implementation("dev.chrisbanes.haze:haze:1.7.2")
+            implementation(libs.kyant.backdrop)
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
             implementation(libs.compose.material3)
@@ -664,6 +671,7 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
+            implementation(libs.kotlinx.coroutines.test)
         }
     }
 }

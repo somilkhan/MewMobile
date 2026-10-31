@@ -57,6 +57,8 @@ internal class PlayerScreenRuntime(
     val torrentFileIdx: Int? get() = args.torrentFileIdx
     val torrentFilename: String? get() = args.torrentFilename
     val torrentTrackers: List<String> get() = args.torrentTrackers
+    val initialStreamFilename: String? get() = args.initialStreamFilename
+    val initialStreamInfoHash: String? get() = args.initialStreamInfoHash
     val initialPositionMs: Long get() = args.initialPositionMs
     val initialProgressFraction: Float? get() = args.initialProgressFraction
     val externalSubtitles: List<StreamSubtitle> get() = args.externalSubtitles
@@ -136,6 +138,10 @@ internal class PlayerScreenRuntime(
     var activeProviderName by mutableStateOf(providerName)
     var activeProviderAddonId by mutableStateOf(providerAddonId)
     var currentStreamBingeGroup by mutableStateOf(initialBingeGroup)
+    // Preserve source identity before the first cache write. Torrent metadata remains
+    // authoritative for P2P sources; direct addon/debrid links use separate arguments.
+    var currentStreamFilename by mutableStateOf(torrentFilename ?: initialStreamFilename)
+    var currentStreamInfoHash by mutableStateOf(torrentInfoHash ?: initialStreamInfoHash)
     var activeSeasonNumber by mutableStateOf(seasonNumber)
     var activeEpisodeNumber by mutableStateOf(episodeNumber)
     var activeEpisodeTitle by mutableStateOf(episodeTitle)
@@ -145,6 +151,8 @@ internal class PlayerScreenRuntime(
     var activeInitialProgressFraction by mutableStateOf(initialProgressFraction)
     var shouldPlay by mutableStateOf(true)
     var resizeMode by mutableStateOf(playerSettingsUiState.resizeMode)
+    var videoZoom by mutableStateOf(1f)
+    var rawVideoZoom: Float = 1f
     var layoutSize by mutableStateOf(IntSize.Zero)
     var playbackSnapshot by mutableStateOf(PlayerPlaybackSnapshot())
     var randomNextEpisodeMode by mutableStateOf(randomEpisodeMode)
@@ -231,6 +239,9 @@ internal class PlayerScreenRuntime(
     var trackPreferenceRestoreApplied by mutableStateOf(false)
     var subtitleDelayMs by mutableStateOf(0)
     var subtitleAutoSyncState by mutableStateOf(SubtitleAutoSyncUiState())
+    var showSubtitleSyncByEar by mutableStateOf(false)
+    var subtitleSyncHeardPositionMs by mutableStateOf<Long?>(null)
+    var subtitleSyncSawPositionMs by mutableStateOf<Long?>(null)
 
     var visibleAddonSubtitlesCacheSource: List<AddonSubtitle>? = null
     var visibleAddonSubtitlesCacheSettings: PlayerSettingsUiState? = null

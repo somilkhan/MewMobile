@@ -296,6 +296,37 @@ class DebridStreamPresentationTest {
         assertEquals(listOf("Uncached"), presented.map { it.name })
     }
 
+    @Test
+    fun `reads language words in release names without treating title words as languages`() {
+        fun languages(filename: String, title: String? = null) = DebridStreamMetadata.facts(
+            stream = premiumizeDirectStream(name = "PM Instant", filename = filename, size = 1_000_000_000, title = title),
+            preferences = DebridStreamPreferences(),
+        ).languages
+
+        assertEquals(listOf(DebridStreamLanguage.FR), languages("Movie.2023.FRENCH.1080p.WEB-DL.x265-GRP.mkv"))
+        assertEquals(listOf(DebridStreamLanguage.ES), languages("Movie.2023.1080p.BluRay.Castellano.x264-GRP.mkv"))
+        assertEquals(emptyList(), languages("The.French.Dispatch.2021.1080p.BluRay.x264-GRP.mkv", "The French Dispatch"))
+        assertEquals(listOf(DebridStreamLanguage.EN), languages("The.Italian.Job.2003.1080p.BluRay.ENG.x264-GRP.mkv", "The Italian Job"))
+        assertEquals(listOf(DebridStreamLanguage.IT), languages("The Italian Job (2003) 1080p BluRay ITA AC3.mkv", "The Italian Job"))
+    }
+
+    @Test
+    fun `required language does not match a language word that appears only in the title`() {
+        val titleOnly = premiumizeDirectStream(name = "First", filename = "The.Italian.Job.2003.1080p.BluRay.ENG.x264-GRP.mkv", size = 1_000_000_000, title = "The Italian Job")
+        val actualItalianAudio = premiumizeDirectStream(name = "Second", filename = "The.Italian.Job.2003.1080p.BluRay.ITA.x264-GRP.mkv", size = 2_000_000_000, title = "The Italian Job")
+
+        val result = DebridStreamPresentation.applyPreferences(
+            streams = listOf(titleOnly, actualItalianAudio),
+            settings = DebridSettings(
+                enabled = true,
+                providerApiKeys = mapOf(DebridProviders.PREMIUMIZE_ID to "key"),
+                streamPreferences = DebridStreamPreferences(requiredLanguages = listOf(DebridStreamLanguage.IT)),
+            ),
+        )
+
+        assertEquals(listOf("Second"), result.map { it.name })
+    }
+
     private fun localTorboxStream(
         name: String = "Torrent",
         filename: String,
@@ -324,6 +355,7 @@ class DebridStreamPresentationTest {
         name: String,
         filename: String,
         size: Long,
+        title: String? = null,
     ): StreamItem =
         StreamItem(
             name = name,
@@ -333,6 +365,7 @@ class DebridStreamPresentationTest {
                 type = "debrid",
                 service = DebridProviders.PREMIUMIZE_ID,
                 filename = filename,
+                title = title,
                 isCached = true,
                 stream = StreamClientResolveStream(
                     raw = StreamClientResolveRaw(
@@ -345,4 +378,47 @@ class DebridStreamPresentationTest {
                 ),
             ),
         )
+    @Test
+    fun `formats filtered debrid streams with the facts computed while filtering`() {
+        val settings = DebridSettings(
+            enabled = true,
+            providerApiKeys = mapOf(DebridProviders.TORBOX_ID to "key"),
+            streamPreferences = DebridStreamPreferences(excludedEncodes = listOf(DebridStreamEncode.AVC)),
+            streamNameTemplate = "{stream.resolution} {stream.quality} {stream.encode}",
+            streamDescriptionTemplate = "{stream.filename}",
+        )
+        val passthrough = StreamItem(
+            name = "Regular",
+            url = "https://example.com/movie.mkv",
+            addonName = "Addon",
+            addonId = "addon:test",
+        )
+        val debridStreams = listOf(
+            localTorboxStream(filename = "Movie.2023.1080p.WEB-DL.DDP5.1.x265-GRP.mkv", size = 4_000_000_000),
+            localTorboxStream(filename = "Movie.2023.2160p.BluRay.Remux.DV.HDR.HEVC.DTS-HD.MA-SGF.mkv", size = 40_000_000_000),
+            localTorboxStream(filename = "Movie.2023.720p.WEBRip.AAC.x264-GRP.mkv", size = 1_000_000_000),
+            localTorboxStream(filename = "Movie.2023.1440p.HDTV.HDR.AV1.mkv", size = 6_000_000_000),
+        )
+
+        val presented = DebridStreamPresentation.apply(
+            groups = listOf(
+                AddonStreamGroup(
+                    addonName = "Addon",
+                    addonId = "addon:test",
+                    streams = debridStreams + passthrough,
+                ),
+            ),
+            settings = settings,
+        ).single().streams
+
+        val formatter = DebridStreamFormatter()
+        val expectedDebrid = DebridStreamPresentation.applyPreferences(debridStreams, settings)
+            .map { formatter.format(it, settings) }
+        assertEquals(expectedDebrid + passthrough, presented)
+        assertEquals(
+            listOf("1080p WEB-DL HEVC", "2160p BluRay REMUX HEVC", "1440p HDTV AV1"),
+            presented.dropLast(1).map { it.name },
+        )
+    }
+
 }

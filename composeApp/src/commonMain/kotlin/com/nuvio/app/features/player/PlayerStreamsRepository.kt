@@ -9,6 +9,7 @@ import com.nuvio.app.features.addons.buildAddonResourceUrl
 import com.nuvio.app.features.addons.enabledAddons
 import com.nuvio.app.features.addons.httpGetText
 import com.nuvio.app.features.cloudstream.CloudStreamRepository
+import com.nuvio.app.features.cloudstream.isCloudStreamDiscoveryAllowed
 import com.nuvio.app.features.cloudstream.parseCloudStreamRouteId
 import com.nuvio.app.features.debrid.DebridSettingsRepository
 import com.nuvio.app.features.debrid.DebridStreamPresentation
@@ -27,6 +28,7 @@ import com.nuvio.app.features.streams.StreamItem
 import com.nuvio.app.features.streams.StreamLoadCompletion
 import com.nuvio.app.features.streams.StreamParser
 import com.nuvio.app.features.streams.StreamsUiState
+import com.nuvio.app.features.streams.StreamsEmptyStateReason
 import com.nuvio.app.features.streams.buildCloudStreamSearchRequest
 import com.nuvio.app.features.streams.cloudStreamAddonId
 import com.nuvio.app.features.streams.cloudStreamProviderGroupsForRequest
@@ -39,6 +41,7 @@ import com.nuvio.app.features.streams.streamAddonInstanceId
 import com.nuvio.app.features.streams.toEmptyStateReason
 import com.nuvio.app.features.streams.toPluginProviderGroups
 import com.nuvio.app.features.streams.toStreamItem
+import com.nuvio.app.features.tmdb.TmdbSettingsRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -177,6 +180,9 @@ object PlayerStreamsRepository {
         jobHolder: () -> Job?,
         setJob: (Job?) -> Unit,
     ) {
+        TmdbSettingsRepository.ensureLoaded()
+        val tmdbEnabled = TmdbSettingsRepository.snapshot().enabled
+        val cloudStreamRoute = parseCloudStreamRouteId(videoId)
         val pluginUiState = if (AppFeaturePolicy.pluginsEnabled) {
             PluginRepository.initialize()
             PluginRepository.uiState.value
@@ -192,19 +198,24 @@ object PlayerStreamsRepository {
             episode = episode,
             searchTitle = searchTitle,
         )
-        val cloudStreamProviderGroups = if (AppFeaturePolicy.pluginsEnabled) {
+        val cloudStreamProviderGroups = if (
+            AppFeaturePolicy.pluginsEnabled && isCloudStreamDiscoveryAllowed(tmdbEnabled)
+        ) {
             cloudStreamProviderGroupsForRequest(type, cloudStreamSearchRequest)
         } else {
             emptyList()
         }
-        val cloudStreamRegistryRevision = if (AppFeaturePolicy.pluginsEnabled) {
+        val cloudStreamRegistryRevision = if (
+            AppFeaturePolicy.pluginsEnabled && isCloudStreamDiscoveryAllowed(tmdbEnabled)
+        ) {
             CloudStreamRepository.uiState.value.registryRevision
         } else {
             0L
         }
         val requestKey = "$type::$videoId::$season::$episode::parent=$parentMetaType:$parentMetaId" +
             "::pluginsGrouped=${pluginUiState.groupStreamsByRepository}" +
-            "::cloudstream=$cloudStreamRegistryRevision::cloudTarget=${cloudStreamSearchRequest?.cacheKey.orEmpty()}"
+            "::cloudstream=$cloudStreamRegistryRevision::tmdbEnabled=$tmdbEnabled" +
+            "::cloudTarget=${cloudStreamSearchRequest?.cacheKey.orEmpty()}"
         val current = stateFlow.value
         if (
             !forceRefresh &&
@@ -226,6 +237,13 @@ object PlayerStreamsRepository {
         stateFlow.value = StreamsUiState()
         fun isCurrentRequest(): Boolean =
             requestKeyHolder() == requestKey && requestGenerationHolder() == requestGeneration
+
+        if (cloudStreamRoute != null && !isCloudStreamDiscoveryAllowed(tmdbEnabled)) {
+            stateFlow.value = StreamsUiState(emptyStateReason = StreamsEmptyStateReason.NoStreamsFound)
+            RuntimeDiagnostics.updateStreams(groups = 0, loadingGroups = 0, providerTasks = 0)
+            RuntimeDiagnostics.record(DiagnosticEvent.StreamLoadFinished)
+            return
+        }
 
         val streamBadgeRules = StreamBadgeSettingsRepository.snapshot()
         val embeddedStreams = MetaDetailsRepository.findEmbeddedStreams(videoId)
@@ -251,7 +269,6 @@ object PlayerStreamsRepository {
             return
         }
 
-        val cloudStreamRoute = parseCloudStreamRouteId(videoId)
         if (cloudStreamRoute != null) {
             CloudStreamRepository.initialize()
             val providerItem = CloudStreamRepository.uiState.value.plugins
@@ -615,6 +632,10 @@ object PlayerStreamsRepository {
                     receivedTasks++
                     when (completion) {
                     is StreamLoadCompletion.Addon -> {
+                        publishStreamGroupAfterCacheCheck(completion.group)
+                    }
+
+                    is StreamLoadCompletion.CloudStreamProvider -> {
                         publishStreamGroupAfterCacheCheck(completion.group)
                     }
 

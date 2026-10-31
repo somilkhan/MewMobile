@@ -5,16 +5,21 @@ import android.content.SharedPreferences
 import com.nuvio.app.core.diagnostics.SentryNetworkBreadcrumbInterceptor
 import com.nuvio.app.core.network.DnsOverHttpsSettingsRepository
 import com.nuvio.app.core.network.toOkHttpDns
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withContext
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.network_empty_response_body
 import nuvio.composeapp.generated.resources.network_request_failed_http
 import org.jetbrains.compose.resources.getString
 import okhttp3.ResponseBody
+import okhttp3.Call
+import okhttp3.Callback
+import okhttp3.Response
+import java.io.IOException
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -29,6 +34,8 @@ actual object AddonStorage {
     private const val preferencesName = "nuvio_addons"
     private const val addonUrlsKey = "installed_manifest_urls"
     private const val addonEnabledStatesKey = "installed_manifest_enabled_states"
+    private const val addonKnownVersionsKey = "installed_manifest_known_versions"
+    private const val addonPendingVersionsKey = "installed_manifest_pending_version_changes"
 
     private var preferences: SharedPreferences? = null
 
@@ -64,10 +71,33 @@ actual object AddonStorage {
         val payload = states.entries.joinToString(separator = "\n") { (url, enabled) ->
             "$url\t$enabled"
         }
-        preferences
-            ?.edit()
-            ?.putString("${addonEnabledStatesKey}_$profileId", payload)
-            ?.apply()
+        preferences?.edit()?.putString("${addonEnabledStatesKey}_$profileId", payload)?.apply()
+    }
+
+    actual fun loadKnownAddonVersions(profileId: Int): Map<String, String> =
+        preferences?.getString("${addonKnownVersionsKey}_$profileId", null).orEmpty()
+            .lineSequence().mapNotNull { line ->
+                val url = line.substringBefore("\t").trim()
+                val version = line.substringAfter("\t", "").trim()
+                if (url.isNotEmpty() && version.isNotEmpty()) url to version else null
+            }.toMap()
+
+    actual fun saveKnownAddonVersions(profileId: Int, versions: Map<String, String>) {
+        val payload = versions.entries.joinToString(separator = "\n") { (url, version) -> "$url\t$version" }
+        preferences?.edit()?.putString("${addonKnownVersionsKey}_$profileId", payload)?.apply()
+    }
+
+    actual fun loadPendingAddonVersionChanges(profileId: Int): Map<String, String> =
+        preferences?.getString("${addonPendingVersionsKey}_$profileId", null).orEmpty()
+            .lineSequence().mapNotNull { line ->
+                val url = line.substringBefore("\t").trim()
+                val version = line.substringAfter("\t", "").trim()
+                if (url.isNotEmpty() && version.isNotEmpty()) url to version else null
+            }.toMap()
+
+    actual fun savePendingAddonVersionChanges(profileId: Int, changes: Map<String, String>) {
+        val payload = changes.entries.joinToString(separator = "\n") { (url, version) -> "$url\t$version" }
+        preferences?.edit()?.putString("${addonPendingVersionsKey}_$profileId", payload)?.apply()
     }
 }
 
@@ -85,7 +115,7 @@ private val addonHttpClientLock = Any()
 private var cachedAddonHttpClientProviderId: String? = null
 private var cachedAddonHttpClient: OkHttpClient? = null
 
-private fun addonHttpClient(): OkHttpClient {
+internal fun addonHttpClient(): OkHttpClient {
     val provider = DnsOverHttpsSettingsRepository.snapshot().provider
     synchronized(addonHttpClientLock) {
         val cached = cachedAddonHttpClient
@@ -180,12 +210,51 @@ private fun readResponseBody(body: ResponseBody?): String {
     }
 }
 
+private suspend fun <T> executeCancellableRequest(
+    call: Call,
+    transform: (Response) -> T,
+): T = suspendCancellableCoroutine { continuation ->
+    continuation.invokeOnCancellation {
+        call.cancel()
+    }
+    call.enqueue(
+        object : Callback {
+            override fun onFailure(call: Call, e: IOException) {
+                if (!continuation.isActive) return
+                val failure = if (call.isCanceled()) {
+                    CancellationException("Cancelled HTTP request", e)
+                } else {
+                    e
+                }
+                continuation.resumeWith(Result.failure(failure))
+            }
+
+            override fun onResponse(call: Call, response: Response) {
+                if (!continuation.isActive) {
+                    response.close()
+                    return
+                }
+                val result = runCatching {
+                    response.use { current -> transform(current) }
+                }
+                if (!continuation.isActive) return
+                val failure = result.exceptionOrNull()
+                if (failure != null && call.isCanceled() && failure !is CancellationException) {
+                    continuation.resumeWith(Result.failure(CancellationException("Cancelled HTTP request", failure)))
+                } else {
+                    continuation.resumeWith(result)
+                }
+            }
+        },
+    )
+}
+
 private suspend fun executeTextRequest(
     method: String,
     url: String,
     headers: Map<String, String> = emptyMap(),
     body: String = "",
-): String = withContext(Dispatchers.IO) {
+): String {
     val normalizedMethod = method.uppercase()
     val sanitizedHeaders = headers.withoutAcceptEncoding()
     val builder = Request.Builder().url(url)
@@ -203,7 +272,7 @@ private suspend fun executeTextRequest(
         builder.method(normalizedMethod, null)
     }.build()
 
-    addonHttpClient().newCall(request).execute().use { response ->
+    return executeCancellableRequest(addonHttpClient().newCall(request)) { response ->
         val payload = readResponseBody(response.body)
         if (!response.isSuccessful) {
             error(runBlocking { getString(Res.string.network_request_failed_http, response.code) })
@@ -247,13 +316,13 @@ actual suspend fun httpGetBytesWithHeaders(
     url: String,
     headers: Map<String, String>,
     maxResponseBodyBytes: Int,
-): ByteArray = withContext(Dispatchers.IO) {
-    val requestContext = currentCoroutineContext()
+): ByteArray {
+    val requestJob = currentCoroutineContext()[Job]
     val builder = Request.Builder().url(url)
     headers.withoutAcceptEncoding().forEach { (key, value) ->
         builder.header(key, value)
     }
-    addonHttpClient().newCall(builder.get().build()).execute().use { response ->
+    return executeCancellableRequest(addonHttpClient().newCall(builder.get().build())) { response ->
         if (!response.isSuccessful) {
             error(runBlocking { getString(Res.string.network_request_failed_http, response.code) })
         }
@@ -266,7 +335,7 @@ actual suspend fun httpGetBytesWithHeaders(
             readAtMostBytes(
                 stream = stream,
                 maxBytes = maxResponseBodyBytes.coerceAtLeast(0),
-                onProgress = { requestContext.ensureActive() },
+                onProgress = { requestJob?.ensureActive() },
             )
         }
         require(!readResult.truncated) { "HTTP response exceeds the safe size limit." }
@@ -296,44 +365,43 @@ actual suspend fun httpRequestRaw(
     body: String,
     followRedirects: Boolean,
     maxResponseBodyBytes: Int,
-): RawHttpResponse =
-    withContext(Dispatchers.IO) {
-        val normalizedMethod = method.uppercase()
-        val sanitizedHeaders = headers.withoutAcceptEncoding()
-        val builder = Request.Builder().url(url)
-        sanitizedHeaders.forEach { (key, value) ->
-            builder.header(key, value)
-        }
-
-        val request = if (requestAllowsBody(normalizedMethod)) {
-            val contentType = sanitizedHeaders.getHeaderIgnoreCase("Content-Type")
-                ?: if (normalizedMethod == "POST") "application/x-www-form-urlencoded" else "application/json"
-            val requestBody = body.toByteArray(Charsets.UTF_8).toRequestBody(contentType.toMediaType())
-            builder.method(normalizedMethod, requestBody)
-        } else {
-            builder.method(normalizedMethod, null)
-        }.build()
-
-        val client = if (followRedirects) {
-            addonHttpClient()
-        } else {
-            addonHttpClient().newBuilder()
-                .followRedirects(false)
-                .followSslRedirects(false)
-                .build()
-        }
-
-        client.newCall(request).execute().use { response ->
-            RawHttpResponse(
-                status = response.code,
-                statusText = response.message,
-                url = response.request.url.toString(),
-                body = readResponseBodyLimited(response.body, maxResponseBodyBytes),
-                headers = response.headers.toMultimap().mapValues { (_, values) ->
-                    values.joinToString(",")
-                }.mapKeys { (name, _) ->
-                    name.lowercase()
-                },
-            )
-        }
+): RawHttpResponse {
+    val normalizedMethod = method.uppercase()
+    val sanitizedHeaders = headers.withoutAcceptEncoding()
+    val builder = Request.Builder().url(url)
+    sanitizedHeaders.forEach { (key, value) ->
+        builder.header(key, value)
     }
+
+    val request = if (requestAllowsBody(normalizedMethod)) {
+        val contentType = sanitizedHeaders.getHeaderIgnoreCase("Content-Type")
+            ?: if (normalizedMethod == "POST") "application/x-www-form-urlencoded" else "application/json"
+        val requestBody = body.toByteArray(Charsets.UTF_8).toRequestBody(contentType.toMediaType())
+        builder.method(normalizedMethod, requestBody)
+    } else {
+        builder.method(normalizedMethod, null)
+    }.build()
+
+    val client = if (followRedirects) {
+        addonHttpClient()
+    } else {
+        addonHttpClient().newBuilder()
+            .followRedirects(false)
+            .followSslRedirects(false)
+            .build()
+    }
+
+    return executeCancellableRequest(client.newCall(request)) { response ->
+        RawHttpResponse(
+            status = response.code,
+            statusText = response.message,
+            url = response.request.url.toString(),
+            body = readResponseBodyLimited(response.body, maxResponseBodyBytes),
+            headers = response.headers.toMultimap().mapValues { (_, values) ->
+                values.joinToString(",")
+            }.mapKeys { (name, _) ->
+                name.lowercase()
+            },
+        )
+    }
+}

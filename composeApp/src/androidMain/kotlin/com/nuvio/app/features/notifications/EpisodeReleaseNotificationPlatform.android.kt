@@ -22,6 +22,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.Operation
 import androidx.work.WorkManager
 import com.nuvio.app.MainActivity
+import com.nuvio.app.core.network.SharedOkHttpClient
 import com.nuvio.app.core.storage.ProfileScopedKey
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
@@ -56,6 +57,7 @@ internal actual object EpisodeReleaseNotificationPlatform {
     private var pendingPermissionContinuation: kotlin.coroutines.Continuation<Boolean>? = null
     private val httpClient by lazy {
         HttpClient(OkHttp) {
+            engine { preconfigured = SharedOkHttpClient.base }
             install(HttpTimeout) {
                 requestTimeoutMillis = 15_000
                 connectTimeoutMillis = 15_000
@@ -189,6 +191,42 @@ internal actual object EpisodeReleaseNotificationPlatform {
                 .remove(scopedScheduledIdsKey())
                 .apply()
         }
+    }
+
+    actual suspend fun showCloudStreamPluginUpdates(pluginNames: List<String>) {
+        val context = appContext ?: return
+        if (pluginNames.isEmpty() || !notificationsAuthorized()) return
+
+        val updatesChannelId = "cloudstream_plugin_updates"
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+                ?: return
+            if (manager.getNotificationChannel(updatesChannelId) == null) {
+                manager.createNotificationChannel(
+                    NotificationChannel(
+                        updatesChannelId,
+                        "CloudStream extension updates",
+                        NotificationManager.IMPORTANCE_LOW,
+                    ).apply {
+                        description = "Updates for installed CloudStream extensions"
+                        setSound(null, null)
+                        enableVibration(false)
+                    },
+                )
+            }
+        }
+
+        val names = pluginNames.distinct()
+        val notification = NotificationCompat.Builder(context, updatesChannelId)
+            .setSmallIcon(com.nuvio.app.R.drawable.ic_notification_small)
+            .setContentTitle("CloudStream extensions updated")
+            .setContentText("${names.size} extension${if (names.size == 1) "" else "s"} updated")
+            .setStyle(NotificationCompat.BigTextStyle().bigText(names.joinToString(separator = "\n")))
+            .setAutoCancel(true)
+            .setSilent(true)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .build()
+        NotificationManagerCompat.from(context).notify(0x4353, notification)
     }
 
     actual suspend fun showTestNotification(request: EpisodeReleaseNotificationRequest) {

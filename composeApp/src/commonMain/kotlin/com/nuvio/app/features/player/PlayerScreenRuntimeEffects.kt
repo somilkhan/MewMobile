@@ -1,5 +1,7 @@
 package com.nuvio.app.features.player
 
+import com.nuvio.app.features.player.skip.selectActiveSkipInterval
+
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -26,6 +28,7 @@ import org.jetbrains.compose.resources.getString
 
 @Composable
 internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
+    BindAutoSyncRuntimeEffects()
     val currentFeedback = liveGestureFeedback ?: gestureFeedback
     LaunchedEffect(currentFeedback) {
         if (currentFeedback != null) {
@@ -51,10 +54,10 @@ internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
         }
     }
 
-    LaunchedEffect(currentStreamBingeGroup, parentMetaId) {
+    LaunchedEffect(currentStreamBingeGroup, currentStreamFilename, currentStreamInfoHash, parentMetaId) {
         val bg = currentStreamBingeGroup
         if (bg != null && parentMetaId.isNotBlank()) {
-            BingeGroupCacheRepository.save(parentMetaId, bg)
+            BingeGroupCacheRepository.save(parentMetaId, bg, currentStreamFilename, currentStreamInfoHash)
         }
     }
 
@@ -357,7 +360,9 @@ internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
         selectedSubtitleIndex = -1
         useCustomSubtitles = true
         autoAddonFallbackPending = false
-        playerController?.setSubtitleUri(currentEpisodeSubtitle.url)
+        if (!maybeAutoSyncPreferredSubtitleAtStart(currentEpisodeSubtitle)) {
+            playerController?.setSubtitleUri(currentEpisodeSubtitle.url)
+        }
     }
 
     LaunchedEffect(playbackSnapshot.isLoading, playerController) {
@@ -647,9 +652,7 @@ private fun PlayerScreenRuntime.BindPlayerMetadataAndSkipEffects() {
             return@LaunchedEffect
         }
         val positionSec = playbackSnapshot.positionMs / 1000.0
-        val current = skipIntervals.firstOrNull { interval ->
-            positionSec >= interval.startTime && positionSec < interval.endTime
-        }
+        val current = selectActiveSkipInterval(skipIntervals, positionSec)
         if (current != activeSkipInterval) {
             activeSkipInterval = current
             if (current != null) skipIntervalDismissed = false
@@ -911,6 +914,8 @@ internal fun PlayerScreenRuntime.tryRefreshCredentialedSourceAfterError(message:
         activeProviderName = stream.addonName
         activeProviderAddonId = stream.addonId
         currentStreamBingeGroup = stream.behaviorHints.bingeGroup
+        currentStreamFilename = stream.behaviorHints.filename
+        currentStreamInfoHash = stream.infoHash ?: stream.p2pInfoHash
         activeInitialPositionMs = savedPositionMs
         activeInitialProgressFraction = null
         showSourcesPanel = false
