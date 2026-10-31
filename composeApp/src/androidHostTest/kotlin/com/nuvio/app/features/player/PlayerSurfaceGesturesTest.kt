@@ -1,5 +1,6 @@
 package com.nuvio.app.features.player
 
+import androidx.activity.ComponentActivity
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
@@ -13,6 +14,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import org.junit.BeforeClass
 import org.junit.Rule
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -21,8 +23,25 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34], manifest = "mew/AndroidManifest.xml", packageName = "com.mew.test")
+@Config(sdk = [34], manifest = "mew/AndroidManifest.xml")
 class PlayerSurfaceGesturesTest {
+    companion object {
+        @JvmStatic
+        @BeforeClass
+        fun verifyRobolectricHostResources() {
+            val manifestUrl = checkNotNull(
+                PlayerSurfaceGesturesTest::class.java.classLoader.getResource("mew/AndroidManifest.xml"),
+            ) { "Mew Robolectric manifest is missing from the androidHostTest classpath" }
+            val manifestXml = manifestUrl.openStream().bufferedReader().use { it.readText() }
+            check("androidx.activity.ComponentActivity" in manifestXml) {
+                "Mew Robolectric manifest does not declare ComponentActivity"
+            }
+            check(ComponentActivity::class.java.name == "androidx.activity.ComponentActivity") {
+                "AndroidX ComponentActivity is missing from the androidHostTest runtime classpath"
+            }
+        }
+    }
+
     @get:Rule
     val compose = createComposeRule()
 
