@@ -627,6 +627,7 @@ kotlin {
         getByName("androidHostTest") {
             resources.srcDir(project.file("src/androidHostTest/resources"))
             dependencies {
+                implementation(libs.androidx.activity.compose)
                 implementation("org.robolectric:robolectric:4.16")
                 implementation("androidx.compose.ui:ui-test-junit4:${libs.versions.composeMultiplatform.get()}")
             }
