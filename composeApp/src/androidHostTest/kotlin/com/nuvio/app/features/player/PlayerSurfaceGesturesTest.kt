@@ -23,7 +23,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34], manifest = "composeApp/src/androidHostTest/resources/AndroidManifest.xml")
+@Config(sdk = [34], manifest = "AndroidManifest.xml")
 class PlayerSurfaceGesturesTest {
     companion object {
         @JvmStatic
