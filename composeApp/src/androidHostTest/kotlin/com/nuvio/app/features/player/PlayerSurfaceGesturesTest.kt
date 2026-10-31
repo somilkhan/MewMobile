@@ -9,7 +9,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.unit.IntSize
@@ -33,17 +33,17 @@ class PlayerSurfaceGesturesTest {
                 PlayerSurfaceGesturesTest::class.java.classLoader.getResource("mew/AndroidManifest.xml"),
             ) { "Mew Robolectric manifest is missing from the androidHostTest classpath" }
             val manifestXml = manifestUrl.openStream().bufferedReader().use { it.readText() }
-            check("androidx.activity.ComponentActivity" in manifestXml) {
-                "Mew Robolectric manifest does not declare ComponentActivity"
+            check("com.nuvio.app.features.player.PlayerGestureTestActivity" in manifestXml) {
+                "Mew Robolectric manifest does not declare the gesture test Activity"
             }
-            check(ComponentActivity::class.java.name == "androidx.activity.ComponentActivity") {
-                "AndroidX ComponentActivity is missing from the androidHostTest runtime classpath"
+            check(ComponentActivity::class.java.isAssignableFrom(PlayerGestureTestActivity::class.java)) {
+                "PlayerGestureTestActivity must extend AndroidX ComponentActivity"
             }
         }
     }
 
     @get:Rule
-    val compose = createComposeRule()
+    val compose = createAndroidComposeRule<PlayerGestureTestActivity>()
 
     private var taps = 0
     private var unlocks = 0
@@ -118,3 +118,6 @@ class PlayerSurfaceGesturesTest {
         compose.runOnIdle { assertEquals(1, unlocks) }
     }
 }
+
+
+class PlayerGestureTestActivity : ComponentActivity()
