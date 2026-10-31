@@ -7,7 +7,6 @@ import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.TaskAction
-import org.gradle.api.tasks.testing.Test
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
 import java.util.Properties
@@ -362,11 +361,6 @@ val isAndroidHostTestRequested = requestedGradleTasks.any { taskName ->
     "androidhosttest" in taskName
 }
 
-// Robolectric resolves @Config(manifest = ...) paths from the test worker's working directory.
-// Keep that directory deterministic so module-root-relative manifest paths resolve in CI and locally.
-tasks.withType<Test>().matching { it.name == "testAndroidHostTest" }.configureEach {
-    workingDir = rootProject.projectDir
-}
 require(requestedAndroidDistributions.size <= 1) {
     "Build Android full and playstore distributions separately, or set -Pnuvio.android.distribution=full|playstore."
 }
@@ -631,6 +625,7 @@ kotlin {
             }
         }
         getByName("androidHostTest") {
+            resources.srcDir(project.file("src/androidHostTest/resources"))
             dependencies {
                 implementation("org.robolectric:robolectric:4.16")
                 implementation("androidx.compose.ui:ui-test-junit4:${libs.versions.composeMultiplatform.get()}")
