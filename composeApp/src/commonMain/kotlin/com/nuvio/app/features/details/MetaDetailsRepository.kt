@@ -294,6 +294,10 @@ object MetaDetailsRepository {
     fun invalidateTmdbEnrichment() {
         val currentState = _uiState.value
         val requestKey = currentState.requestKey
+        val tmdbEnabled = TmdbSettingsRepository.snapshot().enabled
+        val currentRequestIsCloudStream =
+            currentState.meta?.id?.let(::parseCloudStreamRouteId) != null ||
+                requestKey?.substringAfter(':')?.let(::parseCloudStreamRouteId) != null
         activeJob?.cancel()
         activeJob = null
         activeRequestGeneration += 1
@@ -318,8 +322,15 @@ object MetaDetailsRepository {
         }
 
         val cachedBase = requestKey?.let(::cachedEntry)
-        activeRequestKey = requestKey?.takeIf { cachedBase != null }
-        if (cachedBase != null) {
+        val currentCloudStreamRouteIsDisabled = tmdbEnabled && currentRequestIsCloudStream
+        val shouldReloadCloudStreamRoute = !tmdbEnabled && currentRequestIsCloudStream && cachedBase == null
+        activeRequestKey = requestKey?.takeIf { cachedBase != null && !currentCloudStreamRouteIsDisabled }
+        if (currentCloudStreamRouteIsDisabled) {
+            _uiState.value = MetaDetailsUiState(
+                requestKey = requestKey,
+                errorMessage = "CloudStream detail could not be loaded",
+            )
+        } else if (cachedBase != null) {
             _uiState.value = MetaDetailsUiState(
                 requestKey = requestKey,
                 meta = cachedBase.baseMeta.withUnreleasedFilter(),
@@ -328,10 +339,19 @@ object MetaDetailsRepository {
             // Remove the stale standalone TMDB result without launching network work from settings.
             // The detail route will fetch again when it is next loaded with the new settings.
             _uiState.value = MetaDetailsUiState(requestKey = requestKey)
+        } else if (shouldReloadCloudStreamRoute) {
+            _uiState.value = MetaDetailsUiState(requestKey = requestKey)
         } else if (currentState.isLoading) {
             _uiState.value = currentState.copy(isLoading = false)
         }
         RuntimeDiagnostics.updateMetadataLoading(false)
+        if (shouldReloadCloudStreamRoute && requestKey != null) {
+            load(
+                type = requestKey.substringBefore(':'),
+                id = requestKey.substringAfter(':'),
+                trigger = MetadataLoadTrigger.Initial,
+            )
+        }
     }
 
     fun clear() {
