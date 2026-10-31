@@ -489,7 +489,7 @@ kotlin {
         }
         minSdk = libs.versions.android.minSdk.get().toInt()
         androidResources.enable = true
-        withHostTest {}
+        withHostTest { isIncludeAndroidResources = true }
 
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_11)
@@ -625,7 +625,6 @@ kotlin {
             }
         }
         getByName("androidHostTest") {
-            resources.srcDir(project.file("src/androidHostTest/resources"))
             dependencies {
                 implementation(libs.androidx.activity.compose)
                 implementation("org.robolectric:robolectric:4.16")
