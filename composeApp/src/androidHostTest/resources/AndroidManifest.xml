@@ -3,7 +3,7 @@
     package="org.robolectric.default">
     <application android:theme="@android:style/Theme.Material.Light.NoActionBar">
         <activity
-            android:name="androidx.activity.ComponentActivity"
+            android:name="com.nuvio.app.features.player.PlayerGestureTestActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
