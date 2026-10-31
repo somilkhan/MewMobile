@@ -34,17 +34,17 @@ class PlayerSurfaceGesturesTest {
                 classLoader.getResource("mew/AndroidManifest.xml"),
             ) { "Mew Robolectric manifest is missing from the androidHostTest classpath" }
             val manifestXml = manifestUrl.openStream().bufferedReader().use { it.readText() }
-            check("com.nuvio.app.features.player.PlayerGestureTestActivity" in manifestXml) {
-                "Mew Robolectric manifest does not declare the gesture test Activity"
+            check("package=\"org.robolectric.default\"" in manifestXml) {
+                "Mew Robolectric manifest package must match the host-test application package"
             }
-            check(ComponentActivity::class.java.isAssignableFrom(PlayerGestureTestActivity::class.java)) {
-                "PlayerGestureTestActivity must extend AndroidX ComponentActivity"
+            check("androidx.activity.ComponentActivity" in manifestXml) {
+                "Mew Robolectric manifest does not declare AndroidX ComponentActivity"
             }
         }
     }
 
     @get:Rule
-    val compose = createAndroidComposeRule<PlayerGestureTestActivity>()
+    val compose = createAndroidComposeRule<ComponentActivity>()
 
     private var taps = 0
     private var unlocks = 0
@@ -119,6 +119,3 @@ class PlayerSurfaceGesturesTest {
         compose.runOnIdle { assertEquals(1, unlocks) }
     }
 }
-
-
-class PlayerGestureTestActivity : ComponentActivity()
