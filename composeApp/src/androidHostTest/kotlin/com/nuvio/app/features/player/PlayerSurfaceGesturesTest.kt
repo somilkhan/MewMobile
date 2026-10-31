@@ -21,7 +21,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34], manifest = "mew/AndroidManifest.xml")
+@Config(sdk = [34], manifest = "mew/AndroidManifest.xml", packageName = "com.mew.test")
 class PlayerSurfaceGesturesTest {
     @get:Rule
     val compose = createComposeRule()
