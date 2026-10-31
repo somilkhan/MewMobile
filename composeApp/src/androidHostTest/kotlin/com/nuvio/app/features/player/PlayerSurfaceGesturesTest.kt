@@ -23,14 +23,15 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34], manifest = "AndroidManifest.xml")
+@Config(sdk = [34], manifest = "mew/AndroidManifest.xml")
 class PlayerSurfaceGesturesTest {
     companion object {
         @JvmStatic
         @BeforeClass
         fun verifyRobolectricHostResources() {
+            val classLoader = checkNotNull(PlayerSurfaceGesturesTest::class.java.classLoader)
             val manifestUrl = checkNotNull(
-                PlayerSurfaceGesturesTest::class.java.classLoader.getResource("AndroidManifest.xml"),
+                classLoader.getResource("mew/AndroidManifest.xml"),
             ) { "Mew Robolectric manifest is missing from the androidHostTest classpath" }
             val manifestXml = manifestUrl.openStream().bufferedReader().use { it.readText() }
             check("com.nuvio.app.features.player.PlayerGestureTestActivity" in manifestXml) {
