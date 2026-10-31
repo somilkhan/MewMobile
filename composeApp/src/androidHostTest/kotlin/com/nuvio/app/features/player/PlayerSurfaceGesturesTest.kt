@@ -86,6 +86,8 @@ class PlayerSurfaceGesturesTest {
             moveBy(Offset(1f, 0f))
             up()
         }
+        // A single tap is held until the double-tap recognition window expires.
+        compose.mainClock.advanceTimeBy(400)
         compose.runOnIdle { assertEquals(1, taps) }
     }
 
