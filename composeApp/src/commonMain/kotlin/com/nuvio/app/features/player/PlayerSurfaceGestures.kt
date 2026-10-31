@@ -61,12 +61,21 @@ internal fun Modifier.playerSurfaceDragGestures(
     revealLockedOverlayState: State<() -> Unit>,
     commitHorizontalSeekState: State<(Long) -> Unit>,
 ): Modifier =
-    pointerInput(gestureController, layoutSize, sideGestureSystemEdgeExclusionPx) {
+    pointerInput(
+        gestureController,
+        layoutSize,
+        sideGestureSystemEdgeExclusionPx,
+        playerControlsLockedState.value,
+    ) {
+        // Do not install a drag recognizer while controls are locked. Even an unconsumed
+        // awaitEachGesture loop participates in pointer dispatch and can interfere with the
+        // surface's tap recognizer on a short tap with slight finger movement. The lock value
+        // is a pointerInput key, so the recognizer is restarted immediately when unlocking.
+        if (playerControlsLockedState.value) return@pointerInput
+
         awaitEachGesture {
             val down = awaitFirstDown()
             if (playerControlsLockedState.value) {
-                // Keep locked-state touch events unconsumed so surface taps and the unlock
-                // button can still recognize clicks, including a small amount of finger drift.
                 return@awaitEachGesture
             }
             if (!touchGesturesEnabledState.value) {
