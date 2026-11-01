@@ -1172,9 +1172,11 @@ private fun ExoPlayerSurface(
                         val newMediaItem = currentMediaItem.buildUpon()
                             .setSubtitleConfigurations(emptyList())
                             .build()
-                        exoPlayer.setPlaybackMediaItem(newMediaItem, currentPosition)
-                        exoPlayer.prepare()
-                        exoPlayer.playWhenReady = wasPlaying
+                        subtitleSelectionJob = coroutineScope.launch {
+                            exoPlayer.setPlaybackMediaItem(newMediaItem, currentPosition)
+                            exoPlayer.prepare()
+                            exoPlayer.playWhenReady = wasPlaying
+                        }
                     } else {
                         selectSubtitleTrack(-1)
                     }
@@ -1196,9 +1198,11 @@ private fun ExoPlayerSurface(
                         val newMediaItem = currentMediaItem.buildUpon()
                             .setSubtitleConfigurations(emptyList())
                             .build()
-                        exoPlayer.setPlaybackMediaItem(newMediaItem, currentPosition)
-                        exoPlayer.prepare()
-                        exoPlayer.playWhenReady = wasPlaying
+                        subtitleSelectionJob = coroutineScope.launch {
+                            exoPlayer.setPlaybackMediaItem(newMediaItem, currentPosition)
+                            exoPlayer.prepare()
+                            exoPlayer.playWhenReady = wasPlaying
+                        }
                     } else {
                         pendingSubtitleTrackIndex.clear()
                         selectSubtitleTrack(trackIndex)
