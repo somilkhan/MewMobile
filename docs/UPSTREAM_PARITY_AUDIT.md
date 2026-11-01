@@ -429,3 +429,14 @@ Comparison anchor: Enhanced `ae535226b1488a60d59613c1502fbb717cbb333f` → `a3e8
 - **Reviewed / not ported wholesale:** upstream's larger player-runtime reorganization, automatic engine/failover changes, metadata/shuffle/party additions, and unrelated localization changes are not copied into Mew. Mew's existing runtime, stream identity, subtitle AutoSync, settings and engine behavior remain the integration boundary. Each additional feature requires a separate compatibility review.
 - Nuvio Enhanced `enhanced` remains identical to recorded baseline `93893a444ba68876d1ac30790d235ca4e7ddb64c` in the current compare.
 - Candidate CI before this follow-up: run [41226201898](https://github.com/somilkhan/MewMobile/actions/runs/41226201898) passed host tests, Android Kotlin source compilation and branding validation for the prior head `c69191690e539c775ed1a8a2fb167df12c723a69`. The new follow-up commit requires a fresh exact-head CI run. APK/package-ID/signing and device gates remain Phase 5 only.
+
+
+## Local media and sidecar follow-up — 2026-11-02
+
+- Ported the upstream sidecar cue cursor into Mew's generation-safe controller. Sorted timelines advance incrementally, backward seeks rewind the cursor, cue identity signatures avoid repeated cue-text hashing, and unsorted timelines use a correctness-first full-scan fallback. Regression tests cover unchanged active cues, seek rewind, and unsorted input.
+- Ported local container-header detection for `file://` and `content://` media, with 4 KiB reads, a 64-entry MIME cache, extension fallback, and host tests for Matroska, MP4, MPEG-TS, AVI, FLV and OGG. Android application context is exposed only by the Android actual storage object.
+- Added `file://` subtitle copying into Mew's FileProvider cache while retaining Mew's shared OkHttp/DNS configuration and URL-redaction behavior.
+- Ported generic episode-title localization ("Episode N") into Mew's existing i18n helper and the details, watched-action-sheet and stream-title surfaces. No navigation or settings UI was replaced.
+- Started network monitoring from Home and player entry, with foreground refresh on Home visibility. Player subtitle/skip requests key off the offline boolean to avoid restarting on Unknown → Checking → Online transitions; parental-guide lookup waits for Online.
+- Nuvio Enhanced baseline `93893a444ba68876d1ac30790d235ca4e7ddb64c` independently contains the sidecar cursor, local MIME sniffing and local subtitle-file handling; these ports preserve Mew's existing generation and network-client customizations.
+- Exact-head CI for this follow-up is pending; APK packaging remains deferred to Phase 5.

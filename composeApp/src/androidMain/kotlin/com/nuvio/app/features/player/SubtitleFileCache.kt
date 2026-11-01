@@ -77,18 +77,24 @@ object SubtitleFileCache {
             val filename = sanitizeFilename("${input.lang}_${input.name}.$extension")
             val file = File(dir, filename)
 
-            val request = Request.Builder()
-                .url(input.url)
-                .build()
-
             try {
+                if (input.url.startsWith("file:", ignoreCase = true)) {
+                    File(URI(input.url)).copyTo(file, overwrite = true)
+                    return@withContext FileProvider.getUriForFile(
+                        context,
+                        "${context.packageName}.fileprovider",
+                        file,
+                    )
+                }
+
+                val request = Request.Builder().url(input.url).build()
                 okHttpClient.newCall(request).execute().use { response ->
                     if (!response.isSuccessful) {
                         Log.w(TAG, "HTTP ${response.code} downloading subtitle: ${redactSubtitleUrlForLogs(input.url)}")
                         return@withContext null
                     }
 
-                    val body = response.body
+                    val body = response.body ?: return@withContext null
                     file.outputStream().use { output ->
                         body.byteStream().copyTo(output)
                     }

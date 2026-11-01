@@ -189,10 +189,14 @@ actual object PlayerSettingsStorage {
     )
 
     private var preferences: SharedPreferences? = null
+    private var appContext: Context? = null
 
     fun initialize(context: Context) {
+        appContext = context.applicationContext
         preferences = context.getSharedPreferences(preferencesName, Context.MODE_PRIVATE)
     }
+
+    internal fun applicationContext(): Context? = appContext
 
     private fun loadBoolean(keyBase: String): Boolean? = preferences?.let { sharedPreferences ->
         val key = ProfileScopedKey.of(keyBase)

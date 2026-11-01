@@ -58,3 +58,13 @@ Check the newest CI run associated with the exact current branch HEAD. The 2026-
 - Player add-on subtitle lookup observes network state, does not mark a fetch complete while offline, retries when connectivity changes, and avoids redundant add-on lookup for local files that already have external subtitles.
 - Remote skip lookup waits for usable connectivity and has a four-second timeout.
 - Added common tests for skip segment alias normalization. Exact-head CI for this follow-up is not yet observed.
+
+
+## 2026-11-02 local media/sidecar follow-up
+
+- Incremental sidecar cue cursor is integrated with Mew's existing generation guard and has host regression tests for unchanged active cues, backward seek, and unsorted timelines.
+- Local file/content URI media now infer container MIME from the first 4 KiB when stream type and response headers do not decide the type; extension inference remains the fallback. Host tests cover the supported signatures.
+- Local `file://` subtitles can be copied into FileProvider cache without changing Mew's shared HTTP/DNS client.
+- Generic "Episode N" labels are localized in detail, watched-action and stream title surfaces.
+- Network monitoring is started from Home and player entry; Home foreground transitions request a delayed confirmation refresh. Player lookups retry when offline state clears without restarting for intermediate probe states.
+- Exact-head CI is pending. APK build/signing and device verification remain Phase 5 gates.

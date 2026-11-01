@@ -40,6 +40,116 @@ internal class SidecarGeneration {
     fun isCurrent(candidate: Long): Boolean = candidate == current
 }
 
+internal class SidecarCueCursor {
+    private val lock = Any()
+    private var sourceCues: List<CuesWithTiming>? = null
+    private var sourceIsSorted = true
+    private var nextIndex = 0
+    private var lastPositionUs = -1L
+    private val activeEntries = ArrayList<CuesWithTiming>(4)
+    private var lastSignature: Long? = null
+
+    fun reset() {
+        synchronized(lock) {
+            sourceCues = null
+            sourceIsSorted = true
+            nextIndex = 0
+            lastPositionUs = -1L
+            activeEntries.clear()
+            lastSignature = null
+        }
+    }
+
+    fun activeCuesOrNull(cues: List<CuesWithTiming>, positionUs: Long): List<Cue>? =
+        synchronized(lock) {
+            if (sourceCues !== cues) {
+                sourceCues = cues
+                sourceIsSorted = isChronologicallySorted(cues)
+                nextIndex = 0
+                lastPositionUs = -1L
+                activeEntries.clear()
+                lastSignature = null
+            }
+
+            val active = if (sourceIsSorted) advance(cues, positionUs) else legacyScan(cues, positionUs)
+            val signature = activeCueSignature(active)
+            if (signature == lastSignature) return@synchronized null
+            lastSignature = signature
+            flattenSidecarCues(active)
+        }
+
+    private fun advance(cues: List<CuesWithTiming>, positionUs: Long): List<CuesWithTiming> {
+        if (positionUs < lastPositionUs) {
+            nextIndex = 0
+            activeEntries.clear()
+        }
+        lastPositionUs = positionUs
+
+        var index = nextIndex
+        while (index < cues.size && cues[index].startTimeUs <= positionUs) {
+            activeEntries.add(cues[index])
+            index++
+        }
+        nextIndex = index
+
+        var write = 0
+        for (read in activeEntries.indices) {
+            val entry = activeEntries[read]
+            if (sidecarEntryEndUs(entry) > positionUs) {
+                activeEntries[write] = entry
+                write++
+            }
+        }
+        while (activeEntries.size > write) {
+            activeEntries.removeAt(activeEntries.size - 1)
+        }
+        return activeEntries
+    }
+
+    // Unsorted timelines are uncommon; scan every entry instead of relying on an invalid early break.
+    private fun legacyScan(cues: List<CuesWithTiming>, positionUs: Long): List<CuesWithTiming> =
+        cues.filter { entry ->
+            entry.startTimeUs <= positionUs && sidecarEntryEndUs(entry) > positionUs
+        }
+}
+
+private fun sidecarEntryEndUs(entry: CuesWithTiming): Long = when {
+    entry.endTimeUs != C.TIME_UNSET -> entry.endTimeUs
+    entry.durationUs != C.TIME_UNSET -> entry.startTimeUs + entry.durationUs
+    else -> Long.MAX_VALUE
+}
+
+private fun isChronologicallySorted(cues: List<CuesWithTiming>): Boolean {
+    var previous = Long.MIN_VALUE
+    for (entry in cues) {
+        if (entry.startTimeUs < previous) return false
+        previous = entry.startTimeUs
+    }
+    return true
+}
+
+private fun flattenSidecarCues(entries: List<CuesWithTiming>): List<Cue> {
+    var total = 0
+    for (entry in entries) total += entry.cues.size
+    if (total == 0) return emptyList()
+    val result = ArrayList<Cue>(total)
+    for (entry in entries) result.addAll(entry.cues)
+    return result
+}
+
+private fun activeCueSignature(entries: List<CuesWithTiming>): Long {
+    var hash = 0L
+    var count = 0
+    for (entry in entries) {
+        for (cue in entry.cues) {
+            hash = 31L * hash + System.identityHashCode(cue)
+            count++
+        }
+    }
+    if (count == 0) return EMPTY_CUE_SIGNATURE
+    return 31L * hash + count.toLong()
+}
+
 internal class SidecarSubtitleController(
     private val scope: CoroutineScope,
     private val getPlayer: () -> Player?,
@@ -52,7 +162,7 @@ internal class SidecarSubtitleController(
     internal val activeSidecarSubtitleKey: String? get() = activeSidecarSubtitleKeyState
     private var sidecarTimedCuesState: List<CuesWithTiming> = emptyList()
     internal val sidecarTimedCues: List<CuesWithTiming> get() = sidecarTimedCuesState
-    private var lastSidecarCueSignature: Long? = null
+    private val sidecarCueCursor = SidecarCueCursor()
     private var exoSubtitleViewRef: WeakReference<SubtitleView>? = null
 
     fun canAttachAddonSubtitleViaSidecar(url: String, useLibass: Boolean): Boolean {
@@ -65,7 +175,10 @@ internal class SidecarSubtitleController(
         exoSubtitleViewRef = subtitleView?.let(::WeakReference)
         val currentGeneration = activeGeneration ?: return
         subtitleView?.setTag(R.id.player_view_sidecar_generation_tag, currentGeneration)
-        if (sidecarTimedCues.isNotEmpty()) renderSidecarCuesAtCurrentPosition()
+        if (subtitleView != null && sidecarTimedCues.isNotEmpty()) {
+            sidecarCueCursor.reset()
+            renderSidecarCuesAtCurrentPosition()
+        }
     }
 
     fun currentGenerationFor(url: String): Long? {
@@ -91,7 +204,7 @@ internal class SidecarSubtitleController(
 
         activeSidecarSubtitleKeyState = newUrl
         sidecarTimedCuesState = cues
-        lastSidecarCueSignature = null
+        sidecarCueCursor.reset()
         renderSidecarCuesAtCurrentPosition()
         return true
     }
@@ -103,7 +216,7 @@ internal class SidecarSubtitleController(
         activeGeneration = null
         activeSidecarSubtitleKeyState = null
         sidecarTimedCuesState = emptyList()
-        lastSidecarCueSignature = null
+        sidecarCueCursor.reset()
         if (clearView) {
             postToSubtitleView { view ->
                 view.setTag(R.id.player_view_sidecar_generation_tag, null)
@@ -124,7 +237,7 @@ internal class SidecarSubtitleController(
         val requestGeneration = generation.next()
         activeGeneration = requestGeneration
         activeSidecarSubtitleKeyState = url
-        lastSidecarCueSignature = null
+        sidecarCueCursor.reset()
         sidecarTimedCuesState = emptyList()
         postToSubtitleView { view ->
             view.setTag(R.id.player_view_sidecar_generation_tag, requestGeneration)
@@ -156,6 +269,7 @@ internal class SidecarSubtitleController(
                 }
 
                 sidecarTimedCuesState = parseResult.cues
+                sidecarCueCursor.reset()
                 Log.d(
                     SIDECAR_TAG,
                     "Sidecar subtitle ready url=${redactSubtitleUrlForLogs(url)} cues=${parseResult.cues.size} " +
@@ -186,10 +300,7 @@ internal class SidecarSubtitleController(
         val player = getPlayer() ?: return
         val delayUs = getSubtitleDelayMs().toLong() * 1_000L
         val positionUs = (player.currentPosition.coerceAtLeast(0L) * 1_000L - delayUs).coerceAtLeast(0L)
-        val active = collectActiveSidecarCues(cues, positionUs)
-        val signature = activeCueSignature(active)
-        if (signature == lastSidecarCueSignature) return
-        lastSidecarCueSignature = signature
+        val active = sidecarCueCursor.activeCuesOrNull(cues, positionUs) ?: return
         postToSubtitleView { view ->
             if (view.getTag(R.id.player_view_sidecar_generation_tag) == currentGeneration) {
                 view.setCues(active)
@@ -206,7 +317,7 @@ internal class SidecarSubtitleController(
         activeGeneration = null
         activeSidecarSubtitleKeyState = null
         sidecarTimedCuesState = emptyList()
-        lastSidecarCueSignature = null
+        sidecarCueCursor.reset()
         postToSubtitleView { view ->
             if (view.getTag(R.id.player_view_sidecar_generation_tag) == candidate) {
                 view.setTag(R.id.player_view_sidecar_generation_tag, null)
@@ -308,34 +419,6 @@ internal fun parseSidecarTimedCuesLenient(rawText: String, sourceUrl: String): L
             (endUs - startUs).coerceAtLeast(1L),
         )
     }
-}
-
-private fun collectActiveSidecarCues(cues: List<CuesWithTiming>, positionUs: Long): List<Cue> {
-    val active = ArrayList<Cue>(4)
-    for (entry in cues) {
-        if (entry.startTimeUs > positionUs) break
-        val end = when {
-            entry.endTimeUs != C.TIME_UNSET -> entry.endTimeUs
-            entry.durationUs != C.TIME_UNSET -> entry.startTimeUs + entry.durationUs
-            else -> Long.MAX_VALUE
-        }
-        if (positionUs < end) active.addAll(entry.cues)
-    }
-    return active
-}
-
-private fun activeCueSignature(cues: List<Cue>): Long {
-    if (cues.isEmpty()) return EMPTY_CUE_SIGNATURE
-    var hash = cues.size.toLong()
-    for (cue in cues) {
-        hash = 31L * hash + (cue.text?.hashCode()?.toLong() ?: 0L)
-        hash = 31L * hash + cue.line.toBits().toLong()
-        hash = 31L * hash + cue.position.toBits().toLong()
-        hash = 31L * hash + cue.lineAnchor.toLong()
-        hash = 31L * hash + cue.positionAnchor.toLong()
-        hash = 31L * hash + cue.size.toBits().toLong()
-    }
-    return hash
 }
 
 private fun normalizeSidecarCuePosition(cue: Cue): Cue {

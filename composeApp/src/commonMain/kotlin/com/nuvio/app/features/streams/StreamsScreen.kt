@@ -51,6 +51,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.nuvio.app.core.i18n.localizedEpisodeTitle
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -839,7 +840,7 @@ private fun EpisodeHeroBlock(
             Spacer(modifier = Modifier.height(2.dp))
             // Episode title
             Text(
-                text = episodeTitle,
+                text = localizedEpisodeTitle(episodeTitle, episodeNumber) ?: episodeTitle,
                 style = MaterialTheme.typography.titleLarge.copy(
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,

@@ -1,9 +1,12 @@
 package com.nuvio.app.features.player
 
 import androidx.media3.common.MimeTypes
+import androidx.media3.common.text.Cue
+import androidx.media3.extractor.text.CuesWithTiming
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class PlayerSidecarSubtitlesTest {
@@ -60,6 +63,35 @@ class PlayerSidecarSubtitlesTest {
     fun `TTML and DFXP never use the lossy lenient fallback`() {
         assertStructuredFormatUsesMedia3OrNone(ttml, "sub.ttml", MimeTypes.APPLICATION_TTML)
         assertStructuredFormatUsesMedia3OrNone(ttml, "sub.dfxp", MimeTypes.APPLICATION_TTML)
+    }
+
+    @Test
+    fun `cursor emits only when active cues change and rewinds on backward seek`() {
+        val first = Cue.Builder().setText("first").build()
+        val second = Cue.Builder().setText("second").build()
+        val timeline = listOf(
+            CuesWithTiming(listOf(first), 0L, 1_000_000L),
+            CuesWithTiming(listOf(second), 1_000_000L, 1_000_000L),
+        )
+        val cursor = SidecarCueCursor()
+
+        assertEquals(listOf("first"), cursor.activeCuesOrNull(timeline, 500_000L)?.map { it.text?.toString() })
+        assertNull(cursor.activeCuesOrNull(timeline, 600_000L))
+        assertEquals(listOf("second"), cursor.activeCuesOrNull(timeline, 1_500_000L)?.map { it.text?.toString() })
+        assertEquals(listOf("first"), cursor.activeCuesOrNull(timeline, 500_000L)?.map { it.text?.toString() })
+    }
+
+    @Test
+    fun `cursor safely scans unsorted timelines`() {
+        val first = Cue.Builder().setText("first").build()
+        val future = Cue.Builder().setText("future").build()
+        val unsortedTimeline = listOf(
+            CuesWithTiming(listOf(future), 1_000_000L, 1_000_000L),
+            CuesWithTiming(listOf(first), 0L, 1_000_000L),
+        )
+
+        val active = SidecarCueCursor().activeCuesOrNull(unsortedTimeline, 500_000L)
+        assertEquals(listOf("first"), active?.map { it.text?.toString() })
     }
 
     @Test

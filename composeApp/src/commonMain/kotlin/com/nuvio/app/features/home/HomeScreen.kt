@@ -148,6 +148,7 @@ fun HomeScreen(
     onFirstCatalogRendered: (() -> Unit)? = null,
 ) {
     LaunchedEffect(Unit) {
+        NetworkStatusRepository.ensureStarted()
         AddonRepository.initialize()
         CloudStreamRepository.initialize()
         CloudStreamRepository.checkForUpdates()
@@ -160,6 +161,7 @@ fun HomeScreen(
     LaunchedEffect(isVisible) {
         HomeRepository.setVisible(isVisible)
         if (isVisible) {
+            NetworkStatusRepository.requestForegroundRefresh()
             HomeRepository.refresh(AddonRepository.uiState.value.addons.enabledAddons())
         }
     }

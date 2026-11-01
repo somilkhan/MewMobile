@@ -15,8 +15,8 @@ import com.nuvio.app.features.player.skip.NextEpisodeInfo
 import com.nuvio.app.features.player.skip.PlayerNextEpisodeRules
 import com.nuvio.app.features.player.skip.SkipIntroRepository
 import com.nuvio.app.features.player.skip.categoryKey
-import com.nuvio.app.core.network.NetworkStatusRepository
 import com.nuvio.app.core.network.NetworkCondition
+import com.nuvio.app.core.network.NetworkStatusRepository
 import com.nuvio.app.core.network.NetworkStatusUiState
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -38,7 +38,10 @@ private const val SKIP_INTERVAL_RESOLVE_TIMEOUT_MS = 4_000L
 @Composable
 internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
     val networkStatus by NetworkStatusRepository.uiState.collectAsStateWithLifecycle()
-    val networkCondition = networkStatus.condition
+    val networkOfflineLike = networkStatus.isOfflineLike
+    LaunchedEffect(Unit) {
+        NetworkStatusRepository.ensureStarted()
+    }
     BindAutoSyncRuntimeEffects()
     val currentFeedback = liveGestureFeedback ?: gestureFeedback
     LaunchedEffect(currentFeedback) {
@@ -319,7 +322,7 @@ internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
         playerController,
         playerControllerSourceUrl,
         activeExternalSubtitles,
-        networkCondition,
+        networkOfflineLike,
     ) {
         val fetchKey = addonSubtitleFetchKey ?: return@LaunchedEffect
         val playbackSurfaceUrl = currentPlaybackSurfaceSourceUrl
@@ -337,7 +340,7 @@ internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
         }
         if (autoFetchedAddonSubtitlesForKey == fetchKey) return@LaunchedEffect
         // Keep the key unset while offline so the effect retries when connectivity returns.
-        if (networkStatus.isOfflineLike) return@LaunchedEffect
+        if (networkOfflineLike) return@LaunchedEffect
         autoFetchedAddonSubtitlesForKey = fetchKey
         fetchAddonSubtitlesForActiveItem()
     }
@@ -596,6 +599,7 @@ private fun PlayerScreenRuntime.BindPlayerUiVisibilityEffects() {
 @Composable
 private fun PlayerScreenRuntime.BindPlayerMetadataAndSkipEffects(networkStatus: NetworkStatusUiState) {
     val networkCondition = networkStatus.condition
+    val networkOfflineLike = networkStatus.isOfflineLike
     LaunchedEffect(
         activeVideoId,
         activeSeasonNumber,
@@ -627,7 +631,7 @@ private fun PlayerScreenRuntime.BindPlayerMetadataAndSkipEffects(networkStatus: 
         }
     }
 
-    LaunchedEffect(activeVideoId, activeSeasonNumber, activeEpisodeNumber, networkCondition) {
+    LaunchedEffect(activeVideoId, activeSeasonNumber, activeEpisodeNumber, networkOfflineLike) {
         skipIntervals = emptyList()
         activeSkipInterval = null
         skipIntervalDismissed = false
@@ -645,7 +649,7 @@ private fun PlayerScreenRuntime.BindPlayerMetadataAndSkipEffects(networkStatus: 
         val season = activeSeasonNumber
         val episode = activeEpisodeNumber
         val vid = activeVideoId
-        if (season == null || episode == null || vid == null || networkStatus.isOfflineLike) {
+        if (season == null || episode == null || vid == null || networkOfflineLike) {
             return@LaunchedEffect
         }
 
