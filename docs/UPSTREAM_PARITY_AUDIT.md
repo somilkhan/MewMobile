@@ -435,7 +435,7 @@ Comparison anchor: Enhanced `ae535226b1488a60d59613c1502fbb717cbb333f` → `a3e8
 
 - Ported the upstream sidecar cue cursor into Mew's generation-safe controller. Sorted timelines advance incrementally, backward seeks rewind the cursor, cue identity signatures avoid repeated cue-text hashing, and unsorted timelines use a correctness-first full-scan fallback. Regression tests cover unchanged active cues, seek rewind, and unsorted input.
 - Ported local container-header detection for `file://` and `content://` media, with 4 KiB reads, a 64-entry MIME cache, extension fallback, and host tests for Matroska, MP4, MPEG-TS, AVI, FLV and OGG. Android application context is exposed only by the Android actual storage object.
-- Added `file://` subtitle copying into Mew's FileProvider cache while retaining Mew's shared OkHttp/DNS configuration and URL-redaction behavior.
+- Deliberately did not retain upstream `file://` subtitle copying: add-on subtitle URLs are remote, untrusted input, and copying arbitrary local paths into a FileProvider cache could expose app-private files to an external player. Mew now accepts only absolute HTTP(S) add-on subtitle URLs at both repository parsing and cache boundaries; host tests cover allowed and rejected schemes.
 - Ported generic episode-title localization ("Episode N") into Mew's existing i18n helper and the details, watched-action-sheet and stream-title surfaces. No navigation or settings UI was replaced.
 - Started network monitoring from Home and player entry, with foreground refresh on Home visibility. Player subtitle/skip requests key off the offline boolean to avoid restarting on Unknown → Checking → Online transitions; parental-guide lookup waits for Online.
 - Nuvio Enhanced baseline `93893a444ba68876d1ac30790d235ca4e7ddb64c` independently contains the sidecar cursor, local MIME sniffing and local subtitle-file handling; these ports preserve Mew's existing generation and network-client customizations.
@@ -447,3 +447,13 @@ Comparison anchor: Enhanced `ae535226b1488a60d59613c1502fbb717cbb333f` → `a3e8
 - Player network-dependent lookups now wait for `NetworkCondition.Online`, rather than treating the initial `Unknown`/probe `Checking` states as online. A single boolean key avoids duplicate lookups during Unknown → Checking → Online while still cancelling offline work and retrying when connectivity returns.
 - Network monitoring is explicitly started from Home and player entry; Home visibility requests the repository's delayed foreground confirmation.
 - The previous exact-head CI failure was limited to missing Android/IO imports in local MIME sniffing; those imports are now present. The next exact-head run must verify the corrected source and the new host tests.
+
+
+## Additional upstream localization and security follow-up — 2026-11-02
+
+- Completed generic episode-title localization across the player episode panel and pause overlay, in addition to detail, watched-action and stream surfaces.
+- Added upstream AutoSync settings/toast translations for Arabic, French and Turkish. The translation keys match Mew's existing default AutoSync resources; unrelated MDbList, party and server bundles were intentionally excluded because those product surfaces are outside this integration scope.
+- Applied the upstream Arabic fallback-label correction from "الحلقة" to "حلقة".
+- Player skip-interval lookups now wait for confirmed `NetworkCondition.Online`, avoiding premature "fetched" state during Unknown/Checking network probes.
+- Security review rejected blind upstream `file://` subtitle copying. Add-on subtitle URLs are untrusted and forwarded to external players; Mew now restricts them to absolute HTTP(S) at both parsing and cache boundaries.
+- Exact-head CI for this follow-up is pending; APK packaging remains deferred to Phase 5.

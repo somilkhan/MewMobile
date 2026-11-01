@@ -599,7 +599,7 @@ private fun PlayerScreenRuntime.BindPlayerUiVisibilityEffects() {
 @Composable
 private fun PlayerScreenRuntime.BindPlayerMetadataAndSkipEffects(networkStatus: NetworkStatusUiState) {
     val networkCondition = networkStatus.condition
-    val networkAvailable = networkStatus.isOfflineLike
+    val networkAvailable = networkStatus.condition == NetworkCondition.Online
     LaunchedEffect(
         activeVideoId,
         activeSeasonNumber,

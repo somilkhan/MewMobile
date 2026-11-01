@@ -1547,7 +1547,7 @@
     <string name="profile_manage_profiles">إدارة الملفات الشخصية</string>
     <string name="provider_downloaded">تم التنزيل</string>
     <string name="resume_prompt_action">سيرة ذاتية</string>
-    <string name="streams_episode_fallback_title">الحلقة</string>
+    <string name="streams_episode_fallback_title">حلقة</string>
     <string name="streams_finding_source">جارٍ البحث عن المصدر…</string>
     <string name="profile_name_placeholder">اسم الملف الشخصي</string>
     <string name="profile_new">ملف تعريف جديد</string>

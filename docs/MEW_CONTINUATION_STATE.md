@@ -64,7 +64,7 @@ Check the newest CI run associated with the exact current branch HEAD. The 2026-
 
 - Incremental sidecar cue cursor is integrated with Mew's existing generation guard and has host regression tests for unchanged active cues, backward seek, and unsorted timelines.
 - Local file/content URI media now infer container MIME from the first 4 KiB when stream type and response headers do not decide the type; extension inference remains the fallback. Host tests cover the supported signatures.
-- Local `file://` subtitles can be copied into FileProvider cache without changing Mew's shared HTTP/DNS client.
+- Upstream local `file://` subtitle copying was deliberately withheld after tracing its caller to remote add-on subtitle URLs: copying arbitrary paths into FileProvider cache could expose private files. Add-on URLs are now restricted to absolute HTTP(S) at parsing and cache boundaries.
 - Generic "Episode N" labels are localized in detail, watched-action and stream title surfaces.
 - Network monitoring is started from Home and player entry; Home foreground transitions request a delayed confirmation refresh. Player lookups retry when offline state clears without restarting for intermediate probe states.
 - Exact-head CI is pending. APK build/signing and device verification remain Phase 5 gates.
@@ -81,3 +81,13 @@ Check the newest CI run associated with the exact current branch HEAD. The 2026-
 
 - Remote player lookups wait for a confirmed `NetworkCondition.Online` state; initial Unknown/Checking probe states no longer start and prematurely mark subtitle requests as fetched.
 - The Android/IO imports for local MIME sniffing are corrected. The exact-head CI run for this revision is pending.
+
+
+## Additional upstream localization and security follow-up — 2026-11-02
+
+- Generic episode-title localization also covers the player episode panel and pause overlay.
+- Arabic/French/Turkish AutoSync settings and toast resources were added from upstream; unrelated MDbList, party and server bundles were left out of scope.
+- The Arabic generic episode label now matches upstream wording.
+- Skip-interval lookups wait for confirmed Online state, not Unknown/Checking.
+- Untrusted add-on subtitle URLs are restricted to absolute HTTP(S); the upstream local-file copy path was rejected because it could expose app-private files through FileProvider.
+- Exact-head CI is pending; APK build/signing and device verification remain Phase 5 gates.

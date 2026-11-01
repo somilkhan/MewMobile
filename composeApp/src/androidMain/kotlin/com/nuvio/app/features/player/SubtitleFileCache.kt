@@ -78,14 +78,7 @@ object SubtitleFileCache {
             val file = File(dir, filename)
 
             try {
-                if (input.url.startsWith("file:", ignoreCase = true)) {
-                    File(URI(input.url)).copyTo(file, overwrite = true)
-                    return@withContext FileProvider.getUriForFile(
-                        context,
-                        "${context.packageName}.fileprovider",
-                        file,
-                    )
-                }
+                if (!isSupportedAddonSubtitleUrl(input.url)) return@withContext null
 
                 val request = Request.Builder().url(input.url).build()
                 okHttpClient.newCall(request).execute().use { response ->
