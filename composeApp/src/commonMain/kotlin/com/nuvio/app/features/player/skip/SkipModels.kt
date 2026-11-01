@@ -10,6 +10,17 @@ data class SkipInterval(
     val provider: String,
 )
 
+/** Normalize provider-specific skip types into opening, ending, or recap categories. */
+internal fun segmentCategory(type: String): String? = when (type.trim().lowercase()) {
+    "intro", "op", "mixed-op" -> "opening"
+    "outro", "ed", "mixed-ed", "credits", "ending" -> "ending"
+    "recap" -> "recap"
+    else -> null
+}
+
+internal fun SkipInterval.categoryKey(): String =
+    segmentCategory(type) ?: type.trim().lowercase()
+
 /**
  * Selects the active skip interval with the furthest safe seek target.
  * Overlapping provider intervals should not make the player choose the first,

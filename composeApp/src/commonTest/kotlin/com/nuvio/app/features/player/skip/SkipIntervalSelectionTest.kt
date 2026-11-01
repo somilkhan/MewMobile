@@ -6,6 +6,18 @@ import kotlin.test.assertNull
 
 class SkipIntervalSelectionTest {
     @Test
+    fun providerAliasesShareTheSameSkipSegmentCategory() {
+        assertEquals("opening", segmentCategory("intro"))
+        assertEquals("opening", segmentCategory("op"))
+        assertEquals("opening", segmentCategory("mixed-op"))
+        assertEquals("ending", segmentCategory("outro"))
+        assertEquals("ending", segmentCategory("credits"))
+        assertEquals("ending", segmentCategory("mixed-ed"))
+        assertEquals("recap", segmentCategory("recap"))
+        assertNull(segmentCategory("unknown"))
+    }
+
+    @Test
     fun overlappingIntervalsChooseTheFurthestSeekTarget() {
         val shorter = SkipInterval(10.0, 30.0, "intro", "provider-a")
         val longer = SkipInterval(15.0, 42.0, "recap", "provider-b")

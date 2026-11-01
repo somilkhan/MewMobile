@@ -1,9 +1,9 @@
 # MewMobile Continuation State
 
-Updated: 2026-10-30
+Updated: 2026-11-02
 Repository: https://github.com/somilkhan/MewMobile
 Branch: `sync/upstream`
-Predecessor SHA: `40b545461d2c9d57f6a6f18b23a87c10e9cd5143`
+Predecessor SHA: `c69191690e539c775ed1a8a2fb167df12c723a69`
 Open PR: [#38](https://github.com/somilkhan/MewMobile/pull/38) — draft, unmerged
 Phase: Phase 4 — verification and release-candidate review
 Phase 5 readiness: NOT READY
@@ -11,8 +11,8 @@ Phase 5 readiness: NOT READY
 The commit containing this state note is the current candidate head. Resolve its exact SHA from live `sync/upstream` branch metadata; this note records the parent rather than a self-referential SHA.
 
 ## Fresh upstream baselines
-- Nuvio Mobile `cmp-rewrite`: `53869a0279c59abdef23da2962eb2a1c80e6caa5`
-- Nuvio Enhanced `enhanced`: `781157e0033db40361b662525b06126e184ffd1c` (includes the newer MPV night-mode series).
+- Nuvio Mobile `cmp-rewrite` recorded integration baseline: `38295004e4d4002f5520fe4120230253b64af63d`; latest reviewed head: `46febb568348aa5e135bff0d4d5c914933aff5a0` (38 commits ahead, 0 behind).
+- Nuvio Enhanced `enhanced`: `93893a444ba68876d1ac30790d235ca4e7ddb64c` (current compare identical; no newer commits observed).
 
 ## Implemented in source in this candidate
 - Existing Discovery settings retain the TMDB switch. TMDB enabled gates CloudStream entry/runtime; TMDB disabled permits CloudStream. Provider load/link results and Home rows are gated/refreshed, with common policy tests.
@@ -39,7 +39,8 @@ The commit containing this state note is the current candidate head. Resolve its
 - Android application ID: `com.mew.mobile`; debug ID: `com.mew.mobile.debug`. iOS app bundle ID is now configured as `com.mew.mobile` and the Downloads widget as `com.mew.mobile.DownloadsWidgetExtension`; the old `nuvioenhanced` and `nuvio` URL schemes remain registered for callback compatibility. iOS/Xcode compilation, provisioning/signing, auth callback behavior, and widget embedding remain unverified. App-ID changes are install/update boundaries; do not claim data migration from prior IDs.
 
 ## Next action
-Check the newest CI run associated with the exact current branch HEAD. A previous run remained in progress without updating after 2026-10-29 21:21 UTC; the new commit should supersede it via workflow concurrency. If host tests fail, download and inspect the failure-only report, then fix the evidenced root cause. If host tests and source compilation pass, continue the remaining player reliability ports and refresh the parity ledger. Do not build/upload an APK until Phase 5 is genuinely ready, and do not notify the user before every Phase 5 gate is satisfied.
+
+Check the newest CI run associated with the exact current branch HEAD. The 2026-11-02 follow-up adds category-stable skip UI state plus offline-aware and bounded player lookups; inspect the exact-head test/build result before continuing. Then review local-file playback/container behavior and sidecar subtitle cursor performance. Do not build/upload an APK until Phase 5 is genuinely ready, and do not notify the user before every Phase 5 gate is satisfied.
 
 ## Verification labels
 - IMPLEMENTED: TMDB/CloudStream policy, player gesture/subtitle fixes, Robolectric manifest-package correction, Dolby decoder policy, overlapping skip interval selection, and Mew-owned Android/iOS bundle identifiers.
@@ -49,3 +50,11 @@ Check the newest CI run associated with the exact current branch HEAD. A previou
 - BUILT / APK: none for current candidate.
 - DEVICE VERIFIED: no; pending user device test.
 - Working tree: no local Git checkout is available in this session; remote branch/commit state is checked through GitHub. Do not claim a clean local working tree.
+
+
+## 2026-11-02 follow-up implemented in source
+
+- Skip interval categories are shared by repository merge, active-interval runtime and skip-button auto-hide. Provider alias changes within opening/ending/recap preserve dismissal; same-category replacement intervals beginning within two seconds retain the button instead of flashing off.
+- Player add-on subtitle lookup observes network state, does not mark a fetch complete while offline, retries when connectivity changes, and avoids redundant add-on lookup for local files that already have external subtitles.
+- Remote skip lookup waits for usable connectivity and has a four-second timeout.
+- Added common tests for skip segment alias normalization. Exact-head CI for this follow-up is not yet observed.
