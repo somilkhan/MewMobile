@@ -96,7 +96,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.coroutineScope as coroutineScopeBlock
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlin.math.roundToInt
@@ -519,7 +519,7 @@ private fun ExoPlayerSurface(
     LaunchedEffect(playerSourceKey) {
         if (!mediaItemResolutionComplete) {
             val localMimeType = inferLocalPlaybackMimeType(sourceUrl)
-            val subtitleConfigs = coroutineScope {
+            val subtitleConfigs = coroutineScopeBlock {
                 externalSubtitles.map { subtitle ->
                     async(Dispatchers.IO) {
                         val mimeType = if (shouldProbeSubtitleMimeType(subtitle.url)) {
@@ -739,7 +739,7 @@ private fun ExoPlayerSurface(
                         }
                         if (probedMime != null) {
                             Log.d(TAG, "Playback failed with source error. Probed MIME type: $probedMime. Retrying...")
-                            val subtitleConfigs = coroutineScope {
+                            val subtitleConfigs = coroutineScopeBlock {
                                 externalSubtitles.map { subtitle ->
                                     async(Dispatchers.IO) {
                                         val mimeType = if (shouldProbeSubtitleMimeType(subtitle.url)) {

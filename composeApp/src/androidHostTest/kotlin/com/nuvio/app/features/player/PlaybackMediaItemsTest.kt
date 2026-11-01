@@ -4,8 +4,28 @@ import androidx.media3.common.MimeTypes
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class PlaybackMediaItemsTest {
+    @Test
+    fun localPlaybackUrisAreRecognizedWithoutNetworkAccess() {
+        assertTrue(isLocalPlaybackUri("file:///storage/emulated/0/Movies/video"))
+        assertTrue(isLocalPlaybackUri("content://media/external/video/1"))
+        assertFalse(isLocalPlaybackUri("https://example.com/video.mkv"))
+        assertFalse(isLocalPlaybackUri("https://example.com/video.m3u8"))
+    }
+
+    @Test
+    fun subtitleMimeProbeSkipsKnownExtensionsAndNonHttpSources() {
+        assertFalse(shouldProbeSubtitleMimeType("https://example.com/subtitle.srt?token=abc"))
+        assertFalse(shouldProbeSubtitleMimeType("https://example.com/subtitle.webvtt"))
+        assertFalse(shouldProbeSubtitleMimeType("content://media/subtitle"))
+        assertFalse(shouldProbeSubtitleMimeType("file:///storage/subtitle.srt"))
+        assertTrue(shouldProbeSubtitleMimeType("https://example.com/subtitle?id=123"))
+        assertTrue(shouldProbeSubtitleMimeType("http://example.com/get?id=123"))
+    }
+
     @Test
     fun detectsMatroskaAndMp4FromContainerHeaders() {
         assertEquals(
