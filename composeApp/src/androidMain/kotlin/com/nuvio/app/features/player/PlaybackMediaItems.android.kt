@@ -1,12 +1,11 @@
 package com.nuvio.app.features.player
 
 import android.net.Uri
-import android.os.Looper
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
 import com.nuvio.app.core.network.SharedOkHttpClient
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import okhttp3.Request
 import java.io.File
 import java.io.FileInputStream
@@ -25,24 +24,46 @@ internal fun playbackMediaItemFromUrl(
         url = url,
         responseHeaders = responseHeaders,
         streamType = streamType,
+        includeLocalContent = false,
     )?.let(builder::setMimeType)
     return builder.build()
 }
+
+internal suspend fun playbackMediaItemFromUrlAsync(
+    url: String,
+    responseHeaders: Map<String, String> = emptyMap(),
+    streamType: String? = null,
+): MediaItem = withContext(Dispatchers.IO) {
+    val builder = MediaItem.Builder().setUri(url)
+    inferPlaybackMimeType(
+        url = url,
+        responseHeaders = responseHeaders,
+        streamType = streamType,
+        includeLocalContent = true,
+    )?.let(builder::setMimeType)
+    builder.build()
+}
+
+internal fun isLocalPlaybackUri(url: String): Boolean = isLocalUri(url)
+
+internal suspend fun inferLocalPlaybackMimeType(url: String): String? =
+    if (isLocalUri(url)) withContext(Dispatchers.IO) { inferMimeTypeFromLocalContent(url) } else null
 
 private fun inferPlaybackMimeType(
     url: String,
     responseHeaders: Map<String, String>,
     streamType: String?,
+    includeLocalContent: Boolean,
 ): String? =
     inferMimeTypeFromStreamType(streamType)
         ?: inferMimeTypeFromResponseHeaders(responseHeaders)
-        ?: inferMimeTypeFromLocalContent(url)
+        ?: (if (includeLocalContent) inferMimeTypeFromLocalContent(url) else null)
         ?: inferMimeTypeFromPath(url)
 
 private fun inferMimeTypeFromLocalContent(url: String): String? {
     if (!isLocalUri(url)) return null
     localMimeTypeCache[url]?.let { return it }
-    val detected = runOnBackgroundDispatcherIfNeeded { sniffLocalMimeType(url) } ?: return null
+    val detected = sniffLocalMimeType(url) ?: return null
     if (localMimeTypeCache.size >= LOCAL_MIME_TYPE_CACHE_LIMIT) localMimeTypeCache.clear()
     localMimeTypeCache[url] = detected
     return detected
@@ -101,9 +122,6 @@ private fun ByteArray.matchesBytesAt(offset: Int, expected: ByteArray): Boolean 
     if (size < offset + expected.size) return false
     return expected.indices.all { this[offset + it] == expected[it] }
 }
-
-private fun <T> runOnBackgroundDispatcherIfNeeded(block: () -> T): T =
-    if (Looper.myLooper() == Looper.getMainLooper()) runBlocking(Dispatchers.IO) { block() } else block()
 
 private fun inferMimeTypeFromStreamType(streamType: String?): String? {
     val normalized = streamType

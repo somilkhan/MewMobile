@@ -336,6 +336,9 @@ private fun ExoPlayerSurface(
     }
 
     var resolvedMediaItem by remember(playerSourceKey) { mutableStateOf(initialMediaItem) }
+    var localMimeTypeResolved by remember(playerSourceKey) {
+        mutableStateOf(!isLocalPlaybackUri(sourceUrl))
+    }
     var probeAttempted by remember(playerSourceKey) { mutableStateOf(false) }
 
     val extractorsFactory = remember(playerSourceKey) {
@@ -367,11 +370,11 @@ private fun ExoPlayerSurface(
         )
     }
 
-    fun ExoPlayer.setPlaybackMediaItem(videoMediaItem: MediaItem, startPositionMs: Long? = null) {
+    suspend fun ExoPlayer.setPlaybackMediaItem(videoMediaItem: MediaItem, startPositionMs: Long? = null) {
         if (!sourceAudioUrl.isNullOrBlank()) {
             val mediaSourceFactory = DefaultMediaSourceFactory(dataSourceFactory, extractorsFactory)
             val videoSource = mediaSourceFactory.createMediaSource(videoMediaItem)
-            val audioSource = mediaSourceFactory.createMediaSource(playbackMediaItemFromUrl(sourceAudioUrl))
+            val audioSource = mediaSourceFactory.createMediaSource(playbackMediaItemFromUrlAsync(sourceAudioUrl))
             val mergedSource = MergingMediaSource(videoSource, audioSource)
             if (startPositionMs != null) {
                 setMediaSource(mergedSource, startPositionMs.coerceAtLeast(0L))
@@ -506,7 +509,18 @@ private fun ExoPlayerSurface(
         onDispose { nowPlayingController.release() }
     }
 
-    LaunchedEffect(exoPlayer, resolvedMediaItem, initialPositionRequestKey) {
+    LaunchedEffect(playerSourceKey) {
+        if (!localMimeTypeResolved) {
+            val localMimeType = inferLocalPlaybackMimeType(sourceUrl)
+            if (localMimeType != null) {
+                resolvedMediaItem = initialMediaItem.buildUpon().setMimeType(localMimeType).build()
+            }
+            localMimeTypeResolved = true
+        }
+    }
+
+    LaunchedEffect(exoPlayer, resolvedMediaItem, initialPositionRequestKey, localMimeTypeResolved) {
+        if (!localMimeTypeResolved) return@LaunchedEffect
         val mediaItem = resolvedMediaItem
         val requestedStartPositionMs = fallbackStartPositionMs
             ?: initialPositionMs?.takeIf { it > 0L }
