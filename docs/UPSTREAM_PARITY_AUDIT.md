@@ -457,3 +457,13 @@ Comparison anchor: Enhanced `ae535226b1488a60d59613c1502fbb717cbb333f` → `a3e8
 - Player skip-interval lookups now wait for confirmed `NetworkCondition.Online`, avoiding premature "fetched" state during Unknown/Checking network probes.
 - Security review rejected blind upstream `file://` subtitle copying. Add-on subtitle URLs are untrusted and forwarded to external players; Mew now restricts them to absolute HTTP(S) at both parsing and cache boundaries.
 - Exact-head CI for this follow-up is pending; APK packaging remains deferred to Phase 5.
+
+
+## Android player I/O and subtitle safety finalization — 2026-11-02
+
+- Local file/content URI MIME sniffing now runs only on `Dispatchers.IO`; synchronous media-item construction no longer uses `runBlocking`. Player preparation waits for the resolved MIME type and preserves the existing stream-type/response-header/path precedence.
+- Remote add-on subtitle MIME probes no longer run while the initial MediaItem is built on the UI thread. Known extensions skip probing; unknown-extension HTTP(S) sources are probed on IO with a four-request concurrency limit. Retry and explicit subtitle-selection paths also execute probes off the UI thread.
+- The ExoPlayer media-item reload helper is suspendable; clear-subtitle callbacks now launch the reload coroutine rather than calling a suspend operation from a non-suspending callback.
+- Added host tests for local URI classification and subtitle-probe eligibility. Existing tests also cover local container headers and HTTP(S)-only add-on subtitle URL policy.
+- Exact-head routine CI passed on `b87212b85be9f0c61655f2c53f0563fda386b5d8`: [run 41349553940](https://github.com/somilkhan/MewMobile/actions/runs/41349553940). Host tests, Android Kotlin source compilation and Mew branding validation passed.
+- APK assembly, application-ID assertion, signing verification and artifact upload remain reserved for the Phase 5 candidate-build gate.

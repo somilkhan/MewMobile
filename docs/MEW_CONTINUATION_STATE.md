@@ -3,10 +3,10 @@
 Updated: 2026-11-02
 Repository: https://github.com/somilkhan/MewMobile
 Branch: `sync/upstream`
-Predecessor SHA: `c69191690e539c775ed1a8a2fb167df12c723a69`
+Predecessor SHA: `b87212b85be9f0c61655f2c53f0563fda386b5d8`
 Open PR: [#38](https://github.com/somilkhan/MewMobile/pull/38) — draft, unmerged
-Phase: Phase 4 — verification and release-candidate review
-Phase 5 readiness: NOT READY
+Phase: Phase 5 — release-candidate build and device-test handoff
+Phase 5 readiness: BUILD GATE TRIGGERED; device verification pending
 
 The commit containing this state note is the current candidate head. Resolve its exact SHA from live `sync/upstream` branch metadata; this note records the parent rather than a self-referential SHA.
 
@@ -31,7 +31,7 @@ The commit containing this state note is the current candidate head. Resolve its
 - No installable APK exists for the current candidate. Package-ID assertion and signing verification have not run on it.
 
 ## Remaining upstream review
-- Continue selective player reliability work after CI validates this candidate: offline network-aware effect gating, local-file playback behavior, and sidecar subtitle cursor optimization need call-site/architecture review before porting.
+- Selective player reliability ports are implemented: offline-aware network gating, sidecar subtitle cue cursor, local-container MIME sniffing, and asynchronous subtitle MIME probing. Exact-head routine CI is now green.
 - Enhanced's latest MPV night-mode series (`8bbdd65a` through `781157e0`) is new since the prior audit. It adds shared UI/settings, Android MPV audio filtering, iOS bridge changes, and a cross-engine button; defer until Android and iOS behavior can be verified together.
 - Defer engine auto/failover, native ASS render-mode/AAR, full server-connection subsystem, and PublicMetaDB tracking/scrobbling for the documented dependency/licensing/privacy reasons in `docs/UPSTREAM_PARITY_AUDIT.md`.
 - Mew's AutoSync pipeline and CloudStream update-safety policy/tests already exist; preserve them and port only compatible fixes.
@@ -91,3 +91,14 @@ Check the newest CI run associated with the exact current branch HEAD. The 2026-
 - Skip-interval lookups wait for confirmed Online state, not Unknown/Checking.
 - Untrusted add-on subtitle URLs are restricted to absolute HTTP(S); the upstream local-file copy path was rejected because it could expose app-private files through FileProvider.
 - Exact-head CI is pending; APK build/signing and device verification remain Phase 5 gates.
+
+
+## Exact-head verification and Phase 5 candidate build — 2026-11-02
+
+- Current source parent: `b87212b85be9f0c61655f2c53f0563fda386b5d8`.
+- Exact-head routine CI passed: [run 41349553940](https://github.com/somilkhan/MewMobile/actions/runs/41349553940). Verified: Android host tests, localized Mew branding, Android Kotlin source compilation. No APK was produced by that routine run.
+- The player I/O review removed synchronous local-container MIME sniffing and synchronous subtitle HTTP probes from UI-thread media-item construction. Subtitle reload callbacks now launch the suspendable media-item rebuild. Added host coverage for local URI classification and probe eligibility.
+- Phase 5 candidate build gate is being triggered from this documentation/hand-off commit. Required evidence: Full Debug APK assembly, application ID exactly `com.mew.mobile.debug`, APK signer certificate matching the stable Mew debug keystore, and uploaded artifact.
+- Manual device verification remains pending after APK delivery. Test the fresh-install launch, Settings > Content Discovery TMDB/CloudStream toggle and restart persistence, remote and local playback, external subtitle select/clear, sidecar AutoSync cues, offline-to-online retry, skip intervals, and locked-player gestures.
+- Android package identity is an install boundary: the previous app package/data is not automatically migrated. iOS bundle IDs are set to Mew, but Xcode build/signing and iOS device validation remain unverified.
+- Do not mark PROJECT COMPLETE or DEVICE VERIFIED until the build/signing gate and the user's physical-device test are complete.
