@@ -440,3 +440,10 @@ Comparison anchor: Enhanced `ae535226b1488a60d59613c1502fbb717cbb333f` → `a3e8
 - Started network monitoring from Home and player entry, with foreground refresh on Home visibility. Player subtitle/skip requests key off the offline boolean to avoid restarting on Unknown → Checking → Online transitions; parental-guide lookup waits for Online.
 - Nuvio Enhanced baseline `93893a444ba68876d1ac30790d235ca4e7ddb64c` independently contains the sidecar cursor, local MIME sniffing and local subtitle-file handling; these ports preserve Mew's existing generation and network-client customizations.
 - Exact-head CI for this follow-up is pending; APK packaging remains deferred to Phase 5.
+
+
+## Offline-state readiness correction — 2026-11-02
+
+- Player network-dependent lookups now wait for `NetworkCondition.Online`, rather than treating the initial `Unknown`/probe `Checking` states as online. A single boolean key avoids duplicate lookups during Unknown → Checking → Online while still cancelling offline work and retrying when connectivity returns.
+- Network monitoring is explicitly started from Home and player entry; Home visibility requests the repository's delayed foreground confirmation.
+- The previous exact-head CI failure was limited to missing Android/IO imports in local MIME sniffing; those imports are now present. The next exact-head run must verify the corrected source and the new host tests.

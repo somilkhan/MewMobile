@@ -35,7 +35,7 @@ class PlaybackMediaItemsTest {
     }
 
     @Test
-    fun unknownContainerHeaderFallsBackToExtensionInference() {
+    fun unknownContainerHeaderReturnsNull() {
         assertNull(mimeTypeFromHeader("unknown".toByteArray(Charsets.US_ASCII)))
     }
 }

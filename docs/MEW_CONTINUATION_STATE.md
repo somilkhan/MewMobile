@@ -75,3 +75,9 @@ Check the newest CI run associated with the exact current branch HEAD. The 2026-
 - The network-state scope correction was verified by CI on predecessor head `8f063a2dd8474e7cab4157f305d08958b5b4f952`: workflow run [41345181764](https://github.com/somilkhan/MewMobile/actions/runs/41345181764) completed successfully. Host tests, Android Kotlin source compilation and branding validation passed; APK/package-ID/signing steps were skipped as intended.
 - The next source batch is committed at `39afbe50071566fb97b45436c05e9d8df447fe75`. It adds sidecar cursor and local-container MIME regression tests, local subtitle-file support, localized generic episode titles, and explicit network-monitor startup/foreground refresh. The intermediate run for the superseded pre-amend head was cancelled during the safe duplicate-import cleanup; it is not a test failure for the corrected head.
 - **Current gate:** exact-head CI for the corrected source batch must pass before any Phase 5 APK is built. No APK has been generated for this follow-up.
+
+
+## Offline-state readiness correction — 2026-11-02
+
+- Remote player lookups wait for a confirmed `NetworkCondition.Online` state; initial Unknown/Checking probe states no longer start and prematurely mark subtitle requests as fetched.
+- The Android/IO imports for local MIME sniffing are corrected. The exact-head CI run for this revision is pending.
