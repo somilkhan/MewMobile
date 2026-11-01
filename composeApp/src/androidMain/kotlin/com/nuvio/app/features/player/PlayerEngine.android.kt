@@ -94,6 +94,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlin.math.roundToInt
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.isActive
@@ -313,7 +318,7 @@ private fun ExoPlayerSurface(
 
     val initialMediaItem = remember(playerSourceKey, externalSubtitles) {
         val subtitleConfigs = externalSubtitles.mapNotNull { subtitle ->
-            val mimeType = resolveSubtitleMimeType(subtitle.url, subtitle.headers)
+            val mimeType = guessSubtitleMime(subtitle.url)
             MediaItem.SubtitleConfiguration.Builder(Uri.parse(subtitle.url))
                 .setMimeType(mimeType)
                 .setLanguage(subtitle.language)
@@ -336,8 +341,10 @@ private fun ExoPlayerSurface(
     }
 
     var resolvedMediaItem by remember(playerSourceKey) { mutableStateOf(initialMediaItem) }
-    var localMimeTypeResolved by remember(playerSourceKey) {
-        mutableStateOf(!isLocalPlaybackUri(sourceUrl))
+    val requiresAsyncMediaItemResolution = isLocalPlaybackUri(sourceUrl) ||
+        externalSubtitles.any { shouldProbeSubtitleMimeType(it.url) }
+    var mediaItemResolutionComplete by remember(playerSourceKey) {
+        mutableStateOf(!requiresAsyncMediaItemResolution)
     }
     var probeAttempted by remember(playerSourceKey) { mutableStateOf(false) }
 
@@ -510,17 +517,37 @@ private fun ExoPlayerSurface(
     }
 
     LaunchedEffect(playerSourceKey) {
-        if (!localMimeTypeResolved) {
+        if (!mediaItemResolutionComplete) {
             val localMimeType = inferLocalPlaybackMimeType(sourceUrl)
-            if (localMimeType != null) {
-                resolvedMediaItem = initialMediaItem.buildUpon().setMimeType(localMimeType).build()
+            val subtitleConfigs = coroutineScope {
+                externalSubtitles.map { subtitle ->
+                    async(Dispatchers.IO) {
+                        val mimeType = if (shouldProbeSubtitleMimeType(subtitle.url)) {
+                            subtitleMimeProbeSemaphore.withPermit {
+                                resolveSubtitleMimeType(subtitle.url, subtitle.headers)
+                            }
+                        } else {
+                            guessSubtitleMime(subtitle.url)
+                        }
+                        MediaItem.SubtitleConfiguration.Builder(Uri.parse(subtitle.url))
+                            .setMimeType(mimeType)
+                            .setLanguage(subtitle.language)
+                            .setLabel(subtitle.name ?: subtitle.language)
+                            .setRoleFlags(C.ROLE_FLAG_SUBTITLE)
+                            .build()
+                    }
+                }.awaitAll()
             }
-            localMimeTypeResolved = true
+            val builder = initialMediaItem.buildUpon()
+            if (localMimeType != null) builder.setMimeType(localMimeType)
+            if (externalSubtitles.isNotEmpty()) builder.setSubtitleConfigurations(subtitleConfigs)
+            resolvedMediaItem = builder.build()
+            mediaItemResolutionComplete = true
         }
     }
 
-    LaunchedEffect(exoPlayer, resolvedMediaItem, initialPositionRequestKey, localMimeTypeResolved) {
-        if (!localMimeTypeResolved) return@LaunchedEffect
+    LaunchedEffect(exoPlayer, resolvedMediaItem, initialPositionRequestKey, mediaItemResolutionComplete) {
+        if (!mediaItemResolutionComplete) return@LaunchedEffect
         val mediaItem = resolvedMediaItem
         val requestedStartPositionMs = fallbackStartPositionMs
             ?: initialPositionMs?.takeIf { it > 0L }
@@ -712,13 +739,16 @@ private fun ExoPlayerSurface(
                         }
                         if (probedMime != null) {
                             Log.d(TAG, "Playback failed with source error. Probed MIME type: $probedMime. Retrying...")
-                            resolvedMediaItem = MediaItem.Builder()
-                                .setUri(sourceUrl)
-                                .setMimeType(probedMime)
-                                .setMediaId(sourceUrl)
-                                .apply {
-                                    val subtitleConfigs = externalSubtitles.mapNotNull { subtitle ->
-                                        val mimeType = resolveSubtitleMimeType(subtitle.url, subtitle.headers)
+                            val subtitleConfigs = coroutineScope {
+                                externalSubtitles.map { subtitle ->
+                                    async(Dispatchers.IO) {
+                                        val mimeType = if (shouldProbeSubtitleMimeType(subtitle.url)) {
+                                            subtitleMimeProbeSemaphore.withPermit {
+                                                resolveSubtitleMimeType(subtitle.url, subtitle.headers)
+                                            }
+                                        } else {
+                                            guessSubtitleMime(subtitle.url)
+                                        }
                                         MediaItem.SubtitleConfiguration.Builder(Uri.parse(subtitle.url))
                                             .setMimeType(mimeType)
                                             .setLanguage(subtitle.language)
@@ -726,6 +756,13 @@ private fun ExoPlayerSurface(
                                             .setRoleFlags(C.ROLE_FLAG_SUBTITLE)
                                             .build()
                                     }
+                                }.awaitAll()
+                            }
+                            resolvedMediaItem = MediaItem.Builder()
+                                .setUri(sourceUrl)
+                                .setMimeType(probedMime)
+                                .setMediaId(sourceUrl)
+                                .apply {
                                     if (subtitleConfigs.isNotEmpty()) {
                                         setSubtitleConfigurations(subtitleConfigs)
                                     }
@@ -3179,6 +3216,17 @@ private class SubtitleOffsetRenderer(
     }
 }
 
+internal fun shouldProbeSubtitleMimeType(url: String): Boolean {
+    val normalized = url.substringBefore('#').substringBefore('?').lowercase(Locale.US)
+    if (!normalized.startsWith("http://") && !normalized.startsWith("https://")) return false
+    val filename = normalized.substringAfterLast('/')
+    val extension = filename.substringAfterLast('.', missingDelimiterValue = "")
+    return extension !in setOf("srt", "vtt", "webvtt", "ass", "ssa", "ttml", "dfxp", "xml")
+}
+
+private val subtitleMimeProbeSemaphore = Semaphore(4)
+
+/** Must be called from Dispatchers.IO; probing may perform a bounded HEAD/GET request. */
 private fun resolveSubtitleMimeType(url: String, headers: Map<String, String>? = null): String {
     probeSubtitleHeaders(url, headers)?.let { (contentType, contentDisposition) ->
         mapSubtitleMime(contentType)?.let { return it }
