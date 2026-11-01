@@ -518,7 +518,11 @@ private fun ExoPlayerSurface(
 
     LaunchedEffect(playerSourceKey) {
         if (!mediaItemResolutionComplete) {
-            val localMimeType = inferLocalPlaybackMimeType(sourceUrl)
+            val resolvedMimeType = resolvePlaybackMimeTypeAsync(
+                url = sourceUrl,
+                responseHeaders = sanitizedSourceResponseHeaders,
+                streamType = normalizedStreamType,
+            )
             val subtitleConfigs = coroutineScopeBlock {
                 externalSubtitles.map { subtitle ->
                     async(Dispatchers.IO) {
@@ -539,7 +543,7 @@ private fun ExoPlayerSurface(
                 }.awaitAll()
             }
             val builder = initialMediaItem.buildUpon()
-            if (localMimeType != null) builder.setMimeType(localMimeType)
+            if (resolvedMimeType != null) builder.setMimeType(resolvedMimeType)
             if (externalSubtitles.isNotEmpty()) builder.setSubtitleConfigurations(subtitleConfigs)
             resolvedMediaItem = builder.build()
             mediaItemResolutionComplete = true

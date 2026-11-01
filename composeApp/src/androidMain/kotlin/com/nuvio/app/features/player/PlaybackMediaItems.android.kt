@@ -46,8 +46,18 @@ internal suspend fun playbackMediaItemFromUrlAsync(
 
 internal fun isLocalPlaybackUri(url: String): Boolean = isLocalUri(url)
 
-internal suspend fun inferLocalPlaybackMimeType(url: String): String? =
-    if (isLocalUri(url)) withContext(Dispatchers.IO) { inferMimeTypeFromLocalContent(url) } else null
+internal suspend fun resolvePlaybackMimeTypeAsync(
+    url: String,
+    responseHeaders: Map<String, String> = emptyMap(),
+    streamType: String? = null,
+): String? = withContext(Dispatchers.IO) {
+    inferPlaybackMimeType(
+        url = url,
+        responseHeaders = responseHeaders,
+        streamType = streamType,
+        includeLocalContent = true,
+    )
+}
 
 private fun inferPlaybackMimeType(
     url: String,
