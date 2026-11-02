@@ -32,6 +32,15 @@ internal fun buildAutoSyncCandidates(
 private fun PlayerScreenRuntime.currentAutoSyncCandidates(): List<AutoSyncSubtitleCandidate> =
     buildAutoSyncCandidates(addonSubtitles, activeExternalSubtitles)
 
+internal fun shouldRetryPreferredSubtitleAfterAddonLoad(
+    isAutoSyncController: Boolean, playbackLoading: Boolean, startupAutoSyncEnabled: Boolean,
+    addonLoading: Boolean, addonSubtitleCount: Int, preferredSelectionApplied: Boolean,
+    manualSelectionLocked: Boolean, selectedSubtitleIndex: Int, selectedAddonSubtitleId: String?,
+): Boolean =
+    isAutoSyncController && !playbackLoading && startupAutoSyncEnabled &&
+        !addonLoading && addonSubtitleCount > 0 && preferredSelectionApplied &&
+        !manualSelectionLocked && selectedSubtitleIndex < 0 && selectedAddonSubtitleId == null
+
 internal fun PlayerScreenRuntime.configureAutoSyncController(controller: PlayerEngineController) {
     controller.setAutoSyncSubtitleCandidates(currentAutoSyncCandidates())
     controller.setAutoSyncAppliedListener { subtitleUrl, delayMs ->
@@ -62,11 +71,18 @@ internal fun PlayerScreenRuntime.BindAutoSyncRuntimeEffects() {
     LaunchedEffect(playerController, playbackSnapshot.isLoading, isLoadingAddonSubtitles, addonSubtitles) {
         // Add-ons can finish after the initial player track scan found no subtitle.
         // Retry only for AutoSync and only while the user has not made an explicit choice.
-        if (playerController !is AutoSyncPlayerController || playbackSnapshot.isLoading) return@LaunchedEffect
-        if (!AutoSyncPreferencesRepository.preferredSubtitleAutoSyncOnStart.value) return@LaunchedEffect
-        if (isLoadingAddonSubtitles || addonSubtitles.isEmpty()) return@LaunchedEffect
-        if (!preferredSubtitleSelectionApplied || manualSubtitleSelectionLocked) return@LaunchedEffect
-        if (selectedSubtitleIndex >= 0 || selectedAddonSubtitleId != null) return@LaunchedEffect
+        if (!shouldRetryPreferredSubtitleAfterAddonLoad(
+                isAutoSyncController = playerController is AutoSyncPlayerController,
+                playbackLoading = playbackSnapshot.isLoading,
+                startupAutoSyncEnabled = AutoSyncPreferencesRepository.preferredSubtitleAutoSyncOnStart.value,
+                addonLoading = isLoadingAddonSubtitles,
+                addonSubtitleCount = addonSubtitles.size,
+                preferredSelectionApplied = preferredSubtitleSelectionApplied,
+                manualSelectionLocked = manualSubtitleSelectionLocked,
+                selectedSubtitleIndex = selectedSubtitleIndex,
+                selectedAddonSubtitleId = selectedAddonSubtitleId,
+            )
+        ) return@LaunchedEffect
         preferredSubtitleSelectionApplied = false
         refreshTracks()
     }
