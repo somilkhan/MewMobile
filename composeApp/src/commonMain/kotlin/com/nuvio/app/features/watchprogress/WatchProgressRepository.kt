@@ -500,8 +500,11 @@ object WatchProgressRepository {
         return nuvioPullMutex.withLock {
             try {
                 flushPendingRemoteChanges(profileId, operationGeneration)
-                if (pendingDeleteEntriesSnapshot().isNotEmpty()) {
-                    log.w { "Deferring remote watch-progress pull while pending deletes remain" }
+                if (
+                    dirtyProgressKeysSnapshot().isNotEmpty() ||
+                    pendingDeleteEntriesSnapshot().isNotEmpty()
+                ) {
+                    log.w { "Deferring remote watch-progress pull while pending local changes remain" }
                     return@withLock false
                 }
                 if (force) {
@@ -1359,7 +1362,7 @@ object WatchProgressRepository {
             pendingDeleteEntries = mergePendingWatchProgressDeletes(
                 existing = pendingDeleteEntries.values,
                 deleted = entries,
-                keyOf = WatchProgressEntry::resolvedProgressKey,
+                keyOf = { entry -> entry.resolvedProgressKey() },
             ).associateBy { entry -> entry.resolvedProgressKey() }.toMutableMap()
         }
         persistPendingDeleteEntries(profileId)
