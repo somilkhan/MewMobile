@@ -705,6 +705,14 @@ object StreamsRepository {
                 }
             }
 
+            val canonicalPluginTmdbId = resolvePluginTmdbId(
+                videoId = streamLookupId,
+                mediaType = type,
+                searchTitle = searchTitle,
+                season = season,
+                episode = episode,
+            ).orEmpty()
+
             pluginProviderGroups.forEach { providerGroup ->
                 val includeScraperNameInSubtitle = false
                 providerGroup.scrapers.forEach { scraper ->
@@ -713,13 +721,7 @@ object StreamsRepository {
                             pluginScraperSemaphore.withPermit {
                                 PluginRepository.executeScraper(
                                 scraper = scraper,
-                                tmdbId = resolvePluginTmdbId(
-                                    videoId = streamLookupId,
-                                    mediaType = type,
-                                    searchTitle = searchTitle,
-                                    season = season,
-                                    episode = episode,
-                                ).orEmpty(),
+                                tmdbId = canonicalPluginTmdbId,
                                 mediaType = type,
                                 season = season,
                                 episode = episode,
