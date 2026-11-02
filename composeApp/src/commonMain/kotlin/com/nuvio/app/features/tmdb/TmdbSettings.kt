@@ -23,7 +23,7 @@ data class TmdbSettings(
         get() = apiKey.isNotBlank()
 
     val canUseMetadata: Boolean
-        get() = enabled && hasApiKey
+        get() = enabled && hasApiKey && !credentialRejected
 }
 
 
