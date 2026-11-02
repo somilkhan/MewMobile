@@ -226,7 +226,10 @@ object AddonRepository {
                     log.i { "pullFromServer() — migrating local addons to server for profile $requestProfileId" }
                     initialize()
                     if (!isCurrentProfile(requestProfileId, requestGeneration)) return
-                    if (!isCurrentProfile(requestProfileId, requestGeneration)) return
+                    val migrationSnapshot = synchronized(refreshJobsLock) {
+                        if (!isCurrentProfileLocked(requestProfileId, requestGeneration)) return
+                        _uiState.value.addons
+                    }
                     setPendingRemoteSync(requestProfileId, true)
                     val generation = synchronized(refreshJobsLock) {
                         remoteMutationGeneration += 1L
@@ -234,7 +237,7 @@ object AddonRepository {
                     }
                     pushAddonSnapshotToServer(
                         profileId = requestProfileId,
-                        sourceAddons = _uiState.value.addons,
+                        sourceAddons = migrationSnapshot,
                         generation = generation,
                     )
                     if (hasPendingRemoteSync(requestProfileId)) return
