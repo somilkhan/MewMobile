@@ -82,21 +82,27 @@ object ProviderCredentialSync {
         val credentialScope = currentScope(profileId) ?: return@withLock false
         try {
             val localSnapshot = currentSnapshot(profileId)
-            val shouldPush = synchronized(stateLock) {
-                val baseline = baselineSnapshots.getOrPut(credentialScope) {
-                    observedSnapshots[profileId] ?: localSnapshot
+            val shouldPush = ThemeSettingsStorage.loadProviderCredentialSyncPending() ||
+                synchronized(stateLock) {
+                    val baseline = baselineSnapshots.getOrPut(credentialScope) {
+                        observedSnapshots[profileId] ?: localSnapshot
+                    }
+                    credentialScope in pendingScopes || baseline != localSnapshot
                 }
-                credentialScope in pendingScopes || baseline != localSnapshot
-            }
             if (shouldPush) {
+                ThemeSettingsStorage.saveProviderCredentialSyncPending(true)
+                requireCurrentScope(credentialScope)
                 pushSnapshot(localSnapshot)
+                ThemeSettingsStorage.saveProviderCredentialSyncPending(false)
                 synchronized(stateLock) {
                     baselineSnapshots[credentialScope] = localSnapshot
                     pendingScopes.remove(credentialScope)
                 }
             }
 
+            requireCurrentScope(credentialScope)
             seedSnapshot(localSnapshot)
+            requireCurrentScope(credentialScope)
             val rows = pullRows(profileId)
             requireCurrentScope(credentialScope)
             val shouldRepairRemote = localSnapshot.hasLocallyWonRemoteConflict(rows)
@@ -112,7 +118,10 @@ object ProviderCredentialSync {
             }
             requireCurrentScope(credentialScope)
             if (shouldRepairRemote) {
+                ThemeSettingsStorage.saveProviderCredentialSyncPending(true)
+                requireCurrentScope(credentialScope)
                 pushSnapshot(remoteSnapshot)
+                ThemeSettingsStorage.saveProviderCredentialSyncPending(false)
                 requireCurrentScope(credentialScope)
             }
             synchronized(stateLock) {
@@ -292,7 +301,10 @@ object ProviderCredentialSync {
             val previous = synchronized(stateLock) {
                 observedSnapshots.put(snapshot.profileId, snapshot)
             }
-            val credentialScope = currentScope(snapshot.profileId) ?: return@withLock
+            val credentialScope = currentScope(snapshot.profileId) ?: run {
+                ThemeSettingsStorage.saveProviderCredentialSyncPending(true)
+                return@withLock
+            }
             if (previous == null) {
                 synchronized(stateLock) {
                     if (credentialScope !in baselineSnapshots) {
@@ -308,7 +320,10 @@ object ProviderCredentialSync {
             if (baseline == snapshot) return@withLock
 
             try {
+                ThemeSettingsStorage.saveProviderCredentialSyncPending(true)
+                requireCurrentScope(credentialScope)
                 pushSnapshot(snapshot)
+                ThemeSettingsStorage.saveProviderCredentialSyncPending(false)
                 synchronized(stateLock) {
                     baselineSnapshots[credentialScope] = snapshot
                     pendingScopes.remove(credentialScope)
@@ -316,6 +331,7 @@ object ProviderCredentialSync {
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Throwable) {
+                ThemeSettingsStorage.saveProviderCredentialSyncPending(true)
                 synchronized(stateLock) {
                     pendingScopes.add(credentialScope)
                 }
