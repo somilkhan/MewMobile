@@ -57,6 +57,7 @@ import com.nuvio.app.core.ui.toThemeHex
 import kotlin.math.max
 import kotlin.math.min
 import com.nuvio.app.core.ui.AppTheme
+import com.nuvio.app.core.ui.glass.isLiquidGlassAvailable
 import com.nuvio.app.core.ui.accentBrush
 import com.nuvio.app.core.ui.NuvioBottomSheetActionRow
 import com.nuvio.app.core.ui.NuvioBottomSheetDivider
@@ -88,7 +89,7 @@ import nuvio.composeapp.generated.resources.settings_appearance_continue_watchin
 import nuvio.composeapp.generated.resources.settings_appearance_liquid_glass
 import nuvio.composeapp.generated.resources.settings_appearance_liquid_glass_auto_hide
 import nuvio.composeapp.generated.resources.settings_appearance_liquid_glass_auto_hide_description
-import nuvio.composeapp.generated.resources.settings_appearance_liquid_glass_description
+import nuvio.composeapp.generated.resources.settings_appearance_liquid_glass_effects_description
 import nuvio.composeapp.generated.resources.settings_appearance_nav_bar_style
 import nuvio.composeapp.generated.resources.settings_appearance_nav_bar_style_sheet_title
 import nuvio.composeapp.generated.resources.settings_appearance_poster_customization_description
@@ -118,8 +119,6 @@ internal fun LazyListScope.appearanceSettingsContent(
     amoledEnabled: Boolean,
     onAmoledToggle: (Boolean) -> Unit,
     liquidGlassNativeTabBarSupported: Boolean,
-    liquidGlassNativeTabBarEnabled: Boolean,
-    onLiquidGlassNativeTabBarToggle: (Boolean) -> Unit,
     liquidGlassAutoHideOnScrollEnabled: Boolean,
     onLiquidGlassAutoHideOnScrollToggle: (Boolean) -> Unit,
     appIconState: AppIconSettingsState,
@@ -236,6 +235,7 @@ internal fun LazyListScope.appearanceSettingsContent(
         var showLanguageSheet by remember { mutableStateOf(false) }
         var showNavBarStyleSheet by remember { mutableStateOf(false) }
         var showAppIconPicker by remember { mutableStateOf(false) }
+        val liquidGlassEffectsEnabled by remember { ThemeSettingsRepository.liquidGlassEffectsEnabled }.collectAsState()
         SettingsSection(
             title = stringResource(Res.string.settings_appearance_section_display),
             isTablet = isTablet,
@@ -248,21 +248,23 @@ internal fun LazyListScope.appearanceSettingsContent(
                     isTablet = isTablet,
                     onCheckedChange = onAmoledToggle,
                 )
-                if (liquidGlassNativeTabBarSupported) {
+                if (isLiquidGlassAvailable()) {
                     SettingsGroupDivider(isTablet = isTablet)
                     SettingsSwitchRow(
                         title = stringResource(Res.string.settings_appearance_liquid_glass),
-                        description = stringResource(Res.string.settings_appearance_liquid_glass_description),
-                        checked = liquidGlassNativeTabBarEnabled,
+                        description = stringResource(Res.string.settings_appearance_liquid_glass_effects_description),
+                        checked = liquidGlassEffectsEnabled,
                         isTablet = isTablet,
-                        onCheckedChange = onLiquidGlassNativeTabBarToggle,
+                        onCheckedChange = ThemeSettingsRepository::setLiquidGlassEffectsEnabled,
                     )
+                }
+                if (liquidGlassNativeTabBarSupported) {
                     SettingsGroupDivider(isTablet = isTablet)
                     SettingsSwitchRow(
                         title = stringResource(Res.string.settings_appearance_liquid_glass_auto_hide),
                         description = stringResource(Res.string.settings_appearance_liquid_glass_auto_hide_description),
                         checked = liquidGlassAutoHideOnScrollEnabled,
-                        enabled = liquidGlassNativeTabBarEnabled,
+                        enabled = liquidGlassEffectsEnabled,
                         isTablet = isTablet,
                         onCheckedChange = onLiquidGlassAutoHideOnScrollToggle,
                     )
@@ -507,7 +509,7 @@ private fun NavBarStyleBottomSheet(
                 )
             }
 
-            itemsIndexed(NavBarStyle.entries.toList()) { index, style ->
+            itemsIndexed(NavBarStyle.entries.filterNot { it == NavBarStyle.LIQUID_GLASS }) { index, style ->
                 if (index > 0) {
                     NuvioBottomSheetDivider()
                 }
