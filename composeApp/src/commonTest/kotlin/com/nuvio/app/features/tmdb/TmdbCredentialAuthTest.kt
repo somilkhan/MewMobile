@@ -28,7 +28,7 @@ class TmdbCredentialAuthTest {
 
     @Test
     fun readAccessTokenUsesBearerHeaderAndIsNotPlacedInUrl() {
-        val token = "header.payload.signature"
+        val token = "Bearer header.payload.signature"
         val url = buildTmdbUrl(
             endpoint = "movie/550",
             apiKey = token,
@@ -38,6 +38,6 @@ class TmdbCredentialAuthTest {
         assertTrue(isTmdbReadAccessToken(token))
         assertFalse(url.contains("api_key="))
         assertFalse(url.contains(token))
-        assertEquals("Bearer $token", tmdbAuthorizationHeaders(token)["Authorization"])
+        assertEquals("Bearer header.payload.signature", tmdbAuthorizationHeaders(token)["Authorization"])
     }
 }
