@@ -1,7 +1,7 @@
 package com.nuvio.app.features.tmdb
 
 import co.touchlab.kermit.Logger
-import com.nuvio.app.features.addons.httpGetText
+import com.nuvio.app.features.addons.httpRequestRaw
 import com.nuvio.app.features.home.MetaPreview
 import com.nuvio.app.features.home.PosterShape
 import io.ktor.http.encodeURLParameter
@@ -172,10 +172,18 @@ object TmdbService {
         query: Map<String, String> = emptyMap(),
     ): T? {
         val url = buildTmdbUrl(endpoint = endpoint, apiKey = apiKey, query = query)
+        val payload = requestTmdbText(onUnauthorized = TmdbSettingsRepository::markCredentialRejected) {
+            httpRequestRaw(
+                method = "GET",
+                url = url,
+                headers = tmdbAuthorizationHeaders(apiKey),
+                body = "",
+            )
+        } ?: return null
         return runCatching {
-            json.decodeFromString<T>(httpGetText(url))
+            json.decodeFromString<T>(payload)
         }.onFailure { error ->
-            log.w { "TMDB request failed for $endpoint: ${error.message}" }
+            log.w { "TMDB response parsing failed for $endpoint: ${error.message}" }
         }.getOrNull()
     }
 
@@ -193,12 +201,27 @@ object TmdbService {
         }
 }
 
+internal fun isTmdbReadAccessToken(value: String): Boolean {
+    val segments = value.trim().split('.')
+    return segments.size == 3 && segments.all(String::isNotBlank)
+}
+
+internal fun tmdbAuthorizationHeaders(value: String): Map<String, String> =
+    if (isTmdbReadAccessToken(value)) {
+        mapOf("Authorization" to "Bearer ${value.trim()}")
+    } else {
+        emptyMap()
+    }
+
 internal fun buildTmdbUrl(
     endpoint: String,
     apiKey: String,
     query: Map<String, String> = emptyMap(),
 ): String {
-    val params = linkedMapOf("api_key" to apiKey)
+    val params = linkedMapOf<String, String>()
+    if (!isTmdbReadAccessToken(apiKey)) {
+        params["api_key"] = apiKey
+    }
     query.forEach { (key, value) ->
         if (value.isNotBlank()) {
             params[key] = value
