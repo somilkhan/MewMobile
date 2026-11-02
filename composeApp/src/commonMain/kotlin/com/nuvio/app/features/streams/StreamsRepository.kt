@@ -20,7 +20,7 @@ import com.nuvio.app.features.details.MetaDetailsRepository
 import com.nuvio.app.features.player.PlayerSettingsRepository
 import com.nuvio.app.features.tmdb.TmdbSettingsRepository
 import com.nuvio.app.features.plugins.PluginRepository
-import com.nuvio.app.features.plugins.pluginContentId
+import com.nuvio.app.features.plugins.resolvePluginTmdbId
 import com.nuvio.app.features.plugins.PluginsUiState
 import com.nuvio.app.features.plugins.isExcludedByPluginQualityFilter
 import kotlinx.coroutines.CoroutineScope
@@ -713,11 +713,13 @@ object StreamsRepository {
                             pluginScraperSemaphore.withPermit {
                                 PluginRepository.executeScraper(
                                 scraper = scraper,
-                                tmdbId = pluginContentId(
+                                tmdbId = resolvePluginTmdbId(
                                     videoId = streamLookupId,
+                                    mediaType = type,
+                                    searchTitle = searchTitle,
                                     season = season,
                                     episode = episode,
-                                ),
+                                ).orEmpty(),
                                 mediaType = type,
                                 season = season,
                                 episode = episode,
