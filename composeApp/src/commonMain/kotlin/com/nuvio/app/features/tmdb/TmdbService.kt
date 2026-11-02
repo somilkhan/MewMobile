@@ -171,7 +171,7 @@ object TmdbService {
         query: Map<String, String> = emptyMap(),
     ): T? {
         val url = buildTmdbUrl(endpoint = endpoint, apiKey = apiKey, query = query)
-        val payload = requestTmdbText(onUnauthorized = TmdbSettingsRepository::markCredentialRejected) {
+        val payload = requestTmdbText(onUnauthorized = { TmdbSettingsRepository.markCredentialRejected() }) {
             httpRequestRaw(
                 method = "GET",
                 url = url,
