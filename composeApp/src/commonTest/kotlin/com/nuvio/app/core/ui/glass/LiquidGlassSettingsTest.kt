@@ -6,7 +6,7 @@ import kotlin.test.assertFalse
 
 class LiquidGlassSettingsTest {
     @Test
-    fun globalToggleDisablesGlassAndRestoresCapabilityWhenEnabled() {
+    fun globalToggleControlsGlassEnabledState() {
         val previous = LiquidGlassSettings.enabled
         try {
             LiquidGlassSettings.enabled = false
