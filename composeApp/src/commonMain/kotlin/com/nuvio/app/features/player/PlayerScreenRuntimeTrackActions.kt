@@ -167,6 +167,7 @@ internal fun PlayerScreenRuntime.restorePersistedTrackPreferenceIfNeeded() {
                 selectedAddonSubtitleId = subtitle.selectionKey
                 selectedSubtitleIndex = -1
                 useCustomSubtitles = true
+                manualSubtitleSelectionLocked = true
                 autoAddonFallbackPending = false
                 if (!maybeAutoSyncRestoredSubtitleAtStart(subtitle.url)) {
                     playerController?.setSubtitleUri(subtitle.url)
