@@ -296,7 +296,7 @@ private fun PlayerScreenRuntime.RenderPlayerControls(displayedPositionMs: Long, 
         ThemeSettingsRepository.ensureLoaded()
         ThemeSettingsRepository.liquidGlassEffectsEnabled
     }.collectAsState()
-    val playerVideoFrameBackdrop = rememberVideoFrameBackdrop(enabled = liquidGlassEffectsEnabled)
+    val playerVideoFrameBackdrop = rememberVideoFrameBackdrop(enabled = liquidGlassEffectsEnabled && controlsVisible)
     val showQuietDeviceStatusOverlay = nuvioEnhancedSettingsUiState.playerStatusOverlayEnabled &&
         !controlsVisible &&
         !showParentalGuide &&
