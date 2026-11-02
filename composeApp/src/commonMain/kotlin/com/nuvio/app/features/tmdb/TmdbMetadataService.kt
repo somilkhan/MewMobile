@@ -1673,8 +1673,33 @@ internal suspend fun requestTmdbText(
     maxAttempts: Int = 3,
     pause: suspend (Long) -> Unit = { delay(it) },
     request: suspend () -> RawHttpResponse,
+): String? = requestTmdbTextInternal(
+    maxAttempts = maxAttempts,
+    pause = pause,
+    onUnauthorized = null,
+    request = request,
+)
+
+internal suspend fun requestTmdbText(
+    maxAttempts: Int = 3,
+    pause: suspend (Long) -> Unit = { delay(it) },
+    onUnauthorized: (() -> Unit)?,
+    request: suspend () -> RawHttpResponse,
+): String? = requestTmdbTextInternal(
+    maxAttempts = maxAttempts,
+    pause = pause,
+    onUnauthorized = onUnauthorized,
+    request = request,
+)
+
+private suspend fun requestTmdbTextInternal(
+    maxAttempts: Int,
+    pause: suspend (Long) -> Unit,
+    onUnauthorized: (() -> Unit)?,
+    request: suspend () -> RawHttpResponse,
 ): String? {
-    repeat(maxAttempts.coerceAtLeast(1)) { attempt ->
+    val attempts = maxAttempts.coerceAtLeast(1)
+    repeat(attempts) { attempt ->
         val response = try {
             request()
         } catch (error: Throwable) {
@@ -1682,8 +1707,9 @@ internal suspend fun requestTmdbText(
             null
         }
         if (response != null && response.status in 200..299) return response.body
+        if (response?.status == 401) onUnauthorized?.invoke()
         val transient = response == null || response.status == 429 || response.status in 500..599
-        if (!transient || attempt == maxAttempts.coerceAtLeast(1) - 1) return null
+        if (!transient || attempt == attempts - 1) return null
         pause(TMDB_RETRY_BASE_DELAY_MS * (attempt + 1))
     }
     return null
