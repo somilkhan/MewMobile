@@ -26,7 +26,6 @@ actual object ThemeSettingsStorage {
         customThemeSecondColorKey,
         amoledEnabledKey,
         liquidGlassNativeTabBarEnabledKey,
-        liquidGlassEffectsEnabledKey,
         liquidGlassAutoHideOnScrollEnabledKey,
     )
 
@@ -156,7 +155,6 @@ actual object ThemeSettingsStorage {
         loadCustomThemeFirstColor()?.let { put(customThemeFirstColorKey, encodeSyncString(it)) }
         loadCustomThemeSecondColor()?.let { put(customThemeSecondColorKey, encodeSyncString(it)) }
         loadAmoledEnabled()?.let { put(amoledEnabledKey, encodeSyncBoolean(it)) }
-        loadLiquidGlassEffectsEnabled()?.let { put(liquidGlassEffectsEnabledKey, encodeSyncBoolean(it)) }
         loadLiquidGlassAutoHideOnScrollEnabled()?.let { put(liquidGlassAutoHideOnScrollEnabledKey, encodeSyncBoolean(it)) }
         loadNavBarStyle()?.let { put(NAV_BAR_STYLE_KEY, encodeSyncString(it)) }
     }
@@ -170,9 +168,9 @@ actual object ThemeSettingsStorage {
         payload.decodeSyncString(customThemeFirstColorKey)?.let(::saveCustomThemeFirstColor)
         payload.decodeSyncString(customThemeSecondColorKey)?.let(::saveCustomThemeSecondColor)
         payload.decodeSyncBoolean(amoledEnabledKey)?.let(::saveAmoledEnabled)
-        (payload.decodeSyncBoolean(liquidGlassEffectsEnabledKey)
-            ?: payload.decodeSyncBoolean(liquidGlassNativeTabBarEnabledKey))
-            ?.let(::saveLiquidGlassEffectsEnabled)
+        if (loadLiquidGlassEffectsEnabled() == null) {
+            payload.decodeSyncBoolean(liquidGlassNativeTabBarEnabledKey)?.let(::saveLiquidGlassEffectsEnabled)
+        }
         payload.decodeSyncBoolean(liquidGlassAutoHideOnScrollEnabledKey)?.let(::saveLiquidGlassAutoHideOnScrollEnabled)
         payload.decodeSyncString(NAV_BAR_STYLE_KEY)?.let(::saveNavBarStyle)
         applySelectedAppLanguage(loadSelectedAppLanguage() ?: AppLanguage.DEVICE.code)
