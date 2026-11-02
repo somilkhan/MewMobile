@@ -1691,7 +1691,7 @@ private class NuvioLibmpvView(
         mpv.setPropertyBoolean("keep-open", true)
         mpv.setPropertyBoolean("input-default-bindings", true)
         mpv.setPropertyBoolean("audio-fallback-to-null", true)
-        mpv.setOptionString("resume-playback", "no").logIfMpvError("resume-playback")
+        // Some provider streams are delivered without reliable seekability metadata.\n        // Let mpv attempt seeks (especially within its demuxer cache) instead of\n        // rejecting timeline seeks before the underlying stream can try them.\n        mpv.setOptionString("force-seekable", "yes").logIfMpvError("force-seekable")\n        mpv.setOptionString("resume-playback", "no").logIfMpvError("resume-playback")
         mpv.setOptionString("save-position-on-quit", "no").logIfMpvError("save-position-on-quit")
     }
 
