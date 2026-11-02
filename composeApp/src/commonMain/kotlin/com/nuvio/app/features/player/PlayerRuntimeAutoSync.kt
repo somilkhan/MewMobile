@@ -6,6 +6,7 @@ import androidx.compose.runtime.LaunchedEffect
 import com.nuvio.app.features.autosync.AutoSyncPlayerController
 import com.nuvio.app.features.autosync.AutoSyncPreferencesRepository
 import com.nuvio.app.features.autosync.AutoSyncSubtitleCandidate
+import com.nuvio.app.features.streams.StreamSubtitle
 
 private fun List<AddonSubtitle>.toAutoSyncCandidates(): List<AutoSyncSubtitleCandidate> =
     map { subtitle ->
@@ -16,8 +17,20 @@ private fun List<AddonSubtitle>.toAutoSyncCandidates(): List<AutoSyncSubtitleCan
         )
     }
 
+internal fun buildAutoSyncCandidates(
+    addonSubtitles: List<AddonSubtitle>,
+    streamSubtitles: List<StreamSubtitle>,
+): List<AutoSyncSubtitleCandidate> =
+    (addonSubtitles.toAutoSyncCandidates() + streamSubtitles.map { subtitle ->
+        AutoSyncSubtitleCandidate(
+            url = subtitle.url,
+            language = subtitle.language,
+            name = subtitle.name,
+        )
+    }).distinctBy { it.url }
+
 private fun PlayerScreenRuntime.currentAutoSyncCandidates(): List<AutoSyncSubtitleCandidate> =
-    addonSubtitles.toAutoSyncCandidates()
+    buildAutoSyncCandidates(addonSubtitles, activeExternalSubtitles)
 
 internal fun PlayerScreenRuntime.configureAutoSyncController(controller: PlayerEngineController) {
     controller.setAutoSyncSubtitleCandidates(currentAutoSyncCandidates())
@@ -43,7 +56,7 @@ internal fun PlayerScreenRuntime.BindAutoSyncRuntimeEffects() {
         activeController?.let { configureAutoSyncController(it) }
         onDispose { activeController?.setAutoSyncAppliedListener(null) }
     }
-    LaunchedEffect(playerController, addonSubtitles) {
+    LaunchedEffect(playerController, addonSubtitles, activeExternalSubtitles) {
         playerController?.setAutoSyncSubtitleCandidates(currentAutoSyncCandidates())
     }
 }
