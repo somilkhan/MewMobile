@@ -836,9 +836,11 @@ private fun ExoPlayerSurface(
                         Log.d(TAG, "onTracksChanged: restored pending audio selection=$restored")
                     }
                 }
-                if (pendingSubtitleTrackIndex.isNotEmpty() && tracks.groups.isNotEmpty()) {
+                val pendingSubtitleIndex = pendingSubtitleTrackIndex.firstOrNull()
+                val availableTextTrackCount = tracks.groups.filter { it.type == C.TRACK_TYPE_TEXT }.sumOf { it.length }
+                if (pendingSubtitleIndex != null && pendingSubtitleSelectionCanApply(pendingSubtitleIndex, availableTextTrackCount)) {
                     val idx = pendingSubtitleTrackIndex.removeAt(0)
-                    Log.d(TAG, "onTracksChanged: applying pending subtitle selection index=$idx")
+                    Log.d(TAG, "onTracksChanged: applying pending subtitle selection index=$idx (textTracks=$availableTextTrackCount)")
                     exoPlayer.trackSelectionParameters = exoPlayer.trackSelectionParameters
                         .buildUpon()
                         .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, idx < 0)
