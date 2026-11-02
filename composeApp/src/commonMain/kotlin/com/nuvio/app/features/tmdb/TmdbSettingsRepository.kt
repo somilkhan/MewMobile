@@ -94,7 +94,9 @@ object TmdbSettingsRepository {
         ensureLoaded()
         if (credentialRejected) return
         credentialRejected = true
+        invalidateMetadata()
         publish()
+        HomeRepository.onTmdbEnabledChanged()
     }
 
     fun setLanguage(value: String) {
