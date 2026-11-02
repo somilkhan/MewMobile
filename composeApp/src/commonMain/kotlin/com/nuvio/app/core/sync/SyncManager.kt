@@ -282,6 +282,7 @@ object SyncManager {
                     if (!force) {
                         delay(FOREGROUND_PULL_DELAY_MS)
                     }
+                    if (!AuthRepository.hasValidatedRemoteSession()) return@launch
                     if (!force && hasRecentFullPull(profileId)) return@launch
                     if (ProfileRepository.activeProfileId != profileId) return@launch
                     pullForegroundForProfile(profileId)
