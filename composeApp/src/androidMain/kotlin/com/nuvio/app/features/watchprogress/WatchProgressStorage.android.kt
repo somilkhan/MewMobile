@@ -6,6 +6,7 @@ import android.content.SharedPreferences
 actual object WatchProgressStorage {
     private const val preferencesName = "nuvio_watch_progress"
     private const val payloadKey = "watch_progress_payload"
+    private const val pendingDeletesKey = "watch_progress_pending_deletes"
 
     private var preferences: SharedPreferences? = null
 
@@ -20,6 +21,16 @@ actual object WatchProgressStorage {
         preferences
             ?.edit()
             ?.putString("${payloadKey}_$profileId", payload)
+            ?.apply()
+    }
+
+    actual fun loadPendingDeletes(profileId: Int): String? =
+        preferences?.getString("${pendingDeletesKey}_$profileId", null)
+
+    actual fun savePendingDeletes(profileId: Int, payload: String) {
+        preferences
+            ?.edit()
+            ?.putString("${pendingDeletesKey}_$profileId", payload)
             ?.apply()
     }
 }
