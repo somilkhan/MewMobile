@@ -157,6 +157,10 @@ object ProfileSettingsSync {
 
                 isApplyingRemoteBlob = true
                 try {
+                    if (ThemeSettingsStorage.loadProfileSettingsSyncPending()) {
+                        pushToRemoteLocked(profileId, exportSettingsBlob())
+                        return@withLock false
+                    }
                     applyRemoteBlob(remoteBlob)
                     skipNextPushSignature = currentObservedStateSignature()
                 } finally {
