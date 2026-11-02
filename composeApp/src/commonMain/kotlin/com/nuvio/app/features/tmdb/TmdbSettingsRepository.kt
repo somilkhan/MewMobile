@@ -87,7 +87,7 @@ object TmdbSettingsRepository {
         publish()
         TmdbSettingsStorage.saveApiKey(normalized, EpisodeReleaseDatePlatform.nowEpochMs())
         invalidateMetadata()
-        if (wasEnabled != enabled) HomeRepository.onTmdbEnabledChanged()
+        if (wasEnabled != enabled || enabled) HomeRepository.onTmdbEnabledChanged()
     }
 
     fun markCredentialRejected() {
