@@ -1169,7 +1169,7 @@
     <string name="settings_tmdb_module_season_posters_description">Use TMDB season posters in the metadata screen season selector for series.</string>
     <string name="settings_tmdb_module_trailers">Trailers</string>
     <string name="settings_tmdb_module_trailers_description">Trailer candidates from TMDB videos for the detail trailer section</string>
-    <string name="settings_tmdb_personal_api_key">Personal API key or Read Access Token</string>
+    <string name="settings_tmdb_personal_api_key">v3 API key or v4 Read Access Token</string>
     <string name="settings_tmdb_credential_rejected">TMDB rejected this credential (HTTP 401). Check that your v3 API key or API Read Access Token is valid.</string>
     <string name="settings_tmdb_preferred_language">Language</string>
     <string name="settings_tmdb_preferred_language_description">TMDB metadata language for title, logo, and enabled fields</string>
