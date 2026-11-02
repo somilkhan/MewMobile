@@ -6,6 +6,8 @@ import com.nuvio.app.core.ui.ThemeColors
 import com.nuvio.app.core.ui.ThemeAccentColor
 import com.nuvio.app.core.ui.toThemeColor
 import com.nuvio.app.core.ui.toThemeHex
+import com.nuvio.app.core.ui.glass.LiquidGlassSettings
+import com.nuvio.app.features.player.PlayerSettingsStorage
 import androidx.compose.ui.graphics.Color
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -24,8 +26,8 @@ object ThemeSettingsRepository {
     private val _amoledEnabled = MutableStateFlow(false)
     val amoledEnabled: StateFlow<Boolean> = _amoledEnabled.asStateFlow()
 
-    private val _liquidGlassNativeTabBarEnabled = MutableStateFlow(false)
-    val liquidGlassNativeTabBarEnabled: StateFlow<Boolean> = _liquidGlassNativeTabBarEnabled.asStateFlow()
+    private val _liquidGlassEffectsEnabled = MutableStateFlow(false)
+    val liquidGlassEffectsEnabled: StateFlow<Boolean> = _liquidGlassEffectsEnabled.asStateFlow()
 
     private val _liquidGlassAutoHideOnScrollEnabled = MutableStateFlow(false)
     val liquidGlassAutoHideOnScrollEnabled: StateFlow<Boolean> = _liquidGlassAutoHideOnScrollEnabled.asStateFlow()
@@ -53,10 +55,9 @@ object ThemeSettingsRepository {
         _customThemeFirstColor.value = ThemeAccentColor.PINK.color
         _customThemeSecondColor.value = ThemeAccentColor.CYAN.color
         _amoledEnabled.value = false
-        _liquidGlassNativeTabBarEnabled.value = false
+        applyLiquidGlassEffectsEnabled(false)
         _liquidGlassAutoHideOnScrollEnabled.value = false
         NativeTabBridge.publishAccentColor(AppTheme.MEW.nativeTabAccentHex())
-        NativeTabBridge.publishLiquidGlassEnabled(false)
         _selectedAppLanguage.value = AppLanguage.DEVICE
         _navBarStyle.value = NavBarStyle.ADAPTIVE
     }
@@ -72,11 +73,18 @@ object ThemeSettingsRepository {
             .toThemeColor(ThemeAccentColor.CYAN.color)
         NativeTabBridge.publishAccentColor(theme.nativeTabAccentHex(_customThemeFirstColor.value))
         _amoledEnabled.value = ThemeSettingsStorage.loadAmoledEnabled() ?: false
-        val liquidGlassEnabled = ThemeSettingsStorage.loadLiquidGlassNativeTabBarEnabled() ?: false
-        _liquidGlassNativeTabBarEnabled.value = liquidGlassEnabled
+        val storedLiquidGlassEnabled = ThemeSettingsStorage.loadLiquidGlassEffectsEnabled()
+        val legacyLiquidGlassEnabled =
+            ThemeSettingsStorage.loadLiquidGlassNativeTabBarEnabled() == true ||
+                PlayerSettingsStorage.loadPlayerLiquidGlassEnabled() == true ||
+                ThemeSettingsStorage.loadNavBarStyle().equals(NavBarStyle.LIQUID_GLASS.key, ignoreCase = true)
+        val liquidGlassEnabled = storedLiquidGlassEnabled ?: legacyLiquidGlassEnabled
+        applyLiquidGlassEffectsEnabled(liquidGlassEnabled)
+        if (storedLiquidGlassEnabled == null && liquidGlassEnabled) {
+            ThemeSettingsStorage.saveLiquidGlassEffectsEnabled(true)
+        }
         _liquidGlassAutoHideOnScrollEnabled.value =
             ThemeSettingsStorage.loadLiquidGlassAutoHideOnScrollEnabled() ?: false
-        NativeTabBridge.publishLiquidGlassEnabled(liquidGlassEnabled)
         val appLanguage = AppLanguage.fromCode(ThemeSettingsStorage.loadSelectedAppLanguage())
         ThemeSettingsStorage.applySelectedAppLanguage(appLanguage.code)
         _selectedAppLanguage.value = appLanguage
@@ -115,11 +123,16 @@ object ThemeSettingsRepository {
         ThemeSettingsStorage.saveAmoledEnabled(enabled)
     }
 
-    fun setLiquidGlassNativeTabBar(enabled: Boolean) {
+    fun setLiquidGlassEffectsEnabled(enabled: Boolean) {
         ensureLoaded()
-        if (_liquidGlassNativeTabBarEnabled.value == enabled) return
-        _liquidGlassNativeTabBarEnabled.value = enabled
-        ThemeSettingsStorage.saveLiquidGlassNativeTabBarEnabled(enabled)
+        if (_liquidGlassEffectsEnabled.value == enabled) return
+        applyLiquidGlassEffectsEnabled(enabled)
+        ThemeSettingsStorage.saveLiquidGlassEffectsEnabled(enabled)
+    }
+
+    private fun applyLiquidGlassEffectsEnabled(enabled: Boolean) {
+        _liquidGlassEffectsEnabled.value = enabled
+        LiquidGlassSettings.enabled = enabled
         NativeTabBridge.publishLiquidGlassEnabled(enabled)
     }
 
