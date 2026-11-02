@@ -2,7 +2,6 @@ package com.nuvio.app.features.watchprogress
 
 import co.touchlab.kermit.Logger
 import com.nuvio.app.core.auth.AuthRepository
-import com.nuvio.app.core.auth.AuthState
 import com.nuvio.app.core.tracking.ensureTrackingProvidersRegistered
 import com.nuvio.app.features.addons.AddonManifest
 import com.nuvio.app.features.addons.AddonRepository
@@ -42,6 +41,10 @@ import kotlinx.coroutines.launch
 import kotlinx.atomicfu.locks.SynchronizedObject
 import kotlinx.atomicfu.locks.synchronized
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
@@ -199,10 +202,13 @@ object WatchProgressRepository {
     private val entriesLock = SynchronizedObject()
     private var entriesByProgressKey: MutableMap<String, WatchProgressEntry> = mutableMapOf()
     private var dirtyProgressKeys: MutableSet<String> = mutableSetOf()
+    private var pendingDeleteEntries: MutableMap<String, WatchProgressEntry> = mutableMapOf()
     private var metadataResolutionJob: Job? = null
     private val metadataResolutionRetryCoordinator = MetadataResolutionRetryCoordinator()
     private val providerMetadataOverlay = ProviderProgressMetadataOverlay()
     private val nuvioPullMutex = Mutex()
+    private val remoteWriteMutex = Mutex()
+    private val pendingDeleteJson = Json { ignoreUnknownKeys = true }
     private var lastSuccessfulPushEpochMs = 0L
     private var deltaCursorEventId = 0L
     private var deltaInitialized = false
@@ -226,6 +232,14 @@ object WatchProgressRepository {
         syncScope.launch {
             AddonRepository.uiState.collectLatest { state ->
                 retryMetadataResolutionWhenAddonMetaProvidersReady(state)
+            }
+        }
+
+        syncScope.launch {
+            AuthRepository.state.collectLatest {
+                if (hasLoaded && AuthRepository.hasValidatedRemoteSession()) {
+                    schedulePendingRemoteChangesFlush()
+                }
             }
         }
 
@@ -304,12 +318,14 @@ object WatchProgressRepository {
             deltaCursorEventId = 0L
             deltaInitialized = false
         }
+        replacePendingDeleteEntries(loadPendingDeleteEntries(profileId))
         log.d {
             "Loaded watch progress for profile $profileId: entries=${localEntryCount()} " +
                 "deltaInitialized=$deltaInitialized cursor=$deltaCursorEventId lastPush=$lastSuccessfulPushEpochMs"
         }
         publish()
         resolveRemoteMetadata()
+        schedulePendingRemoteChangesFlush()
     }
 
     private fun activeOperationGeneration(profileId: Int): Long? {
@@ -474,9 +490,8 @@ object WatchProgressRepository {
         operationGeneration: Long,
         force: Boolean,
     ): Boolean {
-        val authState = AuthRepository.state.value
-        if (authState !is AuthState.Authenticated || authState.isAnonymous) {
-            // There is no upstream source for this account, so local state is authoritative.
+        if (!AuthRepository.hasValidatedRemoteSession()) {
+            // Cached or anonymous sessions remain local-only until remote validation succeeds.
             hasLoadedNuvioRemoteProgress = true
             publish()
             return true
@@ -484,6 +499,14 @@ object WatchProgressRepository {
 
         return nuvioPullMutex.withLock {
             try {
+                flushPendingRemoteChanges(profileId, operationGeneration)
+                if (
+                    dirtyProgressKeysSnapshot().isNotEmpty() ||
+                    pendingDeleteEntriesSnapshot().isNotEmpty()
+                ) {
+                    log.w { "Deferring remote watch-progress pull while pending local changes remain" }
+                    return@withLock false
+                }
                 if (force) {
                     pullNuvioSnapshotFromServer(
                         profileId = profileId,
@@ -1310,30 +1333,94 @@ object WatchProgressRepository {
     }
 
     private fun pushScrobbleToServer(entry: WatchProgressEntry, profileId: Int) {
+        if (!AuthRepository.hasValidatedRemoteSession()) return
         val operationGeneration = profileGeneration.takeIf { profileId == currentProfileId }
         accountScopeSnapshot().launch {
-            runCatching {
-                syncAdapter.push(profileId = profileId, entries = listOf(entry))
-                recordSuccessfulPush(
-                    profileId = profileId,
-                    operationGeneration = operationGeneration,
-                    entries = listOf(entry),
-                )
-            }.onFailure { e ->
-                log.e(e) { "Failed to push watch progress scrobble" }
+            remoteWriteMutex.withLock {
+                if (!AuthRepository.hasValidatedRemoteSession()) return@withLock
+                try {
+                    syncAdapter.push(profileId = profileId, entries = listOf(entry))
+                    recordSuccessfulPush(
+                        profileId = profileId,
+                        operationGeneration = operationGeneration,
+                        entries = listOf(entry),
+                    )
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (error: Throwable) {
+                    log.e(error) { "Failed to push watch progress scrobble" }
+                    AuthRepository.signOutIfSessionInvalid(error, "WatchProgressRepository.push")
+                }
             }
         }
     }
 
     private fun pushDeleteToServer(entries: Collection<WatchProgressEntry>) {
-        if (activeSource.providerId != null) return
+        if (activeSource.providerId != null || entries.isEmpty()) return
         val profileId = currentProfileId
+        synchronized(entriesLock) {
+            pendingDeleteEntries = mergePendingWatchProgressDeletes(
+                existing = pendingDeleteEntries.values,
+                deleted = entries,
+                keyOf = { entry -> entry.resolvedProgressKey() },
+            ).associateBy { entry -> entry.resolvedProgressKey() }.toMutableMap()
+        }
+        persistPendingDeleteEntries(profileId)
+        schedulePendingRemoteChangesFlush()
+    }
+
+    private fun schedulePendingRemoteChangesFlush() {
+        if (!hasLoaded || !AuthRepository.hasValidatedRemoteSession() || activeSource.providerId != null) return
+        val profileId = currentProfileId
+        val operationGeneration = profileGeneration
         accountScopeSnapshot().launch {
-            runCatching {
-                if (entries.isEmpty()) return@runCatching
-                syncAdapter.delete(profileId = profileId, entries = entries)
-            }.onFailure { e ->
-                log.e(e) { "Failed to push watch progress delete" }
+            flushPendingRemoteChanges(profileId, operationGeneration)
+        }
+    }
+
+    private suspend fun flushPendingRemoteChanges(
+        profileId: Int,
+        operationGeneration: Long,
+    ) {
+        if (!AuthRepository.hasValidatedRemoteSession() || activeSource.providerId != null) return
+        remoteWriteMutex.withLock {
+            if (!AuthRepository.hasValidatedRemoteSession() ||
+                !isActiveOperation(profileId, operationGeneration)
+            ) {
+                return
+            }
+
+            val dirtyKeys = dirtyProgressKeysSnapshot()
+            val dirtyEntries = localEntriesSnapshot().filter { it.resolvedProgressKey() in dirtyKeys }
+            if (dirtyEntries.isNotEmpty()) {
+                try {
+                    syncAdapter.push(profileId = profileId, entries = dirtyEntries)
+                    recordSuccessfulPush(
+                        profileId = profileId,
+                        operationGeneration = operationGeneration,
+                        entries = dirtyEntries,
+                    )
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (error: Throwable) {
+                    log.e(error) { "Failed to flush pending watch progress updates" }
+                    AuthRepository.signOutIfSessionInvalid(error, "WatchProgressRepository.flush")
+                    return
+                }
+            }
+
+            if (!AuthRepository.hasValidatedRemoteSession()) return
+            val pendingDeletes = pendingDeleteEntriesSnapshot()
+            if (pendingDeletes.isNotEmpty()) {
+                try {
+                    syncAdapter.delete(profileId = profileId, entries = pendingDeletes)
+                    acknowledgePendingDeletes(profileId, pendingDeletes)
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (error: Throwable) {
+                    log.e(error) { "Failed to flush pending watch progress deletes" }
+                    AuthRepository.signOutIfSessionInvalid(error, "WatchProgressRepository.delete")
+                }
             }
         }
     }
@@ -1497,6 +1584,7 @@ object WatchProgressRepository {
         synchronized(entriesLock) {
             entriesByProgressKey.clear()
             dirtyProgressKeys.clear()
+            pendingDeleteEntries.clear()
         }
     }
 
@@ -1504,6 +1592,59 @@ object WatchProgressRepository {
         synchronized(entriesLock) {
             dirtyProgressKeys.toSet()
         }
+
+    private fun pendingDeleteEntriesSnapshot(): List<WatchProgressEntry> =
+        synchronized(entriesLock) {
+            pendingDeleteEntries.values.toList()
+        }
+
+    private fun replacePendingDeleteEntries(entries: Collection<WatchProgressEntry>) {
+        synchronized(entriesLock) {
+            pendingDeleteEntries = entries
+                .associateBy { entry -> entry.resolvedProgressKey() }
+                .toMutableMap()
+        }
+    }
+
+    private fun loadPendingDeleteEntries(profileId: Int): List<WatchProgressEntry> {
+        val payload = WatchProgressStorage.loadPendingDeletes(profileId).orEmpty().trim()
+        if (payload.isEmpty()) return emptyList()
+        return runCatching {
+            pendingDeleteJson.decodeFromString(
+                ListSerializer(WatchProgressEntry.serializer()),
+                payload,
+            )
+        }.getOrElse { error ->
+            log.e(error) { "Failed to decode pending watch progress deletes for profile $profileId" }
+            emptyList()
+        }
+    }
+
+    private fun persistPendingDeleteEntries(profileId: Int) {
+        val entries = pendingDeleteEntriesSnapshot()
+        val payload = pendingDeleteJson.encodeToString(
+            ListSerializer(WatchProgressEntry.serializer()),
+            entries,
+        )
+        WatchProgressStorage.savePendingDeletes(profileId, payload)
+    }
+
+    private fun acknowledgePendingDeletes(
+        profileId: Int,
+        pushedEntries: Collection<WatchProgressEntry>,
+    ) {
+        val remaining = acknowledgePendingWatchProgressDeletes(
+            pending = loadPendingDeleteEntries(profileId),
+            pushed = pushedEntries,
+            keyOf = WatchProgressEntry::resolvedProgressKey,
+        )
+        val payload = pendingDeleteJson.encodeToString(
+            ListSerializer(WatchProgressEntry.serializer()),
+            remaining,
+        )
+        WatchProgressStorage.savePendingDeletes(profileId, payload)
+        if (profileId == currentProfileId) replacePendingDeleteEntries(remaining)
+    }
 
     private fun replaceDirtyProgressKeys(keys: Collection<String>) {
         synchronized(entriesLock) {
@@ -1513,9 +1654,12 @@ object WatchProgressRepository {
     }
 
     private fun markProgressDirty(entry: WatchProgressEntry) {
-        synchronized(entriesLock) {
-            dirtyProgressKeys += entry.resolvedProgressKey()
+        val key = entry.resolvedProgressKey()
+        val removedPendingDelete = synchronized(entriesLock) {
+            dirtyProgressKeys += key
+            pendingDeleteEntries.remove(key) != null
         }
+        if (removedPendingDelete) persistPendingDeleteEntries(currentProfileId)
     }
 
     private fun clearProgressDirty(progressKey: String) {

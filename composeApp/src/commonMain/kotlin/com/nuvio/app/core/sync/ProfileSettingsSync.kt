@@ -2,7 +2,6 @@ package com.nuvio.app.core.sync
 
 import co.touchlab.kermit.Logger
 import com.nuvio.app.core.auth.AuthRepository
-import com.nuvio.app.core.auth.AuthState
 import com.nuvio.app.core.network.SupabaseProvider
 import com.nuvio.app.features.ai.AiAssistantSettingsRepository
 import com.nuvio.app.features.ai.AiProvider
@@ -100,8 +99,10 @@ object ProfileSettingsSync {
     }
 
     suspend fun pull(profileId: Int): Boolean {
+        if (!AuthRepository.hasValidatedRemoteSession()) return false
         ensureRepositoriesLoaded()
         return syncMutex.withLock {
+            if (!AuthRepository.hasValidatedRemoteSession()) return@withLock false
             if (ProfileRepository.activeProfileId != profileId) {
                 log.d { "pull(profileId=$profileId) — skipped because profile is no longer active" }
                 return@withLock false
@@ -110,6 +111,10 @@ object ProfileSettingsSync {
             try {
                 val localBlob = exportSettingsBlob()
                 if (ProfileRepository.activeProfileId != profileId) return@withLock false
+                if (ThemeSettingsStorage.loadProfileSettingsSyncPending()) {
+                    pushToRemoteLocked(profileId, localBlob)
+                    return@withLock false
+                }
                 val localSignature = buildSignature(localBlob)
 
                 val params = buildJsonObject {
@@ -117,34 +122,45 @@ object ProfileSettingsSync {
                     put("p_platform", MOBILE_SYNC_PLATFORM)
                 }
                 val result = SupabaseProvider.client.postgrest.rpc("sync_pull_profile_settings_blob", params)
-                if (ProfileRepository.activeProfileId != profileId) return@withLock false
+                if (!AuthRepository.hasValidatedRemoteSession() || ProfileRepository.activeProfileId != profileId) return@withLock false
                 val response = result.decodeList<SettingsBlobResponse>().firstOrNull()
                 val remoteJson = response?.settingsJson
 
                 if (remoteJson == null) {
                     log.i { "pull(profileId=$profileId) — no remote settings blob found" }
-                    if (localSignature != defaultSignature()) {
+                    if (ThemeSettingsStorage.loadProfileSettingsSyncPending()) {
+                        pushToRemoteLocked(profileId, exportSettingsBlob())
+                    } else if (localSignature != defaultSignature()) {
                         pushToRemoteLocked(profileId, localBlob)
                     }
                     return@withLock false
                 }
 
+                val remoteBlob = runCatching {
+                    json.decodeFromJsonElement(MobileProfileSettingsBlob.serializer(), remoteJson)
+                }.getOrElse { error ->
+                    log.e(error) { "pull(profileId=$profileId) — failed to decode remote settings blob" }
+                    return@withLock false
+                }
+
+                val remoteSignature = buildSignature(remoteBlob)
+                if (remoteSignature == localSignature) {
+                    log.d { "pull(profileId=$profileId) — remote matches local" }
+                    return@withLock false
+                }
+
+                if (ThemeSettingsStorage.loadProfileSettingsSyncPending()) {
+                    pushToRemoteLocked(profileId, exportSettingsBlob())
+                    return@withLock false
+                }
+                if (ProfileRepository.activeProfileId != profileId) return@withLock false
+
                 isApplyingRemoteBlob = true
                 try {
-                    val remoteBlob = runCatching {
-                        json.decodeFromJsonElement(MobileProfileSettingsBlob.serializer(), remoteJson)
-                    }.getOrElse { error ->
-                        log.e(error) { "pull(profileId=$profileId) — failed to decode remote settings blob" }
+                    if (ThemeSettingsStorage.loadProfileSettingsSyncPending()) {
+                        pushToRemoteLocked(profileId, exportSettingsBlob())
                         return@withLock false
                     }
-
-                    val remoteSignature = buildSignature(remoteBlob)
-                    if (remoteSignature == localSignature) {
-                        log.d { "pull(profileId=$profileId) — remote matches local" }
-                        return@withLock false
-                    }
-
-                    if (ProfileRepository.activeProfileId != profileId) return@withLock false
                     applyRemoteBlob(remoteBlob)
                     skipNextPushSignature = currentObservedStateSignature()
                 } finally {
@@ -155,6 +171,7 @@ object ProfileSettingsSync {
                 true
             } catch (error: Exception) {
                 log.e(error) { "pull(profileId=$profileId) — FAILED" }
+                AuthRepository.signOutIfSessionInvalid(error, "ProfileSettingsSync.pull")
                 false
             } finally {
                 isServerSyncInFlight = false
@@ -163,6 +180,10 @@ object ProfileSettingsSync {
     }
 
     suspend fun pushCurrentProfileToRemote() {
+        if (!AuthRepository.hasValidatedRemoteSession()) {
+            ThemeSettingsStorage.saveProfileSettingsSyncPending(true)
+            return
+        }
         ensureRepositoriesLoaded()
         syncMutex.withLock {
             runCatching {
@@ -172,6 +193,7 @@ object ProfileSettingsSync {
                 pushToRemoteLocked(profileId, blob)
             }.onFailure { error ->
                 log.e(error) { "pushCurrentProfileToRemote() — FAILED" }
+                AuthRepository.signOutIfSessionInvalid(error, "ProfileSettingsSync.push")
             }
         }
     }
@@ -201,7 +223,6 @@ object ProfileSettingsSync {
             ThemeSettingsRepository.customThemeFirstColor.map { "theme_custom_first" },
             ThemeSettingsRepository.customThemeSecondColor.map { "theme_custom_second" },
             ThemeSettingsRepository.amoledEnabled.map { "amoled" },
-            ThemeSettingsRepository.liquidGlassNativeTabBarEnabled.map { "liquid_glass_tab_bar" },
             ThemeSettingsRepository.liquidGlassAutoHideOnScrollEnabled.map { "liquid_glass_auto_hide" },
             PosterCardStyleRepository.uiState.map { "poster_card_style" },
             CardDepthStyleRepository.uiState.map { "card_depth_style" },
@@ -226,9 +247,11 @@ object ProfileSettingsSync {
                 .distinctUntilChanged()
                 .debounce(PUSH_DEBOUNCE_MS)
                 .collect { signature ->
-                    val authState = AuthRepository.state.value
-                    if (authState !is AuthState.Authenticated || authState.isAnonymous) return@collect
-                    if (isApplyingRemoteBlob || isServerSyncInFlight) return@collect
+                    if (isApplyingRemoteBlob) return@collect
+                    if (!AuthRepository.hasValidatedRemoteSession() || isServerSyncInFlight) {
+                        ThemeSettingsStorage.saveProfileSettingsSyncPending(true)
+                        return@collect
+                    }
                     if (signature == skipNextPushSignature) {
                         skipNextPushSignature = null
                         return@collect
@@ -239,6 +262,9 @@ object ProfileSettingsSync {
     }
 
     private suspend fun pushToRemoteLocked(profileId: Int, blob: MobileProfileSettingsBlob) {
+        if (ProfileRepository.activeProfileId != profileId) return
+        ThemeSettingsStorage.saveProfileSettingsSyncPending(true)
+        if (!AuthRepository.hasValidatedRemoteSession()) return
         val params = buildJsonObject {
             put("p_profile_id", profileId)
             put("p_platform", MOBILE_SYNC_PLATFORM)
@@ -246,6 +272,7 @@ object ProfileSettingsSync {
             putSyncOriginClientId()
         }
         SupabaseProvider.client.postgrest.rpc("sync_push_profile_settings_blob", params)
+        ThemeSettingsStorage.saveProfileSettingsSyncPending(false)
         log.d { "pushToRemoteLocked(profileId=$profileId) — success" }
     }
 
@@ -400,7 +427,6 @@ object ProfileSettingsSync {
         "theme_custom_first=${ThemeSettingsRepository.customThemeFirstColor.value.toThemeHex()}",
         "theme_custom_second=${ThemeSettingsRepository.customThemeSecondColor.value.toThemeHex()}",
         "amoled=${ThemeSettingsRepository.amoledEnabled.value}",
-        "liquid_glass_tab_bar=${ThemeSettingsRepository.liquidGlassNativeTabBarEnabled.value}",
         "liquid_glass_auto_hide=${ThemeSettingsRepository.liquidGlassAutoHideOnScrollEnabled.value}",
         "poster_card_style=${PosterCardStyleRepository.uiState.value}",
         "card_depth_style=${CardDepthStyleRepository.uiState.value}",
