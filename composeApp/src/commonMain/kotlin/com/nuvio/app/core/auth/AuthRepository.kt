@@ -15,6 +15,7 @@ import io.github.jan.supabase.functions.functions
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 import kotlinx.coroutines.CancellationException
+import kotlin.concurrent.Volatile
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -47,6 +48,7 @@ object AuthRepository {
     }
 
     private var initialized = false
+    @Volatile
     private var validatedRemoteUserId: String? = null
 
     fun initialize() {
