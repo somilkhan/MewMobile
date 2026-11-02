@@ -301,8 +301,11 @@ object ProviderCredentialSync {
             val previous = synchronized(stateLock) {
                 observedSnapshots.put(snapshot.profileId, snapshot)
             }
-            val credentialScope = currentScope(snapshot.profileId) ?: run {
-                ThemeSettingsStorage.saveProviderCredentialSyncPending(true)
+            val credentialScope = currentScope(snapshot.profileId)
+            if (credentialScope == null) {
+                if (previous != null && previous != snapshot) {
+                    ThemeSettingsStorage.saveProviderCredentialSyncPending(true)
+                }
                 return@withLock
             }
             if (previous == null) {
