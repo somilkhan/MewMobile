@@ -871,8 +871,9 @@ private fun MainAppContent(
         val settingsRootActionRequests = remember { MutableSharedFlow<Unit>(extraBufferCapacity = 1) }
         var nativeProfileSwitcherVisible by remember { mutableStateOf(false) }
         val currentRoute = navBackStack.lastOrNull() as? AppRoute
-        val liquidGlassNativeTabBarEnabled by remember {
-            ThemeSettingsRepository.liquidGlassNativeTabBarEnabled
+        val liquidGlassEffectsEnabled by remember {
+            ThemeSettingsRepository.ensureLoaded()
+            ThemeSettingsRepository.liquidGlassEffectsEnabled
         }.collectAsStateWithLifecycle()
         val liquidGlassNativeTabBarSupported = remember { isLiquidGlassNativeTabBarSupported() }
         var showExitConfirmation by rememberSaveable { mutableStateOf(false) }
@@ -1012,7 +1013,7 @@ private fun MainAppContent(
 
     LaunchedEffect(
         liquidGlassNativeTabBarSupported,
-        liquidGlassNativeTabBarEnabled,
+        liquidGlassEffectsEnabled,
         liveTvEnabled,
         useNativeNavigation,
         currentRoute,
@@ -1032,7 +1033,7 @@ private fun MainAppContent(
             } else if (
                 !useNativeNavigation &&
                 liquidGlassNativeTabBarSupported &&
-                liquidGlassNativeTabBarEnabled
+                liquidGlassEffectsEnabled
             ) {
                 handleRootTabClick(requestedAppTab)
             }
@@ -1097,7 +1098,7 @@ private fun MainAppContent(
 
     LaunchedEffect(
         liquidGlassNativeTabBarSupported,
-        liquidGlassNativeTabBarEnabled,
+        liquidGlassEffectsEnabled,
         useNativeNavigation,
         useNativeTabBar,
     ) {
@@ -1105,7 +1106,7 @@ private fun MainAppContent(
             val nativeTabBarActive = if (useNativeNavigation) {
                 useNativeTabBar
             } else {
-                liquidGlassNativeTabBarSupported && liquidGlassNativeTabBarEnabled
+                liquidGlassNativeTabBarSupported && liquidGlassEffectsEnabled
             }
             if (nativeTabBarActive) {
                 nativeProfileSwitcherVisible = true
@@ -1139,14 +1140,14 @@ private fun MainAppContent(
     LaunchedEffect(
         currentRoute,
         liquidGlassNativeTabBarSupported,
-        liquidGlassNativeTabBarEnabled,
+        liquidGlassEffectsEnabled,
         initialHomeReady,
         profileSwitchLoading,
         useNativeNavigation,
     ) {
         val visible = !useNativeNavigation &&
             liquidGlassNativeTabBarSupported &&
-            liquidGlassNativeTabBarEnabled &&
+            liquidGlassEffectsEnabled &&
             initialHomeReady &&
             !profileSwitchLoading &&
             currentRoute is TabsRoute
@@ -2085,13 +2086,21 @@ private fun MainAppContent(
                             useNativeTabBar
                         } else {
                             liquidGlassNativeTabBarSupported &&
-                                liquidGlassNativeTabBarEnabled &&
+                                liquidGlassEffectsEnabled &&
                                 initialHomeReady &&
                                 !profileSwitchLoading
                         }
                         val tabsRouteActive = currentRoute is TabsRoute
                         val navBarScrollState = rememberNuvioNavBarScrollState()
-                        val navBarStyleSetting by remember { ThemeSettingsRepository.navBarStyle }.collectAsStateWithLifecycle()
+                        val selectedNavBarStyle by remember {
+                            ThemeSettingsRepository.navBarStyle
+                        }.collectAsStateWithLifecycle()
+                        val navBarStyleSetting = if (liquidGlassEffectsEnabled) {
+                            NavBarStyle.LIQUID_GLASS
+                        } else {
+                            selectedNavBarStyle.takeUnless { it == NavBarStyle.LIQUID_GLASS }
+                                ?: NavBarStyle.ADAPTIVE
+                        }
                         val onProfileSelected: (NuvioProfile) -> Unit = { profile ->
                             nativeProfileSwitcherVisible = false
                             activateTab(AppScreenTab.Home)

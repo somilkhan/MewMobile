@@ -159,9 +159,6 @@ fun SettingsScreen(
             ThemeSettingsRepository.selectedTheme
         }.collectAsStateWithLifecycle()
         val amoledEnabled by remember { ThemeSettingsRepository.amoledEnabled }.collectAsStateWithLifecycle()
-        val liquidGlassNativeTabBarEnabled by remember {
-            ThemeSettingsRepository.liquidGlassNativeTabBarEnabled
-        }.collectAsStateWithLifecycle()
         val liquidGlassAutoHideOnScrollEnabled by remember {
             ThemeSettingsRepository.liquidGlassAutoHideOnScrollEnabled
         }.collectAsStateWithLifecycle()
@@ -439,8 +436,6 @@ fun SettingsScreen(
                 amoledEnabled = amoledEnabled,
                 onAmoledToggle = ThemeSettingsRepository::setAmoled,
                 liquidGlassNativeTabBarSupported = liquidGlassNativeTabBarSupported,
-                liquidGlassNativeTabBarEnabled = liquidGlassNativeTabBarEnabled,
-                onLiquidGlassNativeTabBarToggle = ThemeSettingsRepository::setLiquidGlassNativeTabBar,
                 liquidGlassAutoHideOnScrollEnabled = liquidGlassAutoHideOnScrollEnabled,
                 onLiquidGlassAutoHideOnScrollToggle = ThemeSettingsRepository::setLiquidGlassAutoHideOnScroll,
                 appIconState = appIconState,
@@ -514,8 +509,6 @@ fun SettingsScreen(
                 amoledEnabled = amoledEnabled,
                 onAmoledToggle = ThemeSettingsRepository::setAmoled,
                 liquidGlassNativeTabBarSupported = liquidGlassNativeTabBarSupported,
-                liquidGlassNativeTabBarEnabled = liquidGlassNativeTabBarEnabled,
-                onLiquidGlassNativeTabBarToggle = ThemeSettingsRepository::setLiquidGlassNativeTabBar,
                 liquidGlassAutoHideOnScrollEnabled = liquidGlassAutoHideOnScrollEnabled,
                 onLiquidGlassAutoHideOnScrollToggle = ThemeSettingsRepository::setLiquidGlassAutoHideOnScroll,
                 appIconState = appIconState,
@@ -598,8 +591,6 @@ private fun MobileSettingsScreen(
     amoledEnabled: Boolean,
     onAmoledToggle: (Boolean) -> Unit,
     liquidGlassNativeTabBarSupported: Boolean,
-    liquidGlassNativeTabBarEnabled: Boolean,
-    onLiquidGlassNativeTabBarToggle: (Boolean) -> Unit,
     liquidGlassAutoHideOnScrollEnabled: Boolean,
     onLiquidGlassAutoHideOnScrollToggle: (Boolean) -> Unit,
     appIconState: AppIconSettingsState,
@@ -840,8 +831,6 @@ private fun MobileSettingsScreen(
                     amoledEnabled = amoledEnabled,
                     onAmoledToggle = onAmoledToggle,
                     liquidGlassNativeTabBarSupported = liquidGlassNativeTabBarSupported,
-                    liquidGlassNativeTabBarEnabled = liquidGlassNativeTabBarEnabled,
-                    onLiquidGlassNativeTabBarToggle = onLiquidGlassNativeTabBarToggle,
                     liquidGlassAutoHideOnScrollEnabled = liquidGlassAutoHideOnScrollEnabled,
                     onLiquidGlassAutoHideOnScrollToggle = onLiquidGlassAutoHideOnScrollToggle,
                     appIconState = appIconState,
@@ -1023,8 +1012,6 @@ private fun TabletSettingsScreen(
     amoledEnabled: Boolean,
     onAmoledToggle: (Boolean) -> Unit,
     liquidGlassNativeTabBarSupported: Boolean,
-    liquidGlassNativeTabBarEnabled: Boolean,
-    onLiquidGlassNativeTabBarToggle: (Boolean) -> Unit,
     liquidGlassAutoHideOnScrollEnabled: Boolean,
     onLiquidGlassAutoHideOnScrollToggle: (Boolean) -> Unit,
     appIconState: AppIconSettingsState,
@@ -1316,8 +1303,6 @@ private fun TabletSettingsScreen(
                         amoledEnabled = amoledEnabled,
                         onAmoledToggle = onAmoledToggle,
                         liquidGlassNativeTabBarSupported = liquidGlassNativeTabBarSupported,
-                        liquidGlassNativeTabBarEnabled = liquidGlassNativeTabBarEnabled,
-                        onLiquidGlassNativeTabBarToggle = onLiquidGlassNativeTabBarToggle,
                         liquidGlassAutoHideOnScrollEnabled = liquidGlassAutoHideOnScrollEnabled,
                         onLiquidGlassAutoHideOnScrollToggle = onLiquidGlassAutoHideOnScrollToggle,
                         appIconState = appIconState,

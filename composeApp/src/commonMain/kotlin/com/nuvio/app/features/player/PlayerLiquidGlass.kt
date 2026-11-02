@@ -86,6 +86,7 @@ internal fun Modifier.playerLiquidGlass(
     backdropOpacity: Float = PlayerGlassBackdropOpacity,
     rim: Boolean = true,
 ): Modifier {
+    if (!LocalPlayerLiquidGlassEnabled.current) return this
     val glass = clip(shape).ambientLiquidGlass(
         shape = shape,
         tint = tint,

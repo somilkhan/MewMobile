@@ -21,6 +21,6 @@ enum class NavBarStyle(
 
     companion object {
         fun fromKey(key: String?): NavBarStyle =
-            entries.firstOrNull { it.key.equals(key, ignoreCase = true) } ?: ADAPTIVE
+            entries.firstOrNull { it != LIQUID_GLASS && it.key.equals(key, ignoreCase = true) } ?: ADAPTIVE
     }
 }

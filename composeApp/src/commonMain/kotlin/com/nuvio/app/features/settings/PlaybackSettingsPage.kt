@@ -403,14 +403,6 @@ private fun PlaybackSettingsSection(
                 )
                 SettingsGroupDivider(isTablet = isTablet)
                 SettingsSwitchRow(
-                    title = stringResource(Res.string.settings_playback_player_liquid_glass),
-                    description = stringResource(Res.string.settings_playback_player_liquid_glass_description),
-                    checked = autoPlayPlayerSettings.playerLiquidGlassEnabled,
-                    isTablet = isTablet,
-                    onCheckedChange = PlayerSettingsRepository::setPlayerLiquidGlassEnabled,
-                )
-                SettingsGroupDivider(isTablet = isTablet)
-                SettingsSwitchRow(
                     title = stringResource(Res.string.settings_playback_parental_guide),
                     description = stringResource(Res.string.settings_playback_parental_guide_description),
                     checked = autoPlayPlayerSettings.showParentalGuide,

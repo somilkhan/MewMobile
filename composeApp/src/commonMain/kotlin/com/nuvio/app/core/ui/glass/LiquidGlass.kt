@@ -53,7 +53,7 @@ import com.kyant.backdrop.isRuntimeShaderSupported
 import com.kyant.backdrop.shadow.Shadow
 
 object LiquidGlassSettings {
-    var enabled: Boolean by mutableStateOf(true)
+    var enabled: Boolean by mutableStateOf(false)
 }
 
 fun isLiquidGlassAvailable(): Boolean = isRenderEffectSupported()
@@ -274,7 +274,9 @@ internal fun Modifier.liquidGlassSurface(
     fallbackBrush: Brush? = null,
     backdropOpacity: Float = 1f,
 ): Modifier =
-    if (backdrop == null || !isLiquidGlassSupported()) {
+    if (!LiquidGlassSettings.enabled) {
+        this
+    } else if (backdrop == null || !isLiquidGlassAvailable()) {
         if (fallbackBrush != null) clip(shape).background(fallbackBrush) else clip(shape).background(fallback)
     } else {
         drawBackdrop(
@@ -306,7 +308,7 @@ internal fun Modifier.liquidGlassBlur(
     radius: Dp,
     alphaProvider: () -> Float = { 1f },
 ): Modifier =
-    if (backdrop == null || !isLiquidGlassAvailable()) {
+    if (!LiquidGlassSettings.enabled || backdrop == null || !isLiquidGlassAvailable()) {
         this
     } else {
         graphicsLayer { alpha = alphaProvider() }
@@ -338,6 +340,7 @@ internal fun Modifier.ambientLiquidGlass(
     fallbackBrush: Brush? = null,
     backdropOpacity: Float = 1f,
 ): Modifier {
+    if (!LiquidGlassSettings.enabled) return this
     val backdrop = LocalLiquidGlassBackdrop.current
     val host = backdrop as? LiquidGlassBackdropHost
     if (host != null) {

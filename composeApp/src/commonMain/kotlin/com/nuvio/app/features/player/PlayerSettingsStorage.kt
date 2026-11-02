@@ -6,6 +6,7 @@ internal expect object PlayerSettingsStorage {
     fun loadShowLoadingOverlay(): Boolean?
     fun loadPauseOverlayEnabled(): Boolean?
     fun savePauseOverlayEnabled(enabled: Boolean)
+    // Legacy key retained only so older synced profiles can migrate to the global preference.
     fun loadPlayerLiquidGlassEnabled(): Boolean?
     fun savePlayerLiquidGlassEnabled(enabled: Boolean)
     fun loadSkipBackwardSeconds(): Int?

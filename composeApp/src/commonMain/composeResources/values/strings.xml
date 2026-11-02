@@ -632,6 +632,7 @@
     <string name="settings_nav_bar_style_liquid_glass">Liquid Glass</string>
     <string name="settings_appearance_continue_watching_description">Settings for the Continue Watching section.</string>
     <string name="settings_appearance_liquid_glass">Liquid Glass</string>
+    <string name="settings_appearance_liquid_glass_effects_description">Enable Liquid Glass styling across supported app surfaces.</string>
     <string name="settings_appearance_liquid_glass_description">Use the native iPhone tab bar on iOS 26 and later.</string>
     <string name="settings_appearance_poster_customization_description">Tune card width and corner radius.</string>
     <string name="settings_appearance_section_display">DISPLAY</string>
