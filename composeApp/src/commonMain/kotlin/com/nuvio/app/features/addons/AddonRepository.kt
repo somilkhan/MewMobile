@@ -1,6 +1,7 @@
 package com.nuvio.app.features.addons
 
 import co.touchlab.kermit.Logger
+import com.nuvio.app.core.auth.AuthRepository
 import com.nuvio.app.core.network.SupabaseProvider
 import com.nuvio.app.core.sync.putSyncOriginClientId
 import com.nuvio.app.features.profiles.ProfileRepository
@@ -14,6 +15,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
@@ -31,6 +33,8 @@ import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.put
 import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.getString
+
+private const val PendingAddonRemoteSyncMarker = "__mew_internal_pending_remote_sync__"
 
 @Serializable
 private data class AddonRow(
@@ -67,8 +71,12 @@ object AddonRepository {
     private val refreshJobsLock = Any()
     private val activeRefreshJobs = mutableMapOf<String, Job>()
     private val versionStorageMutex = Mutex()
+    private val remotePushMutex = Mutex()
+    private var authObserverStarted = false
+    private var remoteMutationGeneration = 0L
 
     fun initialize() {
+        ensureAuthObserver()
         val activeProfileId = ProfileRepository.activeProfileId
         val effectiveProfileId = resolveEffectiveProfileId(activeProfileId)
         val generation = synchronized(refreshJobsLock) {
@@ -88,7 +96,12 @@ object AddonRepository {
             .mapKeys { (url, _) -> ensureManifestSuffix(url) }
         val pendingVersionChanges = AddonStorage.loadPendingAddonVersionChanges(effectiveProfileId)
         log.d { "initialize() — local addon count: ${storedUrls.size}" }
-        if (storedUrls.isEmpty()) return
+        if (storedUrls.isEmpty()) {
+            if (AuthRepository.hasValidatedRemoteSession()) {
+                scope.launch { flushPendingRemoteSync(effectiveProfileId) }
+            }
+            return
+        }
 
         val existingByUrl = synchronized(refreshJobsLock) {
             if (
@@ -120,6 +133,9 @@ object AddonRepository {
             if (addon?.enabled == true && (existing == null || (addon.manifest == null && !addon.isRefreshing))) {
                 refreshAddonForProfile(manifestUrl, effectiveProfileId, generation)
             }
+        }
+        if (AuthRepository.hasValidatedRemoteSession()) {
+            scope.launch { flushPendingRemoteSync(effectiveProfileId) }
         }
     }
 
@@ -156,6 +172,11 @@ object AddonRepository {
     }
 
     suspend fun pullFromServer(profileId: Int) {
+        ensureAuthObserver()
+        if (!AuthRepository.hasValidatedRemoteSession()) {
+            log.d { "pullFromServer() — deferred until a validated non-anonymous session is available" }
+            return
+        }
         // Keep the actual active profile ID: it may differ from the effective shared add-on profile.
         onProfileChanged(profileId)
         val requestSession = synchronized(refreshJobsLock) {
@@ -163,6 +184,11 @@ object AddonRepository {
         }
         val requestProfileId = requestSession.first
         val requestGeneration = requestSession.second
+        initialize()
+        if (hasPendingRemoteSync(requestProfileId)) {
+            flushPendingRemoteSync(requestProfileId)
+            return
+        }
         log.i { "pullFromServer() — profileId=$profileId, initialized=$initialized, pulledFromServer=$pulledFromServer" }
         runCatching {
             val rows = SupabaseProvider.client.postgrest
@@ -222,7 +248,17 @@ object AddonRepository {
                         put("p_addons", json.encodeToJsonElement(addons))
                         putSyncOriginClientId()
                     }
-                    SupabaseProvider.client.postgrest.rpc("sync_push_addons", params)
+                    setPendingRemoteSync(requestProfileId, true)
+                    try {
+                        if (!AuthRepository.hasValidatedRemoteSession()) return
+                        SupabaseProvider.client.postgrest.rpc("sync_push_addons", params)
+                        setPendingRemoteSync(requestProfileId, false)
+                    } catch (error: CancellationException) {
+                        throw error
+                    } catch (error: Throwable) {
+                        AuthRepository.signOutIfSessionInvalid(error, "AddonRepository.migration")
+                        throw error
+                    }
                     synchronized(refreshJobsLock) {
                         if (isCurrentProfileLocked(requestProfileId, requestGeneration)) {
                             pulledFromServer = true
@@ -548,10 +584,27 @@ object AddonRepository {
         pushToServer(snapshot.first, snapshot.second)
     }
 
-    /** Push a fixed profile/state snapshot so a profile switch cannot mix IDs and add-on rows. */
+    /** Push a fixed profile/state snapshot and retain a durable marker until the server accepts it. */
     private fun pushToServer(profileId: Int, sourceAddons: List<ManagedAddon>) {
-        // This explicit snapshot belongs to an already-validated mutation. A later profile switch
-        // must not suppress the push for that original profile.
+        val generation = synchronized(refreshJobsLock) {
+            remoteMutationGeneration += 1L
+            remoteMutationGeneration
+        }
+        scope.launch {
+            setPendingRemoteSync(profileId, true)
+            if (!AuthRepository.hasValidatedRemoteSession()) {
+                log.d { "pushToServer() — deferred for profile $profileId until remote session validation" }
+                return@launch
+            }
+            pushAddonSnapshotToServer(profileId, sourceAddons, generation)
+        }
+    }
+
+    private suspend fun pushAddonSnapshotToServer(
+        profileId: Int,
+        sourceAddons: List<ManagedAddon>,
+        generation: Long,
+    ) {
         val addons = sourceAddons
             .distinctBy { it.manifestUrl }
             .mapIndexed { index, addon ->
@@ -562,8 +615,11 @@ object AddonRepository {
                     sortOrder = index,
                 )
             }
-        scope.launch {
-            runCatching {
+        remotePushMutex.withLock {
+            if (!AuthRepository.hasValidatedRemoteSession()) return
+            val currentGeneration = synchronized(refreshJobsLock) { remoteMutationGeneration }
+            if (generation != currentGeneration) return
+            try {
                 log.d { "pushToServer() — profileId=$profileId, pushing ${addons.size} addons" }
                 val params = buildJsonObject {
                     put("p_profile_id", profileId)
@@ -571,11 +627,71 @@ object AddonRepository {
                     putSyncOriginClientId()
                 }
                 SupabaseProvider.client.postgrest.rpc("sync_push_addons", params)
+                if (synchronized(refreshJobsLock) { remoteMutationGeneration == generation }) {
+                    setPendingRemoteSync(profileId, false)
+                    synchronized(refreshJobsLock) {
+                        if (currentProfileId == profileId) pulledFromServer = true
+                    }
+                }
                 log.d { "pushToServer() — success" }
-            }.onFailure { e ->
-                if (e is CancellationException) throw e
-                log.e(e) { "pushToServer() — FAILED" }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Throwable) {
+                log.e(error) { "pushToServer() — FAILED; pending local state retained" }
+                AuthRepository.signOutIfSessionInvalid(error, "AddonRepository.push")
             }
+        }
+    }
+
+    private fun ensureAuthObserver() {
+        val shouldStart = synchronized(refreshJobsLock) {
+            if (authObserverStarted) {
+                false
+            } else {
+                authObserverStarted = true
+                true
+            }
+        }
+        if (!shouldStart) return
+        scope.launch {
+            AuthRepository.state.collectLatest {
+                if (AuthRepository.hasValidatedRemoteSession()) {
+                    val profileId = synchronized(refreshJobsLock) {
+                        currentProfileId.takeIf { initialized }
+                    }
+                    if (profileId != null) flushPendingRemoteSync(profileId)
+                }
+            }
+        }
+    }
+
+    private suspend fun flushPendingRemoteSync(profileId: Int) {
+        if (!AuthRepository.hasValidatedRemoteSession() || !hasPendingRemoteSync(profileId)) return
+        val snapshot = synchronized(refreshJobsLock) {
+            if (!initialized || currentProfileId != profileId) null else _uiState.value.addons
+        } ?: return
+        val generation = synchronized(refreshJobsLock) {
+            remoteMutationGeneration += 1L
+            remoteMutationGeneration
+        }
+        pushAddonSnapshotToServer(profileId, snapshot, generation)
+    }
+
+    private suspend fun hasPendingRemoteSync(profileId: Int): Boolean =
+        versionStorageMutex.withLock {
+            AddonStorage.loadPendingAddonVersionChanges(profileId)
+                .containsKey(PendingAddonRemoteSyncMarker)
+        }
+
+    private suspend fun setPendingRemoteSync(profileId: Int, pending: Boolean) {
+        versionStorageMutex.withLock {
+            val changes = AddonStorage.loadPendingAddonVersionChanges(profileId).toMutableMap()
+            if (pending) {
+                changes[PendingAddonRemoteSyncMarker] = "1"
+            } else {
+                changes.remove(PendingAddonRemoteSyncMarker)
+            }
+            AddonStorage.savePendingAddonVersionChanges(profileId, changes)
         }
     }
 
