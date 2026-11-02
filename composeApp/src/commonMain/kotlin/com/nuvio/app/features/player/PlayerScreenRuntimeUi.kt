@@ -13,12 +13,14 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.dp
 import com.nuvio.app.core.ui.glass.LocalLiquidGlassBackdrop
 import com.nuvio.app.features.p2p.P2pStreamingState
+import com.nuvio.app.features.settings.ThemeSettingsRepository
 import com.nuvio.app.features.p2p.formatP2pMegabytes
 import com.nuvio.app.features.p2p.formatP2pSpeed
 import com.nuvio.app.isIos
@@ -290,7 +292,11 @@ private fun PlayerScreenRuntime.RenderPlayerControls(displayedPositionMs: Long, 
     val isInPip = rememberIsInPictureInPicture()
     val orientationToggleSupported = rememberPlayerOrientationToggleSupported()
     val portraitPlayback by PlayerOrientationPreference.portrait.collectAsState()
-    val playerVideoFrameBackdrop = rememberVideoFrameBackdrop(enabled = playerSettingsUiState.playerLiquidGlassEnabled)
+    val liquidGlassEffectsEnabled by remember {
+        ThemeSettingsRepository.ensureLoaded()
+        ThemeSettingsRepository.liquidGlassEffectsEnabled
+    }.collectAsState()
+    val playerVideoFrameBackdrop = rememberVideoFrameBackdrop(enabled = liquidGlassEffectsEnabled)
     val showQuietDeviceStatusOverlay = nuvioEnhancedSettingsUiState.playerStatusOverlayEnabled &&
         !controlsVisible &&
         !showParentalGuide &&
@@ -309,7 +315,7 @@ private fun PlayerScreenRuntime.RenderPlayerControls(displayedPositionMs: Long, 
     ) {
         CompositionLocalProvider(
             LocalLiquidGlassBackdrop provides playerVideoFrameBackdrop,
-            LocalPlayerLiquidGlassEnabled provides playerSettingsUiState.playerLiquidGlassEnabled,
+            LocalPlayerLiquidGlassEnabled provides liquidGlassEffectsEnabled,
         ) {
             PlayerControlsShell(
                 title = title,
