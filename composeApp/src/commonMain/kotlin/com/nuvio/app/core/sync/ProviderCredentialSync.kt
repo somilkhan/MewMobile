@@ -326,6 +326,7 @@ object ProviderCredentialSync {
     }
 
     private fun currentScope(profileId: Int): ProviderCredentialScope? {
+        if (!AuthRepository.hasValidatedRemoteSession()) return null
         val state = AuthRepository.state.value as? AuthState.Authenticated ?: return null
         if (state.isAnonymous || ProfileRepository.activeProfileId != profileId) return null
         return ProviderCredentialScope(state.userId, profileId)
