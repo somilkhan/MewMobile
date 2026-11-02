@@ -1139,8 +1139,8 @@
     <string name="settings_playback_timeout_unlimited">Unlimited</string>
     <string name="settings_playback_tunneled_playback">Tunneled Playback</string>
     <string name="settings_playback_tunneled_playback_description">Hardware-level audio/video sync. May improve playback on some Android TV devices</string>
-    <string name="settings_tmdb_add_api_key_first">Add your own TMDB API key below before turning enrichment on.</string>
-    <string name="settings_tmdb_api_key_label">API Key</string>
+    <string name="settings_tmdb_add_api_key_first">Add your TMDB API key or Read Access Token below before turning enrichment on.</string>
+    <string name="settings_tmdb_api_key_label">API Key / Read Access Token</string>
     <string name="settings_tmdb_enable_enrichment">Enable TMDB Enrichment</string>
     <string name="settings_tmdb_enable_enrichment_description">Use TMDB as a metadata source to enhance addon data</string>
     <string name="settings_tmdb_enter_api_key">Enter your TMDB v3 API key.</string>
@@ -1169,7 +1169,8 @@
     <string name="settings_tmdb_module_season_posters_description">Use TMDB season posters in the metadata screen season selector for series.</string>
     <string name="settings_tmdb_module_trailers">Trailers</string>
     <string name="settings_tmdb_module_trailers_description">Trailer candidates from TMDB videos for the detail trailer section</string>
-    <string name="settings_tmdb_personal_api_key">Personal API key</string>
+    <string name="settings_tmdb_personal_api_key">Personal API key or Read Access Token</string>
+    <string name="settings_tmdb_credential_rejected">TMDB rejected this credential (HTTP 401). Check that your v3 API key or API Read Access Token is valid.</string>
     <string name="settings_tmdb_preferred_language">Language</string>
     <string name="settings_tmdb_preferred_language_description">TMDB metadata language for title, logo, and enabled fields</string>
     <string name="settings_tmdb_original_title_language">Original language</string>
