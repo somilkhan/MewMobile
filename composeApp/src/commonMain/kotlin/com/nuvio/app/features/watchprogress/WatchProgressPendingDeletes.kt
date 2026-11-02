@@ -5,7 +5,7 @@ internal fun mergePendingWatchProgressDeletes(
     deleted: Collection<WatchProgressEntry>,
     keyOf: (WatchProgressEntry) -> String,
 ): List<WatchProgressEntry> {
-    val merged = existing.associateByTo(linkedMapOf(), keyOf)
+    val merged = existing.associateByTo(linkedMapOf<String, WatchProgressEntry>(), keyOf)
     deleted.forEach { entry ->
         val key = keyOf(entry)
         val current = merged[key]
