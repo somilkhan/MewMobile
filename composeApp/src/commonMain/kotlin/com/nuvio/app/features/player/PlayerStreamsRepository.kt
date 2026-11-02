@@ -18,7 +18,7 @@ import com.nuvio.app.features.debrid.LocalDebridAvailabilityService
 import com.nuvio.app.features.details.MetaDetailsRepository
 import com.nuvio.app.features.plugins.PluginRepository
 import com.nuvio.app.features.plugins.PluginsUiState
-import com.nuvio.app.features.plugins.pluginContentId
+import com.nuvio.app.features.plugins.resolvePluginTmdbId
 import com.nuvio.app.features.streams.AddonStreamGroup
 import com.nuvio.app.features.streams.InstalledStreamAddonTarget
 import com.nuvio.app.features.streams.StreamAutoPlaySelector
@@ -559,6 +559,14 @@ object PlayerStreamsRepository {
                 }
             }
 
+            val canonicalPluginTmdbId = resolvePluginTmdbId(
+                videoId = videoId,
+                mediaType = type,
+                searchTitle = searchTitle,
+                season = season,
+                episode = episode,
+            ).orEmpty()
+
             pluginProviderGroups.forEach { providerGroup ->
                 val includeScraperNameInSubtitle = false
                 providerGroup.scrapers.forEach { scraper ->
@@ -566,11 +574,7 @@ object PlayerStreamsRepository {
                         val scraperResult = withTimeoutOrNull(PLAYER_STREAM_PROVIDER_TIMEOUT_MS) {
                             PluginRepository.executeScraper(
                                 scraper = scraper,
-                                tmdbId = pluginContentId(
-                                    videoId = videoId,
-                                    season = season,
-                                    episode = episode,
-                                ),
+                                tmdbId = canonicalPluginTmdbId,
                                 mediaType = type,
                                 season = season,
                                 episode = episode,
