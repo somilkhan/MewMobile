@@ -1,16 +1,33 @@
 # MewMobile Continuation State
 
-Updated: 2026-11-02
+Updated: 2026-11-02 (seek remediation handoff)
 Repository: https://github.com/somilkhan/MewMobile
 Branch: `sync/upstream`
-Current pre-documentation head: `4d838a356a658bf21c9eab0d63c83124d9ba5dd4`
+Current branch HEAD: `2024993efd4b2ffa06fd4a311e52abe125b75c67`
 Open PR: [#38](https://github.com/somilkhan/MewMobile/pull/38) — open, draft, unmerged
-Current phase: Post-Phase-5 device-test remediation (the first physical-device test pass is complete; the candidate is not accepted)
+Current phase: Post-Phase-5 device-test remediation — seek cleanup CI-verified; broader device findings remain open
 Device-test candidate: `4d838a356a658bf21c9eab0d63c83124d9ba5dd4` (`4d838a3`)
 Candidate APK: artifact `13101531350`, package `com.mew.mobile.debug`, SHA-256 `ec29b1507181e4ec23c56a295e90f3b81beb45019fb42bd09c624be9fc24607f`
 Device report: [DEVICE_TEST_REPORT_2026-11-02.md](DEVICE_TEST_REPORT_2026-11-02.md)
 
 > This top-level status supersedes older pending-device-test and next-action statements retained below as historical records. The maintainer has completed the first device-test pass and supplied findings. Do not rebuild or repeat already-passed manual checks; fix the reported defects, run source/automated verification, then produce a new candidate for focused retest.
+
+## Latest continuation update — libmpv seek restoration (2026-11-02)
+
+- Branch HEAD: `2024993efd4b2ffa06fd4a311e52abe125b75c67` — [commit](https://github.com/somilkhan/MewMobile/commit/2024993efd4b2ffa06fd4a311e52abe125b75c67).
+- Restored Nuvio's current Android libmpv absolute seek command: `mpv.command("seek", (positionMs.coerceAtLeast(0L) / 1000.0).toString(), "absolute")`.
+- Removed Mew-only duration clamping and optimistic `lastKnownPositionMs` mutation from this seek path. Removed the ineffective `force-seekable` attempt; no unrelated player engine changes were intended.
+- Exact commit CI: [Mew CloudStream Build run 41485716920](https://github.com/somilkhan/MewMobile/actions/runs/41485716920) — **completed / success**. PR Template Check run 41485716828 was skipped.
+- Verification labels: seek change **IMPLEMENTED / COMMITTED / CI PASSED**. **NOT DEVICE VERIFIED**; seek behavior on actual provider streams remains unresolved until playback retest. CI success does not establish runtime seek success.
+- PR #38 remains draft/unmerged. No APK was generated for this seek-only commit.
+
+### Resume queue (do not mistake seek CI for overall acceptance)
+1. Fix auth-gated sync writes (AddonRepository + WatchProgressRepository); preserve local data and flush after validated sign-in.
+2. Fix TMDB credential-type handling and TMDB numeric-ID normalization independently.
+3. Reproduce and root-cause player seek/timestamp reset, subtitle rendering/AutoSync, purple video output and rotation issues from the device report/log.
+4. Repair CloudStream section-to-catalog mapping; profile frame skips.
+5. Implement missing Watch Party, in-player engine switching and distinct Liquid Glass player only after dependencies/design and parity review.
+6. Add regression coverage, run routine CI on exact remediation HEAD; build one APK only after source/test gate and issue focused device retest.
 
 ## Current authoritative status
 - PR #38 remains open/draft/unmerged; base `enhanced`; head branch `sync/upstream`; 192 commits ahead and 0 behind at the last live comparison; 273 changed files.
