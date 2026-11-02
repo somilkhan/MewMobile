@@ -18,6 +18,8 @@ actual object ThemeSettingsStorage {
     private const val liquidGlassNativeTabBarEnabledKey = "liquid_glass_native_tab_bar_enabled"
     private const val liquidGlassEffectsEnabledKey = "liquid_glass_effects_enabled"
     private const val liquidGlassAutoHideOnScrollEnabledKey = "liquid_glass_auto_hide_on_scroll_enabled"
+    private const val profileSettingsSyncPendingKey = "profile_settings_sync_pending"
+    private const val providerCredentialSyncPendingKey = "provider_credential_sync_pending"
     private const val selectedAppLanguageKey = "selected_app_language"
     private const val NAV_BAR_STYLE_KEY = "nav_bar_style"
     private val profileScopedSyncKeys = listOf(
@@ -111,6 +113,26 @@ actual object ThemeSettingsStorage {
         NSUserDefaults.standardUserDefaults.setBool(
             enabled,
             forKey = ProfileScopedKey.of(liquidGlassAutoHideOnScrollEnabledKey),
+        )
+    }
+
+    actual fun loadProfileSettingsSyncPending(): Boolean =
+        NSUserDefaults.standardUserDefaults.boolForKey(ProfileScopedKey.of(profileSettingsSyncPendingKey))
+
+    actual fun saveProfileSettingsSyncPending(pending: Boolean) {
+        NSUserDefaults.standardUserDefaults.setBool(
+            pending,
+            forKey = ProfileScopedKey.of(profileSettingsSyncPendingKey),
+        )
+    }
+
+    actual fun loadProviderCredentialSyncPending(): Boolean =
+        NSUserDefaults.standardUserDefaults.boolForKey(ProfileScopedKey.of(providerCredentialSyncPendingKey))
+
+    actual fun saveProviderCredentialSyncPending(pending: Boolean) {
+        NSUserDefaults.standardUserDefaults.setBool(
+            pending,
+            forKey = ProfileScopedKey.of(providerCredentialSyncPendingKey),
         )
     }
 
