@@ -40,17 +40,17 @@ internal suspend fun resolvePluginTmdbId(
 ): String? {
     val normalized = pluginContentId(videoId, season, episode).trim()
     if (normalized.isBlank()) return null
-    if (normalized.all(Char::isDigit)) return normalized
+    if (normalized.toLongOrNull()?.let { it > 0 } == true) return normalized
     if (normalized.startsWith("tt", ignoreCase = true)) {
         return TmdbService.ensureTmdbId(normalized, mediaType)
-            ?.takeIf { it.isNotBlank() && it.all(Char::isDigit) }
+            ?.takeIf { it.toLongOrNull()?.let { id -> id > 0 } == true }
     }
 
     val query = searchTitle?.trim()?.takeIf(String::isNotBlank) ?: normalized
     val results = TmdbService.search(query, limit = 12)
     val selected = selectPluginTmdbSearchResult(results, query, mediaType) ?: return null
     return selected.id.removePrefix("tmdb:")
-        .takeIf { it.isNotBlank() && it.all(Char::isDigit) }
+        .takeIf { it.toLongOrNull()?.let { id -> id > 0 } == true }
 }
 
 internal fun selectPluginTmdbSearchResult(
@@ -66,6 +66,6 @@ internal fun selectPluginTmdbSearchResult(
     val candidates = results.filter { it.type.equals(expectedType, ignoreCase = true) }
     if (candidates.isEmpty()) return null
     val normalizedQuery = query.trim().lowercase()
+    // Never silently choose an unrelated title (e.g. a remake or similarly named show).
     return candidates.firstOrNull { it.name.trim().equals(normalizedQuery, ignoreCase = true) }
-        ?: candidates.firstOrNull()
 }

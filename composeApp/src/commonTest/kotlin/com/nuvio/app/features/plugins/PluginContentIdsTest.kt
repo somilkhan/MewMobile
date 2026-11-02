@@ -38,6 +38,17 @@ class PluginContentIdsTest {
     }
 
     @Test
+    fun `plugin search selection does not guess when title differs`() {
+        assertNull(
+            selectPluginTmdbSearchResult(
+                listOf(preview("tmdb:11", "movie", "Dune: Part Two")),
+                "Dune",
+                "movie",
+            ),
+        )
+    }
+
+    @Test
     fun `plugin search selection rejects wrong media type`() {
         assertNull(selectPluginTmdbSearchResult(listOf(preview("tmdb:10", "movie", "Title")), "Title", "series"))
     }
