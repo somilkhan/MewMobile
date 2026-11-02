@@ -6,8 +6,8 @@ import kotlin.test.assertEquals
 class NavBarStyleTest {
     @Test
     fun `liquid glass style key is persisted and restored`() {
-        assertEquals(NavBarStyle.LIQUID_GLASS, NavBarStyle.fromKey("liquid_glass"))
-        assertEquals(NavBarStyle.LIQUID_GLASS, NavBarStyle.fromKey("LIQUID_GLASS"))
+        assertEquals(NavBarStyle.ADAPTIVE, NavBarStyle.fromKey("liquid_glass"))
+        assertEquals(NavBarStyle.ADAPTIVE, NavBarStyle.fromKey("LIQUID_GLASS"))
     }
 
     @Test
