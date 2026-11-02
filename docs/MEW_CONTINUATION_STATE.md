@@ -3,6 +3,66 @@
 Updated: 2026-11-02
 Repository: https://github.com/somilkhan/MewMobile
 Branch: `sync/upstream`
+Current pre-documentation head: `4d838a356a658bf21c9eab0d63c83124d9ba5dd4`
+Open PR: [#38](https://github.com/somilkhan/MewMobile/pull/38) — open, draft, unmerged
+Current phase: Post-Phase-5 device-test remediation (the first physical-device test pass is complete; the candidate is not accepted)
+Device-test candidate: `4d838a356a658bf21c9eab0d63c83124d9ba5dd4` (`4d838a3`)
+Candidate APK: artifact `13101531350`, package `com.mew.mobile.debug`, SHA-256 `ec29b1507181e4ec23c56a295e90f3b81beb45019fb42bd09c624be9fc24607f`
+Device report: [DEVICE_TEST_REPORT_2026-11-02.md](DEVICE_TEST_REPORT_2026-11-02.md)
+
+> This top-level status supersedes older pending-device-test and next-action statements retained below as historical records. The maintainer has completed the first device-test pass and supplied findings. Do not rebuild or repeat already-passed manual checks; fix the reported defects, run source/automated verification, then produce a new candidate for focused retest.
+
+## Current authoritative status
+- PR #38 remains open/draft/unmerged; base `enhanced`; head branch `sync/upstream`; 192 commits ahead and 0 behind at the last live comparison; 273 changed files.
+- Mew head before this documentation commit: `4d838a356a658bf21c9eab0d63c83124d9ba5dd4`. This documentation commit is intended to advance the branch once; verify the new SHA after the ref update.
+- Nuvio Mobile `cmp-rewrite`: `46febb568348aa5e135bff0d4d5c914933aff5a0` (38 commits ahead / 0 behind from recorded Mew comparison baseline).
+- Nuvio Enhanced `enhanced`: `ac03c46a159e7e4bbbcd77ad4bdf6ea604b34107` (same reviewed head as current recorded baseline).
+- Exact candidate build workflow [41350265383](https://github.com/somilkhan/MewMobile/actions/runs/41350265383) completed successfully. The Android full-debug job passed APK assembly, package-ID assertion, stable debug signer verification and artifact upload.
+- Exact candidate routine workflow [41350269421](https://github.com/somilkhan/MewMobile/actions/runs/41350269421) completed successfully; the job passed and APK/package/signing/upload steps were skipped as intended for routine CI.
+- The user reports testing the candidate physically. Jelly bottom-nav animation and app launch passed. Multiple functional/UI failures remain; see the device report. Device testing is therefore **completed for this candidate but not accepted as a release pass**.
+- No source-code remediation is included in this documentation-only update. No new APK has been built for fixes. Do not imply the new PR head has code changes or tests beyond this documentation commit.
+
+## Highest-priority confirmed remediation
+1. Backend sync: 121 `valid session required for sync` responses. Source review shows write paths in AddonRepository and WatchProgressRepository can run without a validated non-anonymous session. Keep local state; gate writes and flush after successful sign-in.
+2. TMDB: 10 app-service HTTP 401 responses, plus plugin requests using titles/IMDb IDs as TMDB numeric IDs and receiving 404. Fix credential type and identity normalization separately.
+3. Playback: user reports unreliable seek, timestamp taps resetting to 00:00, mixed subtitle rendering and AutoSync having no noticeable effect. Log includes ExoPlayer source/format errors and a fallback to libmpv; inspect exact stream response and player state transitions.
+4. Purple screen remains. The log has surface/DMA-BUF warnings but no definitive color/decoder root cause; trace the actual video output path.
+5. Rotation remains user-reported broken. The log records seven ROTATION_90 states, which is not proof that the player toggle lifecycle is correct.
+6. Missing product features/UI: Watch Party, in-player engine switch, distinct alternate Liquid Glass player design, and expected new player/stream labels.
+7. CloudStream: one Raw Catalog per extension in UI despite multiple sections in successful provider responses; trace section mapping/presentation. Extension network failures are mixed with external DNS, resets and provider errors.
+8. Performance: 18 skipped-frame events, max 108 frames; profile the relevant Home/catalog/player work before architectural changes.
+
+## Watch Party backend decision
+Reuse Nuvio's official backend RPC and Realtime contract rather than creating a second Mew backend. Nuvio source at `46febb568348aa5e135bff0d4d5c914933aff5a0` contains PartyApi, PartyRepository and PartyChannel; availability is server-capability gated and create/join requires a signed-in non-anonymous user. Mew currently lacks the Realtime client module. This is a design decision only; Watch Party is not implemented. See the device report and parity audit for exact RPCs/prerequisites.
+
+## Porting / duplicate-prevention rule
+- Compare each requested feature against Mew source and both upstreams before editing.
+- If code already exists but is broken, mark it **ALREADY PRESENT — REPAIR**, identify its caller/state/lifecycle and fix the root cause. Do not add a second implementation.
+- Existing Mew ports to preserve and repair where needed include AutoSync, sidecar subtitle cue cursor, local-container MIME classification, offline-aware lookup guards, skip-category continuity, Dolby decoder policy, and generic episode labels. AutoSync is implemented in source but failed the user's functional observation; it is not accepted as working.
+- Watch Party, Nuvio-style runtime engine switching and a distinct Liquid Glass player are not to be marked implemented based on settings or visual modifiers alone.
+
+## Verification labels
+- IMPLEMENTED: candidate source changes recorded in prior entries; no new code changes in this documentation update.
+- COMMITTED: pre-documentation candidate `4d838a356a658bf21c9eab0d63c83124d9ba5dd4`; documentation commit pending verification below.
+- BUILT: candidate APK artifact `13101531350` exists for `4d838a356a658bf21c9eab0d63c83124d9ba5dd4`.
+- CI PASSED: workflows `41350265383` (full-debug build/package/sign/upload) and `41350269421` (routine checks) completed successfully for the candidate.
+- DEVICE TESTED: maintainer tested the candidate and provided results; see report.
+- DEVICE ACCEPTED: NO — unresolved defects remain.
+- Working tree: no local Git checkout is available in this session; remote GitHub state only. Do not claim local working-tree cleanliness.
+- Raw device log: not committed; private source file identified by SHA-256 in the report.
+
+## Next executable action
+Start with source-level root-cause fixes for auth-gated sync writes and TMDB ID/credential handling. In parallel, trace playback source classification/seek/subtitle state, rotation lifecycle and purple-screen decoder/surface path. Preserve existing implementations and add regression tests; then complete missing Watch Party/engine-switch/Liquid-Glass/badge ports selectively. Run routine CI on the exact remediation head, build one APK only after the source/test gate, then give the user a short focused retest matrix.
+
+---
+
+## Historical continuation record (superseded by the current status above)
+
+# MewMobile Continuation State
+
+Updated: 2026-11-02
+Repository: https://github.com/somilkhan/MewMobile
+Branch: `sync/upstream`
 Predecessor SHA: `b87212b85be9f0c61655f2c53f0563fda386b5d8`
 Open PR: [#38](https://github.com/somilkhan/MewMobile/pull/38) — draft, unmerged
 Phase: Phase 5 — release-candidate build and device-test handoff

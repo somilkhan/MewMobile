@@ -467,3 +467,30 @@ Comparison anchor: Enhanced `ae535226b1488a60d59613c1502fbb717cbb333f` → `a3e8
 - Added host tests for local URI classification and subtitle-probe eligibility. Existing tests also cover local container headers and HTTP(S)-only add-on subtitle URL policy.
 - Exact-head routine CI passed on `b87212b85be9f0c61655f2c53f0563fda386b5d8`: [run 41349553940](https://github.com/somilkhan/MewMobile/actions/runs/41349553940). Host tests, Android Kotlin source compilation and Mew branding validation passed.
 - APK assembly, application-ID assertion, signing verification and artifact upload remain reserved for the Phase 5 candidate-build gate.
+
+
+## 2026-11-02 physical-device results and Watch Party disposition
+
+### Device evidence
+- Candidate `4d838a356a658bf21c9eab0d63c83124d9ba5dd4` was physically tested by the maintainer. See [DEVICE_TEST_REPORT_2026-11-02.md](DEVICE_TEST_REPORT_2026-11-02.md) for the exact APK identity, user-reported pass/fail matrix, sanitized Logcat findings and evidence limits.
+- The candidate is not accepted: seek/timestamp reset, subtitles, AutoSync behavior, purple output, rotation, Raw Catalog grouping, in-player engine switching, Liquid Glass alternate layout, Watch Party and labels remain unresolved.
+- Preserve previously ported Mew implementations. When a requested feature exists but fails, record `ALREADY PRESENT — REPAIR`; do not copy a second upstream implementation over it.
+
+### Watch Party — reuse official Nuvio backend
+- **Disposition: PORT (planned, not yet implemented), backend reuse approved.** Do not create a separate Mew-specific Watch Party backend if the official Nuvio backend capability is available.
+- Nuvio Mobile `cmp-rewrite` head reviewed: `46febb568348aa5e135bff0d4d5c914933aff5a0`.
+- Relevant upstream files: `features/party/PartyApi.kt`, `PartyRepository.kt`, `PartyChannel.kt`, plus the server configuration and Supabase Realtime client.
+- The RPC contract includes create/join/preview/link-profile/heartbeat/update/leave/end/host-only/member-removal/chat-send/chat-history/clock/enabled operations under the `watch_party_*` namespace.
+- Realtime uses a private `watch-party:{partyId}` channel, broadcast messages and presence. Availability is gated by `ServerCapabilities.watchParty` and the backend `watch_party_enabled` RPC. Create/join requires a signed-in, non-anonymous account.
+- Mew's current Supabase client installs Auth, PostgREST and Functions but not Realtime. Mew's Gradle runtime config has an official Nuvio API fallback; confirm effective build/runtime endpoint and key configuration before enabling the feature. Do not assume endpoint compatibility merely because the fallback exists.
+- Required port: Realtime dependency/client lifecycle; capability gate; validated auth; Party models/RPCs; realtime channel and presence; synchronized playback clock and drift correction; chat; host/member permissions; player and settings entry points; reconnect/late-join/leave/end/error tests.
+- Status remains **NOT IMPLEMENTED** until the above integration and tests exist.
+
+### Existing-but-broken features and no-duplicate guard
+- AutoSync exists in Mew source, but the device observation is FAIL (enabled with no noticeable effect). Repair the existing controller/engine integration; do not add another AutoSync implementation.
+- The Android engine preference exists in Mew settings, but the in-player runtime switch is missing. Port the Nuvio runtime switch/track carry-over into the existing player controls; do not duplicate the settings selector.
+- Liquid Glass's current effect-only implementation does not meet the requirement. The toggle must switch between two distinct player layouts: default layout when off and a separate Liquid Glass player design when on.
+- The current rotation control/path exists in source but the user reports it does not work. Trace and repair the existing Activity orientation request/lifecycle instead of adding a second rotation control.
+- The log shows multiple successful CloudStream section payloads (including a 39-section CineStream response), while the UI exposes one Raw Catalog per extension. Investigate section-to-catalog mapping before changing plugin loading.
+- TMDB service HTTP 401 responses and plugin-runtime 404s from title/IMDb identifiers used as numeric TMDB IDs are separate failure classes. Normalize media identity and verify the v3-key/v4-token contract independently.
+- Repeated `valid session required for sync` responses indicate unauthenticated remote writes. Gate AddonRepository and WatchProgressRepository write paths on a validated non-anonymous session while retaining local state and retrying only when auth becomes valid.
