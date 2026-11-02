@@ -34,9 +34,6 @@ import kotlinx.serialization.json.put
 import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.getString
 
-// Reuse the persisted version-change map for a durable marker; this key never matches an add-on URL.
-private const val PendingAddonRemoteSyncMarker = "__mew_internal_pending_remote_sync__"
-
 @Serializable
 private data class AddonRow(
     val url: String,
@@ -662,18 +659,13 @@ object AddonRepository {
 
     private suspend fun hasPendingRemoteSync(profileId: Int): Boolean =
         versionStorageMutex.withLock {
-            AddonStorage.loadPendingAddonVersionChanges(profileId)
-                .containsKey(PendingAddonRemoteSyncMarker)
+            AddonStorage.loadPendingAddonVersionChanges(profileId).hasAddonRemoteSyncPending()
         }
 
     private suspend fun setPendingRemoteSync(profileId: Int, pending: Boolean) {
         versionStorageMutex.withLock {
-            val changes = AddonStorage.loadPendingAddonVersionChanges(profileId).toMutableMap()
-            if (pending) {
-                changes[PendingAddonRemoteSyncMarker] = "1"
-            } else {
-                changes.remove(PendingAddonRemoteSyncMarker)
-            }
+            val changes = AddonStorage.loadPendingAddonVersionChanges(profileId)
+                .withAddonRemoteSyncPending(pending)
             AddonStorage.savePendingAddonVersionChanges(profileId, changes)
         }
     }
