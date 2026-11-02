@@ -16,6 +16,10 @@ internal expect object ThemeSettingsStorage {
     fun saveLiquidGlassEffectsEnabled(enabled: Boolean)
     fun loadLiquidGlassAutoHideOnScrollEnabled(): Boolean?
     fun saveLiquidGlassAutoHideOnScrollEnabled(enabled: Boolean)
+    fun loadProfileSettingsSyncPending(): Boolean
+    fun saveProfileSettingsSyncPending(pending: Boolean)
+    fun loadProviderCredentialSyncPending(): Boolean
+    fun saveProviderCredentialSyncPending(pending: Boolean)
     fun loadSelectedAppLanguage(): String?
     fun saveSelectedAppLanguage(languageCode: String)
     fun applySelectedAppLanguage(languageCode: String)
