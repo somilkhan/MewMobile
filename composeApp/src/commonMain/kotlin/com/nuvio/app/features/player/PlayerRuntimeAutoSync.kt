@@ -93,6 +93,15 @@ internal fun PlayerScreenRuntime.attachSelectedAddonSubtitleWithAutoSync(url: St
     playerController?.setSubtitleUriWithSelectedAutoSync(url)
 }
 
+internal fun PlayerScreenRuntime.maybeAutoSyncRestoredSubtitleAtStart(url: String): Boolean {
+    val controller = playerController ?: return false
+    if (controller !is AutoSyncPlayerController) return false
+    val playbackKey = activeSourceIdentityKey ?: activeSourceUrl
+    if (!AutoSyncPreferencesRepository.claimStartupRun(hashCode(), playbackKey)) return false
+    controller.setSubtitleUriWithAutoSync(url)
+    return true
+}
+
 internal fun PlayerScreenRuntime.maybeAutoSyncPreferredSubtitleAtStart(subtitle: AddonSubtitle): Boolean {
     if (manualSubtitleSelectionLocked) return false
     val preferredLanguage = normalizeLanguageCode(playerSettingsUiState.preferredSubtitleLanguage) ?: return false

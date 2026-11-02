@@ -160,10 +160,22 @@ internal fun PlayerScreenRuntime.restorePersistedTrackPreferenceIfNeeded() {
             }
         }
         PersistedSubtitleSelectionType.ADDON -> {
-            // Add-on URLs and IDs are episode-scoped. Let the automatic policy evaluate
-            // the current episode instead of reviving a prior episode's selection.
-            selectedAddonSubtitleId = null
-            useCustomSubtitles = false
+            // Restore the descriptive preference against this episode's fresh add-on list;
+            // never reuse a stale episode URL.
+            val subtitle = findPersistedAddonSubtitle(addonSubtitles, preference)
+            if (subtitle != null) {
+                selectedAddonSubtitleId = subtitle.selectionKey
+                selectedSubtitleIndex = -1
+                useCustomSubtitles = true
+                autoAddonFallbackPending = false
+                if (!maybeAutoSyncRestoredSubtitleAtStart(subtitle.url)) {
+                    playerController?.setSubtitleUri(subtitle.url)
+                }
+                preferredSubtitleSelectionApplied = true
+            } else {
+                selectedAddonSubtitleId = null
+                useCustomSubtitles = false
+            }
         }
     }
 
