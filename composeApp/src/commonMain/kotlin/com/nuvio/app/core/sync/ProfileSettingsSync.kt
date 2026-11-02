@@ -111,6 +111,10 @@ object ProfileSettingsSync {
             try {
                 val localBlob = exportSettingsBlob()
                 if (ProfileRepository.activeProfileId != profileId) return@withLock false
+                if (ThemeSettingsStorage.loadProfileSettingsSyncPending()) {
+                    pushToRemoteLocked(profileId, localBlob)
+                    return@withLock false
+                }
                 val localSignature = buildSignature(localBlob)
 
                 val params = buildJsonObject {
@@ -165,13 +169,16 @@ object ProfileSettingsSync {
     }
 
     suspend fun pushCurrentProfileToRemote() {
-        if (!AuthRepository.hasValidatedRemoteSession()) return
+        if (!AuthRepository.hasValidatedRemoteSession()) {
+            ThemeSettingsStorage.saveProfileSettingsSyncPending(true)
+            return
+        }
         ensureRepositoriesLoaded()
         syncMutex.withLock {
             runCatching {
                 val profileId = ProfileRepository.activeProfileId
                 val blob = exportSettingsBlob()
-                if (!AuthRepository.hasValidatedRemoteSession() || ProfileRepository.activeProfileId != profileId) return@runCatching
+                if (ProfileRepository.activeProfileId != profileId) return@runCatching
                 pushToRemoteLocked(profileId, blob)
             }.onFailure { error ->
                 log.e(error) { "pushCurrentProfileToRemote() — FAILED" }
@@ -229,8 +236,11 @@ object ProfileSettingsSync {
                 .distinctUntilChanged()
                 .debounce(PUSH_DEBOUNCE_MS)
                 .collect { signature ->
-                    if (!AuthRepository.hasValidatedRemoteSession()) return@collect
                     if (isApplyingRemoteBlob || isServerSyncInFlight) return@collect
+                    if (!AuthRepository.hasValidatedRemoteSession()) {
+                        ThemeSettingsStorage.saveProfileSettingsSyncPending(true)
+                        return@collect
+                    }
                     if (signature == skipNextPushSignature) {
                         skipNextPushSignature = null
                         return@collect
@@ -241,7 +251,9 @@ object ProfileSettingsSync {
     }
 
     private suspend fun pushToRemoteLocked(profileId: Int, blob: MobileProfileSettingsBlob) {
-        if (!AuthRepository.hasValidatedRemoteSession() || ProfileRepository.activeProfileId != profileId) return
+        if (ProfileRepository.activeProfileId != profileId) return
+        ThemeSettingsStorage.saveProfileSettingsSyncPending(true)
+        if (!AuthRepository.hasValidatedRemoteSession()) return
         val params = buildJsonObject {
             put("p_profile_id", profileId)
             put("p_platform", MOBILE_SYNC_PLATFORM)
@@ -249,6 +261,7 @@ object ProfileSettingsSync {
             putSyncOriginClientId()
         }
         SupabaseProvider.client.postgrest.rpc("sync_push_profile_settings_blob", params)
+        ThemeSettingsStorage.saveProfileSettingsSyncPending(false)
         log.d { "pushToRemoteLocked(profileId=$profileId) — success" }
     }
 
