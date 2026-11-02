@@ -36,4 +36,11 @@ class HomeCloudStreamProviderSelectionTest {
             ),
         )
     }
+    @Test
+    fun cloudStreamSectionKeyKeepsProviderAndFullCategoryIdentity() {
+        val provider = "provider-storage-key"
+        assertEquals("cloudstream:provider-storage-key:Movies", cloudStreamSectionKey(provider, "Movies"))
+        assertNotEquals(cloudStreamSectionKey(provider, "Aa"), cloudStreamSectionKey(provider, "BB"))
+        assertNotEquals(cloudStreamSectionKey("provider-a", "Movies"), cloudStreamSectionKey("provider-b", "Movies"))
+    }
 }

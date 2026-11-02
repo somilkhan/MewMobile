@@ -587,7 +587,7 @@ object HomeRepository {
                                         if (items.isEmpty()) return@mapNotNull null
                                         val previews = items.take(HOME_CATALOG_PREVIEW_FETCH_LIMIT).map { it.toMetaPreview() }
                                         HomeCatalogSection(
-                                            key = "cloudstream:${plugin.metadata.id.storageKey}:${categoryName.hashCode()}",
+                                            key = cloudStreamSectionKey(plugin.metadata.id.storageKey, categoryName),
                                             title = categoryName,
                                             subtitle = "${plugin.metadata.name} · CloudStream",
                                             addonName = plugin.metadata.name,
@@ -616,7 +616,7 @@ object HomeRepository {
                 // Keep one row per provider, not one row per category. Every runnable
                 // provider with a main page can contribute; per-provider timeouts keep
                 // a broken extension from blocking the rest of the progressive scan.
-                if (result.sections.isNotEmpty()) sections += result.sections.first()
+                if (result.sections.isNotEmpty()) sections += result.sections
                 if (firstError == null) firstError = result.errorMessage
                 if (sections.isNotEmpty() && activeRequestKey == requestKey) {
                     cachedCloudSections = sections.toList()
