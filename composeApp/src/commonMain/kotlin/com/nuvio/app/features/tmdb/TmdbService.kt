@@ -4,7 +4,6 @@ import co.touchlab.kermit.Logger
 import com.nuvio.app.features.addons.httpRequestRaw
 import com.nuvio.app.features.home.MetaPreview
 import com.nuvio.app.features.home.PosterShape
-import io.ktor.http.encodeURLParameter
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.SerialName
@@ -199,44 +198,6 @@ object TmdbService {
             "tv", "series", "show", "tvshow", "dizi" -> "tv"
             else -> mediaType.trim().lowercase()
         }
-}
-
-internal fun isTmdbReadAccessToken(value: String): Boolean {
-    val segments = value.trim().split('.')
-    return segments.size == 3 && segments.all(String::isNotBlank)
-}
-
-internal fun tmdbAuthorizationHeaders(value: String): Map<String, String> =
-    if (isTmdbReadAccessToken(value)) {
-        mapOf("Authorization" to "Bearer ${value.trim()}")
-    } else {
-        emptyMap()
-    }
-
-internal fun buildTmdbUrl(
-    endpoint: String,
-    apiKey: String,
-    query: Map<String, String> = emptyMap(),
-): String {
-    val params = linkedMapOf<String, String>()
-    if (!isTmdbReadAccessToken(apiKey)) {
-        params["api_key"] = apiKey
-    }
-    query.forEach { (key, value) ->
-        if (value.isNotBlank()) {
-            params[key] = value
-        }
-    }
-    return buildString {
-        append("https://api.themoviedb.org/3/")
-        append(endpoint.removePrefix("/"))
-        if (params.isNotEmpty()) {
-            append("?")
-            append(params.entries.joinToString("&") { (key, value) ->
-                "${key.encodeURLParameter()}=${value.encodeURLParameter()}"
-            })
-        }
-    }
 }
 
 private fun buildTmdbImageUrl(path: String?, size: String): String? {
