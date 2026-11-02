@@ -143,6 +143,11 @@ object ProfileSettingsSync {
                         return@withLock false
                     }
 
+                    if (ThemeSettingsStorage.loadProfileSettingsSyncPending()) {
+                        pushToRemoteLocked(profileId, exportSettingsBlob())
+                        return@withLock false
+                    }
+
                     val remoteSignature = buildSignature(remoteBlob)
                     if (remoteSignature == localSignature) {
                         log.d { "pull(profileId=$profileId) — remote matches local" }
@@ -236,8 +241,8 @@ object ProfileSettingsSync {
                 .distinctUntilChanged()
                 .debounce(PUSH_DEBOUNCE_MS)
                 .collect { signature ->
-                    if (isApplyingRemoteBlob || isServerSyncInFlight) return@collect
-                    if (!AuthRepository.hasValidatedRemoteSession()) {
+                    if (isApplyingRemoteBlob) return@collect
+                    if (!AuthRepository.hasValidatedRemoteSession() || isServerSyncInFlight) {
                         ThemeSettingsStorage.saveProfileSettingsSyncPending(true)
                         return@collect
                     }
