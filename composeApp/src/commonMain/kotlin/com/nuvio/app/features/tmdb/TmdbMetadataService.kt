@@ -1271,7 +1271,7 @@ object TmdbMetadataService {
         val url = buildTmdbUrl(endpoint = endpoint, apiKey = apiKey, query = query)
         val requestKey = if (isTmdbReadAccessToken(apiKey)) "$url#credential=${apiKey.hashCode()}" else url
         val payload = requestCoordinator.execute(requestKey) {
-            requestTmdbText(onUnauthorized = TmdbSettingsRepository::markCredentialRejected) {
+            requestTmdbText(onUnauthorized = { TmdbSettingsRepository.markCredentialRejected() }) {
                 httpRequestRaw(
                     method = "GET",
                     url = url,
