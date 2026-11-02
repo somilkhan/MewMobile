@@ -1272,12 +1272,13 @@ object TmdbMetadataService {
         if (!settings.canUseMetadata) return null
         val apiKey = settings.apiKey.trim().takeIf(String::isNotBlank) ?: return null
         val url = buildTmdbUrl(endpoint = endpoint, apiKey = apiKey, query = query)
-        val payload = requestCoordinator.execute(url) {
-            requestTmdbText {
+        val requestKey = if (isTmdbReadAccessToken(apiKey)) "$url#credential=${apiKey.hashCode()}" else url
+        val payload = requestCoordinator.execute(requestKey) {
+            requestTmdbText(onUnauthorized = TmdbSettingsRepository::markCredentialRejected) {
                 httpRequestRaw(
                     method = "GET",
                     url = url,
-                    headers = emptyMap(),
+                    headers = tmdbAuthorizationHeaders(apiKey),
                     body = "",
                 )
             }
