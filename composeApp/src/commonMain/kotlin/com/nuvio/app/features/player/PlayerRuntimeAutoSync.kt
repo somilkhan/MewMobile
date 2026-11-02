@@ -59,6 +59,17 @@ internal fun PlayerScreenRuntime.BindAutoSyncRuntimeEffects() {
     LaunchedEffect(playerController, addonSubtitles, activeExternalSubtitles) {
         playerController?.setAutoSyncSubtitleCandidates(currentAutoSyncCandidates())
     }
+    LaunchedEffect(playerController, playbackSnapshot.isLoading, isLoadingAddonSubtitles, addonSubtitles) {
+        // Add-ons can finish after the initial player track scan found no subtitle.
+        // Retry only for AutoSync and only while the user has not made an explicit choice.
+        if (playerController !is AutoSyncPlayerController || playbackSnapshot.isLoading) return@LaunchedEffect
+        if (!AutoSyncPreferencesRepository.preferredSubtitleAutoSyncOnStart.value) return@LaunchedEffect
+        if (isLoadingAddonSubtitles || addonSubtitles.isEmpty()) return@LaunchedEffect
+        if (!preferredSubtitleSelectionApplied || manualSubtitleSelectionLocked) return@LaunchedEffect
+        if (selectedSubtitleIndex >= 0 || selectedAddonSubtitleId != null) return@LaunchedEffect
+        preferredSubtitleSelectionApplied = false
+        refreshTracks()
+    }
 }
 
 internal fun PlayerScreenRuntime.attachSelectedAddonSubtitleWithAutoSync(url: String) {
