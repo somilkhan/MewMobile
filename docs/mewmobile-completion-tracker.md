@@ -1,0 +1,54 @@
+# MewMobile Completion Tracker
+Persistent source of truth across chats. Resume first unchecked item; update this file after every meaningful task/handoff. Never assume code, CI, or device verification.
+
+Status distinctions: **DONE** (required evidence recorded), **IN PROGRESS**, **BLOCKED** (reason + next action), **REMAINING**. Implementation ≠ CI ≠ device verified.
+
+## A — Device blockers
+- [ ] **A1 Seek/timestamp reset:** timeline tap seeks target, not 00:00; trace timeline→seek dispatch→player/engine; regression tests.
+- [ ] **A2 Subtitles:** track discovery/selection/switching/render/timing; local, remote, CloudStream paths.
+- [ ] **A3 AutoSync no effect:** repair existing feature end-to-end; do not duplicate.
+- [ ] **A4 CloudStream Raw Catalog:** render all returned extension sections in existing catalog UI.
+- [ ] **A5 Purple video:** root-cause surface/decoder/color/HDR/Dolby Vision/ExoPlayer/libmpv first.
+- [ ] **A6 Rotation:** trace existing control through Activity/config lifecycle; both orientations and persistence.
+- [ ] **A7 TMDB metadata:** v3 key/v4 token auth, response/cache and physical device retest.
+
+## B — Player/features
+- [ ] **B1** In-player engine switch; preserve playback state as feasible.
+- [ ] **B2** Liquid Glass OFF=default player; ON=distinct alternate layout (preference centralized, layout incomplete).
+- [ ] **B3** Player/stream labels, source-review and selective upstream port.
+- [ ] **B4 Watch Party: reuse Nuvio backend; auth/capabilities, RPC/realtime/presence, clock/drift, chat/permissions, UI/player/tests. Not just a button.
+
+## C — Regression/stability
+- [ ] **C1** CloudStream install/update/reconcile/restart/errors.
+- [ ] **C2** Sync/offline: auth gates, local dirty state/tombstones, post-login flush, no unauthorized loops.
+- [ ] **C3** Episode identity/matching, seasons/episodes, ambiguous matches/autoplay guard.
+- [ ] **C4** Subtitle/AutoSync/player lifecycle, source changes, rotation, background, engine switch.
+- [ ] **C5** Profile measured performance: skipped frames, catalog responsiveness, memory/rendering warnings.
+
+## D — Acceptance/release
+- [ ] **D1** CI green exact final SHA (host tests, Android compile, branding/relevant checks).
+- [ ] **D2** Full Debug APK at device gate only; routine CI skips artifacts.
+- [ ] **D3** package/signing/install-update boundary: debug com.mew.mobile.debug, release com.mew.mobile.
+- [ ] **D4** Device test exact APK/SHA; record each flow.
+- [ ] **D5** Fix regressions and rerun affected tests/device checks.
+- [ ] **D6** iOS build/signing/provisioning/runtime status.
+- [ ] **D7** PR #38 final review/merge only after acceptance; remain draft/unmerged meanwhile.
+
+## Guardrails
+1. Inspect branch/head/status, files/callers/tests, project instructions and upstream refs before edits.
+2. Selective upstream ports; preserve Mew brand and existing settings/navigation/player architecture. If present-but-broken: **REPAIR EXISTING**, never duplicate.
+3. Root cause → coherent fix → regression tests → build/tests → adjacent regression scan.
+4. Group commits; no commit spam; preserve unrelated changes.
+5. No APK build/upload in routine CI; D2 only.
+6. Report commands/results honestly; compile is not device verification.
+7. TMDB and CloudStream remain independently usable; no mutual exclusion.
+8. Redact credentials/tokens/cookies/account IDs/signed URLs; never commit raw sensitive Logcat.
+9. Handoffs update status, evidence, blockers, and **NEXT EXACT TASK**.
+
+## Baseline (2026-11-02)
+Device candidate 4d838a356a658bf21c9eab0d63c83124d9ba5dd4 tested, not accepted. CI candidate build run 41350265383 passed; routine run 41350269421 passed with APK steps skipped (not proof for later commits). Evidence: [device report](DEVICE_TEST_REPORT_2026-11-02.md), [parity audit](UPSTREAM_PARITY_AUDIT.md), [PR #38](https://github.com/somilkhan/MewMobile/pull/38). Previously merged: sync auth/write guard, TMDB v3/v4 credentials, plugin TMDB ID resolution, centralized Liquid Glass preference (device retest pending). Watch Party NOT IMPLEMENTED; Nuvio backend reuse decided. iOS unverified.
+
+## Handoff log
+| Date | Item | Evidence/status | Next exact task |
+|---|---|---|---|
+| 2026-11-02 | Tracker initialized | Device report + PR #38 baseline | **A1: inspect timeline/seek source and reproduce reset; add regression test** |
