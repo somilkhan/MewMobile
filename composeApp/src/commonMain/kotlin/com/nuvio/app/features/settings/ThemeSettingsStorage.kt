@@ -12,7 +12,8 @@ internal expect object ThemeSettingsStorage {
     fun loadAmoledEnabled(): Boolean?
     fun saveAmoledEnabled(enabled: Boolean)
     fun loadLiquidGlassNativeTabBarEnabled(): Boolean?
-    fun saveLiquidGlassNativeTabBarEnabled(enabled: Boolean)
+    fun loadLiquidGlassEffectsEnabled(): Boolean?
+    fun saveLiquidGlassEffectsEnabled(enabled: Boolean)
     fun loadLiquidGlassAutoHideOnScrollEnabled(): Boolean?
     fun saveLiquidGlassAutoHideOnScrollEnabled(enabled: Boolean)
     fun loadSelectedAppLanguage(): String?
