@@ -230,6 +230,9 @@ actual object PlayerSettingsStorage {
         val key = ProfileScopedKey.of(playerLiquidGlassEnabledKey)
         return if (defaults.objectForKey(key) != null) defaults.boolForKey(key) else null
     }
+    actual fun savePlayerLiquidGlassEnabled(enabled: Boolean) {
+        NSUserDefaults.standardUserDefaults.setBool(enabled, forKey = ProfileScopedKey.of(playerLiquidGlassEnabledKey))
+    }
     actual fun loadShowLoadingOverlay(): Boolean? {
         val defaults = NSUserDefaults.standardUserDefaults
         val key = ProfileScopedKey.of(showLoadingOverlayKey)
@@ -1057,6 +1060,7 @@ actual object PlayerSettingsStorage {
     actual fun exportToSyncPayload(): JsonObject = buildJsonObject {
         loadShowLoadingOverlay()?.let { put(showLoadingOverlayKey, encodeSyncBoolean(it)) }
         loadPauseOverlayEnabled()?.let { put(pauseOverlayEnabledKey, encodeSyncBoolean(it)) }
+        loadPlayerLiquidGlassEnabled()?.let { put(playerLiquidGlassEnabledKey, encodeSyncBoolean(it)) }
         loadSkipBackwardSeconds()?.let { put(skipBackwardSecondsKey, encodeSyncInt(it)) }
         loadSkipForwardSeconds()?.let { put(skipForwardSecondsKey, encodeSyncInt(it)) }
         loadToolbarLayout()?.let { put(toolbarLayoutKey, encodeSyncString(it)) }
@@ -1146,6 +1150,7 @@ actual object PlayerSettingsStorage {
 
         payload.decodeSyncBoolean(showLoadingOverlayKey)?.let(::saveShowLoadingOverlay)
         payload.decodeSyncBoolean(pauseOverlayEnabledKey)?.let(::savePauseOverlayEnabled)
+        payload.decodeSyncBoolean(playerLiquidGlassEnabledKey)?.let(::savePlayerLiquidGlassEnabled)
         payload.decodeSyncInt(skipBackwardSecondsKey)?.let(::saveSkipBackwardSeconds)
         payload.decodeSyncInt(skipForwardSecondsKey)?.let(::saveSkipForwardSeconds)
         payload.decodeSyncString(toolbarLayoutKey)?.let(::saveToolbarLayout)
