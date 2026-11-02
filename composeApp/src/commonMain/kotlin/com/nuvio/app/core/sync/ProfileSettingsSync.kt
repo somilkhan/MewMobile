@@ -128,33 +128,35 @@ object ProfileSettingsSync {
 
                 if (remoteJson == null) {
                     log.i { "pull(profileId=$profileId) — no remote settings blob found" }
-                    if (localSignature != defaultSignature()) {
+                    if (ThemeSettingsStorage.loadProfileSettingsSyncPending()) {
+                        pushToRemoteLocked(profileId, exportSettingsBlob())
+                    } else if (localSignature != defaultSignature()) {
                         pushToRemoteLocked(profileId, localBlob)
                     }
                     return@withLock false
                 }
 
+                val remoteBlob = runCatching {
+                    json.decodeFromJsonElement(MobileProfileSettingsBlob.serializer(), remoteJson)
+                }.getOrElse { error ->
+                    log.e(error) { "pull(profileId=$profileId) — failed to decode remote settings blob" }
+                    return@withLock false
+                }
+
+                val remoteSignature = buildSignature(remoteBlob)
+                if (remoteSignature == localSignature) {
+                    log.d { "pull(profileId=$profileId) — remote matches local" }
+                    return@withLock false
+                }
+
+                if (ThemeSettingsStorage.loadProfileSettingsSyncPending()) {
+                    pushToRemoteLocked(profileId, exportSettingsBlob())
+                    return@withLock false
+                }
+                if (ProfileRepository.activeProfileId != profileId) return@withLock false
+
                 isApplyingRemoteBlob = true
                 try {
-                    val remoteBlob = runCatching {
-                        json.decodeFromJsonElement(MobileProfileSettingsBlob.serializer(), remoteJson)
-                    }.getOrElse { error ->
-                        log.e(error) { "pull(profileId=$profileId) — failed to decode remote settings blob" }
-                        return@withLock false
-                    }
-
-                    if (ThemeSettingsStorage.loadProfileSettingsSyncPending()) {
-                        pushToRemoteLocked(profileId, exportSettingsBlob())
-                        return@withLock false
-                    }
-
-                    val remoteSignature = buildSignature(remoteBlob)
-                    if (remoteSignature == localSignature) {
-                        log.d { "pull(profileId=$profileId) — remote matches local" }
-                        return@withLock false
-                    }
-
-                    if (ProfileRepository.activeProfileId != profileId) return@withLock false
                     applyRemoteBlob(remoteBlob)
                     skipNextPushSignature = currentObservedStateSignature()
                 } finally {
