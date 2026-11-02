@@ -170,4 +170,11 @@ class PlayerSidecarSubtitlesTest {
             </tt>
         """.trimIndent()
     }
+
+    @Test
+    fun subtitleDelayAdjustsSidecarPlaybackClockInBothDirections() {
+        assertEquals(9_500_000L, sidecarSubtitlePositionUs(positionMs = 10_000L, delayMs = 500))
+        assertEquals(10_500_000L, sidecarSubtitlePositionUs(positionMs = 10_000L, delayMs = -500))
+        assertEquals(0L, sidecarSubtitlePositionUs(positionMs = 100L, delayMs = 500))
+    }
 }

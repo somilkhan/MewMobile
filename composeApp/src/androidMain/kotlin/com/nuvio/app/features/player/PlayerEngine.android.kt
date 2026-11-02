@@ -805,21 +805,6 @@ private fun ExoPlayerSurface(
                     fallbackStartPositionMs = null
                     latestOnError.value(null)
                     exoPlayer.logCurrentTracks("STATE_READY")
-                    val pendingSubtitleIndex = pendingSubtitleTrackIndex.firstOrNull()
-                    val availableTextTrackCount = exoPlayer.currentTracks.groups
-                        .filter { it.type == C.TRACK_TYPE_TEXT }
-                        .sumOf { it.length }
-                    if (
-                        pendingSubtitleIndex != null &&
-                        pendingSubtitleIndex >= availableTextTrackCount
-                    ) {
-                        pendingSubtitleTrackIndex.clear()
-                        Log.w(
-                            TAG,
-                            "STATE_READY: dropping unavailable pending subtitle index=$pendingSubtitleIndex " +
-                                "(textTracks=$availableTextTrackCount)",
-                        )
-                    }
                 }
                 syncPlayerViewKeepScreenOn()
                 dispatchExoPlayerSnapshot()

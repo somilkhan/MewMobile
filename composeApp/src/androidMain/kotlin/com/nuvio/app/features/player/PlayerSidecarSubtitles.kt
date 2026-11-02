@@ -113,6 +113,9 @@ internal class SidecarCueCursor {
         }
 }
 
+internal fun sidecarSubtitlePositionUs(positionMs: Long, delayMs: Int): Long =
+    (positionMs.coerceAtLeast(0L) * 1_000L - delayMs.toLong() * 1_000L).coerceAtLeast(0L)
+
 private fun sidecarEntryEndUs(entry: CuesWithTiming): Long = when {
     entry.endTimeUs != C.TIME_UNSET -> entry.endTimeUs
     entry.durationUs != C.TIME_UNSET -> entry.startTimeUs + entry.durationUs
@@ -299,7 +302,7 @@ internal class SidecarSubtitleController(
         if (cues.isEmpty() || !generation.isCurrent(currentGeneration)) return
         val player = getPlayer() ?: return
         val delayUs = getSubtitleDelayMs().toLong() * 1_000L
-        val positionUs = (player.currentPosition.coerceAtLeast(0L) * 1_000L - delayUs).coerceAtLeast(0L)
+        val positionUs = sidecarSubtitlePositionUs(player.currentPosition, (delayUs / 1_000L).toInt())
         val active = sidecarCueCursor.activeCuesOrNull(cues, positionUs) ?: return
         postToSubtitleView { view ->
             if (view.getTag(R.id.player_view_sidecar_generation_tag) == currentGeneration) {
