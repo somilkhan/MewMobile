@@ -14,6 +14,7 @@ import com.nuvio.app.features.collection.findCollectionCatalog
 import com.nuvio.app.features.cloudstream.CloudStreamPluginItem
 import com.nuvio.app.features.cloudstream.CLOUDSTREAM_DISCOVERY_TIMEOUT_MS
 import com.nuvio.app.features.cloudstream.CloudStreamRepository
+import com.nuvio.app.features.cloudstream.CloudStreamSearchItem
 import com.nuvio.app.features.cloudstream.isCloudStreamDiscoveryAllowed
 import com.nuvio.app.features.cloudstream.toMetaPreview
 import com.nuvio.app.features.tmdb.TmdbMetadataService
@@ -51,6 +52,31 @@ internal fun effectiveHomeCloudStreamProviderId(
     selectedProviderId: String?,
     hasAddonCatalogs: Boolean,
 ): String? = selectedProviderId.takeUnless { hasAddonCatalogs }
+
+internal fun buildCloudStreamHomeSections(
+    providerStorageKey: String,
+    providerId: String,
+    providerName: String,
+    categories: List<Pair<String, List<CloudStreamSearchItem>>>,
+): List<HomeCatalogSection> = categories.mapNotNull { (categoryName, items) ->
+    if (items.isEmpty()) return@mapNotNull null
+    val previews = items.take(HOME_CATALOG_PREVIEW_FETCH_LIMIT).map { it.toMetaPreview() }
+    HomeCatalogSection(
+        key = cloudStreamSectionKey(providerStorageKey, categoryName),
+        title = categoryName,
+        subtitle = "$providerName · CloudStream",
+        addonName = providerName,
+        target = CatalogTarget.CloudStream(
+            providerId = providerId,
+            categoryName = categoryName,
+            contentType = items.first().type.nuvioType,
+            supportsPagination = false,
+        ),
+        items = previews,
+        availableItemCount = items.size,
+        hasMore = items.size > previews.size,
+    )
+}
 
 private data class CloudHomeProviderResult(
     val sections: List<HomeCatalogSection>,
@@ -583,26 +609,15 @@ object HomeRepository {
                         } else {
                             mainPage.fold(
                                 onSuccess = { categories ->
-                                    val providerSections = categories.mapNotNull { (categoryName, items) ->
-                                        if (items.isEmpty()) return@mapNotNull null
-                                        val previews = items.take(HOME_CATALOG_PREVIEW_FETCH_LIMIT).map { it.toMetaPreview() }
-                                        HomeCatalogSection(
-                                            key = cloudStreamSectionKey(plugin.metadata.id.storageKey, categoryName),
-                                            title = categoryName,
-                                            subtitle = "${plugin.metadata.name} · CloudStream",
-                                            addonName = plugin.metadata.name,
-                                            target = CatalogTarget.CloudStream(
-                                                providerId = plugin.metadata.id.value,
-                                                categoryName = categoryName,
-                                                contentType = items.first().type.nuvioType,
-                                                supportsPagination = false,
-                                            ),
-                                            items = previews,
-                                            availableItemCount = items.size,
-                                            hasMore = items.size > previews.size,
-                                        )
-                                    }
-                                    CloudHomeProviderResult(providerSections, null)
+                                    CloudHomeProviderResult(
+                                        buildCloudStreamHomeSections(
+                                            providerStorageKey = plugin.metadata.id.storageKey,
+                                            providerId = plugin.metadata.id.value,
+                                            providerName = plugin.metadata.name,
+                                            categories = categories,
+                                        ),
+                                        null,
+                                    )
                                 },
                                 onFailure = { error -> CloudHomeProviderResult(emptyList(), error.message) },
                             )
