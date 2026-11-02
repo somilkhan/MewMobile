@@ -5,6 +5,8 @@ import io.ktor.http.encodeURLParameter
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 
+private const val TMDB_RETRY_BASE_DELAY_MS = 250L
+
 internal fun isTmdbReadAccessToken(value: String): Boolean {
     val segments = value.trim().split('.')
     return segments.size == 3 && segments.all { it.isNotBlank() }
@@ -84,7 +86,7 @@ private suspend fun requestTmdbTextInternal(
         if (response?.status == 401) onUnauthorized?.invoke()
         val transient = response == null || response.status == 429 || response.status in 500..599
         if (!transient || attempt == attempts - 1) return null
-        pause(250L * (attempt + 1))
+        pause(TMDB_RETRY_BASE_DELAY_MS * (attempt + 1))
     }
     return null
 }
