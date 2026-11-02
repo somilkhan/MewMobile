@@ -18,6 +18,7 @@ import com.nuvio.app.features.tracking.WatchProgressSource
 import com.nuvio.app.features.tracking.effectiveLibrarySourceMode
 import com.nuvio.app.features.tracking.effectiveWatchProgressSource
 import com.nuvio.app.features.watchprogress.WatchProgressSourceCoordinator
+import com.nuvio.app.features.watchprogress.WatchProgressRepository
 import kotlinx.atomicfu.locks.SynchronizedObject
 import kotlinx.atomicfu.locks.synchronized
 import kotlinx.coroutines.CancellationException
@@ -338,6 +339,9 @@ object SyncManager {
             }
         }
 
+        if (syncResult.succeeded) {
+            WatchProgressRepository.flushPendingProgressToServer(profileId)
+        }
         log.i { "Foreground sync completed profile=$profileId" }
     }
 
@@ -383,6 +387,9 @@ object SyncManager {
                     "Full profile sync incomplete profile=$profileId reason=$reason " +
                         "failedSteps=${syncResult.failedSteps}"
                 }
+            }
+            if (syncResult.succeeded) {
+                WatchProgressRepository.flushPendingProgressToServer(profileId)
             }
             log.i { "Full profile sync completed profile=$profileId reason=$reason" }
         }

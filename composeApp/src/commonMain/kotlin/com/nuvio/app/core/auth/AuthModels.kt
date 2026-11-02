@@ -13,6 +13,10 @@ sealed interface AuthState {
 val AuthState.isLoggedIn: Boolean
     get() = this is AuthState.Authenticated
 
+/** Remote profile sync requires a validated, non-anonymous account session. */
+val AuthState.canSyncRemotely: Boolean
+    get() = this is AuthState.Authenticated && !isAnonymous && userId.isNotBlank()
+
 val AuthState.userId: String?
     get() = (this as? AuthState.Authenticated)?.userId
 

@@ -1,6 +1,8 @@
 package com.nuvio.app.features.addons
 
 import co.touchlab.kermit.Logger
+import com.nuvio.app.core.auth.AuthRepository
+import com.nuvio.app.core.auth.canSyncRemotely
 import com.nuvio.app.core.network.SupabaseProvider
 import com.nuvio.app.core.sync.putSyncOriginClientId
 import com.nuvio.app.features.profiles.ProfileRepository
@@ -156,6 +158,10 @@ object AddonRepository {
     }
 
     suspend fun pullFromServer(profileId: Int) {
+        if (!AuthRepository.state.value.canSyncRemotely) {
+            log.d { "pullFromServer() — skipped without a validated remote account session" }
+            return
+        }
         // Keep the actual active profile ID: it may differ from the effective shared add-on profile.
         onProfileChanged(profileId)
         val requestSession = synchronized(refreshJobsLock) {
@@ -562,7 +568,12 @@ object AddonRepository {
                     sortOrder = index,
                 )
             }
+        if (!AuthRepository.state.value.canSyncRemotely) {
+            log.d { "pushToServer() — retained local add-on state; remote account session unavailable" }
+            return
+        }
         scope.launch {
+            if (!AuthRepository.state.value.canSyncRemotely) return@launch
             runCatching {
                 log.d { "pushToServer() — profileId=$profileId, pushing ${addons.size} addons" }
                 val params = buildJsonObject {
