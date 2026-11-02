@@ -2,7 +2,6 @@ package com.nuvio.app.core.sync
 
 import co.touchlab.kermit.Logger
 import com.nuvio.app.core.auth.AuthRepository
-import com.nuvio.app.core.auth.AuthState
 import com.nuvio.app.core.network.SupabaseProvider
 import com.nuvio.app.features.ai.AiAssistantSettingsRepository
 import com.nuvio.app.features.ai.AiProvider
@@ -100,8 +99,10 @@ object ProfileSettingsSync {
     }
 
     suspend fun pull(profileId: Int): Boolean {
+        if (!AuthRepository.hasValidatedRemoteSession()) return false
         ensureRepositoriesLoaded()
         return syncMutex.withLock {
+            if (!AuthRepository.hasValidatedRemoteSession()) return@withLock false
             if (ProfileRepository.activeProfileId != profileId) {
                 log.d { "pull(profileId=$profileId) — skipped because profile is no longer active" }
                 return@withLock false
@@ -117,7 +118,7 @@ object ProfileSettingsSync {
                     put("p_platform", MOBILE_SYNC_PLATFORM)
                 }
                 val result = SupabaseProvider.client.postgrest.rpc("sync_pull_profile_settings_blob", params)
-                if (ProfileRepository.activeProfileId != profileId) return@withLock false
+                if (!AuthRepository.hasValidatedRemoteSession() || ProfileRepository.activeProfileId != profileId) return@withLock false
                 val response = result.decodeList<SettingsBlobResponse>().firstOrNull()
                 val remoteJson = response?.settingsJson
 
@@ -155,6 +156,7 @@ object ProfileSettingsSync {
                 true
             } catch (error: Exception) {
                 log.e(error) { "pull(profileId=$profileId) — FAILED" }
+                AuthRepository.signOutIfSessionInvalid(error, "ProfileSettingsSync.pull")
                 false
             } finally {
                 isServerSyncInFlight = false
@@ -163,15 +165,17 @@ object ProfileSettingsSync {
     }
 
     suspend fun pushCurrentProfileToRemote() {
+        if (!AuthRepository.hasValidatedRemoteSession()) return
         ensureRepositoriesLoaded()
         syncMutex.withLock {
             runCatching {
                 val profileId = ProfileRepository.activeProfileId
                 val blob = exportSettingsBlob()
-                if (ProfileRepository.activeProfileId != profileId) return@runCatching
+                if (!AuthRepository.hasValidatedRemoteSession() || ProfileRepository.activeProfileId != profileId) return@runCatching
                 pushToRemoteLocked(profileId, blob)
             }.onFailure { error ->
                 log.e(error) { "pushCurrentProfileToRemote() — FAILED" }
+                AuthRepository.signOutIfSessionInvalid(error, "ProfileSettingsSync.push")
             }
         }
     }
@@ -225,8 +229,7 @@ object ProfileSettingsSync {
                 .distinctUntilChanged()
                 .debounce(PUSH_DEBOUNCE_MS)
                 .collect { signature ->
-                    val authState = AuthRepository.state.value
-                    if (authState !is AuthState.Authenticated || authState.isAnonymous) return@collect
+                    if (!AuthRepository.hasValidatedRemoteSession()) return@collect
                     if (isApplyingRemoteBlob || isServerSyncInFlight) return@collect
                     if (signature == skipNextPushSignature) {
                         skipNextPushSignature = null
@@ -238,6 +241,7 @@ object ProfileSettingsSync {
     }
 
     private suspend fun pushToRemoteLocked(profileId: Int, blob: MobileProfileSettingsBlob) {
+        if (!AuthRepository.hasValidatedRemoteSession() || ProfileRepository.activeProfileId != profileId) return
         val params = buildJsonObject {
             put("p_profile_id", profileId)
             put("p_platform", MOBILE_SYNC_PLATFORM)
