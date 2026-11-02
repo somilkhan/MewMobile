@@ -1944,13 +1944,16 @@ private class NuvioLibmpvView(
     }
 
     private fun seekToMsNow(positionMs: Long) {
-        val targetMs = positionMs.coerceAtLeast(0L)
-            .let { ms -> if (lastKnownDurationMs > 0L) ms.coerceAtMost(lastKnownDurationMs) else ms }
-        lastKnownPositionMs = targetMs
-        val seconds = targetMs / 1000.0
-        mpv.command("seek", String.format(Locale.US, "%    private fun seekToMsNow(positionMs: Long) {
         mpv.command("seek", (positionMs.coerceAtLeast(0L) / 1000.0).toString(), "absolute")
-    }    snapshots.read(::readSnapshotNow)
+    }
+    suspend fun snapshot(): PlayerPlaybackSnapshot {
+        if (!operationGate.acceptSubmission()) return snapshots.lastGood()
+        return runCatching {
+            withContext(mpvDispatcher) {
+                if (!operationGate.allowExecution()) {
+                    snapshots.lastGood()
+                } else {
+                    snapshots.read(::readSnapshotNow)
                 }
             }
         }.getOrElse { snapshots.lastGood() }
