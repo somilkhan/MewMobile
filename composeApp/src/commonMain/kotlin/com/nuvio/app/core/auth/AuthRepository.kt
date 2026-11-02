@@ -35,6 +35,17 @@ object AuthRepository {
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
+    /**
+     * Remote writes require a session that was successfully checked against Supabase.
+     * Authenticated UI state may be retained during transient validation failures.
+     */
+    fun hasValidatedRemoteSession(): Boolean {
+        val authenticated = _state.value as? AuthState.Authenticated ?: return false
+        return !authenticated.isAnonymous &&
+            authenticated.userId.isNotBlank() &&
+            validatedRemoteUserId == authenticated.userId
+    }
+
     private var initialized = false
     private var validatedRemoteUserId: String? = null
 
@@ -68,14 +79,17 @@ object AuthRepository {
                         )
                     }
                     is SessionStatus.NotAuthenticated -> {
+                        validatedRemoteUserId = null
                         _state.value = AuthState.Unauthenticated
                     }
                     is SessionStatus.Initializing -> {
+                        validatedRemoteUserId = null
                         if (AuthStorage.loadAnonymousUserId() == null) {
                             _state.value = AuthState.Loading
                         }
                     }
                     is SessionStatus.RefreshFailure -> {
+                        validatedRemoteUserId = null
                         _state.value = AuthState.Unauthenticated
                     }
                 }
@@ -84,7 +98,8 @@ object AuthRepository {
     }
 
     private suspend fun validateRemoteSession(userId: String): Boolean {
-        if (userId.isBlank() || validatedRemoteUserId == userId) return true
+        if (userId.isBlank()) return false
+        if (validatedRemoteUserId == userId) return true
 
         return runCatching {
             SupabaseProvider.client.auth.retrieveUserForCurrentSession(false)
@@ -105,6 +120,7 @@ object AuthRepository {
     @OptIn(ExperimentalUuidApi::class)
     fun signInAnonymously() {
         _error.value = null
+        validatedRemoteUserId = null
         val userId = Uuid.random().toString()
         claimLocalAccountData(userId)
         AuthStorage.saveAnonymousUserId(userId)
