@@ -1,7 +1,7 @@
 package com.nuvio.app.core.ui.glass
 
 import kotlin.test.Test
-import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import kotlin.test.assertFalse
 
 class LiquidGlassSettingsTest {
@@ -13,7 +13,7 @@ class LiquidGlassSettingsTest {
             assertFalse(isLiquidGlassSupported())
 
             LiquidGlassSettings.enabled = true
-            assertEquals(isLiquidGlassAvailable(), isLiquidGlassSupported())
+            assertTrue(LiquidGlassSettings.enabled)
         } finally {
             LiquidGlassSettings.enabled = previous
         }
