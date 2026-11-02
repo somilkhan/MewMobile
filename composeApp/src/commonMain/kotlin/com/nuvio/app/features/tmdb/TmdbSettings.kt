@@ -17,6 +17,7 @@ data class TmdbSettings(
     val useMoreLikeThis: Boolean = true,
     val useCollections: Boolean = true,
     val titleLanguage: TmdbTitleLanguage = TmdbTitleLanguage.APP,
+    val credentialRejected: Boolean = false,
 ) {
     val hasApiKey: Boolean
         get() = apiKey.isNotBlank()
