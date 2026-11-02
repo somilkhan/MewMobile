@@ -34,6 +34,7 @@ import kotlinx.serialization.json.put
 import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.getString
 
+// Reuse the persisted version-change map for a durable marker; this key never matches an add-on URL.
 private const val PendingAddonRemoteSyncMarker = "__mew_internal_pending_remote_sync__"
 
 @Serializable
@@ -225,46 +226,24 @@ object AddonRepository {
                     log.i { "pullFromServer() — migrating local addons to server for profile $requestProfileId" }
                     initialize()
                     if (!isCurrentProfile(requestProfileId, requestGeneration)) return
-                    val enabledByUrl = loadLocalEnabledStates(requestProfileId)
-                    val existingByUrl = synchronized(refreshJobsLock) {
-                        if (!isCurrentProfileLocked(requestProfileId, requestGeneration)) {
-                            null
-                        } else {
-                            _uiState.value.addons.associateBy(ManagedAddon::manifestUrl)
-                        }
-                    } ?: return
-                    val addons = localUrls.mapIndexed { index, addonUrl ->
-                        val manifestUrl = ensureManifestSuffix(addonUrl)
-                        AddonPushItem(
-                            url = manifestUrl,
-                            name = existingByUrl[manifestUrl]?.manifest?.name ?: "",
-                            enabled = enabledByUrl[manifestUrl] ?: existingByUrl[manifestUrl]?.enabled ?: true,
-                            sortOrder = index,
-                        )
-                    }
                     if (!isCurrentProfile(requestProfileId, requestGeneration)) return
-                    val params = buildJsonObject {
-                        put("p_profile_id", requestProfileId)
-                        put("p_addons", json.encodeToJsonElement(addons))
-                        putSyncOriginClientId()
-                    }
                     setPendingRemoteSync(requestProfileId, true)
-                    try {
-                        if (!AuthRepository.hasValidatedRemoteSession()) return
-                        SupabaseProvider.client.postgrest.rpc("sync_push_addons", params)
-                        setPendingRemoteSync(requestProfileId, false)
-                    } catch (error: CancellationException) {
-                        throw error
-                    } catch (error: Throwable) {
-                        AuthRepository.signOutIfSessionInvalid(error, "AddonRepository.migration")
-                        throw error
+                    val generation = synchronized(refreshJobsLock) {
+                        remoteMutationGeneration += 1L
+                        remoteMutationGeneration
                     }
+                    pushAddonSnapshotToServer(
+                        profileId = requestProfileId,
+                        sourceAddons = _uiState.value.addons,
+                        generation = generation,
+                    )
+                    if (hasPendingRemoteSync(requestProfileId)) return
                     synchronized(refreshJobsLock) {
                         if (isCurrentProfileLocked(requestProfileId, requestGeneration)) {
                             pulledFromServer = true
                         }
                     }
-                    log.i { "pullFromServer() — migration push done (${addons.size} addons)" }
+                    log.i { "pullFromServer() — migration push done (${localUrls.size} addons)" }
                     return
                 }
             }
@@ -325,6 +304,7 @@ object AddonRepository {
         }.onFailure { e ->
             if (e is CancellationException) throw e
             log.e(e) { "pullFromServer() — FAILED" }
+            AuthRepository.signOutIfSessionInvalid(e, "AddonRepository.pull")
         }
     }
 
