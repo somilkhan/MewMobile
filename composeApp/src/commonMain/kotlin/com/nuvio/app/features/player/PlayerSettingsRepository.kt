@@ -38,7 +38,6 @@ fun snapToAllowedTimeout(value: Int): Int {
 data class PlayerSettingsUiState(
     val showLoadingOverlay: Boolean = true,
     val pauseOverlayEnabled: Boolean = true,
-    val playerLiquidGlassEnabled: Boolean = false,
     val skipBackwardSeconds: Int = PLAYER_SKIP_SECONDS_DEFAULT,
     val skipForwardSeconds: Int = PLAYER_SKIP_SECONDS_DEFAULT,
     val toolbarLayout: PlayerToolbarLayout = PlayerToolbarLayout.Default,
@@ -117,7 +116,6 @@ object PlayerSettingsRepository {
     private var hasLoaded = false
     private var showLoadingOverlay = true
     private var pauseOverlayEnabled = true
-    private var playerLiquidGlassEnabled = false
     private var skipBackwardSeconds = PLAYER_SKIP_SECONDS_DEFAULT
     private var skipForwardSeconds = PLAYER_SKIP_SECONDS_DEFAULT
     private var toolbarLayout = PlayerToolbarLayout.Default
@@ -201,7 +199,6 @@ object PlayerSettingsRepository {
         hasLoaded = false
         showLoadingOverlay = true
         pauseOverlayEnabled = true
-        playerLiquidGlassEnabled = false
         skipBackwardSeconds = PLAYER_SKIP_SECONDS_DEFAULT
         skipForwardSeconds = PLAYER_SKIP_SECONDS_DEFAULT
         toolbarLayout = PlayerToolbarLayout.Default
@@ -278,7 +275,6 @@ object PlayerSettingsRepository {
         hasLoaded = true
         showLoadingOverlay = PlayerSettingsStorage.loadShowLoadingOverlay() ?: true
         pauseOverlayEnabled = PlayerSettingsStorage.loadPauseOverlayEnabled() ?: true
-        playerLiquidGlassEnabled = PlayerSettingsStorage.loadPlayerLiquidGlassEnabled() ?: false
         skipBackwardSeconds = normalizePlayerSkipSeconds(PlayerSettingsStorage.loadSkipBackwardSeconds())
         skipForwardSeconds = normalizePlayerSkipSeconds(PlayerSettingsStorage.loadSkipForwardSeconds())
         toolbarLayout = PlayerToolbarLayout.decode(PlayerSettingsStorage.loadToolbarLayout())
@@ -467,14 +463,6 @@ object PlayerSettingsRepository {
         pauseOverlayEnabled = enabled
         publish()
         PlayerSettingsStorage.savePauseOverlayEnabled(enabled)
-    }
-
-    fun setPlayerLiquidGlassEnabled(enabled: Boolean) {
-        ensureLoaded()
-        if (playerLiquidGlassEnabled == enabled) return
-        playerLiquidGlassEnabled = enabled
-        publish()
-        PlayerSettingsStorage.savePlayerLiquidGlassEnabled(enabled)
     }
 
     fun setShowLoadingOverlay(enabled: Boolean) {
@@ -1103,7 +1091,6 @@ object PlayerSettingsRepository {
         _uiState.value = PlayerSettingsUiState(
             showLoadingOverlay = showLoadingOverlay,
             pauseOverlayEnabled = pauseOverlayEnabled,
-            playerLiquidGlassEnabled = playerLiquidGlassEnabled,
             skipBackwardSeconds = skipBackwardSeconds,
             skipForwardSeconds = skipForwardSeconds,
             toolbarLayout = toolbarLayout,
