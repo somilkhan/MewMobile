@@ -20,6 +20,13 @@ class TmdbCredentialAuthTest {
     }
 
     @Test
+    fun rejectedCredentialDisablesMetadataUntilItChanges() {
+        val rejected = TmdbSettings(apiKey = "test-key", enabled = true, credentialRejected = true)
+        assertFalse(rejected.canUseMetadata)
+        assertTrue(rejected.copy(credentialRejected = false).canUseMetadata)
+    }
+
+    @Test
     fun readAccessTokenUsesBearerHeaderAndIsNotPlacedInUrl() {
         val token = "header.payload.signature"
         val url = buildTmdbUrl(
