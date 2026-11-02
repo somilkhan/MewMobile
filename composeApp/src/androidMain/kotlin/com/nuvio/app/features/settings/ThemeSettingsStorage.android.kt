@@ -22,6 +22,8 @@ actual object ThemeSettingsStorage {
     private const val liquidGlassNativeTabBarEnabledKey = "liquid_glass_native_tab_bar_enabled"
     private const val liquidGlassEffectsEnabledKey = "liquid_glass_effects_enabled"
     private const val liquidGlassAutoHideOnScrollEnabledKey = "liquid_glass_auto_hide_on_scroll_enabled"
+    private const val profileSettingsSyncPendingKey = "profile_settings_sync_pending"
+    private const val providerCredentialSyncPendingKey = "provider_credential_sync_pending"
     private const val selectedAppLanguageKey = "selected_app_language"
     private const val NAV_BAR_STYLE_KEY = "nav_bar_style"
     private val profileScopedSyncKeys = listOf(
@@ -106,6 +108,26 @@ actual object ThemeSettingsStorage {
         preferences
             ?.edit()
             ?.putBoolean(ProfileScopedKey.of(liquidGlassAutoHideOnScrollEnabledKey), enabled)
+            ?.apply()
+    }
+
+    actual fun loadProfileSettingsSyncPending(): Boolean =
+        preferences?.getBoolean(ProfileScopedKey.of(profileSettingsSyncPendingKey), false) ?: false
+
+    actual fun saveProfileSettingsSyncPending(pending: Boolean) {
+        preferences
+            ?.edit()
+            ?.putBoolean(ProfileScopedKey.of(profileSettingsSyncPendingKey), pending)
+            ?.apply()
+    }
+
+    actual fun loadProviderCredentialSyncPending(): Boolean =
+        preferences?.getBoolean(ProfileScopedKey.of(providerCredentialSyncPendingKey), false) ?: false
+
+    actual fun saveProviderCredentialSyncPending(pending: Boolean) {
+        preferences
+            ?.edit()
+            ?.putBoolean(ProfileScopedKey.of(providerCredentialSyncPendingKey), pending)
             ?.apply()
     }
 
