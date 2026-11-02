@@ -13,11 +13,8 @@ class CustomDefaultTrackNameProvider(resources: Resources) : DefaultTrackNamePro
         var trackName = super.getTrackName(format)
 
         if (format.sampleMimeType != null) {
-            var sampleFormat = formatNameFromMime(format.sampleMimeType)
-            if (sampleFormat == null) {
-                sampleFormat = formatNameFromMime(format.codecs)
-            }
-            if (sampleFormat == null) {
+            var sampleFormat = resolveCodecName(format.sampleMimeType, format.codecs)
+            if (sampleFormat == null && format.sampleMimeType != MimeTypes.APPLICATION_MEDIA3_CUES) {
                 sampleFormat = format.sampleMimeType
             }
             if (sampleFormat != null) {
@@ -35,6 +32,15 @@ class CustomDefaultTrackNameProvider(resources: Resources) : DefaultTrackNamePro
     }
 
     companion object {
+        fun resolveCodecName(mimeType: String?, codecs: String?): String? {
+            formatNameFromMime(mimeType)?.let { return it }
+            if (codecs == null) return null
+            formatNameFromMime(codecs)?.let { return it }
+            MimeTypes.getVideoMediaMimeType(codecs)?.let { formatNameFromMime(it) }?.let { return it }
+            MimeTypes.getMediaMimeType(codecs)?.let { formatNameFromMime(it) }?.let { return it }
+            return null
+        }
+
         fun formatNameFromMime(mimeType: String?): String? {
             if (mimeType == null) return null
 
@@ -78,14 +84,13 @@ class CustomDefaultTrackNameProvider(resources: Resources) : DefaultTrackNamePro
             }
         }
 
-        fun getChannelLayoutName(channelCount: Int): String? {
-            return when (channelCount) {
+        fun getChannelLayoutName(channelCount: Int): String? =
+            when (channelCount) {
                 1 -> "Mono"
                 2 -> "Stereo"
                 6 -> "5.1"
                 8 -> "7.1"
                 else -> if (channelCount > 0) "${channelCount}ch" else null
             }
-        }
     }
 }
