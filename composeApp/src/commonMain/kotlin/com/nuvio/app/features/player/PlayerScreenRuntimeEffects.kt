@@ -392,6 +392,19 @@ internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
         }
     }
 
+    LaunchedEffect(addonSubtitles, isLoadingAddonSubtitles, playerController, activeVideoId) {
+        if (isLoadingAddonSubtitles || playerController == null || manualSubtitleSelectionLocked) {
+            return@LaunchedEffect
+        }
+        if (selectedAddonSubtitleId != null) return@LaunchedEffect
+        val preference = PlayerTrackPreferenceStorage.load(parentMetaId) ?: return@LaunchedEffect
+        if (preference.subtitleType != PersistedSubtitleSelectionType.ADDON) return@LaunchedEffect
+        // Persisted add-on choices are resolved only after this episode's add-on list
+        // settles; the stored URL is intentionally not reused across episodes.
+        trackPreferenceRestoreApplied = false
+        refreshTracks()
+    }
+
     LaunchedEffect(
         playerController,
         playbackSnapshot.isLoading,
