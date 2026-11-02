@@ -7,14 +7,17 @@ import kotlinx.coroutines.delay
 
 private const val TMDB_RETRY_BASE_DELAY_MS = 250L
 
+internal fun normalizeTmdbCredential(value: String): String =
+    value.trim().removePrefix("Bearer ").trim()
+
 internal fun isTmdbReadAccessToken(value: String): Boolean {
-    val segments = value.trim().split('.')
+    val segments = normalizeTmdbCredential(value).split('.')
     return segments.size == 3 && segments.all { it.isNotBlank() }
 }
 
 internal fun tmdbAuthorizationHeaders(value: String): Map<String, String> =
     if (isTmdbReadAccessToken(value)) {
-        mapOf("Authorization" to "Bearer ${value.trim()}")
+        mapOf("Authorization" to "Bearer ${normalizeTmdbCredential(value)}")
     } else {
         emptyMap()
     }
@@ -26,7 +29,7 @@ internal fun buildTmdbUrl(
 ): String {
     val params = linkedMapOf<String, String>()
     if (!isTmdbReadAccessToken(apiKey)) {
-        params["api_key"] = apiKey
+        params["api_key"] = normalizeTmdbCredential(apiKey)
     }
     query.forEach { (key, value) ->
         if (value.isNotBlank()) {
