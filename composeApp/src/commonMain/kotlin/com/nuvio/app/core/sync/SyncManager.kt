@@ -2,7 +2,6 @@ package com.nuvio.app.core.sync
 
 import co.touchlab.kermit.Logger
 import com.nuvio.app.core.auth.AuthRepository
-import com.nuvio.app.core.auth.AuthState
 import com.nuvio.app.core.build.AppFeaturePolicy
 import com.nuvio.app.core.time.EpisodeReleaseDatePlatform
 import com.nuvio.app.features.addons.AddonRepository
@@ -261,8 +260,7 @@ object SyncManager {
     }
 
     fun requestForegroundPull(profileId: Int, force: Boolean = false) {
-        val authState = AuthRepository.state.value
-        if (authState !is AuthState.Authenticated || authState.isAnonymous) return
+        if (!AuthRepository.hasValidatedRemoteSession()) return
 
         if (!force && hasRecentFullPull(profileId)) {
             return
@@ -345,16 +343,14 @@ object SyncManager {
         profileId: Int,
         reason: String,
     ) {
-        val authState = AuthRepository.state.value
-        if (authState !is AuthState.Authenticated || authState.isAnonymous) return
+        if (!AuthRepository.hasValidatedRemoteSession()) return
         if (ProfileRepository.activeProfileId != profileId) return
 
         val result = fullSyncRequestGate.launch(
             scope = accountScopeSnapshot(),
             profileId = profileId,
         ) {
-            val currentAuthState = AuthRepository.state.value
-            if (currentAuthState !is AuthState.Authenticated || currentAuthState.isAnonymous) return@launch
+            if (!AuthRepository.hasValidatedRemoteSession()) return@launch
             if (ProfileRepository.activeProfileId != profileId) return@launch
 
             log.i { "Full profile sync started profile=$profileId reason=$reason" }
@@ -399,8 +395,7 @@ object SyncManager {
     }
 
     fun startPeriodicNuvioSyncPull(profileId: Int) {
-        val authState = AuthRepository.state.value
-        if (authState !is AuthState.Authenticated || authState.isAnonymous) {
+        if (!AuthRepository.hasValidatedRemoteSession()) {
             stopPeriodicNuvioSyncPull()
             return
         }
@@ -412,9 +407,9 @@ object SyncManager {
             while (isActive) {
                 delay(PERIODIC_NUVIO_SYNC_PULL_INTERVAL_MS)
 
-                val currentAuthState = AuthRepository.state.value
-                if (currentAuthState !is AuthState.Authenticated || currentAuthState.isAnonymous) {
-                    continue
+                if (!AuthRepository.hasValidatedRemoteSession()) {
+                    stopPeriodicNuvioSyncPull()
+                    return@launch
                 }
                 if (ProfileRepository.activeProfileId != profileId) {
                     continue
