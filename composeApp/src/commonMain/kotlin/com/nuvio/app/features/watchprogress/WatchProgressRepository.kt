@@ -1356,13 +1356,11 @@ object WatchProgressRepository {
         if (activeSource.providerId != null || entries.isEmpty()) return
         val profileId = currentProfileId
         synchronized(entriesLock) {
-            entries.forEach { entry ->
-                val key = entry.resolvedProgressKey()
-                val current = pendingDeleteEntries[key]
-                if (current == null || entry.lastUpdatedEpochMs >= current.lastUpdatedEpochMs) {
-                    pendingDeleteEntries[key] = entry
-                }
-            }
+            pendingDeleteEntries = mergePendingWatchProgressDeletes(
+                existing = pendingDeleteEntries.values,
+                deleted = entries,
+                keyOf = WatchProgressEntry::resolvedProgressKey,
+            ).associateBy { entry -> entry.resolvedProgressKey() }.toMutableMap()
         }
         persistPendingDeleteEntries(profileId)
         schedulePendingRemoteChangesFlush()
@@ -1632,11 +1630,11 @@ object WatchProgressRepository {
         profileId: Int,
         pushedEntries: Collection<WatchProgressEntry>,
     ) {
-        val pushedByKey = pushedEntries.associateBy { entry -> entry.resolvedProgressKey() }
-        val remaining = loadPendingDeleteEntries(profileId).filterNot { pending ->
-            val pushed = pushedByKey[pending.resolvedProgressKey()]
-            pushed != null && pending.lastUpdatedEpochMs <= pushed.lastUpdatedEpochMs
-        }
+        val remaining = acknowledgePendingWatchProgressDeletes(
+            pending = loadPendingDeleteEntries(profileId),
+            pushed = pushedEntries,
+            keyOf = WatchProgressEntry::resolvedProgressKey,
+        )
         val payload = pendingDeleteJson.encodeToString(
             ListSerializer(WatchProgressEntry.serializer()),
             remaining,
