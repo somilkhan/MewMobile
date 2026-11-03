@@ -69,6 +69,10 @@ internal fun PlayerScreenRuntime.resetIdentityStateIfNeeded() {
         lastResetPlaybackIdentity = identity
         shouldPlay = true
         initialLoadCompleted = false
+        playbackEngineOverride = null
+        engineFailoverTriggered = false
+        engineFailoverDisarmed = false
+        pendingEngineSwitchTrackPreference = null
         showStreamInfo = false
         speedBoostRestoreSpeed = null
         isHoldToSpeedGestureActive = false
