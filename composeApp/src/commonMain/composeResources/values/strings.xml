@@ -2960,4 +2960,7 @@
     <string name="player_stream_info_audio_codec">Audio codec</string>
     <string name="player_stream_info_audio_channels">Audio channels</string>
     <string name="player_stream_info_audio_rate">Audio sample rate</string>
+    <string name="player_stream_info_addon_id">Add-on ID</string>
+    <string name="player_stream_info_filename">File name</string>
+    <string name="player_stream_info_hash">Torrent info hash</string>
 </resources>

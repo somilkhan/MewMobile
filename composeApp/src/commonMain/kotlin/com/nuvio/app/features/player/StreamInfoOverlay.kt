@@ -13,6 +13,9 @@ import nuvio.composeapp.generated.resources.player_stream_info_title
 import nuvio.composeapp.generated.resources.player_stream_info_provider
 import nuvio.composeapp.generated.resources.player_stream_info_stream
 import nuvio.composeapp.generated.resources.player_stream_info_description
+import nuvio.composeapp.generated.resources.player_stream_info_addon_id
+import nuvio.composeapp.generated.resources.player_stream_info_filename
+import nuvio.composeapp.generated.resources.player_stream_info_hash
 import nuvio.composeapp.generated.resources.player_stream_info_engine
 import nuvio.composeapp.generated.resources.player_stream_info_type
 import nuvio.composeapp.generated.resources.player_stream_info_resolution
@@ -37,6 +40,9 @@ internal fun StreamInfoOverlay(
     provider: String,
     streamTitle: String,
     streamSubtitle: String?,
+    addonId: String?,
+    filename: String?,
+    infoHash: String?,
     engine: AndroidPlaybackEngine?,
     streamType: String?,
     resolution: String?,
@@ -62,6 +68,9 @@ internal fun StreamInfoOverlay(
             InfoLine(stringResource(Res.string.player_stream_info_provider), provider)
             InfoLine(stringResource(Res.string.player_stream_info_stream), streamTitle)
             InfoLine(stringResource(Res.string.player_stream_info_description), streamSubtitle)
+            InfoLine(stringResource(Res.string.player_stream_info_addon_id), addonId)
+            InfoLine(stringResource(Res.string.player_stream_info_filename), filename)
+            InfoLine(stringResource(Res.string.player_stream_info_hash), infoHash)
             InfoLine(stringResource(Res.string.player_stream_info_engine), engine?.label)
             InfoLine(stringResource(Res.string.player_stream_info_type), streamType?.takeIf(String::isNotBlank))
             InfoLine(stringResource(Res.string.player_stream_info_resolution), resolution)
