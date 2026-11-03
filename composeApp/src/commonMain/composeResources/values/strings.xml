@@ -2952,4 +2952,5 @@
     <string name="player_stream_info_type">Source type</string>
     <string name="player_stream_info_resolution">Video resolution</string>
     <string name="player_stream_info_action">Stream information</string>
+    <string name="player_toolbar_button_stream_info">Stream info</string>
 </resources>

@@ -10,7 +10,8 @@ enum class PlayerToolbarButton(val storageId: String) {
     CHANNELS("channels"),
     SOURCES("sources"),
     EPISODES("episodes"),
-    NEXT_EPISODE("next_episode");
+    NEXT_EPISODE("next_episode"),
+    STREAM_INFO("stream_info");
 
     companion object {
         fun fromStorageId(value: String): PlayerToolbarButton? =

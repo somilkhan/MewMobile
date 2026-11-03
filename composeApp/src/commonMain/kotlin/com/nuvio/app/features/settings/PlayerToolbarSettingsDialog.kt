@@ -52,6 +52,7 @@ private val PlayerToolbarButton.labelRes: StringResource
         PlayerToolbarButton.SOURCES -> Res.string.compose_player_sources
         PlayerToolbarButton.EPISODES -> Res.string.compose_player_episodes
         PlayerToolbarButton.NEXT_EPISODE -> Res.string.compose_player_next_ep
+        PlayerToolbarButton.STREAM_INFO -> Res.string.player_toolbar_button_stream_info
     }
 
 @Composable
