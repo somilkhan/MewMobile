@@ -484,8 +484,10 @@ private fun PlayerScreenRuntime.RenderPlayerControls(displayedPositionMs: Long, 
                 horizontalSafePadding = horizontalSafePadding,
                 modifier = Modifier.fillMaxSize(),
             )
-            TextButton(onClick = { showPartyPanel = true }, modifier = Modifier.align(Alignment.TopEnd).padding(12.dp)) { Text(stringResource(Res.string.party_title)) }
-            RenderPartyPanel()
+            Box(Modifier.fillMaxSize()) {
+                TextButton(onClick = { showPartyPanel = true }, modifier = Modifier.align(Alignment.TopEnd).padding(12.dp)) { Text(stringResource(Res.string.party_title)) }
+                RenderPartyPanel()
+            }
         }
     }
 }

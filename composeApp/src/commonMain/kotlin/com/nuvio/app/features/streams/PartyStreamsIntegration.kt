@@ -11,7 +11,6 @@ import com.nuvio.app.features.party.PartySource
 import com.nuvio.app.features.party.PartyStream
 import com.nuvio.app.features.party.partyMediaKey
 import com.nuvio.app.features.party.matches
-import com.nuvio.app.features.party.toStreamItem
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.party_shared_by
 import nuvio.composeapp.generated.resources.party_source
