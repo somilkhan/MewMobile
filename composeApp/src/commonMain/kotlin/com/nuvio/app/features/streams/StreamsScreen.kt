@@ -1127,6 +1127,8 @@ internal fun StreamList(
     resumeProgressFraction: Float?,
     modifier: Modifier = Modifier,
 ) {
+    val sharedStream = LocalSharedStream.current
+    val streamHighlight = LocalStreamHighlight.current
     val filteredGroups = uiState.filteredGroups.withPinnedGroupsFirst(pinnedSourceIds)
     val hasGroups = filteredGroups.isNotEmpty()
     val hasAnyStreams = filteredGroups.any { it.streams.isNotEmpty() }
@@ -1148,6 +1150,25 @@ internal fun StreamList(
         ),
         verticalArrangement = Arrangement.spacedBy(0.dp),
     ) {
+        sharedStream?.let { shared ->
+            item(key = "party_shared_stream", contentType = STREAM_CONTENT_TYPE_STREAM) {
+                Column {
+                    StreamSectionHeader(addonName = shared.label, isLoading = false)
+                    StreamCard(
+                        stream = shared.stream,
+                        enabled = true,
+                        appendInstantServiceToDefaultName = false,
+                        showFileSizeBadges = streamBadgeSettings.showFileSizeBadges,
+                        showAddonLogo = streamBadgeSettings.showAddonLogo,
+                        badgePlacement = streamBadgeSettings.badgePlacement,
+                        onClick = { onStreamSelected(shared.stream, resumePositionMs, resumeProgressFraction) },
+                        isCurrent = true,
+                        currentLabel = stringResource(Res.string.party_source),
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                }
+            }
+        }
         when {
             hasGroups && anyLoading && !hasAnyStreams -> {
                 item(
@@ -1158,7 +1179,7 @@ internal fun StreamList(
                 }
             }
 
-            !hasAnyStreams && !uiState.isAnyLoading -> {
+            !hasAnyStreams && !uiState.isAnyLoading && sharedStream == null -> {
                 item(
                     key = "streams_empty",
                     contentType = STREAM_CONTENT_TYPE_EMPTY,
@@ -1309,6 +1330,8 @@ private fun LazyListScope.streamSection(
                         onStreamLongPress(stream)
                     }
                 },
+                isCurrent = streamHighlight?.invoke(stream) != null,
+                currentLabel = streamHighlight?.invoke(stream),
             )
             Spacer(modifier = Modifier.height(10.dp))
         }

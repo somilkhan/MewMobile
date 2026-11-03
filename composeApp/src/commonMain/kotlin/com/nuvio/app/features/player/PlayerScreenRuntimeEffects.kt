@@ -462,6 +462,7 @@ internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
         initialSeekApplied = true
     }
 
+    BindPartyEffects()
     BindPlayerUiVisibilityEffects()
     BindPlayerMetadataAndSkipEffects(networkStatus)
 
