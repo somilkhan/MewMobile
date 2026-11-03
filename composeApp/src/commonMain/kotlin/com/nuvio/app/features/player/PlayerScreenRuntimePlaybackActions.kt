@@ -14,7 +14,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.player_engine_switching_manual_message
-import nuvio.composeapp.generated.resources.player_engine_switching_automatic_message
 
 internal val PlayerScreenRuntime.activePlaybackIdentity: String
     get() = activeTorrentInfoHash
@@ -70,10 +69,6 @@ internal fun PlayerScreenRuntime.resetIdentityStateIfNeeded() {
         lastResetPlaybackIdentity = identity
         shouldPlay = true
         initialLoadCompleted = false
-        playbackEngineOverride = null
-        engineFailoverTriggered = false
-        engineFailoverDisarmed = false
-        pendingEngineSwitchTrackPreference = null
         speedBoostRestoreSpeed = null
         isHoldToSpeedGestureActive = false
         initialSeekApplied = activeInitialPositionMs <= 0L &&
@@ -384,26 +379,4 @@ internal fun PlayerScreenRuntime.switchPlaybackEngine() {
     playbackEngineOverride = target
     engineFailoverDisarmed = true
     showGestureFeedback(GestureFeedbackState(messageRes = Res.string.player_engine_switching_manual_message, messageArgs = listOf(target.label)))
-}
-
-internal fun PlayerScreenRuntime.maybeFailoverPlaybackEngine(): Boolean {
-    if (playerSettingsUiState.androidPlaybackEngine != AndroidPlaybackEngine.Auto) return false
-    if (engineFailoverDisarmed || engineFailoverTriggered) return false
-    val current = playerController?.playbackEngine ?: playbackEngineOverride ?: AndroidPlaybackEngine.ExoPlayer
-    val target = current.switchTarget
-    engineFailoverTriggered = true
-    flushWatchProgress()
-    if (initialSeekApplied) {
-        activeInitialPositionMs = playbackSnapshot.positionMs.coerceAtLeast(0L)
-        activeInitialProgressFraction = null
-    }
-    rememberCurrentTrackPreferenceForEngineSwitch(target)
-    playbackEngineOverride = target
-    showGestureFeedback(
-        GestureFeedbackState(
-            messageRes = Res.string.player_engine_switching_automatic_message,
-            messageArgs = listOf(target.label),
-        ),
-    )
-    return true
 }

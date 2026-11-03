@@ -2944,4 +2944,12 @@
     <string name="player_engine_switch_title">Switch to %1$s?</string>
     <string name="player_engine_switch_message">Playback will restart at the current position.</string>
     <string name="player_engine_switching_automatic_message">Playback failed. Switching to %1$s</string>
+    <string name="player_stream_info_title">STREAM INFORMATION</string>
+    <string name="player_stream_info_provider">Provider</string>
+    <string name="player_stream_info_stream">Stream</string>
+    <string name="player_stream_info_description">Description</string>
+    <string name="player_stream_info_engine">Playback engine</string>
+    <string name="player_stream_info_type">Source type</string>
+    <string name="player_stream_info_resolution">Video resolution</string>
+    <string name="player_stream_info_action">Stream information</string>
 </resources>

@@ -17,7 +17,6 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.dp
-import com.nuvio.app.core.ui.NuvioStatusModal
 import com.nuvio.app.core.ui.glass.LocalLiquidGlassBackdrop
 import com.nuvio.app.features.p2p.P2pStreamingState
 import com.nuvio.app.features.p2p.formatP2pMegabytes
@@ -199,7 +198,6 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
                     if (message != null && tryRefreshCredentialedSourceAfterError(message)) {
                         return@PlatformPlayerSurface
                     }
-                    if (message != null && maybeFailoverPlaybackEngine()) return@PlatformPlayerSurface
                     errorMessage = message
                     if (message != null) {
                         controlsVisible = !playerControlsLocked
@@ -254,7 +252,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
             )
         }
         RenderPlayerModals(displayedPositionMs = displayedPositionMs)
-        StreamInfoOverlay(visible = showStreamInfo, provider = activeProviderName, streamTitle = activeStreamTitle, streamSubtitle = activeStreamSubtitle, engine = playerController?.playbackEngine, streamType = activeStreamType, resolution = if (playbackSnapshot.videoWidth != null && playbackSnapshot.videoHeight != null) "${playbackSnapshot.videoWidth} × ${playbackSnapshot.videoHeight}" else null, onDismiss = { showStreamInfo = false })
+        StreamInfoOverlay(visible=showStreamInfo,provider=activeProviderName,streamTitle=activeStreamTitle,streamSubtitle=activeStreamSubtitle,engine=playerController?.playbackEngine,streamType=activeStreamType,resolution=if(playbackSnapshot.videoWidth!=null&&playbackSnapshot.videoHeight!=null) "${playbackSnapshot.videoWidth} × ${playbackSnapshot.videoHeight}" else null,onDismiss={showStreamInfo=false})
         val switchEngineTarget = playerController?.playbackEngine?.switchTarget
         if (switchEngineTarget != null) NuvioStatusModal(isVisible = showSwitchEngineConfirm, title = stringResource(Res.string.player_engine_switch_title, switchEngineTarget.label), message = stringResource(Res.string.player_engine_switch_message), confirmText = stringResource(Res.string.action_switch), dismissText = stringResource(Res.string.action_cancel), onConfirm = { showSwitchEngineConfirm = false; switchPlaybackEngine() }, onDismiss = { showSwitchEngineConfirm = false })
     }

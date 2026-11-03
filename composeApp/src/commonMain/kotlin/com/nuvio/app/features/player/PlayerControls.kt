@@ -680,7 +680,7 @@ private fun PlayerHeader(
                             onClick = onLockToggle,
                         )
                         if (onStreamInfoClick != null) {
-                            PlayerHeaderIconButton(icon = Icons.Rounded.Info, contentDescription = "Stream information", buttonSize = metrics.headerIconSize + 16.dp, iconSize = metrics.headerIconSize, onClick = onStreamInfoClick)
+                            PlayerHeaderIconButton(icon = Icons.Rounded.Info, contentDescription = stringResource(Res.string.player_stream_info_action), buttonSize = metrics.headerIconSize + 16.dp, iconSize = metrics.headerIconSize, onClick = onStreamInfoClick)
                         }
                         if (onVideoSettingsClick != null) {
                             PlayerHeaderIconButton(
