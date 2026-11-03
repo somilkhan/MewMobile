@@ -232,15 +232,10 @@ private enum class ResolvedAndroidPlaybackEngine {
 }
 
 private fun AndroidPlaybackEngine.initialAndroidEngine(streamType: String?): ResolvedAndroidPlaybackEngine =
-    when {
-        streamType.isMatroskaStreamType() -> ResolvedAndroidPlaybackEngine.Libmpv
-        this == AndroidPlaybackEngine.ExoPlayer -> ResolvedAndroidPlaybackEngine.ExoPlayer
-        this == AndroidPlaybackEngine.Libmpv -> ResolvedAndroidPlaybackEngine.Libmpv
-        else -> ResolvedAndroidPlaybackEngine.ExoPlayer
+    when (resolveForStream(streamType)) {
+        AndroidPlaybackEngine.ExoPlayer -> ResolvedAndroidPlaybackEngine.ExoPlayer
+        AndroidPlaybackEngine.Libmpv, AndroidPlaybackEngine.Auto -> ResolvedAndroidPlaybackEngine.Libmpv
     }
-
-private fun String?.isMatroskaStreamType(): Boolean =
-    this == "matroska" || this == "mkv"
 
 @androidx.annotation.OptIn(UnstableApi::class)
 @Composable

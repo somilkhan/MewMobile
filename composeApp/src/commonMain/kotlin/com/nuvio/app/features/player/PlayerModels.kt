@@ -93,6 +93,17 @@ enum class AndroidPlaybackEngine(
     Libmpv("libmpv"),
 }
 
+/**
+ * Auto prefers libmpv for Matroska, while explicit engine choices always win.
+ * This lets the in-player switch override Auto's stream-specific default.
+ */
+internal fun AndroidPlaybackEngine.resolveForStream(streamType: String?): AndroidPlaybackEngine =
+    when (this) {
+        Auto -> if (streamType == "matroska" || streamType == "mkv") Libmpv else ExoPlayer
+        ExoPlayer, Libmpv -> this
+    }
+
+
 enum class AndroidLibmpvVideoOutput(
     val mpvValue: String,
     val label: String,
