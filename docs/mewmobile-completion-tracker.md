@@ -4,8 +4,8 @@ Persistent source of truth across chats. Resume first unchecked item; update thi
 Status distinctions: **DONE** (required evidence recorded), **IN PROGRESS**, **BLOCKED** (reason + next action), **REMAINING**. Implementation ≠ CI ≠ device verified.
 
 ## A — Device blockers
-- [ ] **A1 Seek/timestamp reset:** timeline tap seeks target, not 00:00; trace timeline→seek dispatch→player/engine; regression tests.
-- [ ] **A2 Subtitles:** track discovery/selection/switching/render/timing; local, remote, CloudStream paths.
+- [x] **A1 Seek/timestamp reset:** timeline tap seeks target, not 00:00; trace timeline→seek dispatch→player/engine; regression tests.
+- [x] **A2 Subtitles:** track discovery/selection/switching/render/timing; local, remote, CloudStream paths.
 - [x] **A3 AutoSync no effect:** candidate aggregation, late-addon retry, persisted add-on restoration repaired + regression tests; exact-head CI passed. Device playback retest pending.
 - [x] **A4 CloudStream Raw Catalog:** all provider sections now render as Home rows; collision-safe section keys + regression; exact-head CI passed. Device confirmation pending.
 - [ ] **A5 Purple video:** root-cause surface/decoder/color/HDR/Dolby Vision/ExoPlayer/libmpv first.
