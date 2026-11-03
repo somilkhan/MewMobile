@@ -99,8 +99,12 @@ enum class AndroidPlaybackEngine(
  */
 internal fun AndroidPlaybackEngine.resolveForStream(streamType: String?): AndroidPlaybackEngine =
     when (this) {
-        Auto -> if (streamType == "matroska" || streamType == "mkv") Libmpv else ExoPlayer
-        ExoPlayer, Libmpv -> this
+        AndroidPlaybackEngine.Auto -> if (streamType == "matroska" || streamType == "mkv") {
+            AndroidPlaybackEngine.Libmpv
+        } else {
+            AndroidPlaybackEngine.ExoPlayer
+        }
+        AndroidPlaybackEngine.ExoPlayer, AndroidPlaybackEngine.Libmpv -> this
     }
 
 

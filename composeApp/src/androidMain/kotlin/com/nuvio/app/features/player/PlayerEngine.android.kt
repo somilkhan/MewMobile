@@ -237,6 +237,9 @@ private fun AndroidPlaybackEngine.initialAndroidEngine(streamType: String?): Res
         AndroidPlaybackEngine.Libmpv, AndroidPlaybackEngine.Auto -> ResolvedAndroidPlaybackEngine.Libmpv
     }
 
+private fun String?.isMatroskaStreamType(): Boolean =
+    this == "matroska" || this == "mkv"
+
 @androidx.annotation.OptIn(UnstableApi::class)
 @Composable
 private fun ExoPlayerSurface(
