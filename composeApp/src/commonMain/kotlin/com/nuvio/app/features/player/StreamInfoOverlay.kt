@@ -16,6 +16,11 @@ import nuvio.composeapp.generated.resources.player_stream_info_description
 import nuvio.composeapp.generated.resources.player_stream_info_addon_id
 import nuvio.composeapp.generated.resources.player_stream_info_filename
 import nuvio.composeapp.generated.resources.player_stream_info_hash
+import nuvio.composeapp.generated.resources.player_stream_info_audio_track
+import nuvio.composeapp.generated.resources.player_stream_info_audio_language
+import nuvio.composeapp.generated.resources.player_stream_info_subtitle_track
+import nuvio.composeapp.generated.resources.player_stream_info_subtitle_language
+import nuvio.composeapp.generated.resources.player_stream_info_subtitle_source
 import nuvio.composeapp.generated.resources.player_stream_info_engine
 import nuvio.composeapp.generated.resources.player_stream_info_type
 import nuvio.composeapp.generated.resources.player_stream_info_resolution
@@ -43,6 +48,9 @@ internal fun StreamInfoOverlay(
     addonId: String?,
     filename: String?,
     infoHash: String?,
+    audioTrack: AudioTrack?,
+    subtitleTrack: SubtitleTrack?,
+    addonSubtitle: AddonSubtitle?,
     engine: AndroidPlaybackEngine?,
     streamType: String?,
     resolution: String?,
@@ -71,6 +79,11 @@ internal fun StreamInfoOverlay(
             InfoLine(stringResource(Res.string.player_stream_info_addon_id), addonId)
             InfoLine(stringResource(Res.string.player_stream_info_filename), filename)
             InfoLine(stringResource(Res.string.player_stream_info_hash), infoHash)
+            InfoLine(stringResource(Res.string.player_stream_info_audio_track), audioTrack?.label)
+            InfoLine(stringResource(Res.string.player_stream_info_audio_language), audioTrack?.language)
+            InfoLine(stringResource(Res.string.player_stream_info_subtitle_track), addonSubtitle?.display ?: subtitleTrack?.label)
+            InfoLine(stringResource(Res.string.player_stream_info_subtitle_language), addonSubtitle?.language ?: subtitleTrack?.language)
+            InfoLine(stringResource(Res.string.player_stream_info_subtitle_source), when { addonSubtitle != null -> addonSubtitle.addonName ?: "Add-on"; subtitleTrack != null -> "Embedded"; else -> null })
             InfoLine(stringResource(Res.string.player_stream_info_engine), engine?.label)
             InfoLine(stringResource(Res.string.player_stream_info_type), streamType?.takeIf(String::isNotBlank))
             InfoLine(stringResource(Res.string.player_stream_info_resolution), resolution)

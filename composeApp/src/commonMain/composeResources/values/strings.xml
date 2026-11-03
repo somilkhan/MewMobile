@@ -2963,4 +2963,9 @@
     <string name="player_stream_info_addon_id">Add-on ID</string>
     <string name="player_stream_info_filename">File name</string>
     <string name="player_stream_info_hash">Torrent info hash</string>
+    <string name="player_stream_info_audio_track">Audio track</string>
+    <string name="player_stream_info_audio_language">Audio language</string>
+    <string name="player_stream_info_subtitle_track">Subtitle track</string>
+    <string name="player_stream_info_subtitle_language">Subtitle language</string>
+    <string name="player_stream_info_subtitle_source">Subtitle source</string>
 </resources>
