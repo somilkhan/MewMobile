@@ -245,6 +245,8 @@ internal class PlayerScreenRuntime(
     var autoAddonFallbackPending by mutableStateOf(false)
     var preferredAudioSelectionApplied by mutableStateOf(false)
     var preferredSubtitleSelectionApplied by mutableStateOf(false)
+    var isUserExplicitAudioSelection by mutableStateOf(false)
+    var isUserExplicitSubtitleSelection by mutableStateOf(false)
     var manualSubtitleSelectionLocked by mutableStateOf(false)
     var lastAppliedSubtitlePreferenceKey: String? = null
     var activeSubtitleTab by mutableStateOf(SubtitleTab.BuiltIn)
