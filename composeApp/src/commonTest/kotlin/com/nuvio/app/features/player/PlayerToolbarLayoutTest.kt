@@ -26,6 +26,13 @@ class PlayerToolbarLayoutTest {
     }
 
     @Test
+    fun streamInfoVisibilityPersistsInToolbarLayout() {
+        val layout = PlayerToolbarLayout.Default.withVisibility(PlayerToolbarButton.STREAM_INFO, false)
+        assertEquals(false, layout.entries.first { it.button == PlayerToolbarButton.STREAM_INFO }.visible)
+        assertEquals(layout, PlayerToolbarLayout.decode(layout.encode()))
+    }
+
+    @Test
     fun moveAndVisibilityReturnNewLayouts() {
         val defaults = PlayerToolbarLayout.Default
         assertNotEquals(defaults, defaults.withVisibility(PlayerToolbarButton.AUDIO, false))
