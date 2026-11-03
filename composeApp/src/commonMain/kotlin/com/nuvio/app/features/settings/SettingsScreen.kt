@@ -125,6 +125,7 @@ fun SettingsScreen(
     onRequestedPageConsumed: () -> Unit = {},
     rootActionsEnabled: Boolean = true,
     onNavigatePage: ((pageName: String, title: String) -> Unit)? = null,
+    onWatchPartyClick: () -> Unit = {},
     onExternalBack: (() -> Unit)? = null,
     showInternalHeader: Boolean = true,
     onSwitchProfile: (() -> Unit)? = null,
@@ -1233,6 +1234,7 @@ private fun TabletSettingsScreen(
                             settingsRootContent(
                                 isTablet = true,
                                 onPlaybackClick = { openInlinePage(SettingsPage.Playback) },
+                                onWatchPartyClick = onWatchPartyClick,
                                 onAppearanceClick = { openInlinePage(SettingsPage.Appearance) },
                                 onAdvancedClick = { openInlinePage(SettingsPage.Advanced) },
                                 onNotificationsClick = { openInlinePage(SettingsPage.Notifications) },

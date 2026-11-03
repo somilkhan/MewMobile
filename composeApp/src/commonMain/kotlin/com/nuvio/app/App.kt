@@ -3327,6 +3327,10 @@ private fun MainAppContent(
                         }
                     }
                 }
+                entry<WatchPartyRoute> { route ->
+                    val onBack = rememberGuardedPopBackStack(navController, route)
+                    PartyScreen(initialCode = route.code, onBack = onBack, onWatch = { media -> navController.navigate(DetailRoute(media.metaType, media.metaId, media.title)) })
+                }
                 entry<PlayerRoute>(
                     metadata = if (isIos) {
                         NavDisplay.transitionSpec {
@@ -3388,6 +3392,7 @@ private fun MainAppContent(
                         initialProgressFraction = launch.initialProgressFraction,
                         contentLanguage = launch.contentLanguage,
                         onBack = onBack,
+                        onOpenPartyMedia = { media -> navController.navigate(DetailRoute(media.metaType, media.metaId, media.title)) },
                         onOpenInExternalPlayer = { request ->
                             val playerLaunch = PlayerLaunch(
                                 profileId = launch.profileId,
@@ -4216,6 +4221,7 @@ private fun AppTabHost(
                         onRequestedPageConsumed = onRequestedSettingsPageConsumed,
                         rootActionsEnabled = rootActionsEnabled && tab == AppScreenTab.Settings,
                         onNavigatePage = onSettingsPageClick,
+                        onWatchPartyClick = { navController.navigate(WatchPartyRoute()) },
                         onSwitchProfile = onSwitchProfile,
                         onHomescreenClick = onHomescreenSettingsClick,
                         onMetaScreenClick = onMetaScreenSettingsClick,

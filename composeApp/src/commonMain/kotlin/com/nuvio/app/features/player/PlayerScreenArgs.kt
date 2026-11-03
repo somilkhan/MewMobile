@@ -16,6 +16,7 @@ internal data class PlayerScreenArgs(
     val initialBingeGroup: String?,
     val pauseDescription: String?,
     val onBack: () -> Unit,
+    val onOpenPartyMedia: ((com.nuvio.app.features.party.PartyMedia) -> Unit)?,
     val onOpenInExternalPlayer: ((ExternalPlayerPlaybackRequest) -> Unit)?,
     val onOpenExternalUrl: ((String) -> Unit)?,
     val modifier: Modifier,

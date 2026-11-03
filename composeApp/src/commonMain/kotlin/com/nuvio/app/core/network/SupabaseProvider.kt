@@ -6,6 +6,12 @@ import io.github.jan.supabase.auth.Auth
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.functions.Functions
 import io.github.jan.supabase.postgrest.Postgrest
+import io.github.jan.supabase.realtime.Realtime
+import io.github.jan.supabase.realtime.websocket.KtorRealtimeWebsocketFactory
+import io.ktor.client.plugins.websocket.WebSockets
+import io.ktor.serialization.kotlinx.KotlinxWebsocketSerializationConverter
+import io.github.jan.supabase.supabaseJson
+import kotlin.time.Duration.Companion.seconds
 import io.ktor.client.plugins.HttpRequestRetry
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.defaultRequest
@@ -55,6 +61,12 @@ object SupabaseProvider {
             install(Auth)
             install(Postgrest)
             install(Functions)
+            install(WebSockets) { contentConverter = KotlinxWebsocketSerializationConverter(supabaseJson) }
+            install(Realtime) {
+                customUrl = SupabaseEndpointConfig.realtimeUrl(SupabaseConfig.URL)
+                reconnectDelay = 3.seconds
+                websocketFactory = RealtimeSocketFactory { url -> KtorRealtimeWebsocketFactory(client.httpClient.httpClient).create(url) }
+            }
         }
     }
 }
