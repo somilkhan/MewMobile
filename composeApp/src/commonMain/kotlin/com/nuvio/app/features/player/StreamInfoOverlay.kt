@@ -72,7 +72,7 @@ internal fun StreamInfoOverlay(
             modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth(.72f).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            Text("STREAM INFORMATION", style = MaterialTheme.typography.labelLarge, color = Color.White.copy(alpha = .6f), fontWeight = FontWeight.Bold)
+            Text(stringResource(Res.string.player_stream_info_title), style = MaterialTheme.typography.labelLarge, color = Color.White.copy(alpha = .6f), fontWeight = FontWeight.Bold)
             InfoLine(stringResource(Res.string.player_stream_info_provider), provider)
             InfoLine(stringResource(Res.string.player_stream_info_stream), streamTitle)
             InfoLine(stringResource(Res.string.player_stream_info_description), streamSubtitle)

@@ -2968,4 +2968,6 @@
     <string name="player_stream_info_subtitle_track">Subtitle track</string>
     <string name="player_stream_info_subtitle_language">Subtitle language</string>
     <string name="player_stream_info_subtitle_source">Subtitle source</string>
+    <string name="player_stream_info_subtitle_source_addon">Add-on</string>
+    <string name="player_stream_info_subtitle_source_embedded">Embedded</string>
 </resources>
