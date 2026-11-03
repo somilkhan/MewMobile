@@ -3250,6 +3250,12 @@ private fun MainAppContent(
                         }
                     }
 
+                    PartyStreamsProvider(
+                        metaType = launch.parentMetaType ?: launch.type,
+                        metaId = launch.parentMetaId ?: effectiveVideoId,
+                        season = launch.seasonNumber,
+                        episode = launch.episodeNumber,
+                    ) {
                     Box(modifier = Modifier.fillMaxSize()) {
                         StreamsScreen(
                             type = launch.type,
@@ -3331,6 +3337,7 @@ private fun MainAppContent(
                                 }
                             }
                         }
+                    }
                     }
                 }
                 entry<WatchPartyRoute> { route ->
