@@ -14,4 +14,26 @@ class PlayerOrientationPreferenceTest {
         assertEquals(3, PlayerOrientationPreference.captureOriginalOrientation(3))
         PlayerOrientationPreference.reset()
     }
+    @Test
+    fun toggleChangesPortraitStateAndCanToggleBack() {
+        PlayerOrientationPreference.reset()
+        assertEquals(false, PlayerOrientationPreference.portrait.value)
+        PlayerOrientationPreference.toggle()
+        assertEquals(true, PlayerOrientationPreference.portrait.value)
+        PlayerOrientationPreference.toggle()
+        assertEquals(false, PlayerOrientationPreference.portrait.value)
+        PlayerOrientationPreference.reset()
+    }
+
+    @Test
+    fun resetClearsToggleAndOriginalOrientationSession() {
+        PlayerOrientationPreference.reset()
+        PlayerOrientationPreference.captureOriginalOrientation(1)
+        PlayerOrientationPreference.toggle()
+        PlayerOrientationPreference.reset()
+        assertEquals(false, PlayerOrientationPreference.portrait.value)
+        assertEquals(3, PlayerOrientationPreference.captureOriginalOrientation(3))
+        PlayerOrientationPreference.reset()
+    }
+
 }
