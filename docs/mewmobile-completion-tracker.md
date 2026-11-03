@@ -13,7 +13,7 @@ Status distinctions: **DONE** (required evidence recorded), **IN PROGRESS**, **B
 - [ ] **A7 TMDB metadata:** source audit confirms `TmdbService` currently sends every configured credential as `api_key` query (v3 key contract only); v4 read-access JWT needs Bearer header support. Plugin numeric TMDB-ID normalization is separately implemented/CI-tested. Remaining: credential-type support + tests, metadata response/cache validation, device retest.
 
 ## B — Player/features
-- [ ] **B1** In-player engine switch; preserve playback state as feasible.
+- [x] **B1** In-player engine switch implemented via selective Enhanced port: manual switch, playback position/progress preservation, audio/subtitle carry-over, and one-shot Auto failover. Fixed explicit engine override being ignored for MKV/Matroska (Auto still defaults to libmpv); added 6 resolver/target tests. Exact-head CI and device verification pending.
 - [ ] **B2** Liquid Glass OFF=default player; ON=distinct alternate layout (preference centralized, layout incomplete).
 - [ ] **B3** Player/stream labels, source-review and selective upstream port.
 - [ ] **B4 Watch Party: reuse Nuvio backend; auth/capabilities, RPC/realtime/presence, clock/drift, chat/permissions, UI/player/tests. Not just a button.
@@ -87,3 +87,6 @@ Device candidate 4d838a356a658bf21c9eab0d63c83124d9ba5dd4 tested, not accepted. 
 - Do not claim device pass from CI. Capture APK SHA, install/update result, and per-flow pass/fail; raw logs must be redacted.
 
 | 2026-11-03 | A6 Phase 5 gate recorded | Added toggle/toggle-back/session-reset regression tests in `PlayerOrientationPreferenceTest`; exact SHA `bcea1c41413269e168128b8c7fc2fc8fe435f24e` CI [41568896612](https://github.com/somilkhan/MewMobile/actions/runs/41568896612) SUCCESS (host tests + Android Kotlin compile; APK skipped). A6 device verification explicitly deferred to Phase 5 checklist. | At Phase 5, generate the single test APK and execute A6 rotation/player-continuity checks; record device results. |
+
+
+| 2026-11-03 | B1 in-player engine switch implementation | Ported Enhanced runtime switch into existing Mew player/settings path. Manual switch flushes progress, resumes at current position, carries audio/internal/add-on/off subtitle selection, disarms automatic failover; Auto can fail over once on playback error. Fixed MKV/Matroska resolver precedence so explicit ExoPlayer choice is honored while Auto still defaults to libmpv; added resolver tests. Source commit `969dab964c29c0c110e86ff9c72e79bf9e115312`. Exact-head CI queued; previous compile attempt exposed broad unrelated Watch Party/Supabase/UI errors (88 diagnostics), so do not mark B1 accepted until latest CI verifies and blockers are triaged. Device test remains Phase 5.
