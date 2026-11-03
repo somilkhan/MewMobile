@@ -202,6 +202,7 @@ internal class PlayerScreenRuntime(
     var showPartyPanel by mutableStateOf(false)
     var showPartyChat by mutableStateOf(false)
     var partyBehind by mutableStateOf(false)
+    var partyBehindMs by mutableStateOf<Long?>(null)
     var partyRateNudge by mutableStateOf(false)
     var showSourcesPanel by mutableStateOf(false)
     var showEpisodesPanel by mutableStateOf(false)
