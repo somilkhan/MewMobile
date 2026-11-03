@@ -5,7 +5,6 @@ import com.nuvio.app.core.auth.AuthRepository
 import com.nuvio.app.core.auth.AuthState
 import com.nuvio.app.core.network.ServerConfigurationRepository
 import com.nuvio.app.core.sync.AppForegroundMonitor
-import com.nuvio.app.core.sync.AppVisibility
 import com.nuvio.app.core.sync.SyncClientIdentity
 import com.nuvio.app.features.profiles.AvatarRepository
 import com.nuvio.app.features.profiles.ProfileRepository
@@ -100,7 +99,6 @@ object PartyRepository {
             refreshEnabled()
             AppForegroundMonitor.events()
                 .flowOn(Dispatchers.Main)
-                .filter { it == AppVisibility.Foreground }
                 .collect { refreshEnabled() }
         }
     }
@@ -645,7 +643,7 @@ object PartyRepository {
         return PartyIdentity(
             deviceId = deviceId(),
             displayName = profile?.name?.trim()?.takeIf { it.isNotEmpty() }?.take(40) ?: DEFAULT_NAME,
-            avatarUrl = profile?.let { AvatarRepository.shareableImageUrl(it) }?.takeIf { it.startsWith("https://") && it.length <= 512 },
+            avatarUrl = profile?.avatarUrl?.takeIf { it.startsWith("https://") && it.length <= 512 },
             avatarColor = profile?.avatarColorHex?.takeIf { COLOR_PATTERN.matches(it) },
             profileIndex = profile?.profileIndex,
         )

@@ -1427,6 +1427,12 @@ private fun MainAppContent(
                         AppDeepLinkRepository.markConsumed(deepLink)
                     }
 
+                    is AppDeepLink.Party -> {
+                        activateTab(AppScreenTab.Home)
+                        navController.navigate(WatchPartyRoute(code = deepLink.code)) { launchSingleTop = true }
+                        AppDeepLinkRepository.markConsumed(deepLink)
+                    }
+
                     is AppDeepLink.AddonInstall -> {
                         activateTab(AppScreenTab.Settings)
                         navController.navigate(AddonsSettingsRoute(addonsSettingsTitle)) {

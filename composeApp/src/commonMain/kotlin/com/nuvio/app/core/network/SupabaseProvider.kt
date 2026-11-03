@@ -32,6 +32,7 @@ object SupabaseProvider {
                     connectTimeoutMillis = 30_000
                     socketTimeoutMillis = 60_000
                 }
+                install(WebSockets) { contentConverter = KotlinxWebsocketSerializationConverter(supabaseJson) }
                 if (SupabaseEndpointConfig.hasFallback) {
                     install(HttpRequestRetry) {
                         retryOnExceptionIf(maxRetries = 1) { request, cause ->
@@ -61,7 +62,6 @@ object SupabaseProvider {
             install(Auth)
             install(Postgrest)
             install(Functions)
-            install(WebSockets) { contentConverter = KotlinxWebsocketSerializationConverter(supabaseJson) }
             install(Realtime) {
                 customUrl = SupabaseEndpointConfig.realtimeUrl(SupabaseConfig.URL)
                 reconnectDelay = 3.seconds
