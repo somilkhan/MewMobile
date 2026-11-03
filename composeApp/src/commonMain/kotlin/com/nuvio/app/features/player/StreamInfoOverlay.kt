@@ -67,14 +67,19 @@ internal fun StreamInfoOverlay(
             InfoLine(stringResource(Res.string.player_stream_info_type), streamType?.takeIf(String::isNotBlank))
             InfoLine(stringResource(Res.string.player_stream_info_resolution), resolution)
             InfoLine(stringResource(Res.string.player_stream_info_codec), videoCodec)
-            InfoLine(stringResource(Res.string.player_stream_info_fps), videoFrameRate?.let { "${it.toInt()} fps" })
-            InfoLine(stringResource(Res.string.player_stream_info_bitrate), videoBitrate?.let { if (it >= 1_000_000) "${it / 1_000_000} Mbps" else "${it / 1_000} Kbps" })
+            InfoLine(stringResource(Res.string.player_stream_info_fps), videoFrameRate?.let(::formatFrameRate))
+            InfoLine(stringResource(Res.string.player_stream_info_bitrate), videoBitrate?.let { "${it / 1_000} Kbps" })
             InfoLine(stringResource(Res.string.player_stream_info_hdr), hdrFormat)
             InfoLine(stringResource(Res.string.player_stream_info_audio_codec), audioCodec)
             InfoLine(stringResource(Res.string.player_stream_info_audio_channels), audioChannels?.let { "$it ch" })
             InfoLine(stringResource(Res.string.player_stream_info_audio_rate), audioSampleRate?.let { "${it / 1_000} kHz" })
         }
     }
+}
+
+private fun formatFrameRate(frameRate: Float): String {
+    val hundredths = (frameRate * 100f + 0.5f).toInt()
+    return "${hundredths / 100}.${(hundredths % 100).toString().padStart(2, '0')} fps"
 }
 
 @Composable

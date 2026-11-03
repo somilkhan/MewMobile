@@ -2576,6 +2576,11 @@ private fun playerCodecLabel(raw: String): String = when (raw.trim().lowercase()
     "ac3", "audio/ac3" -> "AC-3"
     "truehd" -> "TrueHD"
     "mp4a", "aac", "audio/mp4a-latm" -> "AAC"
+    "opus", "audio/opus" -> "Opus"
+    "vorbis", "audio/vorbis" -> "Vorbis"
+    "flac", "audio/flac" -> "FLAC"
+    "dts", "audio/vnd.dts" -> "DTS"
+    "pcm", "audio/raw" -> "PCM"
     else -> raw.substringBefore('.').uppercase()
 }
 
