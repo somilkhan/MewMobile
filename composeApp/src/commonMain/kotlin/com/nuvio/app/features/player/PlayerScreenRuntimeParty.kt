@@ -88,10 +88,21 @@ internal fun PlayerScreenRuntime.BindPartyEffects() {
         while (true) {
             delay(400)
             val active = PartyRepository.state.value.party ?: break
+            val matchingPlayback = PartyRepository.playback.value?.takeIf {
+                it.mediaKey == partyMedia().key && !it.waiting
+            }
+            val expectedForPresence = matchingPlayback?.let {
+                PartySync.expectedPositionMs(it, PartyRepository.nowMs(), playbackSnapshot.durationMs)
+            }
+            val behindMs = expectedForPresence?.minus(playbackSnapshot.positionMs)
+                ?.takeIf { !active.isHost && it > PartySync.SEEK_THRESHOLD_MS }
+            partyBehindMs = behindMs
+            partyBehind = behindMs != null
             val localStatus = if (active.media.key != partyMedia().key) PartyMemberStatus.Browsing else when {
                 errorMessage != null -> PartyMemberStatus.Browsing
                 !initialLoadCompleted -> PartyMemberStatus.Loading
                 playbackSnapshot.isLoading -> PartyMemberStatus.Buffering
+                behindMs != null -> PartyMemberStatus.Behind
                 else -> PartyMemberStatus.Ready
             }
             if (localStatus != lastStatus) {
@@ -178,8 +189,19 @@ internal fun BoxScope.PlayerScreenRuntime.RenderPartyPanel() {
         onHostOnlyChange = { PartyRepository.setHostOnly(it) },
         canShareStream = partyStream() != null,
         onSharingChange = { PartyRepository.setSharing(it) },
-        behindMs = null,
-        onCatchUp = { partyBehind = false; showPartyPanel = false },
+        behindMs = partyBehindMs,
+        onCatchUp = {
+            val playback = PartyRepository.playback.value
+            val target = playback?.takeIf { it.mediaKey == partyMedia().key && !it.waiting }
+                ?.let { PartySync.expectedPositionMs(it, PartyRepository.nowMs(), playbackSnapshot.durationMs) }
+            if (target != null && playerController != null) {
+                playerController?.seekTo(target)
+                partyBehind = false
+                partyBehindMs = null
+                PartyRepository.setLocalStatus(PartyMemberStatus.Ready, partyMedia().key)
+                showPartyPanel = false
+            }
+        },
         onDismiss = { showPartyPanel = false },
     )
 }
