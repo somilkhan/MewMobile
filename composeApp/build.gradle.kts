@@ -347,6 +347,30 @@ val iosFrameworkBundleId = "com.nuvio.media"
 val nuvioEngineAppleFramework = rootProject.file("../nuvio-engine/platform/apple/NuvioEngine.xcframework")
 val fullCommonSourceDir = project.file("src/fullCommonMain/kotlin")
 val generatedRuntimeConfigDir = layout.buildDirectory.dir("generated/runtime-config/kotlin")
+
+// Fetch a pinned, SHA-256-verified libmpv AAR carrying libplacebo c93aa13.
+// The binary stays out of Git; builds consume the exact upstream artifact.
+val patchedMpvAar = layout.buildDirectory.file("verified-mpv/mpv-android-lib-0.1.12-sync-fix.aar")
+val downloadPatchedMpvAar = tasks.register<org.gradle.api.tasks.Exec>("downloadPatchedMpvAar") {
+    outputs.file(patchedMpvAar)
+    environment("MPV_AAR", patchedMpvAar.get().asFile.absolutePath)
+    environment("MPV_AAR_SHA256", "98ac952ad7b20b0ae74ace61716cc0ce65dca8474d37e2307b5391e0aaba6afb")
+    environment("MPV_AAR_URL", "https://raw.githubusercontent.com/i7xre/NuvioMobile/e0dbc58e1a10bf03588f3186cd71cc89f22c0c72/composeApp/libs/mpv-android-lib-0.1.12-sync-fix.aar")
+    commandLine("bash", "-c", listOf(
+        "set -euo pipefail",
+        "mkdir -p ${'$'}{MPV_AAR%/*}",
+        "if [[ -f ${'$'}MPV_AAR ]] && echo ${'$'}MPV_AAR_SHA256 ${'$'}MPV_AAR | sha256sum -c --status; then exit 0; fi",
+        "tmp=${'$'}MPV_AAR.download",
+        "curl --fail --location --retry 5 --retry-all-errors ${'$'}MPV_AAR_URL --output ${'$'}tmp",
+        "echo ${'$'}MPV_AAR_SHA256 ${'$'}tmp | sha256sum -c -",
+        "mv ${'$'}tmp ${'$'}MPV_AAR"
+    ).joinToString(" && "))
+}
+// AAR metadata/assets tasks resolve the local file before Kotlin compile tasks run.
+// Gate every Android task on the verified download, not only compilation.
+tasks.matching { it.name.contains("Android", ignoreCase = true) }.configureEach {
+    dependsOn(downloadPatchedMpvAar)
+}
 val requestedGradleTasks = gradle.startParameter.taskNames.map { taskName ->
     taskName.substringAfterLast(':').lowercase()
 }
@@ -599,7 +623,7 @@ kotlin {
                 implementation(libs.androidx.media3.common)
                 implementation(libs.androidx.media3.container)
                 implementation(libs.androidx.media3.extractor)
-                implementation(libs.mpv.android.lib)
+                implementation(files(patchedMpvAar))
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
                 implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("lib-*.aar"))))
                 if (androidDistribution == "full") {
