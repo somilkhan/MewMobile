@@ -7,8 +7,14 @@ import kotlinx.coroutines.delay
 
 private const val TMDB_RETRY_BASE_DELAY_MS = 250L
 
-internal fun normalizeTmdbCredential(value: String): String =
-    value.trim().removePrefix("Bearer ").trim()
+internal fun normalizeTmdbCredential(value: String): String {
+    val trimmed = value.trim()
+    return if (trimmed.startsWith("Bearer ", ignoreCase = true)) {
+        trimmed.substringAfter(' ').trim()
+    } else {
+        trimmed
+    }
+}
 
 internal fun isTmdbReadAccessToken(value: String): Boolean {
     val segments = normalizeTmdbCredential(value).split('.')
