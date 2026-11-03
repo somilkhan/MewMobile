@@ -2970,4 +2970,8 @@
     <string name="player_stream_info_subtitle_source">Subtitle source</string>
     <string name="player_stream_info_subtitle_source_addon">Add-on</string>
     <string name="player_stream_info_subtitle_source_embedded">Embedded</string>
+    <string name="player_stream_info_section_source">Source</string>
+    <string name="player_stream_info_section_video">Video</string>
+    <string name="player_stream_info_section_audio">Audio</string>
+    <string name="player_stream_info_section_subtitles">Subtitles</string>
 </resources>

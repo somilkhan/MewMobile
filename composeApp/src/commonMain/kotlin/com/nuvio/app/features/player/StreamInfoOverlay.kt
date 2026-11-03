@@ -73,27 +73,35 @@ internal fun StreamInfoOverlay(
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Text(stringResource(Res.string.player_stream_info_title), style = MaterialTheme.typography.labelLarge, color = Color.White.copy(alpha = .6f), fontWeight = FontWeight.Bold)
-            InfoLine(stringResource(Res.string.player_stream_info_provider), provider)
-            InfoLine(stringResource(Res.string.player_stream_info_stream), streamTitle)
-            InfoLine(stringResource(Res.string.player_stream_info_description), streamSubtitle)
-            InfoLine(stringResource(Res.string.player_stream_info_addon_id), addonId)
-            InfoLine(stringResource(Res.string.player_stream_info_filename), filename)
-            InfoLine(stringResource(Res.string.player_stream_info_hash), infoHash)
-            InfoLine(stringResource(Res.string.player_stream_info_audio_track), audioTrack?.label)
-            InfoLine(stringResource(Res.string.player_stream_info_audio_language), audioTrack?.language)
-            InfoLine(stringResource(Res.string.player_stream_info_subtitle_track), addonSubtitle?.display ?: subtitleTrack?.label)
-            InfoLine(stringResource(Res.string.player_stream_info_subtitle_language), addonSubtitle?.language ?: subtitleTrack?.language)
-            InfoLine(stringResource(Res.string.player_stream_info_subtitle_source), when { addonSubtitle != null -> addonSubtitle.addonName ?: stringResource(Res.string.player_stream_info_subtitle_source_addon); subtitleTrack != null -> stringResource(Res.string.player_stream_info_subtitle_source_embedded); else -> null })
-            InfoLine(stringResource(Res.string.player_stream_info_engine), engine?.label)
-            InfoLine(stringResource(Res.string.player_stream_info_type), streamType?.takeIf(String::isNotBlank))
-            InfoLine(stringResource(Res.string.player_stream_info_resolution), resolution)
-            InfoLine(stringResource(Res.string.player_stream_info_codec), videoCodec)
-            InfoLine(stringResource(Res.string.player_stream_info_fps), videoFrameRate?.let(::formatFrameRate))
-            InfoLine(stringResource(Res.string.player_stream_info_bitrate), videoBitrate?.let { "${it / 1_000} Kbps" })
-            InfoLine(stringResource(Res.string.player_stream_info_hdr), hdrFormat)
-            InfoLine(stringResource(Res.string.player_stream_info_audio_codec), audioCodec)
-            InfoLine(stringResource(Res.string.player_stream_info_audio_channels), audioChannels?.let { "$it ch" })
-            InfoLine(stringResource(Res.string.player_stream_info_audio_rate), audioSampleRate?.let(::formatSampleRate))
+            InfoSection(stringResource(Res.string.player_stream_info_section_source)) {
+                InfoLine(stringResource(Res.string.player_stream_info_provider), provider)
+                InfoLine(stringResource(Res.string.player_stream_info_stream), streamTitle)
+                InfoLine(stringResource(Res.string.player_stream_info_description), streamSubtitle)
+                InfoLine(stringResource(Res.string.player_stream_info_addon_id), addonId)
+                InfoLine(stringResource(Res.string.player_stream_info_filename), filename)
+                InfoLine(stringResource(Res.string.player_stream_info_hash), infoHash)
+                InfoLine(stringResource(Res.string.player_stream_info_type), streamType?.takeIf(String::isNotBlank))
+            }
+            InfoSection(stringResource(Res.string.player_stream_info_section_video)) {
+                InfoLine(stringResource(Res.string.player_stream_info_engine), engine?.label)
+                InfoLine(stringResource(Res.string.player_stream_info_resolution), resolution)
+                InfoLine(stringResource(Res.string.player_stream_info_codec), videoCodec)
+                InfoLine(stringResource(Res.string.player_stream_info_fps), videoFrameRate?.let(::formatFrameRate))
+                InfoLine(stringResource(Res.string.player_stream_info_bitrate), videoBitrate?.let { "${it / 1_000} Kbps" })
+                InfoLine(stringResource(Res.string.player_stream_info_hdr), hdrFormat)
+            }
+            InfoSection(stringResource(Res.string.player_stream_info_section_audio)) {
+                InfoLine(stringResource(Res.string.player_stream_info_audio_track), audioTrack?.label)
+                InfoLine(stringResource(Res.string.player_stream_info_audio_language), audioTrack?.language)
+                InfoLine(stringResource(Res.string.player_stream_info_audio_codec), audioCodec)
+                InfoLine(stringResource(Res.string.player_stream_info_audio_channels), audioChannels?.let { "$it ch" })
+                InfoLine(stringResource(Res.string.player_stream_info_audio_rate), audioSampleRate?.let(::formatSampleRate))
+            }
+            InfoSection(stringResource(Res.string.player_stream_info_section_subtitles)) {
+                InfoLine(stringResource(Res.string.player_stream_info_subtitle_track), addonSubtitle?.display ?: subtitleTrack?.label)
+                InfoLine(stringResource(Res.string.player_stream_info_subtitle_language), addonSubtitle?.language ?: subtitleTrack?.language)
+                InfoLine(stringResource(Res.string.player_stream_info_subtitle_source), when { addonSubtitle != null -> addonSubtitle.addonName ?: stringResource(Res.string.player_stream_info_subtitle_source_addon); subtitleTrack != null -> stringResource(Res.string.player_stream_info_subtitle_source_embedded); else -> null })
+            }
         }
     }
 }
@@ -106,6 +114,14 @@ private fun formatFrameRate(frameRate: Float): String {
 private fun formatSampleRate(sampleRate: Int): String {
     val tenths = (sampleRate + 50) / 100
     return "${tenths / 10}.${tenths % 10} kHz"
+}
+
+@Composable
+private fun InfoSection(title: String, content: @Composable () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(title, style = MaterialTheme.typography.labelLarge, color = Color.White.copy(alpha = .6f), fontWeight = FontWeight.Bold)
+        content()
+    }
 }
 
 @Composable
