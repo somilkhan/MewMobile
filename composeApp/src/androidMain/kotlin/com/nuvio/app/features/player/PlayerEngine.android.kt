@@ -168,7 +168,7 @@ actual fun PlatformPlayerSurface(
         externalSubtitles,
     )
     val requestedEngine = playbackEngine ?: playerSettings.androidPlaybackEngine
-    var activeEngine by remember(playerSourceKey, requestedEngine) {
+    val activeEngine by remember(playerSourceKey, requestedEngine) {
         mutableStateOf(requestedEngine.initialAndroidEngine(normalizedStreamType))
     }
     when (activeEngine) {
@@ -194,14 +194,8 @@ actual fun PlatformPlayerSurface(
                     // Audio route failures do not prove that the stream needs another
                     // engine. Keep the existing player/source and show the actual error.
                     onError(message.removePrefix(AUDIO_ROUTE_ERROR_PREFIX))
-                } else if (message != null && playerSettings.androidPlaybackEngine == AndroidPlaybackEngine.Auto) {
-                    Log.w(TAG, "ExoPlayer failed; falling back to libmpv: $message")
-                    initialPositionRequestKey?.let { key ->
-                        onInitialPositionHandled(key, false)
-                    }
-                    activeEngine = ResolvedAndroidPlaybackEngine.Libmpv
-                    onError(null)
                 } else {
+                    // Runtime owns engine failover so it can preserve position and tracks.
                     onError(message)
                 }
             },
