@@ -36,6 +36,7 @@ import androidx.compose.material.icons.rounded.AccessTime
 import androidx.compose.material.icons.rounded.Build
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Flag
+import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Forward10
 import androidx.compose.material.icons.rounded.Forward5
 import androidx.compose.material.icons.rounded.Forward30
@@ -64,7 +65,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import nuvio.composeapp.generated.resources.Res
-import nuvio.composeapp.generated.resources.player_stream_info_action
+import nuvio.composeapp.generated.resources.player_toolbar_button_stream_info
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -277,6 +278,7 @@ internal fun PlayerControlsShell(
                     qualityLabel = qualityLabel,
                     onQualityClick = onQualityClick,
                     onChannelsClick = onChannelsClick,
+                    onStreamInfoClick = onStreamInfoClick,
                     onSourcesClick = onSourcesClick,
                     onEpisodesClick = onEpisodesClick,
                     onNextEpisodeClick = onNextEpisodeClick,
@@ -882,6 +884,7 @@ private fun ProgressControls(
     qualityLabel: String? = null,
     onQualityClick: (() -> Unit)? = null,
     onChannelsClick: (() -> Unit)? = null,
+    onStreamInfoClick: (() -> Unit)? = null,
     onSourcesClick: (() -> Unit)? = null,
     onEpisodesClick: (() -> Unit)? = null,
     onNextEpisodeClick: (() -> Unit)? = null,

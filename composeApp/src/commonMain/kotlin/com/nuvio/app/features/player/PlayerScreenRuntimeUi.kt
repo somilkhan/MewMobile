@@ -8,6 +8,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
@@ -255,7 +258,15 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
         RenderPlayerModals(displayedPositionMs = displayedPositionMs)
         StreamInfoOverlay(visible=showStreamInfo,provider=activeProviderName,streamTitle=activeStreamTitle,streamSubtitle=activeStreamSubtitle,addonId=activeProviderAddonId,filename=currentStreamFilename,infoHash=currentStreamInfoHash,audioTrack=audioTracks.firstOrNull { it.index == selectedAudioIndex } ?: audioTracks.firstOrNull { it.isSelected },subtitleTrack=subtitleTracks.firstOrNull { it.index == selectedSubtitleIndex } ?: subtitleTracks.firstOrNull { it.isSelected }.takeUnless { useCustomSubtitles },addonSubtitle=addonSubtitles.firstOrNull { it.selectionKey == selectedAddonSubtitleId },engine=playerController?.playbackEngine,streamType=activeStreamType,resolution=if(playbackSnapshot.videoWidth!=null&&playbackSnapshot.videoHeight!=null) "${playbackSnapshot.videoWidth} × ${playbackSnapshot.videoHeight}" else null,videoCodec=playbackSnapshot.videoCodec,videoFrameRate=playbackSnapshot.videoFrameRate,videoBitrate=playbackSnapshot.videoBitrate,audioCodec=playbackSnapshot.audioCodec,audioChannels=playbackSnapshot.audioChannels,audioSampleRate=playbackSnapshot.audioSampleRate,hdrFormat=playbackSnapshot.hdrFormat,onDismiss={showStreamInfo=false})
         val switchEngineTarget = playerController?.playbackEngine?.switchTarget
-        if (switchEngineTarget != null) NuvioStatusModal(isVisible = showSwitchEngineConfirm, title = stringResource(Res.string.player_engine_switch_title, switchEngineTarget.label), message = stringResource(Res.string.player_engine_switch_message), confirmText = stringResource(Res.string.action_switch), dismissText = stringResource(Res.string.action_cancel), onConfirm = { showSwitchEngineConfirm = false; switchPlaybackEngine() }, onDismiss = { showSwitchEngineConfirm = false })
+        if (switchEngineTarget != null && showSwitchEngineConfirm) {
+            AlertDialog(
+                onDismissRequest = { showSwitchEngineConfirm = false },
+                title = { Text(stringResource(Res.string.player_engine_switch_title, switchEngineTarget.label)) },
+                text = { Text(stringResource(Res.string.player_engine_switch_message)) },
+                confirmButton = { TextButton(onClick = { showSwitchEngineConfirm = false; switchPlaybackEngine() }) { Text(stringResource(Res.string.action_switch)) } },
+                dismissButton = { TextButton(onClick = { showSwitchEngineConfirm = false }) { Text(stringResource(Res.string.action_cancel)) } },
+            )
+        }
     }
 }
 
