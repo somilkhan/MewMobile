@@ -3,7 +3,6 @@ package com.nuvio.app.features.player
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -72,7 +71,7 @@ internal fun StreamInfoOverlay(
             InfoLine(stringResource(Res.string.player_stream_info_hdr), hdrFormat)
             InfoLine(stringResource(Res.string.player_stream_info_audio_codec), audioCodec)
             InfoLine(stringResource(Res.string.player_stream_info_audio_channels), audioChannels?.let { "$it ch" })
-            InfoLine(stringResource(Res.string.player_stream_info_audio_rate), audioSampleRate?.let { "${it / 1_000} kHz" })
+            InfoLine(stringResource(Res.string.player_stream_info_audio_rate), audioSampleRate?.let(::formatSampleRate))
         }
     }
 }
@@ -80,6 +79,11 @@ internal fun StreamInfoOverlay(
 private fun formatFrameRate(frameRate: Float): String {
     val hundredths = (frameRate * 100f + 0.5f).toInt()
     return "${hundredths / 100}.${(hundredths % 100).toString().padStart(2, '0')} fps"
+}
+
+private fun formatSampleRate(sampleRate: Int): String {
+    val tenths = (sampleRate + 50) / 100
+    return "${tenths / 10}.${tenths % 10} kHz"
 }
 
 @Composable
