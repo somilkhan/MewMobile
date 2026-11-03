@@ -31,6 +31,12 @@ import nuvio.composeapp.generated.resources.player_stream_info_hdr
 import nuvio.composeapp.generated.resources.player_stream_info_audio_codec
 import nuvio.composeapp.generated.resources.player_stream_info_audio_channels
 import nuvio.composeapp.generated.resources.player_stream_info_audio_rate
+import nuvio.composeapp.generated.resources.player_stream_info_section_source
+import nuvio.composeapp.generated.resources.player_stream_info_section_video
+import nuvio.composeapp.generated.resources.player_stream_info_section_audio
+import nuvio.composeapp.generated.resources.player_stream_info_section_subtitles
+import nuvio.composeapp.generated.resources.player_stream_info_subtitle_source_addon
+import nuvio.composeapp.generated.resources.player_stream_info_subtitle_source_embedded
 import org.jetbrains.compose.resources.stringResource
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
