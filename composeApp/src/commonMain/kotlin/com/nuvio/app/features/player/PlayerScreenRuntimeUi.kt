@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -27,6 +28,7 @@ import com.nuvio.app.features.p2p.formatP2pSpeed
 import com.nuvio.app.isIos
 import kotlinx.coroutines.launch
 import nuvio.composeapp.generated.resources.*
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
@@ -175,6 +177,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
                 initialPositionMs = activeInitialPositionMs.takeIf { it > 0L },
                 initialPositionRequestKey = initialPositionRequestKey,
                 resizeMode = resizeMode,
+                playbackEngine = playbackEngineOverride ?: playerSettingsUiState.androidPlaybackEngine,
                 onInitialPositionHandled = { key, handled ->
                     if (key == currentInitialPositionRequestKey()) {
                         initialSeekApplied = handled
@@ -200,7 +203,8 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
                     if (message != null && tryRefreshCredentialedSourceAfterError(message)) {
                         return@PlatformPlayerSurface
                     }
-                    errorMessage = message
+                    if (maybeFailoverPlaybackEngine(message)) return@PlatformPlayerSurface
+                    errorMessage = message?.removePrefix("audio-route:")
                     if (message != null) {
                         controlsVisible = !playerControlsLocked
                         removeFailedStreamFromCache()
@@ -254,6 +258,17 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
             )
         }
         RenderPlayerModals(displayedPositionMs = displayedPositionMs)
+        StreamInfoOverlay(visible=showStreamInfo,provider=activeProviderName,streamTitle=activeStreamTitle,streamSubtitle=activeStreamSubtitle,addonId=activeProviderAddonId,filename=currentStreamFilename,infoHash=currentStreamInfoHash,audioTrack=audioTracks.firstOrNull { it.index == selectedAudioIndex } ?: audioTracks.firstOrNull { it.isSelected },subtitleTrack=subtitleTracks.firstOrNull { it.index == selectedSubtitleIndex } ?: subtitleTracks.firstOrNull { it.isSelected }.takeUnless { useCustomSubtitles },addonSubtitle=addonSubtitles.firstOrNull { it.selectionKey == selectedAddonSubtitleId },engine=playerController?.playbackEngine,streamType=activeStreamType,resolution=if(playbackSnapshot.videoWidth!=null&&playbackSnapshot.videoHeight!=null) "${playbackSnapshot.videoWidth} × ${playbackSnapshot.videoHeight}" else null,videoCodec=playbackSnapshot.videoCodec,videoFrameRate=playbackSnapshot.videoFrameRate,videoBitrate=playbackSnapshot.videoBitrate,audioCodec=playbackSnapshot.audioCodec,audioChannels=playbackSnapshot.audioChannels,audioSampleRate=playbackSnapshot.audioSampleRate,hdrFormat=playbackSnapshot.hdrFormat,onDismiss={showStreamInfo=false})
+        val switchEngineTarget = playerController?.playbackEngine?.switchTarget
+        if (switchEngineTarget != null && showSwitchEngineConfirm) {
+            AlertDialog(
+                onDismissRequest = { showSwitchEngineConfirm = false },
+                title = { Text(stringResource(Res.string.player_engine_switch_title, switchEngineTarget.label)) },
+                text = { Text(stringResource(Res.string.player_engine_switch_message)) },
+                confirmButton = { TextButton(onClick = { showSwitchEngineConfirm = false; switchPlaybackEngine() }) { Text(stringResource(Res.string.action_switch)) } },
+                dismissButton = { TextButton(onClick = { showSwitchEngineConfirm = false }) { Text(stringResource(Res.string.action_cancel)) } },
+            )
+        }
     }
 }
 
@@ -379,6 +394,7 @@ private fun PlayerScreenRuntime.RenderPlayerControls(displayedPositionMs: Long, 
                 } else {
                     null
                 },
+                onStreamInfoClick = { showStreamInfo = true; controlsVisible = true },
                 onVideoSettingsClick = if (isIos) {
                     {
                         showVideoSettingsModal = true
@@ -413,6 +429,7 @@ private fun PlayerScreenRuntime.RenderPlayerControls(displayedPositionMs: Long, 
                 ) {
                     { randomNextEpisodeMode = !randomNextEpisodeMode }
                 } else null,
+                onSwitchEngineClick = if (!isIos && playerController?.playbackEngine != null) { { showSwitchEngineConfirm = true } } else null,
                 onOpenInExternalPlayer = args.onOpenInExternalPlayer?.let { openExternal ->
                     {
                         val loadedSubtitles = addonSubtitles
