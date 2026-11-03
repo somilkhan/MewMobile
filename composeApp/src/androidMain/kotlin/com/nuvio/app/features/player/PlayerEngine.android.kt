@@ -193,7 +193,7 @@ actual fun PlatformPlayerSurface(
                 if (message?.startsWith(AUDIO_ROUTE_ERROR_PREFIX) == true) {
                     // Audio route failures do not prove that the stream needs another
                     // engine. Keep the existing player/source and show the actual error.
-                    onError(message.removePrefix(AUDIO_ROUTE_ERROR_PREFIX))
+                    onError(message)
                 } else {
                     // Runtime owns engine failover so it can preserve position and tracks.
                     onError(message)
