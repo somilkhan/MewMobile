@@ -254,6 +254,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
             )
         }
         RenderPlayerModals(displayedPositionMs = displayedPositionMs)
+        StreamInfoOverlay(visible = showStreamInfo, provider = activeProviderName, streamTitle = activeStreamTitle, streamSubtitle = activeStreamSubtitle, engine = playerController?.playbackEngine, streamType = activeStreamType, resolution = if (playbackSnapshot.videoWidth != null && playbackSnapshot.videoHeight != null) "${playbackSnapshot.videoWidth} × ${playbackSnapshot.videoHeight}" else null, onDismiss = { showStreamInfo = false })
         val switchEngineTarget = playerController?.playbackEngine?.switchTarget
         if (switchEngineTarget != null) NuvioStatusModal(isVisible = showSwitchEngineConfirm, title = stringResource(Res.string.player_engine_switch_title, switchEngineTarget.label), message = stringResource(Res.string.player_engine_switch_message), confirmText = stringResource(Res.string.action_switch), dismissText = stringResource(Res.string.action_cancel), onConfirm = { showSwitchEngineConfirm = false; switchPlaybackEngine() }, onDismiss = { showSwitchEngineConfirm = false })
     }
@@ -381,6 +382,7 @@ private fun PlayerScreenRuntime.RenderPlayerControls(displayedPositionMs: Long, 
                 } else {
                     null
                 },
+                onStreamInfoClick = { showStreamInfo = true; controlsVisible = true },
                 onVideoSettingsClick = if (isIos) {
                     {
                         showVideoSettingsModal = true

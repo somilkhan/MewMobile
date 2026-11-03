@@ -36,6 +36,7 @@ import androidx.compose.material.icons.rounded.AccessTime
 import androidx.compose.material.icons.rounded.Build
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Flag
+import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Forward10
 import androidx.compose.material.icons.rounded.Forward5
 import androidx.compose.material.icons.rounded.Forward30
@@ -123,6 +124,7 @@ internal fun PlayerControlsShell(
     onQualityClick: (() -> Unit)? = null,
     onChannelsClick: (() -> Unit)? = null,
     onVideoSettingsClick: (() -> Unit)? = null,
+    onStreamInfoClick: (() -> Unit)? = null,
     onOrientationToggleClick: (() -> Unit)? = null,
     isPortraitPlayback: Boolean = false,
     onSourcesClick: (() -> Unit)? = null,
@@ -212,6 +214,7 @@ internal fun PlayerControlsShell(
                     onParentalGuideAnimationComplete = onParentalGuideAnimationComplete,
                     onLockToggle = onLockToggle,
                     onVideoSettingsClick = onVideoSettingsClick,
+                    onStreamInfoClick = onStreamInfoClick,
                     onOrientationToggleClick = onOrientationToggleClick,
                     isPortraitPlayback = isPortraitPlayback,
                     randomNextEpisodeMode = randomNextEpisodeMode,
@@ -522,6 +525,7 @@ private fun PlayerHeader(
     onParentalGuideAnimationComplete: () -> Unit,
     onLockToggle: () -> Unit,
     onVideoSettingsClick: (() -> Unit)?,
+    onStreamInfoClick: (() -> Unit)?,
     onOrientationToggleClick: (() -> Unit)?,
     isPortraitPlayback: Boolean,
     randomNextEpisodeMode: Boolean,
@@ -675,6 +679,9 @@ private fun PlayerHeader(
                             iconSize = metrics.headerIconSize,
                             onClick = onLockToggle,
                         )
+                        if (onStreamInfoClick != null) {
+                            PlayerHeaderIconButton(icon = Icons.Rounded.Info, contentDescription = "Stream information", buttonSize = metrics.headerIconSize + 16.dp, iconSize = metrics.headerIconSize, onClick = onStreamInfoClick)
+                        }
                         if (onVideoSettingsClick != null) {
                             PlayerHeaderIconButton(
                                 icon = Icons.Rounded.Build,

@@ -233,6 +233,7 @@ internal class PlayerScreenRuntime(
     var showAudioModal by mutableStateOf(false)
     var showSubtitleModal by mutableStateOf(false)
     var showVideoSettingsModal by mutableStateOf(false)
+    var showStreamInfo by mutableStateOf(false)
     var showQualityPanel by mutableStateOf(false)
     var showLiveTvChannelsPanel by mutableStateOf(false)
     var audioTracks by mutableStateOf<List<AudioTrack>>(emptyList())
