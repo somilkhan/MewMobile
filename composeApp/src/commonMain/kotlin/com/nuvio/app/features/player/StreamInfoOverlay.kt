@@ -83,7 +83,7 @@ internal fun StreamInfoOverlay(
             InfoLine(stringResource(Res.string.player_stream_info_audio_language), audioTrack?.language)
             InfoLine(stringResource(Res.string.player_stream_info_subtitle_track), addonSubtitle?.display ?: subtitleTrack?.label)
             InfoLine(stringResource(Res.string.player_stream_info_subtitle_language), addonSubtitle?.language ?: subtitleTrack?.language)
-            InfoLine(stringResource(Res.string.player_stream_info_subtitle_source), when { addonSubtitle != null -> addonSubtitle.addonName ?: "Add-on"; subtitleTrack != null -> "Embedded"; else -> null })
+            InfoLine(stringResource(Res.string.player_stream_info_subtitle_source), when { addonSubtitle != null -> addonSubtitle.addonName ?: stringResource(Res.string.player_stream_info_subtitle_source_addon); subtitleTrack != null -> stringResource(Res.string.player_stream_info_subtitle_source_embedded); else -> null })
             InfoLine(stringResource(Res.string.player_stream_info_engine), engine?.label)
             InfoLine(stringResource(Res.string.player_stream_info_type), streamType?.takeIf(String::isNotBlank))
             InfoLine(stringResource(Res.string.player_stream_info_resolution), resolution)
