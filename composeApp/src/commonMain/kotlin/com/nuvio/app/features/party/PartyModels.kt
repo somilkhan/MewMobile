@@ -4,7 +4,6 @@ import com.nuvio.app.features.streams.StreamBadge
 import com.nuvio.app.features.streams.StreamBehaviorHints
 import com.nuvio.app.features.streams.StreamItem
 import com.nuvio.app.features.streams.StreamProxyHeaders
-import kotlinx.serialization.Transient
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -54,7 +53,7 @@ data class PartyStream(
     @SerialName("video_size") val videoSize: Long? = null,
     @SerialName("binge_group") val bingeGroup: String? = null,
     @SerialName("stream_type") val streamType: String? = null,
-    @Transient val badges: List<StreamBadge> = emptyList(),
+    val badges: List<StreamBadge> = emptyList(),
 ) {
     fun toStreamItem(): StreamItem = StreamItem(
         name = name,
