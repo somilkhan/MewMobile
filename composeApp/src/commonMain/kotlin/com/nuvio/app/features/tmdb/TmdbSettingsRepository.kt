@@ -35,6 +35,7 @@ object TmdbSettingsRepository {
     private var useMoreLikeThis = true
     private var useCollections = true
     private var titleLanguage = TmdbTitleLanguage.APP
+    private var credentialRejected = false
 
     fun ensureLoaded() {
         if (hasLoaded) return
@@ -78,6 +79,7 @@ object TmdbSettingsRepository {
         val normalized = value.trim()
         if (apiKey == normalized) return
         apiKey = normalized
+        credentialRejected = false
         if (apiKey.isBlank()) {
             enabled = false
             TmdbSettingsStorage.saveEnabled(false)
@@ -85,7 +87,16 @@ object TmdbSettingsRepository {
         publish()
         TmdbSettingsStorage.saveApiKey(normalized, EpisodeReleaseDatePlatform.nowEpochMs())
         invalidateMetadata()
-        if (wasEnabled != enabled) HomeRepository.onTmdbEnabledChanged()
+        if (wasEnabled != enabled || enabled) HomeRepository.onTmdbEnabledChanged()
+    }
+
+    fun markCredentialRejected() {
+        ensureLoaded()
+        if (credentialRejected) return
+        credentialRejected = true
+        invalidateMetadata()
+        publish()
+        HomeRepository.onTmdbEnabledChanged()
     }
 
     fun setLanguage(value: String) {
@@ -229,6 +240,7 @@ object TmdbSettingsRepository {
         useMoreLikeThis = TmdbSettingsStorage.loadUseMoreLikeThis() ?: true
         useCollections = TmdbSettingsStorage.loadUseCollections() ?: true
         titleLanguage = TmdbTitleLanguage.fromStorageId(TmdbSettingsStorage.loadTitleLanguage())
+        credentialRejected = false
         publish()
     }
 
@@ -255,6 +267,7 @@ object TmdbSettingsRepository {
             useMoreLikeThis = useMoreLikeThis,
             useCollections = useCollections,
             titleLanguage = titleLanguage,
+            credentialRejected = credentialRejected,
         )
     }
 

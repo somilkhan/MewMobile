@@ -26,6 +26,7 @@ import com.nuvio.app.features.tmdb.normalizeLanguage
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.action_save
 import nuvio.composeapp.generated.resources.settings_tmdb_add_api_key_first
+import nuvio.composeapp.generated.resources.settings_tmdb_credential_rejected
 import nuvio.composeapp.generated.resources.settings_tmdb_api_key_label
 import nuvio.composeapp.generated.resources.settings_tmdb_enable_enrichment
 import nuvio.composeapp.generated.resources.settings_tmdb_enable_enrichment_description
@@ -109,6 +110,13 @@ internal fun LazyListScope.tmdbSettingsContent(
                     value = settings.apiKey,
                     onApiKeyCommitted = TmdbSettingsRepository::setApiKey,
                 )
+                if (settings.credentialRejected) {
+                    SettingsGroupDivider(isTablet = isTablet)
+                    TmdbInfoRow(
+                        isTablet = isTablet,
+                        text = stringResource(Res.string.settings_tmdb_credential_rejected),
+                    )
+                }
             }
         }
     }
