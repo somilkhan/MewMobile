@@ -92,16 +92,16 @@ internal fun StreamInfoOverlay(
                 InfoLine(stringResource(Res.string.player_stream_info_engine), engine?.label)
                 InfoLine(stringResource(Res.string.player_stream_info_resolution), resolution)
                 InfoLine(stringResource(Res.string.player_stream_info_codec), videoCodec)
-                InfoLine(stringResource(Res.string.player_stream_info_fps), videoFrameRate?.let(::formatFrameRate))
-                InfoLine(stringResource(Res.string.player_stream_info_bitrate), videoBitrate?.let { "${it / 1_000} Kbps" })
+                InfoLine(stringResource(Res.string.player_stream_info_fps), videoFrameRate?.takeIf { it.isFinite() && it > 0f }?.let(::formatFrameRate))
+                InfoLine(stringResource(Res.string.player_stream_info_bitrate), videoBitrate?.takeIf { it > 0 }?.let { "${it / 1_000} Kbps" })
                 InfoLine(stringResource(Res.string.player_stream_info_hdr), hdrFormat)
             }
             InfoSection(stringResource(Res.string.player_stream_info_section_audio)) {
                 InfoLine(stringResource(Res.string.player_stream_info_audio_track), audioTrack?.label)
                 InfoLine(stringResource(Res.string.player_stream_info_audio_language), audioTrack?.language)
                 InfoLine(stringResource(Res.string.player_stream_info_audio_codec), audioCodec)
-                InfoLine(stringResource(Res.string.player_stream_info_audio_channels), audioChannels?.let { "$it ch" })
-                InfoLine(stringResource(Res.string.player_stream_info_audio_rate), audioSampleRate?.let(::formatSampleRate))
+                InfoLine(stringResource(Res.string.player_stream_info_audio_channels), audioChannels?.takeIf { it > 0 }?.let { "$it ch" })
+                InfoLine(stringResource(Res.string.player_stream_info_audio_rate), audioSampleRate?.takeIf { it > 0 }?.let(::formatSampleRate))
             }
             InfoSection(stringResource(Res.string.player_stream_info_section_subtitles)) {
                 InfoLine(stringResource(Res.string.player_stream_info_subtitle_track), addonSubtitle?.display ?: subtitleTrack?.label)
