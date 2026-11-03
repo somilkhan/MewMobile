@@ -199,6 +199,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
                     if (message != null && tryRefreshCredentialedSourceAfterError(message)) {
                         return@PlatformPlayerSurface
                     }
+                    if (message != null && maybeFailoverPlaybackEngine()) return@PlatformPlayerSurface
                     errorMessage = message
                     if (message != null) {
                         controlsVisible = !playerControlsLocked
