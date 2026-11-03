@@ -1035,6 +1035,7 @@ private fun ExoPlayerSurface(
     LaunchedEffect(exoPlayer) {
         onControllerReady(
             autoSyncCoordinator.wrap(object : PlayerEngineController {
+                override val playbackEngine = AndroidPlaybackEngine.ExoPlayer
                 override fun play() {
                     exoPlayer.playWhenReady = true
                     exoPlayer.play()
