@@ -203,6 +203,7 @@ internal fun PlayerScreenRuntime.refreshTracks() {
     }
 
     restorePersistedTrackPreferenceIfNeeded()
+    applyPendingEngineSwitchTrackPreference()
 
     val preferredAudioTargets = resolvePreferredAudioLanguageTargets(
         preferredAudioLanguage = playerSettingsUiState.preferredAudioLanguage,

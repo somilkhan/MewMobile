@@ -133,6 +133,7 @@ internal fun PlayerControlsShell(
     randomNextEpisodeMode: Boolean = false,
     onRandomNextEpisodeModeToggle: (() -> Unit)? = null,
     onOpenInExternalPlayer: (() -> Unit)? = null,
+    onSwitchEngineClick: (() -> Unit)? = null,
     onSubmitIntroClick: (() -> Unit)? = null,
     parentalWarnings: List<ParentalWarning> = emptyList(),
     showParentalGuide: Boolean = false,
@@ -216,6 +217,7 @@ internal fun PlayerControlsShell(
                     randomNextEpisodeMode = randomNextEpisodeMode,
                     onRandomNextEpisodeModeToggle = onRandomNextEpisodeModeToggle,
                     onOpenInExternalPlayer = onOpenInExternalPlayer,
+                    onSwitchEngineClick = onSwitchEngineClick,
                     onBack = onBack,
                     modifier = Modifier
                         .align(Alignment.TopStart)
@@ -525,6 +527,7 @@ private fun PlayerHeader(
     randomNextEpisodeMode: Boolean,
     onRandomNextEpisodeModeToggle: (() -> Unit)?,
     onOpenInExternalPlayer: (() -> Unit)?,
+    onSwitchEngineClick: (() -> Unit)?,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -639,6 +642,7 @@ private fun PlayerHeader(
                                 onClick = onSubmitIntroClick,
                             )
                         }
+                        if (onSwitchEngineClick != null) { PlayerHeaderIconButton(icon = Icons.Rounded.SwapHoriz, contentDescription = stringResource(Res.string.cd_switch_player_engine), buttonSize = metrics.headerIconSize + 16.dp, iconSize = metrics.headerIconSize, onClick = onSwitchEngineClick) }
                         if (onOpenInExternalPlayer != null) {
                             PlayerHeaderIconButton(
                                 icon = Icons.AutoMirrored.Rounded.OpenInNew,

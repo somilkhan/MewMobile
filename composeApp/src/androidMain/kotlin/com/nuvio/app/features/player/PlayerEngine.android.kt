@@ -144,6 +144,7 @@ actual fun PlatformPlayerSurface(
     initialPositionMs: Long?,
     initialPositionRequestKey: String?,
     resizeMode: PlayerResizeMode,
+    playbackEngine: AndroidPlaybackEngine?,
     useNativeController: Boolean,
     onInitialPositionHandled: (key: String, handled: Boolean) -> Unit,
     onControllerReady: (PlayerEngineController) -> Unit,
@@ -2086,6 +2087,7 @@ private class NuvioLibmpvView(
         nowPlayingController: AndroidPlayerNowPlayingController?,
     ): PlayerEngineController =
         object : PlayerEngineController {
+            override val playbackEngine = AndroidPlaybackEngine.Libmpv
             override fun play() = setPaused(false)
 
             override fun pause() = setPaused(true)
