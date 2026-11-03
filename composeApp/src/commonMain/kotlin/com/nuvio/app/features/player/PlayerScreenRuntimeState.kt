@@ -24,6 +24,13 @@ import com.nuvio.app.features.watchprogress.WatchProgressUiState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 
+internal data class PendingEngineSwitchTrackPreference(
+    val sourceIdentity: String, val capturedController: PlayerEngineController?,
+    val targetEngine: AndroidPlaybackEngine, val preference: PersistedPlayerTrackPreference,
+    val hasAudioSelection: Boolean, val hasSubtitleSelection: Boolean,
+    val audioApplied: Boolean = false, val subtitleApplied: Boolean = false,
+)
+
 internal class PlayerScreenRuntime(
     args: PlayerScreenArgs,
 ) {
@@ -157,6 +164,11 @@ internal class PlayerScreenRuntime(
     var playbackSnapshot by mutableStateOf(PlayerPlaybackSnapshot())
     var randomNextEpisodeMode by mutableStateOf(randomEpisodeMode)
     var playerController by mutableStateOf<PlayerEngineController?>(null)
+    var playbackEngineOverride by mutableStateOf<AndroidPlaybackEngine?>(null)
+    var engineFailoverTriggered by mutableStateOf(false)
+    var engineFailoverDisarmed by mutableStateOf(false)
+    var pendingEngineSwitchTrackPreference by mutableStateOf<PendingEngineSwitchTrackPreference?>(null)
+    var showSwitchEngineConfirm by mutableStateOf(false)
     var playerControllerSourceUrl by mutableStateOf<String?>(null)
     var errorMessage by mutableStateOf<String?>(null)
     var isScrubbingTimeline by mutableStateOf(false)
@@ -225,6 +237,7 @@ internal class PlayerScreenRuntime(
     var showAudioModal by mutableStateOf(false)
     var showSubtitleModal by mutableStateOf(false)
     var showVideoSettingsModal by mutableStateOf(false)
+    var showStreamInfo by mutableStateOf(false)
     var showQualityPanel by mutableStateOf(false)
     var showLiveTvChannelsPanel by mutableStateOf(false)
     var audioTracks by mutableStateOf<List<AudioTrack>>(emptyList())
@@ -236,6 +249,8 @@ internal class PlayerScreenRuntime(
     var autoAddonFallbackPending by mutableStateOf(false)
     var preferredAudioSelectionApplied by mutableStateOf(false)
     var preferredSubtitleSelectionApplied by mutableStateOf(false)
+    var isUserExplicitAudioSelection by mutableStateOf(false)
+    var isUserExplicitSubtitleSelection by mutableStateOf(false)
     var manualSubtitleSelectionLocked by mutableStateOf(false)
     var lastAppliedSubtitlePreferenceKey: String? = null
     var activeSubtitleTab by mutableStateOf(SubtitleTab.BuiltIn)
