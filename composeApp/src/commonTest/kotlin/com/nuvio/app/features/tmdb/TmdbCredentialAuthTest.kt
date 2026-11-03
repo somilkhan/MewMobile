@@ -64,6 +64,14 @@ class TmdbCredentialAuthTest {
     }
 
     @Test
+    fun tmdbIdNormalizationHandlesNestedPrefixesAndCase() {
+        assertEquals("12345", normalizeTmdbVideoId("TMDB:movie:12345:4:2"))
+        assertEquals("12345", normalizeTmdbVideoId("series:TMDB:12345/season/4"))
+        assertEquals("tt1234567", normalizeTmdbVideoId("MOVIE:tt1234567:2:1"))
+        assertEquals("12345", normalizeTmdbVideoId("  tmdb:12345  "))
+    }
+
+    @Test
     fun malformedTokenIsNotTreatedAsBearerCredential() {
         val malformed = "Bearer not-a-jwt"
 
