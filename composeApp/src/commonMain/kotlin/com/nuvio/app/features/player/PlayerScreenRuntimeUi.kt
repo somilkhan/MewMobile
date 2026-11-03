@@ -198,6 +198,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
                     if (message != null && tryRefreshCredentialedSourceAfterError(message)) {
                         return@PlatformPlayerSurface
                     }
+                    if (maybeFailoverPlaybackEngine(message)) return@PlatformPlayerSurface
                     errorMessage = message?.removePrefix("audio-route:")
                     if (message != null) {
                         controlsVisible = !playerControlsLocked
