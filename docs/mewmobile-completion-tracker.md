@@ -9,8 +9,8 @@ Status distinctions: **DONE** (required evidence recorded), **IN PROGRESS**, **B
 - [x] **A3 AutoSync no effect:** candidate aggregation, late-addon retry, persisted add-on restoration repaired + regression tests; exact-head CI passed. Device playback retest pending.
 - [x] **A4 CloudStream Raw Catalog:** all provider sections now render as Home rows; collision-safe section keys + regression; exact-head CI passed. Device confirmation pending.
 - [ ] **A5 Purple video:** root-cause surface/decoder/color/HDR/Dolby Vision/ExoPlayer/libmpv first.
-- [ ] **A6 Rotation:** trace existing control through Activity/config lifecycle; both orientations and persistence.
-- [ ] **A7 TMDB metadata:** v3 key/v4 token auth, response/cache and physical device retest.
+- [ ] **A6 Rotation:** source trace complete: toolbar toggles `PlayerOrientationPreference`, `LockPlayerToLandscape` requests portrait/sensor-landscape, and manifest handles orientation changes in-place. Nuvio Enhanced has the same control. Logcat's ROTATION_90 entries do not prove button behavior; root cause remains **device-repro BLOCKED**, no speculative duplicate implementation.
+- [ ] **A7 TMDB metadata:** source audit confirms `TmdbService` currently sends every configured credential as `api_key` query (v3 key contract only); v4 read-access JWT needs Bearer header support. Plugin numeric TMDB-ID normalization is separately implemented/CI-tested. Remaining: credential-type support + tests, metadata response/cache validation, device retest.
 
 ## B — Player/features
 - [ ] **B1** In-player engine switch; preserve playback state as feasible.
