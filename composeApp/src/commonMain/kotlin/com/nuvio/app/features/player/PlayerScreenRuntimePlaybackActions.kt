@@ -83,6 +83,8 @@ internal fun PlayerScreenRuntime.resetIdentityStateIfNeeded() {
         trackPreferenceRestoreApplied = false
         preferredAudioSelectionApplied = false
         preferredSubtitleSelectionApplied = false
+        isUserExplicitAudioSelection = false
+        isUserExplicitSubtitleSelection = false
         manualSubtitleSelectionLocked = false
         autoAddonFallbackPending = false
     }
