@@ -20,13 +20,7 @@ object TmdbService {
     suspend fun ensureTmdbId(videoId: String, mediaType: String): String? {
         val apiKey = currentApiKey() ?: return null
 
-        val normalized = videoId
-            .removePrefix("tmdb:")
-            .removePrefix("movie:")
-            .removePrefix("series:")
-            .substringBefore(':')
-            .substringBefore('/')
-            .trim()
+        val normalized = normalizeTmdbVideoId(videoId)
 
         if (normalized.isBlank()) return null
         if (normalized.all(Char::isDigit)) return normalized
@@ -198,6 +192,16 @@ object TmdbService {
             "tv", "series", "show", "tvshow", "dizi" -> "tv"
             else -> mediaType.trim().lowercase()
         }
+}
+
+internal fun normalizeTmdbVideoId(value: String): String {
+    var normalized = value.trim()
+    val prefixes = listOf("tmdb:", "movie:", "series:")
+    while (true) {
+        val prefix = prefixes.firstOrNull { normalized.startsWith(it, ignoreCase = true) } ?: break
+        normalized = normalized.substring(prefix.length).trim()
+    }
+    return normalized.substringBefore(':').substringBefore('/').trim()
 }
 
 private fun buildTmdbImageUrl(path: String?, size: String): String? {
