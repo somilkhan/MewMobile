@@ -2015,6 +2015,13 @@ private class NuvioLibmpvView(
             playbackSpeed = (mpv.getPropertyDouble("speed") ?: 1.0).toFloat(),
             videoWidth = videoWidth,
             videoHeight = videoHeight,
+            videoCodec = mpv.stringProperty("current-tracks/video/codec")?.let(::playerCodecLabel),
+            videoFrameRate = mpv.getPropertyDouble("container-fps")?.toFloat()?.takeIf { it > 0f },
+            videoBitrate = mpv.getPropertyDouble("video-bitrate")?.toInt()?.takeIf { it > 0 },
+            audioCodec = mpv.stringProperty("current-tracks/audio/codec")?.let(::playerCodecLabel),
+            audioChannels = mpv.getPropertyInt("audio-params/channel-count")?.takeIf { it > 0 },
+            audioSampleRate = mpv.getPropertyInt("audio-params/samplerate")?.takeIf { it > 0 },
+            hdrFormat = mpv.mpvHdrFormat(),
         )
     }
 
@@ -2549,6 +2556,29 @@ private fun buildAndroidLoadControl(memorySafeBufferEnabled: Boolean): DefaultLo
         }
     }.build()
 
+private fun MPV.stringProperty(property: String): String? =
+    runCatching { getPropertyNode(property)?.asString() }.getOrNull()?.takeIf { it.isNotBlank() }
+
+private fun MPV.mpvHdrFormat(): String? = buildList {
+    if (!stringProperty("current-tracks/video/dolby-vision-profile").isNullOrBlank()) add("Dolby Vision")
+    when (stringProperty("video-params/gamma")) {
+        "pq" -> add("HDR10")
+        "hlg" -> add("HLG")
+    }
+}.distinct().takeIf { it.isNotEmpty() }?.joinToString(" / ")
+
+private fun playerCodecLabel(raw: String): String = when (raw.trim().lowercase().substringBefore('.')) {
+    "h264", "avc", "avc1", "video/avc" -> "AVC"
+    "hevc", "h265", "hev1", "hvc1", "video/hevc" -> "HEVC"
+    "av1", "av01", "video/av01" -> "AV1"
+    "vp9", "vp09", "video/x-vnd.on2.vp9" -> "VP9"
+    "eac3", "audio/eac3" -> "E-AC-3"
+    "ac3", "audio/ac3" -> "AC-3"
+    "truehd" -> "TrueHD"
+    "mp4a", "aac", "audio/mp4a-latm" -> "AAC"
+    else -> raw.substringBefore('.').uppercase()
+}
+
 private fun ExoPlayer.snapshot(): PlayerPlaybackSnapshot {
     val (videoWidth, videoHeight) = videoDimensions()
     return PlayerPlaybackSnapshot(
@@ -2561,6 +2591,19 @@ private fun ExoPlayer.snapshot(): PlayerPlaybackSnapshot {
         playbackSpeed = playbackParameters.speed,
         videoWidth = videoWidth,
         videoHeight = videoHeight,
+        videoCodec = videoFormat?.let { playerCodecLabel(it.codecs ?: it.sampleMimeType.orEmpty()) }.takeIf { !it.isNullOrBlank() },
+        videoFrameRate = videoFormat?.frameRate?.takeIf { it > 0f },
+        videoBitrate = videoFormat?.averageBitrate?.takeIf { it > 0 },
+        audioCodec = audioFormat?.let { playerCodecLabel(it.codecs ?: it.sampleMimeType.orEmpty()) }.takeIf { !it.isNullOrBlank() },
+        audioChannels = audioFormat?.channelCount?.takeIf { it > 0 },
+        audioSampleRate = audioFormat?.sampleRate?.takeIf { it > 0 },
+        hdrFormat = videoFormat?.colorInfo?.let { color ->
+            when (color.colorTransfer) {
+                C.COLOR_TRANSFER_ST2084 -> "HDR10"
+                C.COLOR_TRANSFER_HLG -> "HLG"
+                else -> if (videoFormat?.codecs.orEmpty().startsWith("dv", ignoreCase = true)) "Dolby Vision" else null
+            }
+        },
     )
 }
 

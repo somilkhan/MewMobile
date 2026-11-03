@@ -17,6 +17,13 @@ import nuvio.composeapp.generated.resources.player_stream_info_description
 import nuvio.composeapp.generated.resources.player_stream_info_engine
 import nuvio.composeapp.generated.resources.player_stream_info_type
 import nuvio.composeapp.generated.resources.player_stream_info_resolution
+import nuvio.composeapp.generated.resources.player_stream_info_codec
+import nuvio.composeapp.generated.resources.player_stream_info_fps
+import nuvio.composeapp.generated.resources.player_stream_info_bitrate
+import nuvio.composeapp.generated.resources.player_stream_info_hdr
+import nuvio.composeapp.generated.resources.player_stream_info_audio_codec
+import nuvio.composeapp.generated.resources.player_stream_info_audio_channels
+import nuvio.composeapp.generated.resources.player_stream_info_audio_rate
 import org.jetbrains.compose.resources.stringResource
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -34,6 +41,13 @@ internal fun StreamInfoOverlay(
     engine: AndroidPlaybackEngine?,
     streamType: String?,
     resolution: String?,
+    videoCodec: String?,
+    videoFrameRate: Float?,
+    videoBitrate: Int?,
+    audioCodec: String?,
+    audioChannels: Int?,
+    audioSampleRate: Int?,
+    hdrFormat: String?,
     onDismiss: () -> Unit,
 ) {
     PlayerOverlayScaffold(
@@ -52,6 +66,13 @@ internal fun StreamInfoOverlay(
             InfoLine(stringResource(Res.string.player_stream_info_engine), engine?.label)
             InfoLine(stringResource(Res.string.player_stream_info_type), streamType?.takeIf(String::isNotBlank))
             InfoLine(stringResource(Res.string.player_stream_info_resolution), resolution)
+            InfoLine(stringResource(Res.string.player_stream_info_codec), videoCodec)
+            InfoLine(stringResource(Res.string.player_stream_info_fps), videoFrameRate?.let { "${it.toInt()} fps" })
+            InfoLine(stringResource(Res.string.player_stream_info_bitrate), videoBitrate?.let { if (it >= 1_000_000) "${it / 1_000_000} Mbps" else "${it / 1_000} Kbps" })
+            InfoLine(stringResource(Res.string.player_stream_info_hdr), hdrFormat)
+            InfoLine(stringResource(Res.string.player_stream_info_audio_codec), audioCodec)
+            InfoLine(stringResource(Res.string.player_stream_info_audio_channels), audioChannels?.let { "$it ch" })
+            InfoLine(stringResource(Res.string.player_stream_info_audio_rate), audioSampleRate?.let { "${it / 1_000} kHz" })
         }
     }
 }

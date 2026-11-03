@@ -2953,4 +2953,11 @@
     <string name="player_stream_info_resolution">Video resolution</string>
     <string name="player_stream_info_action">Stream information</string>
     <string name="player_toolbar_button_stream_info">Stream info</string>
+    <string name="player_stream_info_codec">Video codec</string>
+    <string name="player_stream_info_fps">Frame rate</string>
+    <string name="player_stream_info_bitrate">Video bitrate</string>
+    <string name="player_stream_info_hdr">HDR</string>
+    <string name="player_stream_info_audio_codec">Audio codec</string>
+    <string name="player_stream_info_audio_channels">Audio channels</string>
+    <string name="player_stream_info_audio_rate">Audio sample rate</string>
 </resources>
