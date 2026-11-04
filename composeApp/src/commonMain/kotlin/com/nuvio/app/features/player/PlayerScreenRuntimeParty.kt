@@ -22,6 +22,7 @@ import com.nuvio.app.features.party.PartyPanel
 import com.nuvio.app.features.party.PartySync
 import com.nuvio.app.features.party.PartyMemberStatus
 import com.nuvio.app.features.party.PartyCorrection
+import com.nuvio.app.features.party.PartyEvent
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.abs
@@ -79,6 +80,15 @@ internal fun PlayerScreenRuntime.BindPartyEffects() {
     val sharing = party?.let { it.isHost && it.sharing } == true
     val sharedStream = if (sharing) partyStream() else null
     LaunchedEffect(sharing, sharedStream) { if (sharing) PartyRepository.shareStream(sharedStream) }
+    LaunchedEffect(party?.id, party?.isHost) {
+        if (party == null || party.isHost) return@LaunchedEffect
+        PartyRepository.events.collect { event ->
+            if (event is PartyEvent.MediaChanged && event.media.key != partyMedia().key) {
+                showPartyPanel = false
+                args.onOpenPartyMedia?.invoke(event.media)
+            }
+        }
+    }
     LaunchedEffect(party?.id, partyMedia().key) {
         partyBehind = false
         var lastSeq = -1L
