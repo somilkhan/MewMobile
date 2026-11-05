@@ -125,6 +125,14 @@ enum class AndroidLibmpvVideoOutput(
     ),
 }
 
+/**
+ * Unset renderer preferences use the compatibility renderer to avoid known GPU Next
+ * sync-object exhaustion on affected Adreno devices. Explicit choices are preserved.
+ */
+fun resolveAndroidLibmpvVideoOutput(stored: String?): AndroidLibmpvVideoOutput =
+    stored?.let { runCatching { AndroidLibmpvVideoOutput.valueOf(it) }.getOrNull() }
+        ?: AndroidLibmpvVideoOutput.Gpu
+
 enum class IosVideoOutputPreset(
     val label: String,
     val description: String,

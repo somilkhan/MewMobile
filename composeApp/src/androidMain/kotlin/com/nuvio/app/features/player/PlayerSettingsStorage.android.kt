@@ -773,7 +773,8 @@ actual object PlayerSettingsStorage {
     }
 
     actual fun loadAndroidLibmpvVideoOutput(): String? =
-        preferences?.getString(ProfileScopedKey.of(androidLibmpvVideoOutputKey), null)
+        preferences?.getString(ProfileScopedKey.of(androidLibmpvVideoOutputKey), AndroidLibmpvVideoOutput.Gpu.name)
+            ?: AndroidLibmpvVideoOutput.Gpu.name
 
     actual fun saveAndroidLibmpvVideoOutput(output: String) {
         preferences
