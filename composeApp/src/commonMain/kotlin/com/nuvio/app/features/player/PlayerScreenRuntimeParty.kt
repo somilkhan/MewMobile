@@ -11,7 +11,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.foundation.layout.BoxScope
 import com.nuvio.app.features.party.PartyMedia
 import com.nuvio.app.features.party.PartyPlayback
 import com.nuvio.app.features.party.PartyStream
@@ -177,7 +176,7 @@ internal fun PlayerScreenRuntime.BindPartyEffects() {
 }
 
 @Composable
-internal fun BoxScope.PlayerScreenRuntime.RenderPartyPanel() {
+internal fun PlayerScreenRuntime.RenderPartyPanel() {
     val state by PartyRepository.state.collectAsState()
     PartyPanel(
         visible = showPartyPanel,
