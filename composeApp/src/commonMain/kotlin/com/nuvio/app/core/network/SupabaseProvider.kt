@@ -4,6 +4,7 @@ import com.nuvio.app.core.build.AppVersionConfig
 import io.github.jan.supabase.annotations.SupabaseInternal
 import io.github.jan.supabase.auth.Auth
 import io.github.jan.supabase.createSupabaseClient
+import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.functions.Functions
 import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.realtime.Realtime
@@ -20,7 +21,7 @@ import io.ktor.http.takeFrom
 
 object SupabaseProvider {
     @OptIn(SupabaseInternal::class)
-    val client by lazy {
+    val client: SupabaseClient by lazy {
         val userAgent = "NuvioMobile/${AppVersionConfig.VERSION_NAME.ifBlank { "dev" }}"
         createSupabaseClient(
             supabaseUrl = SupabaseConfig.URL,

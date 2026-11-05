@@ -61,7 +61,7 @@ fun DialogSurface(
             shape = tokens.shapes.dialog,
             color = tokens.colors.surfaceDialog,
             contentColor = tokens.colors.textPrimary,
-            border = BorderStroke(tokens.borders.thin, SurfaceEdge),
+            border = BorderStroke(tokens.borders.thin, tokens.colors.borderSubtle),
         ) {
             Column(
                 modifier = Modifier.padding(tokens.spacing.dialogPadding),
