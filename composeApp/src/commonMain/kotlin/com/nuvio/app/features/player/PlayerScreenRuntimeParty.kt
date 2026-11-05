@@ -104,8 +104,9 @@ internal fun PlayerScreenRuntime.BindPartyEffects() {
             val expectedForPresence = matchingPlayback?.let {
                 PartySync.expectedPositionMs(it, PartyRepository.nowMs(), playbackSnapshot.durationMs)
             }
-            val behindMs = expectedForPresence?.minus(playbackSnapshot.positionMs)
-                ?.takeIf { !active.isHost && it > PartySync.SEEK_THRESHOLD_MS }
+            val behindMs = expectedForPresence?.let {
+                PartySync.behindByMs(it, playbackSnapshot.positionMs, active.isHost)
+            }
             partyBehindMs = behindMs
             partyBehind = behindMs != null
             val localStatus = if (active.media.key != partyMedia().key) PartyMemberStatus.Browsing else when {
