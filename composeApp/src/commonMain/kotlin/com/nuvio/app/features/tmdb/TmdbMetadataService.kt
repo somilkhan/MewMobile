@@ -1,7 +1,6 @@
 package com.nuvio.app.features.tmdb
 
 import co.touchlab.kermit.Logger
-import com.nuvio.app.features.addons.RawHttpResponse
 import com.nuvio.app.features.addons.httpRequestRaw
 import com.nuvio.app.features.details.MetaCompany
 import com.nuvio.app.features.details.MetaDetails
@@ -16,12 +15,10 @@ import com.nuvio.app.features.player.DeviceLanguagePreferences
 import com.nuvio.app.features.watchprogress.WatchProgressClock
 import kotlinx.atomicfu.locks.SynchronizedObject
 import kotlinx.atomicfu.locks.synchronized
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
@@ -1272,12 +1269,13 @@ object TmdbMetadataService {
         if (!settings.canUseMetadata) return null
         val apiKey = settings.apiKey.trim().takeIf(String::isNotBlank) ?: return null
         val url = buildTmdbUrl(endpoint = endpoint, apiKey = apiKey, query = query)
-        val payload = requestCoordinator.execute(url) {
-            requestTmdbText {
+        val requestKey = if (isTmdbReadAccessToken(apiKey)) "$url#credential=${apiKey.hashCode()}" else url
+        val payload = requestCoordinator.execute(requestKey) {
+            requestTmdbText(onUnauthorized = { TmdbSettingsRepository.markCredentialRejected() }) {
                 httpRequestRaw(
                     method = "GET",
                     url = url,
-                    headers = emptyMap(),
+                    headers = tmdbAuthorizationHeaders(apiKey),
                     body = "",
                 )
             }
@@ -1668,26 +1666,6 @@ internal fun tmdbEnrichmentCacheKey(
 ): String = "$tmdbId:$mediaType:$normalizedLanguage" +
     ":title=${settings.titleLanguage.storageId}:more=${settings.useMoreLikeThis}:trailers=${settings.useTrailers}:collections=${settings.useCollections}"
 
-internal suspend fun requestTmdbText(
-    maxAttempts: Int = 3,
-    pause: suspend (Long) -> Unit = { delay(it) },
-    request: suspend () -> RawHttpResponse,
-): String? {
-    repeat(maxAttempts.coerceAtLeast(1)) { attempt ->
-        val response = try {
-            request()
-        } catch (error: Throwable) {
-            if (error is CancellationException) throw error
-            null
-        }
-        if (response != null && response.status in 200..299) return response.body
-        val transient = response == null || response.status == 429 || response.status in 500..599
-        if (!transient || attempt == maxAttempts.coerceAtLeast(1) - 1) return null
-        pause(TMDB_RETRY_BASE_DELAY_MS * (attempt + 1))
-    }
-    return null
-}
-
 private fun normalizeMetaType(type: String): String =
     when (type.trim().lowercase()) {
         "series", "tv", "show", "tvshow", "dizi" -> "tv"
@@ -1911,8 +1889,6 @@ private val watchProviderDefaultRegions = mapOf(
 )
 
 private const val TMDB_EPISODE_ENRICHMENT_TTL_MS = 24L * 60L * 60L * 1_000L
-private const val TMDB_RETRY_BASE_DELAY_MS = 250L
-
 private fun Double.formatRating(): String =
     if (this == 0.0) {
         "0.0"
