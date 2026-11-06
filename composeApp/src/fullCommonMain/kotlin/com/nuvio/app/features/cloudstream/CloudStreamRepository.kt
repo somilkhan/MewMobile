@@ -50,6 +50,8 @@ actual object CloudStreamRepository {
     private var lastUpdateCheckProfileId = 1
     private var lastUpdateCheckEpochMs = 0L
     private var currentProfileId = 1
+    // Serialize package replacement/state commits so concurrent install/update requests cannot race.
+    private val pluginInstallMutex = Mutex()
     private val refreshJobs = mutableMapOf<String, Job>()
     private val refreshJobsLock = Any()
     /** Serializes profile changes with the final package/state commit. */
@@ -774,7 +776,10 @@ private fun cancelInFlightLoadLinksRequests() {
         }
     }
 
-    private suspend fun installOrUpdate(pluginId: String): CloudStreamInstallResult {
+    private suspend fun installOrUpdate(pluginId: String): CloudStreamInstallResult =
+        pluginInstallMutex.withLock { installOrUpdateSerialized(pluginId) }
+
+    private suspend fun installOrUpdateSerialized(pluginId: String): CloudStreamInstallResult {
         initialize()
         val profileId = currentProfileId
         val operationGeneration = updateCheckGeneration

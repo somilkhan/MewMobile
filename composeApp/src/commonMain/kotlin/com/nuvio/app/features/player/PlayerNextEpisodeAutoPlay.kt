@@ -75,6 +75,8 @@ internal fun CoroutineScope.launchPlayerNextEpisodeAutoPlay(
     prepareOnly: Boolean = false,
     onPrepared: (StreamItem?, MetaVideo) -> Unit = { _, _ -> },
 ): Job? {
+    // This invocation supersedes every previous next-episode search, even when no aired target exists.
+    previousJob?.cancel()
     val nextVideoId = nextEpisodeInfo?.videoId ?: return null
     val nextVideo = allEpisodes.firstOrNull { video -> video.id == nextVideoId } ?: return null
     if (nextEpisodeInfo.hasAired != true) return null
@@ -94,7 +96,6 @@ internal fun CoroutineScope.launchPlayerNextEpisodeAutoPlay(
         return null
     }
 
-    previousJob?.cancel()
     onSearchingChanged(true)
     onSourceNameChanged(null)
     onCountdownChanged(null)
