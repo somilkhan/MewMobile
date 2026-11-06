@@ -486,6 +486,7 @@ fun SettingsScreen(
                 page = page,
                 scrollToTopRequests = scrollToTopRequests,
                 onPageChange = ::openPage,
+                onWatchPartyClick = onWatchPartyClick,
                 onTmdbEnableRequested = {
                     TmdbSettingsRepository.requestEnableAfterConfig()
                 },
