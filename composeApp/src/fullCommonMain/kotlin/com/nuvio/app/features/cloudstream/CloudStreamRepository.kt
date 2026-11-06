@@ -561,19 +561,22 @@ actual object CloudStreamRepository {
     actual fun setPluginEnabled(pluginId: String, enabled: Boolean) {
         initialize()
         RuntimeDiagnostics.recordLog("cs-provider-enabled id=$pluginId enabled=$enabled")
-        _uiState.update { current ->
-            var changed = false
-            val plugins = current.plugins.map { item ->
-                if (item.metadata.id.value != pluginId) return@map item
-                val nextEnabled = enabled && item.isInstalled && item.verified && item.compatibility.isRunnable &&
-                    item.metadata.status.canInstall
-                changed = item.enabled != nextEnabled
-                item.copy(enabled = nextEnabled, errorMessage = null)
+        synchronized(profileMutationLock) {
+            _uiState.update { current ->
+                var changed = false
+                val plugins = current.plugins.map { item ->
+                    if (item.metadata.id.value != pluginId) return@map item
+                    val nextEnabled = enabled && item.isInstalled && item.verified && item.compatibility.isRunnable &&
+                        item.metadata.status.canInstall
+                    changed = item.enabled != nextEnabled
+                    item.copy(enabled = nextEnabled, errorMessage = null)
+                }
+                current.copy(
+                    plugins = plugins,
+                    registryRevision = current.registryRevision + if (changed) 1 else 0,
+                )
             }
-            current.copy(
-                plugins = plugins,
-                registryRevision = current.registryRevision + if (changed) 1 else 0,
-            )
+            persist()
         }
         if (!enabled) {
             CloudStreamPlatformRuntime.unload(pluginId)
@@ -582,7 +585,6 @@ actual object CloudStreamRepository {
             if (enabledPlugin?.isRunnable == true) {
             }
         }
-        persist()
     }
 
     actual fun removePlugin(pluginId: String) {
