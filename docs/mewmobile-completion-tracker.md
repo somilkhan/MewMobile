@@ -134,3 +134,5 @@ Device candidate 4d838a356a658bf21c9eab0d63c83124d9ba5dd4 tested, not accepted. 
 
 
 | 2026-11-07 | C1 repository-removal install race | Follow-up race audit: removing a repository during a plugin download could delete the package, then an already-running install could commit a package afterward. Repository removal now invalidates per-plugin install generations; final install commit also verifies the plugin still exists and its package URL/version/repository metadata has not changed. | Exact-head host tests + Android Kotlin compile; continue C1 restart/reconcile/error-path audit. |
+
+| 2026-11-07 | C2 dirty-state push race regression coverage | Added focused LibraryLocalState tests proving stale push completion cannot clear newer offline mutations, successful push completion clears the active batch, and profile switching invalidates old push snapshots. | Exact-head host tests + Android Kotlin compile pending. |
