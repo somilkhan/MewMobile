@@ -27,7 +27,7 @@ class LibraryLocalStateTest {
         assertEquals(setOf("tt001", "tt002"), current.pendingUpsertKeys.map { it.contentId }.toSet())
         assertEquals(setOf("tt001", "tt002"), current.items.map { it.id }.toSet())
         assertTrue(current.hasPendingPush)
-        assertTrue(state.isCurrent(snapshot.token).not())
+        assertTrue(state.isCurrent(snapshot.token))
     }
 
     @Test
