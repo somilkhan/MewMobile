@@ -609,7 +609,9 @@ object PartyRepository {
                         return@withLock
                     }
                     if (rejoined.memberId == party.memberId) {
-                        updateParty { it.copy(members = rejoined.members, hostMemberId = rejoined.hostMemberId) }
+                        // Rejoin can return the same member identity after server-side membership
+                        // recovery. Refresh every server-owned field, not only the roster/host.
+                        applySnapshot(snapshot)
                         return@withLock
                     }
                     val playback = _playback.value
