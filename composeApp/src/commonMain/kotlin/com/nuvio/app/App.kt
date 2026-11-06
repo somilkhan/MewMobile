@@ -2252,7 +2252,7 @@ private fun MainAppContent(
                                         settingsRootActionRequests = settingsRootActionRequests,
                                         animateHomeCollectionGifs = tabsRouteActive,
                                         onCatalogClick = onCatalogClick,
-                                        onWatchPartyClick = onWatchPartyClick,
+                                        onWatchPartyClick = { navController.navigate(WatchPartyRoute()) },
                                         onPosterClick = { meta ->
                                             navController.navigate(DetailRoute(type = meta.type, id = meta.id, title = meta.name))
                                         },
@@ -4238,7 +4238,7 @@ private fun AppTabHost(
                         onRequestedPageConsumed = onRequestedSettingsPageConsumed,
                         rootActionsEnabled = rootActionsEnabled && tab == AppScreenTab.Settings,
                         onNavigatePage = onSettingsPageClick,
-                        onWatchPartyClick = { navController.navigate(WatchPartyRoute()) },
+                        onWatchPartyClick = onWatchPartyClick,
                         onSwitchProfile = onSwitchProfile,
                         onHomescreenClick = onHomescreenSettingsClick,
                         onMetaScreenClick = onMetaScreenSettingsClick,

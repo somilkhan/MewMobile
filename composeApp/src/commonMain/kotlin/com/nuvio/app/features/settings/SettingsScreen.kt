@@ -125,7 +125,7 @@ fun SettingsScreen(
     onRequestedPageConsumed: () -> Unit = {},
     rootActionsEnabled: Boolean = true,
     onNavigatePage: ((pageName: String, title: String) -> Unit)? = null,
-    onWatchPartyClick: () -> Unit = {},
+    onOpenWatchParty: () -> Unit = {},
     onExternalBack: (() -> Unit)? = null,
     showInternalHeader: Boolean = true,
     onSwitchProfile: (() -> Unit)? = null,
@@ -763,7 +763,7 @@ private fun MobileSettingsScreen(
                         settingsRootContent(
                             isTablet = false,
                             onPlaybackClick = { onPageChange(SettingsPage.Playback) },
-                            onWatchPartyClick = onWatchPartyClick,
+                            onWatchPartyClick = onOpenWatchParty,
                             onAppearanceClick = { onPageChange(SettingsPage.Appearance) },
                             onAdvancedClick = { onPageChange(SettingsPage.Advanced) },
                             onNotificationsClick = { onPageChange(SettingsPage.Notifications) },

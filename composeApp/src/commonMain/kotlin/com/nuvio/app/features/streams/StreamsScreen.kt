@@ -131,6 +131,7 @@ fun StreamsScreen(
     manualSelection: Boolean = false,
     startFromBeginning: Boolean = false,
     onStreamSelected: (stream: StreamItem, resumePositionMs: Long?, resumeProgressFraction: Float?) -> Unit = { _, _, _ -> },
+    streamHighlight: ((StreamItem) -> String?)? = null,
     onStreamActionOpen: (
         stream: StreamItem,
         openExternally: Boolean,
