@@ -166,5 +166,6 @@ class PlayerScreenRuntimeStateTest {
         torrentTrackers = emptyList(),
         initialPositionMs = 0L,
         initialProgressFraction = null,
+        onOpenPartyMedia = null,
     )
 }
