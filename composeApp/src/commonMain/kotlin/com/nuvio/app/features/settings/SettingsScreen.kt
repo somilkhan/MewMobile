@@ -410,6 +410,7 @@ fun SettingsScreen(
                 page = page,
                 scrollToTopRequests = scrollToTopRequests,
                 onPageChange = ::openPage,
+                onWatchPartyClick = onWatchPartyClick,
                 onTmdbEnableRequested = {
                     TmdbSettingsRepository.requestEnableAfterConfig()
                 },
@@ -571,6 +572,7 @@ private fun MobileSettingsScreen(
     page: SettingsPage,
     scrollToTopRequests: Flow<Unit>,
     onPageChange: (SettingsPage) -> Unit,
+    onWatchPartyClick: () -> Unit,
     onTmdbEnableRequested: () -> Unit,
     onNavigateBack: () -> Unit,
     showInternalHeader: Boolean,
