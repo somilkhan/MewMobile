@@ -999,6 +999,7 @@ private fun TabletSettingsScreen(
     page: SettingsPage,
     scrollToTopRequests: Flow<Unit>,
     onPageChange: (SettingsPage) -> Unit,
+    onWatchPartyClick: () -> Unit,
     onTmdbEnableRequested: () -> Unit,
     onNavigateBack: () -> Unit,
     showInternalHeader: Boolean,
