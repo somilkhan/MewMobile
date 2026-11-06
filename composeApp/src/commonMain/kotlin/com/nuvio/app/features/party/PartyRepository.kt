@@ -454,8 +454,10 @@ object PartyRepository {
                 presence = current.presence.filterKeys { key -> snapshot.members.any { it.id == key } },
             )
         }
-        if (info.media.key != _state.value.party?.media?.key) applyMedia(info.media, info.playback)
-        info.playback?.let(::accept)
+        // Snapshots are authoritative for media metadata even when the stable media key
+        // is unchanged (e.g. refreshed title/poster/source details after reconnect).
+        // applyMedia handles both changed-media replacement and same-key playback acceptance.
+        applyMedia(info.media, info.playback)
     }
 
     private fun applyMedia(media: PartyMedia, playback: PartyPlayback?) {
