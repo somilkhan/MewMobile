@@ -420,6 +420,14 @@ actual object CloudStreamRepository {
         val normalizedUrl = runCatching { normalizeCloudStreamRepositoryUrl(manifestUrl) }.getOrNull() ?: return
         synchronized(refreshJobsLock) { refreshJobs.remove(normalizedUrl)?.cancel() }
         val removedPlugins = _uiState.value.plugins.filter { it.metadata.repositoryManifestUrl == normalizedUrl }
+        // Invalidate downloads before deleting packages: an install that started earlier must
+        // not commit a package after its repository has been removed.
+        synchronized(profileMutationLock) {
+            removedPlugins.forEach { plugin ->
+                val pluginId = plugin.metadata.id.value
+                pluginInstallGenerationById[pluginId] = (pluginInstallGenerationById[pluginId] ?: 0L) + 1L
+            }
+        }
         removedPlugins.forEach {
             CloudStreamPlatformRuntime.unload(it.metadata.id.value)
             CloudStreamPlatformStorage.deletePackage(it.metadata.id.storageKey)
@@ -828,6 +836,13 @@ private fun cancelInFlightLoadLinksRequests() {
                 check((pluginInstallGenerationById[pluginId] ?: 0L) == pluginOperationGeneration) {
                     "CloudStream plugin was removed during installation"
                 }
+                val latestPlugin = _uiState.value.plugins.firstOrNull { it.metadata.id.value == pluginId }
+                    ?: error("CloudStream plugin was removed during installation")
+                check(
+                    latestPlugin.metadata.packageUrl == item.metadata.packageUrl &&
+                        latestPlugin.metadata.version == item.metadata.version &&
+                        latestPlugin.metadata.repositoryManifestUrl == item.metadata.repositoryManifestUrl,
+                ) { "CloudStream plugin metadata changed during installation; retry the install" }
                 // Keep the active profile stable from the package replacement through state persistence.
                 CloudStreamPlatformRuntime.unload(pluginId)
                 CloudStreamPlatformStorage.savePackageAtomically(item.metadata.id.storageKey, bytes)
