@@ -445,6 +445,13 @@ object PartyRepository {
             else -> return
         }
         val info = snapshot.party ?: return
+        val previousHostMemberId = _state.value.party?.hostMemberId
+        if (previousHostMemberId != null && previousHostMemberId != info.hostMemberId) {
+            // Shared stream is published by the previous host and is not transferable
+            // merely because the server elected a new host.
+            _sharedStream.value = null
+            updateParty { it.copy(sharing = false) }
+        }
         updateParty { current ->
             current.copy(
                 members = snapshot.members,
