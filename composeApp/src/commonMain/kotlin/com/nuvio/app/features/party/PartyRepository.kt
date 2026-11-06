@@ -409,12 +409,19 @@ object PartyRepository {
             return
         }
         val name = party.member(memberId)?.displayName
-        if (memberId == party.hostMemberId) _sharedStream.value = null
+        val hostLeft = memberId == party.hostMemberId
+        val nextHostMemberId = hostMemberId ?: party.hostMemberId
+        if (hostLeft) {
+            // Host stream ownership cannot survive an election. Clear sharing before
+            // storing the new host ID so the subsequent snapshot sees no old host.
+            _sharedStream.value = null
+        }
         updateParty { current ->
             current.copy(
                 members = current.members.filterNot { it.id == memberId },
                 presence = current.presence - memberId,
-                hostMemberId = hostMemberId ?: current.hostMemberId,
+                hostMemberId = nextHostMemberId,
+                sharing = if (hostLeft) false else current.sharing,
             )
         }
         ignoredWaiting.remove(memberId)
