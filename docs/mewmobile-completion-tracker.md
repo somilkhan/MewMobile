@@ -138,3 +138,5 @@ Device candidate 4d838a356a658bf21c9eab0d63c83124d9ba5dd4 tested, not accepted. 
 | 2026-11-07 | C2 dirty-state push race regression coverage | Added focused LibraryLocalState tests proving stale push completion cannot clear newer offline mutations, successful push completion clears the active batch, and profile switching invalidates old push snapshots. | Exact-head host tests + Android Kotlin compile pending. |
 
 | 2026-11-07 | C3 autoplay policy regression coverage | Added tests for manual-mode binge-group restriction, fallback behavior, preference-only restriction, and non-manual modes. | Exact-head host tests pending. |
+
+| 2026-11-07 | C1 install preserves concurrent enable choice | Install completion used the pre-download plugin snapshot's enabled flag, overwriting a user's enable/disable action made while the package downloaded. Commit now derives final enabled state from the current plugin row while still applying verification/compatibility guards. | Exact-head host tests + Android Kotlin compile pending. |

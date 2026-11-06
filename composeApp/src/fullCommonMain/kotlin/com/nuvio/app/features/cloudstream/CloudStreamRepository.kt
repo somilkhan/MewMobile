@@ -849,7 +849,8 @@ private fun cancelInFlightLoadLinksRequests() {
                 val installed = item.copy(
                     installedVersion = item.metadata.version,
                     installedAtEpochMs = currentEpochMillis(),
-                    enabled = item.enabled && verified && item.compatibility.isRunnable,
+                    // Preserve the user's latest enable/disable choice made during download.
+                    enabled = latestPlugin.enabled && verified && latestPlugin.compatibility.isRunnable,
                     verified = verified,
                     isInstalling = false,
                     errorMessage = null,
