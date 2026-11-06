@@ -52,6 +52,8 @@ actual object CloudStreamRepository {
     private var currentProfileId = 1
     // Serialize package replacement/state commits so concurrent install/update requests cannot race.
     private val pluginInstallMutex = Mutex()
+    /** Invalidates a download if its plugin is removed before the install commit. */
+    private val pluginInstallGenerationById = mutableMapOf<String, Long>()
     private val refreshJobs = mutableMapOf<String, Job>()
     private val refreshJobsLock = Any()
     /** Serializes profile changes with the final package/state commit. */
@@ -578,6 +580,9 @@ actual object CloudStreamRepository {
     actual fun removePlugin(pluginId: String) {
         initialize()
         val plugin = _uiState.value.plugins.firstOrNull { it.metadata.id.value == pluginId } ?: return
+        synchronized(profileMutationLock) {
+            pluginInstallGenerationById[pluginId] = (pluginInstallGenerationById[pluginId] ?: 0L) + 1L
+        }
         CloudStreamPlatformRuntime.unload(pluginId)
         CloudStreamPlatformStorage.deletePackage(plugin.metadata.id.storageKey)
         _uiState.update { current ->
@@ -783,6 +788,9 @@ private fun cancelInFlightLoadLinksRequests() {
         initialize()
         val profileId = currentProfileId
         val operationGeneration = updateCheckGeneration
+        val pluginOperationGeneration = synchronized(profileMutationLock) {
+            pluginInstallGenerationById[pluginId] ?: 0L
+        }
         if (!_uiState.value.securityWarningAccepted) {
             return CloudStreamInstallResult.Error("Accept the third-party plugin security warning before installation")
         }
@@ -816,6 +824,9 @@ private fun cancelInFlightLoadLinksRequests() {
             synchronized(profileMutationLock) {
                 check(isCloudStreamOperationCurrent(profileId, currentProfileId, operationGeneration, updateCheckGeneration)) {
                     "Active profile changed during CloudStream install"
+                }
+                check((pluginInstallGenerationById[pluginId] ?: 0L) == pluginOperationGeneration) {
+                    "CloudStream plugin was removed during installation"
                 }
                 // Keep the active profile stable from the package replacement through state persistence.
                 CloudStreamPlatformRuntime.unload(pluginId)
