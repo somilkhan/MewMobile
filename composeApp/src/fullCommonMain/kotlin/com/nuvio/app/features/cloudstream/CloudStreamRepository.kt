@@ -933,10 +933,15 @@ private fun cancelInFlightLoadLinksRequests() {
             }
             val previousById = current.plugins.associateBy { it.metadata.id.value }
             val refreshed = plugins.map { metadata ->
+                val compatibility = resolveCompatibility(metadata)
                 previousById[metadata.id.value]?.copy(
                     metadata = metadata,
-                    compatibility = resolveCompatibility(metadata),
-                    enabled = previousById[metadata.id.value]?.enabled == true && metadata.status.canInstall,
+                    compatibility = compatibility,
+                    enabled = shouldKeepCloudStreamPluginEnabled(
+                        wasEnabled = previousById[metadata.id.value]?.enabled == true,
+                        statusCanInstall = metadata.status.canInstall,
+                        compatibilityIsRunnable = compatibility.isRunnable,
+                    ),
                     errorMessage = null,
                 ) ?: newPluginItem(metadata)
             }

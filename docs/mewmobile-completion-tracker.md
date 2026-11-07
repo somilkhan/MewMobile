@@ -145,3 +145,6 @@ Device candidate 4d838a356a658bf21c9eab0d63c83124d9ba5dd4 tested, not accepted. 
 
 
 | 2026-11-07 | C1/C2/C3 exact-head CI accepted | Run [42295013568](https://github.com/somilkhan/MewMobile/actions/runs/42295013568) completed SUCCESS on exact SHA `254455ec02f038dc2b9466f7adb3dff5e9539207`: branding validation, Android host tests, and Android Kotlin compilation all passed; Full Debug APK/package/sign/upload skipped by workflow policy. This verifies C2 local dirty-state race tests and C3 autoplay policy tests compile/pass alongside C1 serialization fixes. | Continue remaining C1 restart/reconcile/error audit, C2 auth/offline merge edge audit, C3 matching/autoplay cancellation edge audit, C4 lifecycle review, and C5 static performance pass. Device behavior remains Phase 5. |
+
+
+| 2026-11-07 | C1 refresh compatibility reconciliation | Static lifecycle audit found repository refresh retained `enabled=true` for previously enabled plugins when refreshed metadata made the plugin incompatible (it only checked plugin status). Refresh now derives compatibility once and preserves enabled only if status remains installable **and** compatibility is runnable, matching restore/install guards; focused pure-policy regression tests added. Exact-head CI pending. |

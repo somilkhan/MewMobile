@@ -361,3 +361,10 @@ sealed interface CloudStreamProviderError {
     data class Extractor(override val message: String) : CloudStreamProviderError
     data class NoLinks(override val message: String = "No links found") : CloudStreamProviderError
 }
+
+
+internal fun shouldKeepCloudStreamPluginEnabled(
+    wasEnabled: Boolean,
+    statusCanInstall: Boolean,
+    compatibilityIsRunnable: Boolean,
+): Boolean = wasEnabled && statusCanInstall && compatibilityIsRunnable

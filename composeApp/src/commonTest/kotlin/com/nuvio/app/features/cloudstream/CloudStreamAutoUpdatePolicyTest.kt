@@ -79,4 +79,16 @@ class CloudStreamAutoUpdatePolicyTest {
             ),
         )
     }
+
+    @Test
+    fun repositoryRefreshDisablesEnabledPluginWhenItBecomesIncompatible() {
+        assertFalse(shouldKeepCloudStreamPluginEnabled(true, statusCanInstall = true, compatibilityIsRunnable = false))
+    }
+
+    @Test
+    fun repositoryRefreshPreservesEnabledStateOnlyForRunnableInstallablePlugin() {
+        assertTrue(shouldKeepCloudStreamPluginEnabled(true, statusCanInstall = true, compatibilityIsRunnable = true))
+        assertFalse(shouldKeepCloudStreamPluginEnabled(false, statusCanInstall = true, compatibilityIsRunnable = true))
+        assertFalse(shouldKeepCloudStreamPluginEnabled(true, statusCanInstall = false, compatibilityIsRunnable = true))
+    }
 }
