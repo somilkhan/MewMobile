@@ -148,3 +148,6 @@ Device candidate 4d838a356a658bf21c9eab0d63c83124d9ba5dd4 tested, not accepted. 
 
 
 | 2026-11-07 | C1 refresh compatibility reconciliation | Static lifecycle audit found repository refresh retained `enabled=true` for previously enabled plugins when refreshed metadata made the plugin incompatible (it only checked plugin status). Refresh now derives compatibility once and preserves enabled only if status remains installable **and** compatibility is runnable, matching restore/install guards; focused pure-policy regression tests added. Exact-head CI pending. |
+
+
+| 2026-11-07 | C3 downloaded-next fast-path stale UI repair | A cancellation edge audit found a prior stream-search coroutine could leave the next-episode UI in `searching` state when a newly available downloaded episode took the fast path (that path returns before the old coroutine's normal cleanup). Cancellation now immediately resets searching/source/countdown before download lookup; focused callback/job regression added. Exact-head CI pending. |

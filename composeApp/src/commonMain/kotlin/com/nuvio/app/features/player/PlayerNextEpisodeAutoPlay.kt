@@ -19,6 +19,20 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
+
+
+internal fun cancelPreviousNextEpisodeSearch(
+    previousJob: Job?,
+    onSearchingChanged: (Boolean) -> Unit,
+    onSourceNameChanged: (String?) -> Unit,
+    onCountdownChanged: (Int?) -> Unit,
+) {
+    previousJob?.cancel()
+    onSearchingChanged(false)
+    onSourceNameChanged(null)
+    onCountdownChanged(null)
+}
+
 internal fun shouldRestrictNextEpisodeAutoPlayToBingeGroup(
     mode: StreamAutoPlayMode,
     autoPlayNextEpisodeEnabled: Boolean,
@@ -80,7 +94,12 @@ internal fun CoroutineScope.launchPlayerNextEpisodeAutoPlay(
     if (nextEpisodeInfo.hasAired != true) return null
 
     // Cancel only after validating a playable next episode; preserve current search on invalid targets.
-    previousJob?.cancel()
+    cancelPreviousNextEpisodeSearch(
+        previousJob = previousJob,
+        onSearchingChanged = onSearchingChanged,
+        onSourceNameChanged = onSourceNameChanged,
+        onCountdownChanged = onCountdownChanged,
+    )
 
     val downloadedNextEpisode = DownloadsRepository.findPlayableDownload(
         parentMetaId = parentMetaId,
