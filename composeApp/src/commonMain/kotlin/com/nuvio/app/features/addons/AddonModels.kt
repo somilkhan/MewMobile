@@ -1,5 +1,6 @@
 package com.nuvio.app.features.addons
 
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.runBlocking
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.generic_addon
@@ -53,6 +54,7 @@ data class ManagedAddon(
     val enabled: Boolean = true,
     val isRefreshing: Boolean = false,
     val errorMessage: String? = null,
+    val versionChangedFrom: String? = null,
 ) {
     val isActive: Boolean
         get() = enabled && manifest != null
@@ -89,3 +91,35 @@ sealed interface AddAddonResult {
     data class Success(val manifest: AddonManifest) : AddAddonResult
     data class Error(val message: String) : AddAddonResult
 }
+
+internal fun addonVersionChanged(previousVersion: String?, currentVersion: String): Boolean =
+    !previousVersion.isNullOrBlank() && currentVersion.isNotBlank() && previousVersion != currentVersion
+
+internal fun addonVersionChangeFrom(
+    previousVersion: String?,
+    currentVersion: String,
+    pendingVersion: String?,
+): String? = pendingVersion ?: previousVersion?.takeIf { addonVersionChanged(it, currentVersion) }
+
+
+/**
+ * Lazy jobs are reservations too: [Job.isActive] is false before start, but duplicate refreshes
+ * must still be rejected until the existing reservation completes or is cancelled.
+ */
+internal fun canReserveAddonRefresh(existingJob: Job?): Boolean = existingJob?.isCompleted != false
+
+/** Rejects stale async work even if the active profile later returns to the same numeric ID. */
+internal fun isAddonProfileSessionCurrent(
+    requestProfileId: Int,
+    requestGeneration: Long,
+    currentProfileId: Int,
+    currentGeneration: Long,
+    effectiveActiveProfileId: Int,
+    trackedActiveProfileId: Int = effectiveActiveProfileId,
+    actualActiveProfileId: Int = trackedActiveProfileId,
+): Boolean =
+    requestProfileId == currentProfileId &&
+        requestGeneration == currentGeneration &&
+        requestProfileId == effectiveActiveProfileId &&
+        trackedActiveProfileId == actualActiveProfileId
+

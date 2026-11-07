@@ -125,6 +125,7 @@ fun SettingsScreen(
     onRequestedPageConsumed: () -> Unit = {},
     rootActionsEnabled: Boolean = true,
     onNavigatePage: ((pageName: String, title: String) -> Unit)? = null,
+    onWatchPartyClick: () -> Unit = {},
     onExternalBack: (() -> Unit)? = null,
     showInternalHeader: Boolean = true,
     onSwitchProfile: (() -> Unit)? = null,
@@ -179,6 +180,9 @@ fun SettingsScreen(
         val tmdbSettings by remember {
             TmdbSettingsRepository.ensureLoaded()
             TmdbSettingsRepository.uiState
+        }.collectAsStateWithLifecycle()
+        val enableTmdbAfterConfig by remember {
+            TmdbSettingsRepository.enableAfterConfigRequested
         }.collectAsStateWithLifecycle()
         val aiAssistantSettings by remember {
             AiAssistantSettingsRepository.ensureLoaded()
@@ -362,6 +366,16 @@ fun SettingsScreen(
             }
         }
 
+        LaunchedEffect(page, tmdbSettings.apiKey, enableTmdbAfterConfig) {
+            if (
+                enableTmdbAfterConfig &&
+                page == SettingsPage.TmdbEnrichment &&
+                tmdbSettings.hasApiKey
+            ) {
+                TmdbSettingsRepository.completeEnableAfterConfigIfPossible()
+            }
+        }
+
         LaunchedEffect(rootActionRequests, rootActionsEnabled, page) {
             rootActionRequests.collect {
                 if (!rootActionsEnabled) return@collect
@@ -396,6 +410,10 @@ fun SettingsScreen(
                 page = page,
                 scrollToTopRequests = scrollToTopRequests,
                 onPageChange = ::openPage,
+                onWatchPartyClick = onWatchPartyClick,
+                onTmdbEnableRequested = {
+                    TmdbSettingsRepository.requestEnableAfterConfig()
+                },
                 onNavigateBack = ::navigateBack,
                 showInternalHeader = showInternalHeader,
                 showLoadingOverlay = playerSettingsUiState.showLoadingOverlay,
@@ -468,6 +486,10 @@ fun SettingsScreen(
                 page = page,
                 scrollToTopRequests = scrollToTopRequests,
                 onPageChange = ::openPage,
+                onWatchPartyClick = onWatchPartyClick,
+                onTmdbEnableRequested = {
+                    TmdbSettingsRepository.requestEnableAfterConfig()
+                },
                 onNavigateBack = ::navigateBack,
                 showInternalHeader = showInternalHeader,
                 showLoadingOverlay = playerSettingsUiState.showLoadingOverlay,
@@ -551,6 +573,8 @@ private fun MobileSettingsScreen(
     page: SettingsPage,
     scrollToTopRequests: Flow<Unit>,
     onPageChange: (SettingsPage) -> Unit,
+    onWatchPartyClick: () -> Unit,
+    onTmdbEnableRequested: () -> Unit,
     onNavigateBack: () -> Unit,
     showInternalHeader: Boolean,
     showLoadingOverlay: Boolean,
@@ -742,6 +766,7 @@ private fun MobileSettingsScreen(
                         settingsRootContent(
                             isTablet = false,
                             onPlaybackClick = { onPageChange(SettingsPage.Playback) },
+                            onWatchPartyClick = onWatchPartyClick,
                             onAppearanceClick = { onPageChange(SettingsPage.Appearance) },
                             onAdvancedClick = { onPageChange(SettingsPage.Advanced) },
                             onNotificationsClick = { onPageChange(SettingsPage.Notifications) },
@@ -868,9 +893,11 @@ private fun MobileSettingsScreen(
                     isTablet = false,
                     showPluginsEntry = AppFeaturePolicy.pluginsEnabled,
                     showCloudStreamEntry = AppFeaturePolicy.pluginsEnabled,
-                    tmdbSettings = tmdbSettings,
+                    tmdbEnabled = tmdbSettings.enabled,
+                    tmdbHasApiKey = tmdbSettings.hasApiKey,
+                    onTmdbEnabledChange = TmdbSettingsRepository::setEnabled,
+                    onTmdbSettingsClick = { onPageChange(SettingsPage.TmdbEnrichment) },
                     onAddonsClick = onAddonsClick,
-                    onTmdbConfigureClick = { onPageChange(SettingsPage.TmdbEnrichment) },
                     onPluginsClick = onPluginsClick,
                     onCloudStreamClick = onCloudStreamClick,
                 )
@@ -973,6 +1000,8 @@ private fun TabletSettingsScreen(
     page: SettingsPage,
     scrollToTopRequests: Flow<Unit>,
     onPageChange: (SettingsPage) -> Unit,
+    onWatchPartyClick: () -> Unit,
+    onTmdbEnableRequested: () -> Unit,
     onNavigateBack: () -> Unit,
     showInternalHeader: Boolean,
     showLoadingOverlay: Boolean,
@@ -1210,6 +1239,7 @@ private fun TabletSettingsScreen(
                             settingsRootContent(
                                 isTablet = true,
                                 onPlaybackClick = { openInlinePage(SettingsPage.Playback) },
+                                onWatchPartyClick = onWatchPartyClick,
                                 onAppearanceClick = { openInlinePage(SettingsPage.Appearance) },
                                 onAdvancedClick = { openInlinePage(SettingsPage.Advanced) },
                                 onNotificationsClick = { openInlinePage(SettingsPage.Notifications) },
@@ -1341,9 +1371,11 @@ private fun TabletSettingsScreen(
                         isTablet = true,
                         showPluginsEntry = AppFeaturePolicy.pluginsEnabled,
                         showCloudStreamEntry = AppFeaturePolicy.pluginsEnabled,
-                        tmdbSettings = tmdbSettings,
+                        tmdbEnabled = tmdbSettings.enabled,
+                        tmdbHasApiKey = tmdbSettings.hasApiKey,
+                        onTmdbEnabledChange = TmdbSettingsRepository::setEnabled,
+                        onTmdbSettingsClick = { openInlinePage(SettingsPage.TmdbEnrichment) },
                         onAddonsClick = { openInlinePage(SettingsPage.Addons) },
-                        onTmdbConfigureClick = { openInlinePage(SettingsPage.TmdbEnrichment) },
                         onPluginsClick = { openInlinePage(SettingsPage.Plugins) },
                         onCloudStreamClick = { openInlinePage(SettingsPage.CloudStream) },
                     )

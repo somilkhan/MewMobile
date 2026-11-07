@@ -8,6 +8,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -558,6 +559,7 @@ fun MetaDetailsScreen(
                         watchedItems = watchedUiState.items,
                         todayIsoDate = todayIsoDate,
                         preferFurthestEpisode = cwPrefs.upNextFromFurthestEpisode,
+                        allowRewatch = true,
                     )
                 }
                 val seriesActionVideo = remember(seriesAction, meta.id, meta.videos) {
@@ -1188,6 +1190,7 @@ fun MetaDetailsScreen(
                     val contentHorizontalPadding = if (isTablet) 32.dp else 18.dp
                     val contentMaxWidth = detailTabletContentMaxWidth(maxWidth, isTablet)
                     val backdropUrl = meta.background ?: meta.poster
+                    var heroBackdropPainter by remember(backdropUrl) { mutableStateOf<Painter?>(null) }
                     val backgroundMode = metaScreenSettingsUiState.backgroundMode
                     val dominantColorEnabled = backgroundMode == MetaScreenBackgroundMode.DominantColor &&
                         deferredMetaWorkAllowed &&
@@ -1260,14 +1263,24 @@ fun MetaDetailsScreen(
                     Box(modifier = Modifier.fillMaxSize()) {
                         when (backgroundMode) {
                             MetaScreenBackgroundMode.Normal -> Unit
-                            MetaScreenBackgroundMode.Cinematic -> if (deferredMetaWorkAllowed && backdropUrl != null) {
-                                AsyncImage(
-                                    model = backdropUrl,
-                                    contentDescription = null,
-                                    modifier = Modifier
-                                        .fillMaxSize(),
-                                    contentScale = ContentScale.Crop,
-                                )
+                            MetaScreenBackgroundMode.Cinematic -> if (backdropUrl != null) {
+                                val cinematicModifier = Modifier.fillMaxSize()
+                                val heroPainter = heroBackdropPainter
+                                if (heroPainter != null) {
+                                    Image(
+                                        painter = heroPainter,
+                                        contentDescription = null,
+                                        modifier = cinematicModifier,
+                                        contentScale = ContentScale.Crop,
+                                    )
+                                } else if (deferredMetaWorkAllowed) {
+                                    AsyncImage(
+                                        model = backdropUrl,
+                                        contentDescription = null,
+                                        modifier = cinematicModifier,
+                                        contentScale = ContentScale.Crop,
+                                    )
+                                }
                                 Box(
                                     modifier = Modifier
                                         .fillMaxSize()
@@ -1302,6 +1315,7 @@ fun MetaDetailsScreen(
                                         stretchPx = { heroStretchState.stretchPx },
                                         onHeightChanged = { heroHeightPxState.intValue = it },
                                         onBackdropLoaded = { painter, imageBitmap ->
+                                            heroBackdropPainter = painter
                                             dominantBackdropPainter = painter
                                             dominantBackdropImageBitmap = imageBitmap
                                         },
@@ -1338,6 +1352,7 @@ fun MetaDetailsScreen(
                                         heroTrailerMuted = heroTrailerMuted,
                                         heroGradientColor = dominantBackdropColor.takeIf { dominantColorEnabled },
                                         onBackdropLoaded = { painter, imageBitmap ->
+                                            heroBackdropPainter = painter
                                             dominantBackdropPainter = painter
                                             dominantBackdropImageBitmap = imageBitmap
                                         },

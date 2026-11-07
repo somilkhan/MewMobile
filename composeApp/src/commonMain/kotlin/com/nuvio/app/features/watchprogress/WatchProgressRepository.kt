@@ -3,6 +3,7 @@ package com.nuvio.app.features.watchprogress
 import co.touchlab.kermit.Logger
 import com.nuvio.app.core.auth.AuthRepository
 import com.nuvio.app.core.auth.AuthState
+import com.nuvio.app.core.auth.canSyncRemotely
 import com.nuvio.app.core.tracking.ensureTrackingProvidersRegistered
 import com.nuvio.app.features.addons.AddonManifest
 import com.nuvio.app.features.addons.AddonRepository
@@ -1310,8 +1311,10 @@ object WatchProgressRepository {
     }
 
     private fun pushScrobbleToServer(entry: WatchProgressEntry, profileId: Int) {
+        if (!AuthRepository.state.value.canSyncRemotely) return
         val operationGeneration = profileGeneration.takeIf { profileId == currentProfileId }
         accountScopeSnapshot().launch {
+            if (!AuthRepository.state.value.canSyncRemotely) return@launch
             runCatching {
                 syncAdapter.push(profileId = profileId, entries = listOf(entry))
                 recordSuccessfulPush(
@@ -1326,6 +1329,7 @@ object WatchProgressRepository {
     }
 
     private fun pushDeleteToServer(entries: Collection<WatchProgressEntry>) {
+        if (!AuthRepository.state.value.canSyncRemotely) return
         if (activeSource.providerId != null) return
         val profileId = currentProfileId
         accountScopeSnapshot().launch {
@@ -1336,6 +1340,18 @@ object WatchProgressRepository {
                 log.e(e) { "Failed to push watch progress delete" }
             }
         }
+    }
+
+    /** Re-send locally persisted dirty progress after an authenticated profile pull. */
+    internal fun flushPendingProgressToServer(profileId: Int) {
+        if (!AuthRepository.state.value.canSyncRemotely) return
+        if (ProfileRepository.activeProfileId != profileId) return
+        if (!hasLoaded || currentProfileId != profileId) loadFromDisk(profileId)
+        val dirtyKeys = dirtyProgressKeysSnapshot()
+        if (dirtyKeys.isEmpty()) return
+        val pendingEntries = localEntriesSnapshot().filter { it.resolvedProgressKey() in dirtyKeys }
+        log.i { "Flushing ${pendingEntries.size} pending local watch-progress entries for profile $profileId" }
+        pendingEntries.forEach { entry -> pushScrobbleToServer(entry, profileId) }
     }
 
     private fun publish() {
@@ -1620,6 +1636,9 @@ object WatchProgressRepository {
     fun shouldUseAsNextUpSeed(entry: WatchProgressEntry, nowEpochMs: Long): Boolean =
         activeProgressProvider()?.shouldUseAsNextUpSeed(entry, nowEpochMs)
             ?: entry.shouldUseAsCompletedSeedForContinueWatching()
+
+    fun nextUpSeedContentId(contentId: String): String =
+        activeProgressProvider()?.nextUpSeedContentId(contentId) ?: contentId
 
     suspend fun prepareNextUpProgressEntries(
         entries: List<WatchProgressEntry>,

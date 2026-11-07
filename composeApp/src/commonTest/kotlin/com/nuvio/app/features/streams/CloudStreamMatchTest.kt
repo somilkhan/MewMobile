@@ -12,6 +12,59 @@ import kotlin.test.assertTrue
 
 class CloudStreamMatchTest {
     @Test
+    fun groupedCloudStreamProvidersBecomeIndependentTasksButKeepRepositoryIdentity() {
+        val groups = listOf(
+            CloudStreamProviderGroup(
+                addonId = "cloudstream-repo:repo-a",
+                addonName = "Repository A",
+                providerId = "provider-one",
+                providers = listOf(
+                    CloudStreamProviderTarget("provider-one", "One", "https://example/repo.json", "direct-one"),
+                    CloudStreamProviderTarget("provider-two", "Two", "https://example/repo.json"),
+                ),
+            ),
+        )
+
+        val tasks = flattenCloudStreamProviderTasks(groups)
+
+        assertEquals(listOf("provider-one", "provider-two"), tasks.map { it.providerId })
+        assertEquals(setOf("cloudstream-repo:repo-a"), tasks.map { it.addonId }.toSet())
+        assertEquals(listOf("direct-one", null), tasks.map { it.directData })
+        assertTrue(tasks.all { it.providers.isEmpty() })
+    }
+
+    @Test
+    fun includesAsianDramaProvidersForSeriesRequests() {
+        assertTrue(
+            cloudStreamTypeSupportsRequest(
+                supportedTypes = setOf(CloudStreamTvType.AsianDrama),
+                type = "series",
+            ),
+        )
+    }
+
+    @Test
+    fun includesAsianDramaProvidersForAnimeSeriesRequests() {
+        assertTrue(
+            cloudStreamTypeSupportsRequest(
+                supportedTypes = setOf(CloudStreamTvType.AsianDrama),
+                type = "series",
+                genres = listOf("Anime"),
+            ),
+        )
+    }
+
+    @Test
+    fun excludesMovieOnlyProvidersForSeriesRequests() {
+        assertFalse(
+            cloudStreamTypeSupportsRequest(
+                supportedTypes = setOf(CloudStreamTvType.Movie),
+                type = "series",
+            ),
+        )
+    }
+
+    @Test
     fun doesNotSelectPrefixOnlyMovieForShortTitle() {
         val match = listOf(
             CloudStreamSearchItem(
@@ -176,6 +229,71 @@ class CloudStreamMatchTest {
     }
 
     @Test
+    fun rejectsProviderRankedUnrelatedSeriesEvenWhenEpisodeNumbersMatch() {
+        val request = CloudStreamSearchRequest(
+            title = "Black Clover",
+            type = "series",
+            year = null,
+            season = 2,
+            episode = 3,
+        )
+        val searchItem = CloudStreamSearchItem(
+            providerId = "provider",
+            data = "another-show",
+            name = "Another Show",
+            type = CloudStreamTvType.TvSeries,
+        )
+        val loaded = CloudStreamLoadItem(
+            providerId = "provider",
+            data = "another-show",
+            name = "Another Show",
+            type = CloudStreamTvType.TvSeries,
+            episodes = listOf(
+                CloudStreamEpisode(data = "s2e3", name = "Episode 3", season = 2, episode = 3),
+            ),
+        )
+
+        assertFalse(
+            loaded.matchesCloudStreamRequest(
+                request = request,
+                searchItem = searchItem,
+                allowProviderRankedFallback = true,
+            ),
+        )
+    }
+
+    @Test
+    fun rejectsProviderRankedUnrelatedMovieWithoutVerifiableYear() {
+        val request = CloudStreamSearchRequest(
+            title = "Black Clover",
+            type = "movie",
+            year = null,
+            season = null,
+            episode = null,
+        )
+        val searchItem = CloudStreamSearchItem(
+            providerId = "provider",
+            data = "another-title",
+            name = "Another Title",
+            type = CloudStreamTvType.Movie,
+        )
+        val loaded = CloudStreamLoadItem(
+            providerId = "provider",
+            data = "another-title",
+            name = "Another Title",
+            type = CloudStreamTvType.Movie,
+        )
+
+        assertFalse(
+            loaded.matchesCloudStreamRequest(
+                request = request,
+                searchItem = searchItem,
+                allowProviderRankedFallback = true,
+            ),
+        )
+    }
+
+    @Test
     fun rejectsProviderRankedLocalizedTitleWhenMovieYearDiffers() {
         val request = CloudStreamSearchRequest(
             title = "The Shawshank Redemption",
@@ -229,6 +347,46 @@ class CloudStreamMatchTest {
         )
 
         assertNull(loaded.linkDataForCloudStreamRequest(request))
+    }
+
+    @Test
+    fun doesNotResolveSeriesRouteWhenRequestedEpisodeMetadataIsMissing() {
+        val loaded = CloudStreamLoadItem(
+            providerId = "provider",
+            data = "show",
+            name = "Show",
+            type = CloudStreamTvType.TvSeries,
+            episodes = emptyList(),
+        )
+        val request = CloudStreamSearchRequest(
+            title = "Show",
+            type = "series",
+            year = null,
+            season = 2,
+            episode = 3,
+        )
+
+        assertNull(loaded.linkDataForCloudStreamRequest(request))
+    }
+
+    @Test
+    fun keepsSeriesRouteWhenNoEpisodeWasRequestedAndMetadataIsMissing() {
+        val loaded = CloudStreamLoadItem(
+            providerId = "provider",
+            data = "show",
+            name = "Show",
+            type = CloudStreamTvType.TvSeries,
+            episodes = emptyList(),
+        )
+        val request = CloudStreamSearchRequest(
+            title = "Show",
+            type = "series",
+            year = null,
+            season = null,
+            episode = null,
+        )
+
+        assertEquals("show", loaded.linkDataForCloudStreamRequest(request))
     }
 
     @Test

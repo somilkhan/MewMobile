@@ -6,4 +6,5 @@ internal expect object EpisodeReleaseNotificationPlatform {
     suspend fun scheduleEpisodeReleaseNotifications(requests: List<EpisodeReleaseNotificationRequest>)
     suspend fun clearScheduledEpisodeReleaseNotifications()
     suspend fun showTestNotification(request: EpisodeReleaseNotificationRequest)
+    suspend fun showCloudStreamPluginUpdates(pluginNames: List<String>)
 }

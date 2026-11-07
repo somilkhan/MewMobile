@@ -31,3 +31,18 @@ class PluginScraperCodeFileStoreTest {
         }
     }
 }
+
+
+class CloudStreamCompatibilityAbiTest {
+    @Test
+    fun exposesCloudStreamDataStoreAndSyncRepoSymbols() {
+        val dataStore = Class.forName("com.lagradost.cloudstream3.utils.DataStore")
+        dataStore.getMethod(
+            "getDefaultSharedPrefs",
+            android.content.Context::class.java,
+        )
+        val syncApi = Class.forName("com.lagradost.cloudstream3.syncproviders.SyncAPI")
+        val syncRepo = Class.forName("com.lagradost.cloudstream3.syncproviders.SyncRepo")
+        syncRepo.getConstructor(syncApi)
+    }
+}

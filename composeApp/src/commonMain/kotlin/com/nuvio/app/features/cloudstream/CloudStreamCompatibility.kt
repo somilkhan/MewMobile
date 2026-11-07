@@ -1,5 +1,11 @@
 package com.nuvio.app.features.cloudstream
 
+/**
+ * TMDB and CloudStream are mutually exclusive discovery modes in Mew.
+ * CloudStream providers may run only while TMDB enrichment/discovery is disabled.
+ */
+internal fun isCloudStreamDiscoveryAllowed(tmdbEnabled: Boolean): Boolean = !tmdbEnabled
+
 object CloudStreamCompatibilityResolver {
     private val crossPlatformAdapters = mapOf(
         "https://raw.githubusercontent.com/Kraptor123/cs-kraptor/master/repo.json#KickTR" to "kick-tr-v1",

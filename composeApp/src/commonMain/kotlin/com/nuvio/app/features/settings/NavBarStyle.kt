@@ -5,6 +5,7 @@ import nuvio.composeapp.generated.resources.settings_nav_bar_style_adaptive
 import nuvio.composeapp.generated.resources.settings_nav_bar_style_expanded
 import nuvio.composeapp.generated.resources.settings_nav_bar_style_compact
 import nuvio.composeapp.generated.resources.settings_nav_bar_style_classic
+import nuvio.composeapp.generated.resources.settings_nav_bar_style_liquid_glass
 import org.jetbrains.compose.resources.StringResource
 
 enum class NavBarStyle(
@@ -15,6 +16,7 @@ enum class NavBarStyle(
     EXPANDED("expanded", Res.string.settings_nav_bar_style_expanded),
     COMPACT("compact", Res.string.settings_nav_bar_style_compact),
     CLASSIC("classic", Res.string.settings_nav_bar_style_classic),
+    LIQUID_GLASS("liquid_glass", Res.string.settings_nav_bar_style_liquid_glass),
     ;
 
     companion object {

@@ -6,6 +6,7 @@ import android.net.Uri
 import android.provider.DocumentsContract
 import androidx.core.content.FileProvider
 import com.nuvio.app.features.streams.StreamSubtitle
+import com.nuvio.app.core.network.SharedOkHttpClient
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -28,7 +29,7 @@ import java.io.IOException
 import java.net.URI
 import java.util.concurrent.TimeUnit
 
-private val downloadHttpClient = OkHttpClient.Builder()
+private val downloadHttpClient = SharedOkHttpClient.base.newBuilder()
     .connectTimeout(30, TimeUnit.SECONDS)
     .readTimeout(90, TimeUnit.SECONDS)
     .writeTimeout(60, TimeUnit.SECONDS)

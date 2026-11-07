@@ -7,6 +7,16 @@ internal object SupabaseEndpointConfig {
     val hasFallback: Boolean
         get() = fallbackBaseUrl.isNotBlank() && !fallbackBaseUrl.equals(primaryBaseUrl, ignoreCase = true)
 
+    fun realtimeUrl(backendUrl: String): String {
+        val base = backendUrl.trim().trimEnd('/')
+        val socketBase = when {
+            base.startsWith("https://", ignoreCase = true) -> "wss://" + base.substring("https://".length)
+            base.startsWith("http://", ignoreCase = true) -> "ws://" + base.substring("http://".length)
+            else -> base
+        }
+        return "$socketBase/realtime/v1?nuvio_realtime=1"
+    }
+
     fun restEndpointUrls(): List<String> =
         endpointUrls("/rest/v1/")
 

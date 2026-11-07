@@ -1064,6 +1064,8 @@
     <string name="settings_tmdb_personal_api_key">Kişisel API anahtarı</string>
     <string name="settings_tmdb_preferred_language">Tercih edilen dil</string>
     <string name="settings_tmdb_preferred_language_description">Yerelleştirilmiş meta veriler için kullanılacak TMDB dil kodunu ayarla; örneğin `en`, `en-US` veya `pt-BR`.</string>
+    <string name="settings_tmdb_original_title_language">Orijinal dil</string>
+    <string name="settings_tmdb_original_title_language_description">Orijinal dildeki başlıkları, logoları, posterleri ve arka planları tercih et. Bulunamazsa tercih ettiğin dil kullanılır.</string>
     <string name="settings_tmdb_section_credentials">KİMLİK BİLGİLERİ</string>
     <string name="settings_tmdb_section_localization">YERELLEŞTİRME</string>
     <string name="settings_tmdb_section_modules">MODÜLLER</string>

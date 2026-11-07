@@ -861,6 +861,8 @@
     <string name="settings_tmdb_personal_api_key">Saját API-kulcs</string>
     <string name="settings_tmdb_preferred_language">Nyelv</string>
     <string name="settings_tmdb_preferred_language_description">A TMDB metaadatok (cím, logó és engedélyezett mezők) nyelve</string>
+    <string name="settings_tmdb_original_title_language">Eredeti nyelv</string>
+    <string name="settings_tmdb_original_title_language_description">Az eredeti nyelvű címek, logók, plakátok és háttérképek előnyben részesítése. Ha nem érhetők el, a preferált nyelv lesz használva.</string>
     <string name="settings_tmdb_section_credentials">HITELOSÍTÓ ADATOK</string>
     <string name="settings_tmdb_section_localization">LOKALIZÁCIÓ</string>
     <string name="settings_tmdb_section_modules">MODULOK</string>

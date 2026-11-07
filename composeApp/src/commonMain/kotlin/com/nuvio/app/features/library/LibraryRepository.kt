@@ -50,6 +50,8 @@ import org.jetbrains.compose.resources.getString
 
 object LibraryRepository {
     private const val pushDebounceMs = 500L
+    private const val maxAutomaticPushRetries = 6
+    private const val maxPushRetryDelayMs = 60_000L
 
     private val syncScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val log = Logger.withTag("LibraryRepository")
@@ -62,6 +64,7 @@ object LibraryRepository {
     private val nuvioSyncMutex = Mutex()
     private val persistenceLock = SynchronizedObject()
     private val lastPersistedRevisionByProfile = mutableMapOf<Int, Long>()
+    private val pushRetryAttemptsByToken = mutableMapOf<LibraryProfileToken, Int>()
     internal var syncAdapter: LibrarySyncAdapter = SupabaseLibrarySyncAdapter
 
     init {
@@ -557,6 +560,7 @@ object LibraryRepository {
                     syncAdapter.pushItems(profileId, upsertItems)
                     syncAdapter.deleteItems(profileId, snapshot.pendingDeleteKeys)
                     localState.markPushCompleted(snapshot)?.let(::persist)
+                    synchronized(persistenceLock) { pushRetryAttemptsByToken.remove(snapshot.token) }
                     log.i {
                         "Library delta push completed profile=$profileId " +
                             "upserts=${upsertItems.size} deletes=${snapshot.pendingDeleteKeys.size}"
@@ -567,6 +571,7 @@ object LibraryRepository {
                         "Failed to push library delta profile=$profileId " +
                             "upserts=${snapshot.pendingUpsertKeys.size} deletes=${snapshot.pendingDeleteKeys.size}"
                     }
+                    scheduleLibraryPushRetry(snapshot)
                 }
             }
         }
@@ -579,6 +584,29 @@ object LibraryRepository {
         }
         installResult.detachedPushJob?.cancel()
         pushJob.start()
+    }
+
+    /**
+     * Retry transient failures without losing persisted mutations. Attempts are scoped
+     * to a profile generation and stop after a bounded burst; pending work remains
+     * durable for the next explicit sync or local change.
+     */
+    private fun scheduleLibraryPushRetry(snapshot: LibraryLocalSnapshot) {
+        if (!snapshot.hasPendingPush || !localState.isCurrent(snapshot)) return
+        val authState = AuthRepository.state.value
+        if (authState !is AuthState.Authenticated || authState.isAnonymous) return
+
+        val attempt = synchronized(persistenceLock) {
+            val previous = pushRetryAttemptsByToken[snapshot.token] ?: 0
+            if (previous >= maxAutomaticPushRetries) {
+                pushRetryAttemptsByToken.remove(snapshot.token)
+                return
+            }
+            (previous + 1).also { pushRetryAttemptsByToken[snapshot.token] = it }
+        }
+        val retryDelayMs = (1_000L shl (attempt - 1)).coerceAtMost(maxPushRetryDelayMs)
+        log.w { "Scheduling library push retry profile=${snapshot.token.profileId} attempt=$attempt delayMs=$retryDelayMs" }
+        pushToServer(snapshot, delayMs = retryDelayMs)
     }
 
     private fun publish() {

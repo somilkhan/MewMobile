@@ -108,8 +108,17 @@ private fun ExtractorsFactory.withAssMkvSupportCompat(
     return ExtractorsFactory {
         val extractors = createExtractors()
         extractors.forEachIndexed { index, extractor ->
-            if (extractor is MatroskaExtractor) {
-                extractors[index] = AssMatroskaExtractor(subtitleParserFactory, assHandler)
+            when {
+                extractor is MatroskaExtractor -> {
+                    extractors[index] = AssMatroskaExtractor(subtitleParserFactory, assHandler)
+                }
+                extractor.hasInnermostMatroskaExtractor() -> {
+                    // AutoSync wraps each extractor to observe embedded subtitle timing.
+                    // Preserve that wrapper while swapping the inner Matroska extractor for
+                    // the libass-aware implementation.
+                    val replacement = AssMatroskaExtractor(subtitleParserFactory, assHandler)
+                    extractors[index] = extractor.replaceInnermostExtractor(replacement)
+                }
             }
         }
         extractors

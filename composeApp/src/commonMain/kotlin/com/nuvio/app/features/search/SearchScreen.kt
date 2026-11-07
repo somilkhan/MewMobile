@@ -52,6 +52,7 @@ import com.nuvio.app.features.addons.AddonRepository
 import com.nuvio.app.features.cloudstream.CloudStreamRepository
 import com.nuvio.app.features.addons.enabledAddons
 import com.nuvio.app.features.home.HomeCatalogSettingsRepository
+import com.nuvio.app.features.tmdb.TmdbSettingsRepository
 import com.nuvio.app.features.home.MetaPreview
 import com.nuvio.app.features.home.components.HomeCatalogRowSection
 import com.nuvio.app.features.home.components.HomeEmptyStateCard
@@ -112,6 +113,10 @@ fun SearchScreen(
         HomeCatalogSettingsRepository.snapshot()
         HomeCatalogSettingsRepository.uiState
     }.collectAsStateWithLifecycle()
+    val tmdbSettingsUiState by remember {
+        TmdbSettingsRepository.snapshot()
+        TmdbSettingsRepository.uiState
+    }.collectAsStateWithLifecycle()
     val recentSearches by SearchHistoryRepository.uiState.collectAsStateWithLifecycle()
     val watchedUiState by WatchedRepository.uiState.collectAsStateWithLifecycle()
     val fullyWatchedSeriesKeys by WatchedRepository.fullyWatchedSeriesKeys.collectAsStateWithLifecycle()
@@ -164,11 +169,11 @@ fun SearchScreen(
         }
     }
 
-    LaunchedEffect(addonRefreshKey, homeCatalogSettingsUiState.hideUnreleasedContent) {
+    LaunchedEffect(addonRefreshKey, homeCatalogSettingsUiState.hideUnreleasedContent, tmdbSettingsUiState.enabled) {
         SearchRepository.refreshDiscover(addonsUiState.addons)
     }
 
-    LaunchedEffect(query, addonRefreshKey, cloudStreamRefreshKey, homeCatalogSettingsUiState.hideUnreleasedContent) {
+    LaunchedEffect(query, addonRefreshKey, cloudStreamRefreshKey, homeCatalogSettingsUiState.hideUnreleasedContent, tmdbSettingsUiState.enabled) {
         val normalizedQuery = query.trim()
         if (normalizedQuery.isBlank()) {
             lastRequestedQuery = null

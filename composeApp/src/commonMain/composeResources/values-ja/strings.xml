@@ -1022,6 +1022,8 @@
     <string name="settings_tmdb_personal_api_key">個人APIキー</string>
     <string name="settings_tmdb_preferred_language">言語</string>
     <string name="settings_tmdb_preferred_language_description">タイトル、ロゴ、有効なフィールドのTMDBメタデータ言語</string>
+    <string name="settings_tmdb_original_title_language">原語</string>
+    <string name="settings_tmdb_original_title_language_description">原語のタイトル、ロゴ、ポスター、背景画像を優先します。利用できない場合は、設定した言語に切り替えます。</string>
     <string name="settings_tmdb_section_credentials">認証情報</string>
     <string name="settings_tmdb_section_localization">ローカライズ</string>
     <string name="settings_tmdb_section_modules">モジュール</string>

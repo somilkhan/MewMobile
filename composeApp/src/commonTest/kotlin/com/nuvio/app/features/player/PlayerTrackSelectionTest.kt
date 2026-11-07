@@ -351,4 +351,36 @@ class PlayerTrackSelectionTest {
         display = id,
         addonName = "Addon",
     )
+    @Test
+    fun restoresAddonSubtitlePreferenceByProviderAndLabelWithoutOldUrl() {
+        val subtitles = listOf(
+            AddonSubtitle("1", "https://fresh/provider-a.srt", "en", "English CC", "Provider A"),
+            AddonSubtitle("2", "https://fresh/provider-b.srt", "en", "English", "Provider B"),
+        )
+        val preference = PersistedPlayerTrackPreference(
+            subtitleType = PersistedSubtitleSelectionType.ADDON,
+            subtitleLanguage = "en",
+            subtitleName = "English CC",
+            addonSubtitleAddonName = "Provider A",
+            addonSubtitleUrl = "https://stale/previous-episode.srt",
+        )
+
+        val restored = findPersistedAddonSubtitle(subtitles, preference)
+        assertEquals("https://fresh/provider-a.srt", restored?.url)
+    }
+
+    @Test
+    fun restoresAddonSubtitlePreferenceByLanguageWhenProviderUnavailable() {
+        val subtitles = listOf(
+            AddonSubtitle("1", "https://fresh/fr.srt", "fr", "French", "Provider"),
+            AddonSubtitle("2", "https://fresh/en.srt", "en", "English", "Other"),
+        )
+        val preference = PersistedPlayerTrackPreference(
+            subtitleType = PersistedSubtitleSelectionType.ADDON,
+            subtitleLanguage = "en",
+            subtitleName = "English",
+            addonSubtitleAddonName = "Missing Provider",
+        )
+        assertEquals("https://fresh/en.srt", findPersistedAddonSubtitle(subtitles, preference)?.url)
+    }
 }

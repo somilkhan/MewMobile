@@ -53,6 +53,8 @@ data class PlayerLaunch(
     val initialProgressFraction: Float? = null,
     val contentLanguage: String? = null,
     val randomEpisodeMode: Boolean = false,
+    val initialStreamFilename: String? = null,
+    val initialStreamInfoHash: String? = null,
 )
 
 object PlayerLaunchStore {
@@ -90,6 +92,21 @@ enum class AndroidPlaybackEngine(
     ExoPlayer("ExoPlayer"),
     Libmpv("libmpv"),
 }
+
+/**
+ * Auto prefers libmpv for Matroska, while explicit engine choices always win.
+ * This lets the in-player switch override Auto's stream-specific default.
+ */
+internal fun AndroidPlaybackEngine.resolveForStream(streamType: String?): AndroidPlaybackEngine =
+    when (this) {
+        AndroidPlaybackEngine.Auto -> if (streamType == "matroska" || streamType == "mkv") {
+            AndroidPlaybackEngine.Libmpv
+        } else {
+            AndroidPlaybackEngine.ExoPlayer
+        }
+        AndroidPlaybackEngine.ExoPlayer, AndroidPlaybackEngine.Libmpv -> this
+    }
+
 
 enum class AndroidLibmpvVideoOutput(
     val mpvValue: String,
@@ -226,6 +243,13 @@ data class PlayerPlaybackSnapshot(
     val playbackSpeed: Float = 1f,
     val videoWidth: Int? = null,
     val videoHeight: Int? = null,
+    val videoCodec: String? = null,
+    val videoFrameRate: Float? = null,
+    val videoBitrate: Int? = null,
+    val audioCodec: String? = null,
+    val audioChannels: Int? = null,
+    val audioSampleRate: Int? = null,
+    val hdrFormat: String? = null,
 )
 
 data class PlayerNowPlayingInfo(

@@ -85,6 +85,16 @@ class SimklAnimeWatchedResolutionTest {
     // ──────────────────────────────────────────────────────────────────────────
 
     @Test
+    fun `resolveAnimeVideoCanonicalContentId maps episode IDs to the canonical series ID`() {
+        val snapshot = snapshotWithMultiSeasonAnime()
+
+        assertEquals("tt2560140", snapshot.resolveAnimeVideoCanonicalContentId("mal:123:3"))
+        assertEquals("tt2560140", snapshot.resolveAnimeVideoCanonicalContentId("mal:4372:1"))
+        assertNull(snapshot.resolveAnimeVideoCanonicalContentId("mal:42423:5"))
+        assertNull(snapshot.resolveAnimeVideoCanonicalContentId("https://example.test/episode.m3u8"))
+    }
+
+    @Test
     fun `anime watched items are only emitted under canonical ID not duplicated`() {
         val snapshot = snapshotWithMultiSeasonAnime()
         val items = snapshot.toSimklWatchedProjection().items

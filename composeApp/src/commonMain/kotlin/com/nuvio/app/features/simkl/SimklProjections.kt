@@ -529,6 +529,11 @@ internal fun SimklSyncSnapshot.resolveCanonicalContentId(contentId: String): Str
     return entry?.media?.canonicalContentId()
 }
 
+internal fun SimklSyncSnapshot.resolveAnimeVideoCanonicalContentId(videoId: String): String? {
+    val parsed = parseSimklAnimeVideoId(videoId) ?: return null
+    return resolveCanonicalContentId("${parsed.prefix}:${parsed.id}")
+}
+
 /**
  * Check if an episode is watched by resolving through the video ID.
  * Parses the anime-specific ID from videoId (e.g. "mal:123:5" → mal=123, ep=5),

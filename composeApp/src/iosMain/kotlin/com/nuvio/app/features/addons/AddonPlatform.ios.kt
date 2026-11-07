@@ -26,6 +26,8 @@ import platform.Foundation.NSUserDefaults
 actual object AddonStorage {
     private const val addonUrlsKey = "installed_manifest_urls"
     private const val addonEnabledStatesKey = "installed_manifest_enabled_states"
+    private const val addonKnownVersionsKey = "installed_manifest_known_versions"
+    private const val addonPendingVersionsKey = "installed_manifest_pending_version_changes"
 
     actual fun loadInstalledAddonUrls(profileId: Int): List<String> =
         NSUserDefaults.standardUserDefaults
@@ -52,13 +54,34 @@ actual object AddonStorage {
             .toMap()
 
     actual fun saveAddonEnabledStates(profileId: Int, states: Map<String, Boolean>) {
-        val payload = states.entries.joinToString(separator = "\n") { (url, enabled) ->
-            "$url\t$enabled"
-        }
-        NSUserDefaults.standardUserDefaults.setObject(
-            payload,
-            forKey = "${addonEnabledStatesKey}_$profileId",
-        )
+        val payload = states.entries.joinToString(separator = "\n") { (url, enabled) -> "$url\t$enabled" }
+        NSUserDefaults.standardUserDefaults.setObject(payload, forKey = "${addonEnabledStatesKey}_$profileId")
+    }
+
+    actual fun loadKnownAddonVersions(profileId: Int): Map<String, String> =
+        NSUserDefaults.standardUserDefaults.stringForKey("${addonKnownVersionsKey}_$profileId").orEmpty()
+            .lineSequence().mapNotNull { line ->
+                val url = line.substringBefore("\t").trim()
+                val version = line.substringAfter("\t", "").trim()
+                if (url.isNotEmpty() && version.isNotEmpty()) url to version else null
+            }.toMap()
+
+    actual fun saveKnownAddonVersions(profileId: Int, versions: Map<String, String>) {
+        val payload = versions.entries.joinToString(separator = "\n") { (url, version) -> "$url\t$version" }
+        NSUserDefaults.standardUserDefaults.setObject(payload, forKey = "${addonKnownVersionsKey}_$profileId")
+    }
+
+    actual fun loadPendingAddonVersionChanges(profileId: Int): Map<String, String> =
+        NSUserDefaults.standardUserDefaults.stringForKey("${addonPendingVersionsKey}_$profileId").orEmpty()
+            .lineSequence().mapNotNull { line ->
+                val url = line.substringBefore("\t").trim()
+                val version = line.substringAfter("\t", "").trim()
+                if (url.isNotEmpty() && version.isNotEmpty()) url to version else null
+            }.toMap()
+
+    actual fun savePendingAddonVersionChanges(profileId: Int, changes: Map<String, String>) {
+        val payload = changes.entries.joinToString(separator = "\n") { (url, version) -> "$url\t$version" }
+        NSUserDefaults.standardUserDefaults.setObject(payload, forKey = "${addonPendingVersionsKey}_$profileId")
     }
 }
 

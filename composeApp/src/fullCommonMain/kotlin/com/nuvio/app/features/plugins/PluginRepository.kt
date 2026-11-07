@@ -437,6 +437,9 @@ actual object PluginRepository {
         season: Int?,
         episode: Int?,
     ): Result<List<PluginRuntimeResult>> {
+        // A missing identity must not reach plugin code as an empty /movie/ or /tv/ path.
+        if (tmdbId.isBlank()) return Result.success(emptyList())
+
         val resolvedTmdbId = resolvePluginTmdbId(
             tmdbId = tmdbId,
             mediaType = mediaType,

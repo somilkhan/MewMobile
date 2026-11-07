@@ -129,19 +129,24 @@ internal actual object SubtitleFontFileBridge {
         val file = fopen(path, "rb") ?: return null
         return try {
             fseek(file, 0, SEEK_END)
-            val size = ftell(file).toInt()
-            if (size < 0) return null
+            val size = ftell(file)
+            if (size < 0L) return null
+            require(size <= SUBTITLE_FONT_IMPORT_MAX_BYTES) {
+                "Subtitle font files must be 30 MB or smaller."
+            }
+            require(size > 0L) { "The selected font file is empty." }
+            val byteCount = size.toInt()
             fseek(file, 0, SEEK_SET)
-            val bytes = ByteArray(size)
+            val bytes = ByteArray(byteCount)
             val read = bytes.usePinned { pinned ->
                 fread(
                     pinned.addressOf(0),
                     1.convert(),
-                    size.convert(),
+                    byteCount.convert(),
                     file,
                 )
             }
-            if (read.toLong() != size.toLong()) null else bytes
+            if (read.toLong() != byteCount.toLong()) null else bytes
         } finally {
             fclose(file)
         }

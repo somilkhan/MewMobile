@@ -6,6 +6,7 @@ import com.nuvio.app.core.storage.LocalAccountDataCleaner
 import com.nuvio.app.core.sync.ProfileSettingsSync
 import com.nuvio.app.core.sync.ProviderCredentialSync
 import com.nuvio.app.core.sync.SyncManager
+import com.nuvio.app.features.profiles.ProfileRepository
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.exception.AuthRestException
 import io.github.jan.supabase.auth.providers.builtin.Email
@@ -61,11 +62,15 @@ object AuthRepository {
                         val userId = user?.id.orEmpty()
                         if (!validateRemoteSession(userId)) return@collect
                         claimLocalAccountData(userId)
+                        val previousState = _state.value as? AuthState.Authenticated
                         _state.value = AuthState.Authenticated(
                             userId = userId,
                             email = user?.email,
                             isAnonymous = false,
                         )
+                        if (previousState == null || previousState.isAnonymous || previousState.userId != userId) {
+                            SyncManager.pullAllForProfile(ProfileRepository.activeProfileId)
+                        }
                     }
                     is SessionStatus.NotAuthenticated -> {
                         _state.value = AuthState.Unauthenticated

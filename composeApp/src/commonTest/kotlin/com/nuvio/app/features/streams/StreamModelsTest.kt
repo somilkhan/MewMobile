@@ -172,6 +172,17 @@ class StreamModelsTest {
     }
 
     @Test
+    fun `p2pInfoHash falls back to client resolve metadata without changing direct URL`() {
+        val stream = stream(url = "https://cdn.example.com/video.mkv").copy(
+            clientResolve = StreamClientResolve(infoHash = hexHash),
+        )
+
+        assertEquals(hexHash, stream.p2pInfoHash)
+        assertEquals("https://cdn.example.com/video.mkv", stream.playableDirectUrl)
+        assertFalse(stream.isTorrentStream)
+    }
+
+    @Test
     fun `dedicated infoHash field wins over different hash in torrent url`() {
         val dedicated = "fedcba9876543210fedcba9876543210fedcba98"
         val stream = stream(
