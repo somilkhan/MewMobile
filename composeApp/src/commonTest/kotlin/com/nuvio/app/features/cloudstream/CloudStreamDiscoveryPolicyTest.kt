@@ -6,12 +6,12 @@ import kotlin.test.assertTrue
 
 class CloudStreamDiscoveryPolicyTest {
     @Test
-    fun tmdbEnabledDisablesCloudStreamDiscovery() {
-        assertFalse(isCloudStreamDiscoveryAllowed(tmdbEnabled = true))
+    fun tmdbEnabledDoesNotDisableCloudStreamDiscovery() {
+        assertTrue(isCloudStreamDiscoveryAllowed(tmdbEnabled = true))
     }
 
     @Test
-    fun tmdbDisabledAllowsCloudStreamDiscovery() {
+    fun tmdbDisabledAlsoAllowsCloudStreamDiscovery() {
         assertTrue(isCloudStreamDiscoveryAllowed(tmdbEnabled = false))
     }
 }
