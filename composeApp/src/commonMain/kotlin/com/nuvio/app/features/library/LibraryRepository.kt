@@ -2,7 +2,6 @@ package com.nuvio.app.features.library
 
 import co.touchlab.kermit.Logger
 import com.nuvio.app.core.auth.AuthRepository
-import com.nuvio.app.core.auth.AuthState
 import com.nuvio.app.core.auth.isAnonymous
 import com.nuvio.app.core.auth.userId
 import com.nuvio.app.core.auth.canSyncRemotely
@@ -134,6 +133,7 @@ object LibraryRepository {
     fun clearLocalState() {
         val transition = synchronized(loadLock) { localState.reset() }
         transition.detachedPushJob?.cancel()
+        synchronized(persistenceLock) { pushRetryAttemptsByToken.clear() }
         TrackingProviderRegistry.libraryProviders().forEach(TrackingLibraryProvider::clearLocalState)
         _uiState.value = LibraryUiState()
     }
@@ -147,6 +147,7 @@ object LibraryRepository {
                     wipeStorage()
                 } finally {
                     lastPersistedRevisionByProfile.clear()
+                    pushRetryAttemptsByToken.clear()
                 }
             }
         }
@@ -163,6 +164,7 @@ object LibraryRepository {
 
             val transition = localState.beginProfileLoad(profileId)
             transition.detachedPushJob?.cancel()
+            synchronized(persistenceLock) { pushRetryAttemptsByToken.clear() }
             shouldPublish = completeLoadFromDisk(transition.snapshot.token)
             shouldPublish
         }
