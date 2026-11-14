@@ -3,6 +3,7 @@ package com.nuvio.app.features.library
 import co.touchlab.kermit.Logger
 import com.nuvio.app.core.auth.AuthRepository
 import com.nuvio.app.core.auth.AuthState
+import com.nuvio.app.core.auth.canSyncRemotely
 import com.nuvio.app.core.tracking.ensureTrackingProvidersRegistered
 import com.nuvio.app.features.library.sync.LibrarySyncAdapter
 import com.nuvio.app.features.library.sync.SupabaseLibrarySyncAdapter
@@ -50,8 +51,6 @@ import org.jetbrains.compose.resources.getString
 
 object LibraryRepository {
     private const val pushDebounceMs = 500L
-    private const val maxAutomaticPushRetries = 6
-    private const val maxPushRetryDelayMs = 60_000L
 
     private val syncScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val log = Logger.withTag("LibraryRepository")
@@ -526,7 +525,7 @@ object LibraryRepository {
         if (!snapshot.hasPendingPush) return
         val authState = AuthRepository.state.value
         val profileId = snapshot.token.profileId
-        if (authState !is AuthState.Authenticated) {
+        if (!authState.canSyncRemotely) {
             log.w { "Skipping library push: auth state is ${authState::class.simpleName} profile=$profileId" }
             return
         }
@@ -547,7 +546,7 @@ object LibraryRepository {
                     return@withLock
                 }
                 val currentAuthState = AuthRepository.state.value
-                if (currentAuthState !is AuthState.Authenticated || currentAuthState.isAnonymous) {
+                if (!currentAuthState.canSyncRemotely) {
                     return@withLock
                 }
                 runCatching {
@@ -594,17 +593,17 @@ object LibraryRepository {
     private fun scheduleLibraryPushRetry(snapshot: LibraryLocalSnapshot) {
         if (!snapshot.hasPendingPush || !localState.isCurrent(snapshot)) return
         val authState = AuthRepository.state.value
-        if (authState !is AuthState.Authenticated || authState.isAnonymous) return
+        if (!authState.canSyncRemotely) return
 
         val attempt = synchronized(persistenceLock) {
             val previous = pushRetryAttemptsByToken[snapshot.token] ?: 0
-            if (previous >= maxAutomaticPushRetries) {
+            if (previous >= LibraryPushRetryPolicy.maxAutomaticAttempts) {
                 pushRetryAttemptsByToken.remove(snapshot.token)
                 return
             }
             (previous + 1).also { pushRetryAttemptsByToken[snapshot.token] = it }
         }
-        val retryDelayMs = (1_000L shl (attempt - 1)).coerceAtMost(maxPushRetryDelayMs)
+        val retryDelayMs = requireNotNull(LibraryPushRetryPolicy.delayForAttempt(attempt))
         log.w { "Scheduling library push retry profile=${snapshot.token.profileId} attempt=$attempt delayMs=$retryDelayMs" }
         pushToServer(snapshot, delayMs = retryDelayMs)
     }
