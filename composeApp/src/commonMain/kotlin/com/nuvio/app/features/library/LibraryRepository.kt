@@ -3,8 +3,8 @@ package com.nuvio.app.features.library
 import co.touchlab.kermit.Logger
 import com.nuvio.app.core.auth.AuthRepository
 import com.nuvio.app.core.auth.AuthState
-import com.nuvio.app.core.auth.AuthState.isAnonymous
-import com.nuvio.app.core.auth.AuthState.userId
+import com.nuvio.app.core.auth.isAnonymous
+import com.nuvio.app.core.auth.userId
 import com.nuvio.app.core.auth.canSyncRemotely
 import com.nuvio.app.core.tracking.ensureTrackingProvidersRegistered
 import com.nuvio.app.features.library.sync.LibrarySyncAdapter
