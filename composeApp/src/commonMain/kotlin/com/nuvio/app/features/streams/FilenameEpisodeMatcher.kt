@@ -40,17 +40,17 @@ object FilenameEpisodeMatcher {
 
     fun extractSeasonEpisode(filename: String): Pair<Int?, Int>? {
         if (filename.isBlank()) return null
-        Regex("""(?i)S\\s*(\\d{1,3})\\s*E\\s*(\\d{1,4})""").find(filename)?.let { match ->
+        Regex("""(?i)S\s*(\d{1,3})\s*E\s*(\d{1,4})""").find(filename)?.let { match ->
             val season = match.groupValues[1].toIntOrNull()
             val episode = match.groupValues[2].toIntOrNull() ?: return null
             return season to episode
         }
-        Regex("""(?<!\\d)(\\d{1,2})[xX](\\d{1,4})""").find(filename)?.let { match ->
+        Regex("""(?<!\d)(\d{1,2})[xX](\d{1,4})""").find(filename)?.let { match ->
             val season = match.groupValues[1].toIntOrNull()
             val episode = match.groupValues[2].toIntOrNull() ?: return null
             return season to episode
         }
-        Regex("""(?i)\\bE[Pp]?[.\\s]?(\\d{1,4})\\b""").find(filename)?.let { match ->
+        Regex("""(?i)\bE[Pp]?[.\s]?(\d{1,4})\b""").find(filename)?.let { match ->
             val episode = match.groupValues[1].toIntOrNull() ?: return null
             return null to episode
         }
@@ -66,7 +66,7 @@ object FilenameEpisodeMatcher {
     private fun extractEpisodeIdentity(filename: String): EpisodeIdentity? {
         if (filename.isBlank()) return null
         val seasonEpisode = Regex(
-            """(?i)S\\s*(\\d{1,3})\\s*E\\s*(\\d{1,4})(?:(?:\\s*-\\s*E?|\\s*E)\\s*(\\d{1,4}))?""",
+            """(?i)S\s*(\d{1,3})\s*E\s*(\d{1,4})(?:(?:\s*-\s*E?|\s*E)\s*(\d{1,4}))?""",
         ).find(filename)
         if (seasonEpisode != null) {
             val season = seasonEpisode.groupValues[1].toIntOrNull() ?: return null
@@ -75,7 +75,7 @@ object FilenameEpisodeMatcher {
             if (last < first) return null
             return EpisodeIdentity(season, first, last)
         }
-        val episodeOnly = Regex("""(?i)\\bE[Pp]?[.\\s]?(\\d{1,4})\\b""").find(filename)
+        val episodeOnly = Regex("""(?i)\bE[Pp]?[.\s]?(\d{1,4})\b""").find(filename)
             ?: return null
         val episode = episodeOnly.groupValues[1].toIntOrNull() ?: return null
         return EpisodeIdentity(null, episode, episode)
