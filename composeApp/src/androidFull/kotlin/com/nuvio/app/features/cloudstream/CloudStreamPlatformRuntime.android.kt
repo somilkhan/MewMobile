@@ -75,6 +75,7 @@ internal actual object CloudStreamPlatformRuntime {
     private val nativeRepositorySyncLock = Any()
     private val nativeRepositorySyncMutex = Mutex()
     private var nativeRepositorySyncJob: Job? = null
+    private var nativeRepositorySyncGeneration = 0L
     private val loadedLock = Any()
     private val loaded = linkedMapOf<String, LoadedPlugin>()
     private var appContext: Context? = null
@@ -146,6 +147,7 @@ internal actual object CloudStreamPlatformRuntime {
 
     actual suspend fun provider(plugin: CloudStreamPluginItem): CloudStreamProvider? {
         if (plugin.compatibility.runtimeKind != CloudStreamRuntimeKind.AndroidDex) return null
+        val syncGeneration = currentNativeRepositorySyncGeneration()
         return withContext(Dispatchers.IO) {
             var loadedNow = false
             val loadedPlugin = loadMutex.withLock {
@@ -157,12 +159,16 @@ internal actual object CloudStreamPlatformRuntime {
                         }
                 }
             }
+            if (!isNativeRepositorySyncGenerationCurrent(syncGeneration)) {
+                if (loadedNow) unload(plugin.metadata.id.value)
+                return@withContext null
+            }
             if (loadedNow) {
                 // Reconcile synchronous registrations immediately. Keep a shared bounded poll
                 // running after every plugin load: bootstrap plugins can register repositories
                 // asynchronously even when that same plugin already exposes MainAPI providers.
-                syncNativeRepositories()
-                scheduleNativeRepositorySync()
+                syncNativeRepositories(syncGeneration)
+                scheduleNativeRepositorySync(syncGeneration)
             }
             loadedPlugin.provider
         }
@@ -248,6 +254,11 @@ internal actual object CloudStreamPlatformRuntime {
     }
 
     actual fun clear() {
+        val repositorySyncJob = synchronized(nativeRepositorySyncLock) {
+            nativeRepositorySyncGeneration += 1L
+            nativeRepositorySyncJob.also { nativeRepositorySyncJob = null }
+        }
+        repositorySyncJob?.cancel()
         val plugins = synchronized(loadedLock) {
             loaded.values.toList().also {
                 loaded.clear()
@@ -390,18 +401,28 @@ internal actual object CloudStreamPlatformRuntime {
 
     }
 
-    private fun scheduleNativeRepositorySync() {
+    private fun currentNativeRepositorySyncGeneration(): Long =
+        synchronized(nativeRepositorySyncLock) { nativeRepositorySyncGeneration }
+
+    private fun isNativeRepositorySyncGenerationCurrent(generation: Long): Boolean =
+        synchronized(nativeRepositorySyncLock) { nativeRepositorySyncGeneration == generation }
+
+    private fun scheduleNativeRepositorySync(generation: Long) {
         synchronized(nativeRepositorySyncLock) {
+            if (generation != nativeRepositorySyncGeneration) return
             if (nativeRepositorySyncJob?.isActive == true) return
             nativeRepositorySyncJob = backgroundScope.launch {
                 try {
                     repeat(NATIVE_REPOSITORY_SYNC_ATTEMPTS - 1) {
                         delay(NATIVE_REPOSITORY_SYNC_DELAY_MS)
-                        syncNativeRepositories()
+                        if (!isNativeRepositorySyncGenerationCurrent(generation)) return@launch
+                        syncNativeRepositories(generation)
                     }
                 } finally {
                     synchronized(nativeRepositorySyncLock) {
-                        nativeRepositorySyncJob = null
+                        if (nativeRepositorySyncGeneration == generation) {
+                            nativeRepositorySyncJob = null
+                        }
                     }
                 }
             }
@@ -413,17 +434,20 @@ internal actual object CloudStreamPlatformRuntime {
      * upstream API does not expose a repository-added callback. Read that native registry after
      * plugin loading and reconcile only repositories Mew does not already own.
      */
-    private suspend fun syncNativeRepositories() {
+    private suspend fun syncNativeRepositories(generation: Long) {
+        if (!isNativeRepositorySyncGenerationCurrent(generation)) return
         // Skip overlapping reconciliation rather than queueing duplicate manifest fetches.
         if (!nativeRepositorySyncMutex.tryLock()) return
         try {
-            syncNativeRepositoriesLocked()
+            if (isNativeRepositorySyncGenerationCurrent(generation)) {
+                syncNativeRepositoriesLocked(generation)
+            }
         } finally {
             nativeRepositorySyncMutex.unlock()
         }
     }
 
-    private suspend fun syncNativeRepositoriesLocked() {
+    private suspend fun syncNativeRepositoriesLocked(generation: Long) {
         val nativeRepositories: List<String> = runCatching {
             val managerClass = Class.forName(CLOUDSTREAM_REPOSITORY_MANAGER_CLASS).kotlin
             val manager = managerClass.java.getField("INSTANCE").get(null) ?: return@runCatching emptyList<String>()
@@ -450,11 +474,10 @@ internal actual object CloudStreamPlatformRuntime {
             .filter(String::isNotBlank)
             .toHashSet()
 
-        nativeRepositories
-            .asSequence()
-            .filter { it !in knownUrls }
-            .distinct()
-            .forEach { url -> importDynamicRepository(url) }
+        for (url in nativeRepositories.distinct()) {
+            if (!isNativeRepositorySyncGenerationCurrent(generation)) return
+            if (url !in knownUrls) importDynamicRepository(url)
+        }
     }
 
     private suspend fun importDynamicRepository(url: String) {
