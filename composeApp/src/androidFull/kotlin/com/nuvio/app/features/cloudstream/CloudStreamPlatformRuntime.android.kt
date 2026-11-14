@@ -160,7 +160,18 @@ internal actual object CloudStreamPlatformRuntime {
                 }
             }
             if (!isNativeRepositorySyncGenerationCurrent(syncGeneration)) {
-                if (loadedNow) unload(plugin.metadata.id.value)
+                if (loadedNow) {
+                    // Remove only this exact instance. A profile reset/new load may already
+                    // have installed a different plugin with the same ID.
+                    val stalePlugin = synchronized(loadedLock) {
+                        if (loaded[plugin.metadata.id.value] === loadedPlugin) {
+                            loaded.remove(plugin.metadata.id.value)
+                        } else {
+                            null
+                        }
+                    }
+                    (stalePlugin ?: loadedPlugin).unload()
+                }
                 return@withContext null
             }
             if (loadedNow) {

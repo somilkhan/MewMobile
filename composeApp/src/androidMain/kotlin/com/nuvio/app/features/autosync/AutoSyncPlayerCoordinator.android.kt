@@ -60,6 +60,9 @@ internal class AutoSyncPlayerCoordinator(
         job = null
         selectedBodyJob?.cancel()
         selectedBodyJob = null
+        // A cancelled AutoSync operation may leave its deferred sidecar loader waiting,
+        // or keep a stale overlay visible after the user replaces the selected subtitle.
+        sidecar.stopSidecarAddonSubtitle(clearView = true)
     }
 
     fun dispose() {
