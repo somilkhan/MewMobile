@@ -3,6 +3,8 @@ package com.nuvio.app.features.library
 import co.touchlab.kermit.Logger
 import com.nuvio.app.core.auth.AuthRepository
 import com.nuvio.app.core.auth.AuthState
+import com.nuvio.app.core.auth.AuthState.isAnonymous
+import com.nuvio.app.core.auth.AuthState.userId
 import com.nuvio.app.core.auth.canSyncRemotely
 import com.nuvio.app.core.tracking.ensureTrackingProvidersRegistered
 import com.nuvio.app.features.library.sync.LibrarySyncAdapter
@@ -525,12 +527,12 @@ object LibraryRepository {
         if (!snapshot.hasPendingPush) return
         val authState = AuthRepository.state.value
         val profileId = snapshot.token.profileId
-        if (!authState.canSyncRemotely) {
-            log.w { "Skipping library push: auth state is ${authState::class.simpleName} profile=$profileId" }
-            return
-        }
         if (authState.isAnonymous) {
             log.w { "Skipping library push: anonymous auth user=${authState.userId} profile=$profileId" }
+            return
+        }
+        if (!authState.canSyncRemotely) {
+            log.w { "Skipping library push: auth state is ${authState::class.simpleName} profile=$profileId" }
             return
         }
         val pushJob = syncScope.launch(start = CoroutineStart.LAZY) {
