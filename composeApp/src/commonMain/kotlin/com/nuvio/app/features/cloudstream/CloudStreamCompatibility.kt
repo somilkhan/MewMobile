@@ -1,10 +1,11 @@
 package com.nuvio.app.features.cloudstream
 
 /**
- * TMDB and CloudStream are mutually exclusive discovery modes in Mew.
- * CloudStream providers may run only while TMDB enrichment/discovery is disabled.
+ * TMDB metadata and CloudStream provider discovery are independent features.
+ * The TMDB setting must never gate CloudStream provider availability.
  */
-internal fun isCloudStreamDiscoveryAllowed(tmdbEnabled: Boolean): Boolean = !tmdbEnabled
+@Suppress("UNUSED_PARAMETER")
+internal fun isCloudStreamDiscoveryAllowed(tmdbEnabled: Boolean): Boolean = true
 
 object CloudStreamCompatibilityResolver {
     private val crossPlatformAdapters = mapOf(
