@@ -38,6 +38,26 @@ class FilenameEpisodeMatcherTest {
     }
 
     @Test
+    fun matchesMultiEpisodeFilesAndKeepsSeasonIdentityStrict() {
+        assertTrue(FilenameEpisodeMatcher.matchesEpisode(
+            "Show S01E02-E03 1080p.mkv",
+            "Show S01E03 WEB-DL.mkv",
+        ))
+        assertTrue(FilenameEpisodeMatcher.matchesEpisode(
+            "Show S01E02E03.mkv",
+            "Show S01E03.mkv",
+        ))
+        assertFalse(FilenameEpisodeMatcher.matchesEpisode(
+            "Show S02E03.mkv",
+            "Show S01E03.mkv",
+        ))
+        assertFalse(FilenameEpisodeMatcher.matchesEpisode(
+            "Show S01E03.mkv",
+            "Show EP03.mkv",
+        ))
+    }
+
+    @Test
     fun matchesEpisodeIdentityAcrossQualitySuffixes() {
         assertTrue(FilenameEpisodeMatcher.matchesEpisode("Black Clover S02E04 720p.mkv", "Black Clover S02E04 1080p.mkv"))
         assertFalse(FilenameEpisodeMatcher.matchesEpisode("Black Clover S01E04.mkv", "Black Clover S02E04.mkv"))
