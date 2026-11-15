@@ -640,9 +640,8 @@ object HomeRepository {
             }
             repeat(scanPlugins.size) {
                 val (_, result) = resultChannel.receive()
-                // Keep one row per provider, not one row per category. Every runnable
-                // provider with a main page can contribute; per-provider timeouts keep
-                // a broken extension from blocking the rest of the progressive scan.
+                // Keep every category returned by each runnable provider as its own shelf.
+                // Per-provider timeouts keep a broken extension from blocking the progressive scan.
                 if (result.sections.isNotEmpty()) sections += result.sections
                 if (firstError == null) firstError = result.errorMessage
                 if (sections.isNotEmpty() && activeRequestKey == requestKey) {

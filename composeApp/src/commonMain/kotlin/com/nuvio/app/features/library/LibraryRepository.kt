@@ -664,7 +664,8 @@ object LibraryRepository {
                 LibrarySection(
                     type = type,
                     displayTitle = type.toLibraryDisplayTitle(),
-                    items = typeItems.sortedByDescending { it.savedAtEpochMs },
+                    // groupBy preserves encounter order from the globally sorted list above.
+                items = typeItems,
                 )
             }
             .sortedWith(
