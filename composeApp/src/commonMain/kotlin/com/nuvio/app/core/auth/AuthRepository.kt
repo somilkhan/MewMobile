@@ -66,7 +66,7 @@ object AuthRepository {
                         val userId = user?.id.orEmpty()
                         val sessionValidated = validateRemoteSession(userId)
                         if (sessionValidated == false) return@collect
-                        claimLocalAccountData(userId)
+                        if (sessionValidated == true) claimLocalAccountData(userId)
                         val previousState = _state.value as? AuthState.Authenticated
                         _state.value = AuthState.Authenticated(
                             userId = userId,
