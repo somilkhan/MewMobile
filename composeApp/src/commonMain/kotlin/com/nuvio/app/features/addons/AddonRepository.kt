@@ -3,6 +3,7 @@ package com.nuvio.app.features.addons
 import co.touchlab.kermit.Logger
 import com.nuvio.app.core.auth.AuthRepository
 import com.nuvio.app.core.auth.canSyncRemotely
+import com.nuvio.app.core.auth.userId
 import com.nuvio.app.core.network.SupabaseProvider
 import com.nuvio.app.core.sync.putSyncOriginClientId
 import com.nuvio.app.features.profiles.ProfileRepository
@@ -161,10 +162,12 @@ object AddonRepository {
     }
 
     suspend fun pullFromServer(profileId: Int) {
-        if (!AuthRepository.state.value.canSyncRemotely) {
+        val authStateAtRequest = AuthRepository.state.value
+        if (!authStateAtRequest.canSyncRemotely) {
             log.d { "pullFromServer() — skipped without a validated remote account session" }
             return
         }
+        val authUserIdAtRequest = authStateAtRequest.userId ?: return
         // Keep the actual active profile ID: it may differ from the effective shared add-on profile.
         onProfileChanged(profileId)
         val requestSession = synchronized(refreshJobsLock) {
@@ -195,7 +198,8 @@ object AddonRepository {
                 )
             }
             if (!isCurrentProfile(requestProfileId, requestGeneration)) return
-            if (!AuthRepository.state.value.canSyncRemotely) return
+            val currentAuthState = AuthRepository.state.value
+            if (!currentAuthState.canSyncRemotely || currentAuthState.userId != authUserIdAtRequest) return
             runCatching {
                 val params = buildJsonObject {
                     put("p_profile_id", requestProfileId)
@@ -203,7 +207,13 @@ object AddonRepository {
                     putSyncOriginClientId()
                 }
                 SupabaseProvider.client.postgrest.rpc("sync_push_addons", params)
-                if (isStoredAddonSnapshotCurrent(requestProfileId, localAddons)) {
+                val authStateAfterPush = AuthRepository.state.value
+                if (
+                    isCurrentProfile(requestProfileId, requestGeneration) &&
+                    authStateAfterPush.canSyncRemotely &&
+                    authStateAfterPush.userId == authUserIdAtRequest &&
+                    isStoredAddonSnapshotCurrent(requestProfileId, localAddons)
+                ) {
                     AddonStorage.setPendingRemoteSync(requestProfileId, false)
                 }
                 synchronized(refreshJobsLock) {
@@ -281,8 +291,12 @@ object AddonRepository {
                         put("p_addons", json.encodeToJsonElement(addons))
                         putSyncOriginClientId()
                     }
-                    if (!AuthRepository.state.value.canSyncRemotely) return
-                    if (!isCurrentProfile(requestProfileId, requestGeneration)) return
+                    val currentAuthState = AuthRepository.state.value
+                    if (
+                        !currentAuthState.canSyncRemotely ||
+                        currentAuthState.userId != authUserIdAtRequest ||
+                        !isCurrentProfile(requestProfileId, requestGeneration)
+                    ) return
                     SupabaseProvider.client.postgrest.rpc("sync_push_addons", params)
                     synchronized(refreshJobsLock) {
                         if (isCurrentProfileLocked(requestProfileId, requestGeneration)) {
@@ -639,12 +653,18 @@ object AddonRepository {
                     sortOrder = index,
                 )
             }
-        if (!AuthRepository.state.value.canSyncRemotely) {
+        val authStateAtSchedule = AuthRepository.state.value
+        val authUserIdAtSchedule = authStateAtSchedule.userId
+            .takeIf { authStateAtSchedule.canSyncRemotely }
+        if (authUserIdAtSchedule.isNullOrBlank()) {
             log.d { "pushToServer() — retained local add-on state; remote account session unavailable" }
             return
         }
         scope.launch {
-            if (!AuthRepository.state.value.canSyncRemotely) return@launch
+            val currentAuthState = AuthRepository.state.value
+            if (!currentAuthState.canSyncRemotely || currentAuthState.userId != authUserIdAtSchedule) {
+                return@launch
+            }
             runCatching {
                 log.d { "pushToServer() — profileId=$profileId, pushing ${addons.size} addons" }
                 val params = buildJsonObject {
@@ -653,7 +673,12 @@ object AddonRepository {
                     putSyncOriginClientId()
                 }
                 SupabaseProvider.client.postgrest.rpc("sync_push_addons", params)
-                if (isStoredAddonSnapshotCurrent(profileId, addons)) {
+                val authStateAfterPush = AuthRepository.state.value
+                if (
+                    authStateAfterPush.canSyncRemotely &&
+                    authStateAfterPush.userId == authUserIdAtSchedule &&
+                    isStoredAddonSnapshotCurrent(profileId, addons)
+                ) {
                     AddonStorage.setPendingRemoteSync(profileId, false)
                 }
                 log.d { "pushToServer() — success" }
