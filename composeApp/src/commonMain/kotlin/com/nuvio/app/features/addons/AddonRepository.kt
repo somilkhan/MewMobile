@@ -67,6 +67,7 @@ object AddonRepository {
     // This repository uses Dispatchers.Default, so UI calls and refresh-job completion can
     // access the registry concurrently. Keep reservation/removal/profile-switch atomic.
     private val refreshJobsLock = Any()
+    private val localMutationRevisionByProfile = mutableMapOf<Int, Long>()
     private val activeRefreshJobs = mutableMapOf<String, Job>()
     private val versionStorageMutex = Mutex()
 
@@ -136,6 +137,7 @@ object AddonRepository {
             currentProfileId = effectiveProfileId
             initialized = false
             pulledFromServer = false
+            localMutationRevisionByProfile.clear()
             _uiState.value = AddonsUiState()
             jobs
         }
@@ -165,10 +167,15 @@ object AddonRepository {
         // Keep the actual active profile ID: it may differ from the effective shared add-on profile.
         onProfileChanged(profileId)
         val requestSession = synchronized(refreshJobsLock) {
-            currentProfileId to profileGeneration
+            Triple(
+                currentProfileId,
+                profileGeneration,
+                localMutationRevisionByProfile[currentProfileId] ?: 0L,
+            )
         }
         val requestProfileId = requestSession.first
         val requestGeneration = requestSession.second
+        val localMutationRevisionAtRequest = requestSession.third
         log.i { "pullFromServer() — profileId=$profileId, initialized=$initialized, pulledFromServer=$pulledFromServer" }
 
         // Local mutations made while signed out/offline must be flushed before a remote
@@ -220,6 +227,10 @@ object AddonRepository {
                 }
                 .decodeList<AddonRow>()
             if (!isCurrentProfile(requestProfileId, requestGeneration)) return
+            if (!isLocalMutationRevisionCurrent(requestProfileId, localMutationRevisionAtRequest)) {
+                log.d { "pullFromServer() — discarding stale remote snapshot after local add-on mutation" }
+                return
+            }
 
             val rowsByUrl = linkedMapOf<String, AddonRow>()
             rows.forEach { row ->
@@ -301,7 +312,12 @@ object AddonRepository {
                             enabled = enabledByUrl[url],
                         )
                     }
-                    if (!applyPulledAddonsIfCurrent(requestProfileId, requestGeneration, addons)) return
+                    if (!applyPulledAddonsIfCurrent(
+                        requestProfileId,
+                        requestGeneration,
+                        addons,
+                        expectedLocalMutationRevision = localMutationRevisionAtRequest,
+                    )) return
                     addons.forEach { addon ->
                         val existing = existingByUrl[addon.manifestUrl]
                         if (addon.enabled && (existing == null || (addon.manifest == null && !addon.isRefreshing))) {
@@ -327,7 +343,12 @@ object AddonRepository {
                     enabled = row?.enabled,
                 )
             }
-            if (!applyPulledAddonsIfCurrent(requestProfileId, requestGeneration, addons)) return
+            if (!applyPulledAddonsIfCurrent(
+                        requestProfileId,
+                        requestGeneration,
+                        addons,
+                        expectedLocalMutationRevision = localMutationRevisionAtRequest,
+                    )) return
             addons.forEach { addon ->
                 val existing = existingByUrl[addon.manifestUrl]
                 if (addon.enabled && (existing == null || (addon.manifest == null && !addon.isRefreshing))) {
@@ -599,6 +620,10 @@ object AddonRepository {
 
     /** Push a fixed profile/state snapshot so a profile switch cannot mix IDs and add-on rows. */
     private fun pushToServer(profileId: Int, sourceAddons: List<ManagedAddon>) {
+        synchronized(refreshJobsLock) {
+            localMutationRevisionByProfile[profileId] =
+                (localMutationRevisionByProfile[profileId] ?: 0L) + 1L
+        }
         // Record intent before checking auth so offline/anonymous changes can be flushed later.
         AddonStorage.setPendingRemoteSync(profileId, true)
         // This explicit snapshot belongs to an already-validated mutation. A later profile switch
@@ -637,6 +662,11 @@ object AddonRepository {
             }
         }
     }
+
+    private fun isLocalMutationRevisionCurrent(profileId: Int, expectedRevision: Long): Boolean =
+        synchronized(refreshJobsLock) {
+            (localMutationRevisionByProfile[profileId] ?: 0L) == expectedRevision
+        }
 
     private fun isStoredAddonSnapshotCurrent(
         profileId: Int,
@@ -686,8 +716,13 @@ object AddonRepository {
         profileId: Int,
         generation: Long,
         addons: List<ManagedAddon>,
+        expectedLocalMutationRevision: Long? = null,
     ): Boolean = synchronized(refreshJobsLock) {
         if (!isCurrentProfileLocked(profileId, generation)) return@synchronized false
+        if (
+            expectedLocalMutationRevision != null &&
+            (localMutationRevisionByProfile[profileId] ?: 0L) != expectedLocalMutationRevision
+        ) return@synchronized false
         _uiState.value = AddonsUiState(addons = addons)
         persistForProfile(profileId, addons)
         pulledFromServer = true
