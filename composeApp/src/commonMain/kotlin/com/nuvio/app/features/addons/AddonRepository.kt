@@ -170,6 +170,47 @@ object AddonRepository {
         val requestProfileId = requestSession.first
         val requestGeneration = requestSession.second
         log.i { "pullFromServer() — profileId=$profileId, initialized=$initialized, pulledFromServer=$pulledFromServer" }
+
+        // Local mutations made while signed out/offline must be flushed before a remote
+        // snapshot is allowed to replace the profile's installed add-on list.
+        if (AddonStorage.hasPendingRemoteSync(requestProfileId)) {
+            initialize()
+            val localUrls = dedupeManifestUrls(AddonStorage.loadInstalledAddonUrls(requestProfileId))
+            val enabledByUrl = loadLocalEnabledStates(requestProfileId)
+            val localAddons = localUrls.mapIndexed { index, url ->
+                val existing = _uiState.value.addons.firstOrNull { it.manifestUrl == url }
+                AddonPushItem(
+                    url = url,
+                    name = existing?.userSetName?.takeIf { it.isNotBlank() } ?: existing?.manifest?.name.orEmpty(),
+                    enabled = enabledByUrl[url] ?: existing?.enabled ?: true,
+                    sortOrder = index,
+                )
+            }
+            if (!isCurrentProfile(requestProfileId, requestGeneration)) return
+            if (!AuthRepository.state.value.canSyncRemotely) return
+            runCatching {
+                val params = buildJsonObject {
+                    put("p_profile_id", requestProfileId)
+                    put("p_addons", json.encodeToJsonElement(localAddons))
+                    putSyncOriginClientId()
+                }
+                SupabaseProvider.client.postgrest.rpc("sync_push_addons", params)
+                if (isStoredAddonSnapshotCurrent(requestProfileId, localAddons)) {
+                    AddonStorage.setPendingRemoteSync(requestProfileId, false)
+                }
+                synchronized(refreshJobsLock) {
+                    if (isCurrentProfileLocked(requestProfileId, requestGeneration)) {
+                        pulledFromServer = true
+                    }
+                }
+                log.i { "pullFromServer() — flushed ${localAddons.size} pending local addons" }
+            }.onFailure { error ->
+                if (error is CancellationException) throw error
+                log.e(error) { "pullFromServer() — pending local add-on flush failed; retaining local state" }
+            }
+            return
+        }
+
         runCatching {
             val rows = SupabaseProvider.client.postgrest
                 .from("addons")
@@ -558,6 +599,8 @@ object AddonRepository {
 
     /** Push a fixed profile/state snapshot so a profile switch cannot mix IDs and add-on rows. */
     private fun pushToServer(profileId: Int, sourceAddons: List<ManagedAddon>) {
+        // Record intent before checking auth so offline/anonymous changes can be flushed later.
+        AddonStorage.setPendingRemoteSync(profileId, true)
         // This explicit snapshot belongs to an already-validated mutation. A later profile switch
         // must not suppress the push for that original profile.
         val addons = sourceAddons
@@ -584,12 +627,25 @@ object AddonRepository {
                     putSyncOriginClientId()
                 }
                 SupabaseProvider.client.postgrest.rpc("sync_push_addons", params)
+                if (isStoredAddonSnapshotCurrent(profileId, addons)) {
+                    AddonStorage.setPendingRemoteSync(profileId, false)
+                }
                 log.d { "pushToServer() — success" }
             }.onFailure { e ->
                 if (e is CancellationException) throw e
                 log.e(e) { "pushToServer() — FAILED" }
             }
         }
+    }
+
+    private fun isStoredAddonSnapshotCurrent(
+        profileId: Int,
+        pushedAddons: List<AddonPushItem>,
+    ): Boolean {
+        val storedUrls = dedupeManifestUrls(AddonStorage.loadInstalledAddonUrls(profileId))
+        if (storedUrls != pushedAddons.map(AddonPushItem::url)) return false
+        val storedEnabled = loadLocalEnabledStates(profileId)
+        return pushedAddons.all { addon -> (storedEnabled[addon.url] ?: true) == addon.enabled }
     }
 
     private fun markRefreshing(manifestUrl: String) {

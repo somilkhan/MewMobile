@@ -28,6 +28,7 @@ actual object AddonStorage {
     private const val addonEnabledStatesKey = "installed_manifest_enabled_states"
     private const val addonKnownVersionsKey = "installed_manifest_known_versions"
     private const val addonPendingVersionsKey = "installed_manifest_pending_version_changes"
+    private const val addonPendingRemoteSyncKey = "pending_remote_sync"
 
     actual fun loadInstalledAddonUrls(profileId: Int): List<String> =
         NSUserDefaults.standardUserDefaults
@@ -82,6 +83,13 @@ actual object AddonStorage {
     actual fun savePendingAddonVersionChanges(profileId: Int, changes: Map<String, String>) {
         val payload = changes.entries.joinToString(separator = "\n") { (url, version) -> "$url\t$version" }
         NSUserDefaults.standardUserDefaults.setObject(payload, forKey = "${addonPendingVersionsKey}_$profileId")
+    }
+    
+    actual fun hasPendingRemoteSync(profileId: Int): Boolean =
+        NSUserDefaults.standardUserDefaults.boolForKey("${addonPendingRemoteSyncKey}_$profileId")
+
+    actual fun setPendingRemoteSync(profileId: Int, pending: Boolean) {
+        NSUserDefaults.standardUserDefaults.setBool(pending, forKey = "${addonPendingRemoteSyncKey}_$profileId")
     }
 }
 

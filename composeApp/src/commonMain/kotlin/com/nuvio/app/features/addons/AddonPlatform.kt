@@ -9,6 +9,8 @@ internal expect object AddonStorage {
     fun saveKnownAddonVersions(profileId: Int, versions: Map<String, String>)
     fun loadPendingAddonVersionChanges(profileId: Int): Map<String, String>
     fun savePendingAddonVersionChanges(profileId: Int, changes: Map<String, String>)
+    fun hasPendingRemoteSync(profileId: Int): Boolean
+    fun setPendingRemoteSync(profileId: Int, pending: Boolean)
 }
 
 data class RawHttpResponse(

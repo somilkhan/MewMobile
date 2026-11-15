@@ -36,6 +36,7 @@ actual object AddonStorage {
     private const val addonEnabledStatesKey = "installed_manifest_enabled_states"
     private const val addonKnownVersionsKey = "installed_manifest_known_versions"
     private const val addonPendingVersionsKey = "installed_manifest_pending_version_changes"
+    private const val addonPendingRemoteSyncKey = "pending_remote_sync"
 
     private var preferences: SharedPreferences? = null
 
@@ -98,6 +99,13 @@ actual object AddonStorage {
     actual fun savePendingAddonVersionChanges(profileId: Int, changes: Map<String, String>) {
         val payload = changes.entries.joinToString(separator = "\n") { (url, version) -> "$url\t$version" }
         preferences?.edit()?.putString("${addonPendingVersionsKey}_$profileId", payload)?.apply()
+    }
+    
+    actual fun hasPendingRemoteSync(profileId: Int): Boolean =
+        preferences?.getBoolean("${addonPendingRemoteSyncKey}_$profileId", false) ?: false
+
+    actual fun setPendingRemoteSync(profileId: Int, pending: Boolean) {
+        preferences?.edit()?.putBoolean("${addonPendingRemoteSyncKey}_$profileId", pending)?.apply()
     }
 }
 
