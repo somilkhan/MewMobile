@@ -254,28 +254,26 @@ internal actual object CloudStreamPlatformRuntime {
     }
 
     actual fun unload(pluginId: String) {
-        val plugin = synchronized(pluginLoadLock) {
-            synchronized(loadedLock) { loaded.remove(pluginId) }
+        synchronized(pluginLoadLock) {
+            synchronized(loadedLock) { loaded.remove(pluginId) }?.unload()
         }
-        plugin?.unload()
     }
 
     actual fun clear() {
-        val (repositorySyncJob, plugins) = synchronized(pluginLoadLock) {
-            val syncJob = synchronized(nativeRepositorySyncLock) {
+        synchronized(pluginLoadLock) {
+            val repositorySyncJob = synchronized(nativeRepositorySyncLock) {
                 nativeRepositorySyncGeneration += 1L
                 nativeRepositorySyncJob.also { nativeRepositorySyncJob = null }
             }
-            val loadedPlugins = synchronized(loadedLock) {
+            repositorySyncJob?.cancel()
+            val plugins = synchronized(loadedLock) {
                 loaded.values.toList().also { loaded.clear() }
             }
-            syncJob to loadedPlugins
+            plugins.forEach(LoadedPlugin::unload)
+            // The shared CloudStream HTTP client belongs to the host process, not the plugin registry.
+            // Clearing/unloading plugins must not force the next provider load to recreate it.
+            PluginManager.clear()
         }
-        repositorySyncJob?.cancel()
-        plugins.forEach(LoadedPlugin::unload)
-        // The shared CloudStream HTTP client belongs to the host process, not the plugin registry.
-        // Clearing/unloading plugins must not force the next provider load to recreate it.
-        PluginManager.clear()
     }
 
     private fun loadPlugin(item: CloudStreamPluginItem): LoadedPlugin {
