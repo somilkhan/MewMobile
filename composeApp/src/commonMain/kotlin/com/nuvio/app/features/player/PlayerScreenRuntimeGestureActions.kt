@@ -170,7 +170,7 @@ internal fun PlayerScreenRuntime.togglePlayback() {
         playerController?.pause()
     } else {
         if (playbackSnapshot.isEnded) {
-            playerController?.seekTo(0L)
+            seekToPosition(0L)
         }
         shouldPlay = true
         playerController?.play()
