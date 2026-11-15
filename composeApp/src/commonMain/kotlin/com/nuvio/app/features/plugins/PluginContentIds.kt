@@ -12,8 +12,10 @@ internal fun pluginContentId(
     if (trimmed.isBlank()) return videoId
 
     val withoutPrefix = when {
-        trimmed.startsWith("tmdb:") -> trimmed.removePrefix("tmdb:")
-        trimmed.startsWith("tmdb/") -> trimmed.removePrefix("tmdb/")
+        trimmed.startsWith("tmdb:", ignoreCase = true) -> trimmed.substringAfter(':')
+        trimmed.startsWith("tmdb/", ignoreCase = true) -> trimmed.substringAfter('/')
+        trimmed.startsWith("movie:", ignoreCase = true) -> trimmed.substringAfter(':')
+        trimmed.startsWith("series:", ignoreCase = true) -> trimmed.substringAfter(':')
         else -> trimmed
     }
 

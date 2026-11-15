@@ -28,6 +28,13 @@ class PluginContentIdsTest {
     }
 
     @Test
+    fun `plugin ids strip movie and series prefixes case insensitively`() {
+        assertEquals("Mirzapur", pluginContentId("movie:Mirzapur", null, null))
+        assertEquals("Mirzapur", pluginContentId("SERIES:Mirzapur", null, null))
+        assertEquals("1234", pluginContentId("TMDB:1234:1:2", 1, 2))
+    }
+
+    @Test
     fun `plugin search selection matches media type and exact title first`() {
         val movie = preview("tmdb:10", "movie", "Dune")
         val series = preview("tmdb:20", "series", "Dune")

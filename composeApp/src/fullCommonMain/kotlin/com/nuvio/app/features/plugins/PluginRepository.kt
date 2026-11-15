@@ -6,7 +6,6 @@ import com.nuvio.app.core.diagnostics.RuntimeDiagnostics
 import com.nuvio.app.core.network.SupabaseProvider
 import com.nuvio.app.features.addons.httpGetText
 import com.nuvio.app.features.profiles.ProfileRepository
-import com.nuvio.app.features.tmdb.TmdbService
 import com.nuvio.app.features.plugins.runtime.PluginRuntime
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Order
@@ -441,9 +440,11 @@ actual object PluginRepository {
         if (tmdbId.isBlank()) return Result.success(emptyList())
 
         val resolvedTmdbId = resolvePluginTmdbId(
-            tmdbId = tmdbId,
+            videoId = tmdbId,
             mediaType = mediaType,
-        )
+            season = season,
+            episode = episode,
+        ) ?: return Result.success(emptyList())
 
         return runCatching {
             PluginRuntime.executePlugin(
@@ -455,19 +456,6 @@ actual object PluginRepository {
                 scraperId = scraper.id,
             )
         }
-    }
-
-    private suspend fun resolvePluginTmdbId(
-        tmdbId: String,
-        mediaType: String,
-    ): String {
-        val trimmed = tmdbId.trim()
-        if (trimmed.isBlank()) return tmdbId
-
-        return TmdbService.ensureTmdbId(
-            videoId = trimmed,
-            mediaType = mediaType,
-        ) ?: trimmed
     }
 
     private suspend fun fetchRepositoryData(
