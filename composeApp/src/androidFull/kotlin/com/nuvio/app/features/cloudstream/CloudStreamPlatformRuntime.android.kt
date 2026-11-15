@@ -606,6 +606,9 @@ private class AndroidDexCloudStreamProvider(
     ): List<Pair<String, List<CloudStreamSearchItem>>> = withContext(Dispatchers.IO) {
         val apis = providers.filter(MainAPI::hasMainPage)
         val apiGate = Semaphore(CLOUDSTREAM_API_CONCURRENCY)
+        // Extensions can declare dozens of MainPageData requests. Bound their fan-out
+        // instead of issuing every request simultaneously and overwhelming provider hosts.
+        val requestGate = Semaphore(CLOUDSTREAM_API_CONCURRENCY)
         val errorLock = Any()
         var lastError: Throwable? = null
 
@@ -623,12 +626,14 @@ private class AndroidDexCloudStreamProvider(
                         suspend fun loadRequest(
                             data: com.lagradost.cloudstream3.MainPageData,
                         ): List<Pair<String, List<CloudStreamSearchItem>>> {
-                            val response = runCatching {
-                                withTimeout(stageTimeout(api.getMainPageTimeoutMs, DEFAULT_DISCOVERY_TIMEOUT_MS)) {
-                                    api.getMainPage(
-                                        page.coerceAtLeast(1),
-                                        MainPageRequest(data.name, data.data, data.horizontalImages),
-                                    )
+                            val response = requestGate.withPermit {
+                                runCatching {
+                                    withTimeout(stageTimeout(api.getMainPageTimeoutMs, DEFAULT_DISCOVERY_TIMEOUT_MS)) {
+                                        api.getMainPage(
+                                            page.coerceAtLeast(1),
+                                            MainPageRequest(data.name, data.data, data.horizontalImages),
+                                        )
+                                    }
                                 }
                             }
                             return response.fold(
