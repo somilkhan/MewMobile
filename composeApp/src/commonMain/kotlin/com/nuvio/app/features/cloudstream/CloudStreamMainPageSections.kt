@@ -20,9 +20,12 @@ internal fun cloudStreamMainPageSectionTitle(
         else -> normalizedSection
     }.ifBlank { "Raw Catalog" }
 
-    return if (multipleApis) {
-        listOf(apiName.trim(), displayName).filter(String::isNotBlank).joinToString(" · ")
+    val normalizedApiName = apiName.trim()
+    return if (multipleApis && normalizedApiName.isNotBlank() &&
+        !displayName.equals(normalizedApiName, ignoreCase = true)
+    ) {
+        "$normalizedApiName · $displayName"
     } else {
-        displayName
+        displayName.ifBlank { normalizedApiName }
     }
 }
