@@ -153,6 +153,7 @@ object AddonRepository {
             currentProfileId = 1
             initialized = false
             pulledFromServer = false
+            localMutationRevisionByProfile.clear()
             _uiState.value = AddonsUiState()
             jobs
         }
@@ -313,11 +314,11 @@ object AddonRepository {
                         )
                     }
                     if (!applyPulledAddonsIfCurrent(
-                        requestProfileId,
-                        requestGeneration,
-                        addons,
-                        expectedLocalMutationRevision = localMutationRevisionAtRequest,
-                    )) return
+                    requestProfileId,
+                    requestGeneration,
+                    addons,
+                    expectedLocalMutationRevision = localMutationRevisionAtRequest,
+                )) return
                     addons.forEach { addon ->
                         val existing = existingByUrl[addon.manifestUrl]
                         if (addon.enabled && (existing == null || (addon.manifest == null && !addon.isRefreshing))) {
