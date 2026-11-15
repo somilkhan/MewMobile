@@ -183,7 +183,7 @@ internal fun manualSeekTargetPosition(positionMs: Long, durationMs: Long): Long 
         durationMs.takeIf { it > 0L }?.let { position.coerceAtMost(it) } ?: position
     }
 
-private fun PlayerScreenRuntime.rememberManualSeekPosition(positionMs: Long) {
+internal fun PlayerScreenRuntime.rememberManualSeekPosition(positionMs: Long) {
     activeInitialPositionMs = positionMs
     activeInitialProgressFraction = null
     initialSeekApplied = true

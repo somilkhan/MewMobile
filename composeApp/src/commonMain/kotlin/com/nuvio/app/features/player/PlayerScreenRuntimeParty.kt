@@ -145,7 +145,10 @@ internal fun PlayerScreenRuntime.BindPartyEffects() {
                 lastSeq = remote.seq
                 shouldPlay = !remote.paused
                 if (remote.paused) playerController?.pause() else playerController?.play()
-                if (abs(drift) > PartySync.PAUSED_TOLERANCE_MS || remote.paused && abs(drift) > 500L) playerController?.seekTo(expected)
+                if (abs(drift) > PartySync.PAUSED_TOLERANCE_MS || remote.paused && abs(drift) > 500L) {
+                    playerController?.seekTo(expected)
+                    rememberManualSeekPosition(expected)
+                }
                 playerController?.setPlaybackSpeed(remote.rate)
                 partyRateNudge = false
                 seekCooldownTicks = if (abs(drift) > PartySync.PAUSED_TOLERANCE_MS) 6 else 0
@@ -157,6 +160,7 @@ internal fun PlayerScreenRuntime.BindPartyEffects() {
                 when (val correction = PartySync.correction(playbackSnapshot.positionMs, expected, remote, partyRateNudge)) {
                     is PartyCorrection.Seek -> {
                         playerController?.seekTo(correction.positionMs)
+                        rememberManualSeekPosition(correction.positionMs)
                         playerController?.setPlaybackSpeed(remote.rate)
                         partyRateNudge = false
                         seekCooldownTicks = 6
@@ -206,6 +210,7 @@ internal fun PlayerScreenRuntime.RenderPartyPanel() {
                 ?.let { PartySync.expectedPositionMs(it, PartyRepository.nowMs(), playbackSnapshot.durationMs) }
             if (target != null && playerController != null) {
                 playerController?.seekTo(target)
+                rememberManualSeekPosition(target)
                 partyBehind = false
                 partyBehindMs = null
                 PartyRepository.setLocalStatus(PartyMemberStatus.Ready, partyMedia().key)
