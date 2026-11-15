@@ -16,4 +16,14 @@ internal object LibraryPushRetryPolicy {
         if (attempt !in 1..maxAutomaticAttempts) return null
         return (initialDelayMs shl (attempt - 1)).coerceAtMost(maxDelayMs)
     }
+
+    /**
+     * Retry only HTTP responses that are normally transient. A null status represents
+     * a transport failure and is handled by the caller as retryable.
+     */
+    fun isRetryableHttpStatus(statusCode: Int?): Boolean = when (statusCode) {
+        null, 408, 425, 429 -> true
+        in 500..599 -> true
+        else -> false
+    }
 }

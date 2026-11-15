@@ -1,6 +1,7 @@
 package com.nuvio.app.features.library
 
 import co.touchlab.kermit.Logger
+import io.github.jan.supabase.exceptions.RestException
 import com.nuvio.app.core.auth.AuthRepository
 import com.nuvio.app.core.auth.isAnonymous
 import com.nuvio.app.core.auth.userId
@@ -537,6 +538,7 @@ object LibraryRepository {
             log.w { "Skipping library push: auth state is ${authState::class.simpleName} profile=$profileId" }
             return
         }
+        var retryAfterCompletion = false
         val pushJob = syncScope.launch(start = CoroutineStart.LAZY) {
             delay(delayMs)
             nuvioSyncMutex.withLock {
@@ -574,11 +576,21 @@ object LibraryRepository {
                         "Failed to push library delta profile=$profileId " +
                             "upserts=${snapshot.pendingUpsertKeys.size} deletes=${snapshot.pendingDeleteKeys.size}"
                     }
-                    scheduleLibraryPushRetry(snapshot)
+                    retryAfterCompletion = error.isRetryableLibraryPushFailure()
+                    if (!retryAfterCompletion) {
+                        log.w { "Not retrying permanent library push failure profile=$profileId" }
+                    }
                 }
             }
         }
-        pushJob.invokeOnCompletion { localState.clearPushJob(pushJob) }
+        pushJob.invokeOnCompletion { cause ->
+            localState.clearPushJob(pushJob)
+            // Install the replacement only after this job has released its slot; doing it
+            // inside the failing coroutine can cancel the coroutine that schedules it.
+            if (cause == null && retryAfterCompletion) {
+                scheduleLibraryPushRetry(snapshot)
+            }
+        }
 
         val installResult = localState.installPushJob(snapshot, pushJob)
         if (!installResult.installed) {
@@ -587,6 +599,18 @@ object LibraryRepository {
         }
         installResult.detachedPushJob?.cancel()
         pushJob.start()
+    }
+
+    private fun Throwable.isRetryableLibraryPushFailure(): Boolean {
+        var current: Throwable? = this
+        while (current != null) {
+            if (current is RestException) {
+                return LibraryPushRetryPolicy.isRetryableHttpStatus(current.statusCode)
+            }
+            current = current.cause
+        }
+        // Socket, timeout, DNS and other transport failures have no HTTP status.
+        return true
     }
 
     /**
