@@ -1325,6 +1325,7 @@ object WatchProgressRepository {
                     entries = listOf(entry),
                 )
             }.onFailure { e ->
+                if (e is CancellationException) throw e
                 log.e(e) { "Failed to push watch progress scrobble" }
             }
         }
