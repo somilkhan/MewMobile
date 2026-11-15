@@ -228,6 +228,8 @@ object AddonRepository {
                         put("p_addons", json.encodeToJsonElement(addons))
                         putSyncOriginClientId()
                     }
+                    if (!AuthRepository.state.value.canSyncRemotely) return
+                    if (!isCurrentProfile(requestProfileId, requestGeneration)) return
                     SupabaseProvider.client.postgrest.rpc("sync_push_addons", params)
                     synchronized(refreshJobsLock) {
                         if (isCurrentProfileLocked(requestProfileId, requestGeneration)) {

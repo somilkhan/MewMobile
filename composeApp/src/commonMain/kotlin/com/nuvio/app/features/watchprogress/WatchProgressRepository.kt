@@ -1312,9 +1312,11 @@ object WatchProgressRepository {
 
     private fun pushScrobbleToServer(entry: WatchProgressEntry, profileId: Int) {
         if (!AuthRepository.state.value.canSyncRemotely) return
-        val operationGeneration = profileGeneration.takeIf { profileId == currentProfileId }
+        val operationGeneration = profileGeneration.takeIf { profileId == currentProfileId } ?: return
         accountScopeSnapshot().launch {
             if (!AuthRepository.state.value.canSyncRemotely) return@launch
+            if (ProfileRepository.activeProfileId != profileId) return@launch
+            if (currentProfileId != profileId || profileGeneration != operationGeneration) return@launch
             runCatching {
                 syncAdapter.push(profileId = profileId, entries = listOf(entry))
                 recordSuccessfulPush(
@@ -1332,11 +1334,17 @@ object WatchProgressRepository {
         if (!AuthRepository.state.value.canSyncRemotely) return
         if (activeSource.providerId != null) return
         val profileId = currentProfileId
+        val operationGeneration = profileGeneration
         accountScopeSnapshot().launch {
+            if (!AuthRepository.state.value.canSyncRemotely) return@launch
+            if (ProfileRepository.activeProfileId != profileId) return@launch
+            if (currentProfileId != profileId || profileGeneration != operationGeneration) return@launch
+            if (activeSource.providerId != null) return@launch
             runCatching {
                 if (entries.isEmpty()) return@runCatching
                 syncAdapter.delete(profileId = profileId, entries = entries)
             }.onFailure { e ->
+                if (e is CancellationException) throw e
                 log.e(e) { "Failed to push watch progress delete" }
             }
         }
