@@ -1,6 +1,7 @@
 package com.nuvio.app.core.auth
 
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
