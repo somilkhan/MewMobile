@@ -184,13 +184,19 @@ internal fun manualSeekTargetPosition(positionMs: Long, durationMs: Long): Long 
     }
 
 private fun PlayerScreenRuntime.rememberManualSeekPosition(positionMs: Long) {
+    activeInitialPositionMs = positionMs
+    activeInitialProgressFraction = null
+    initialSeekApplied = true
+}
+
+internal fun PlayerScreenRuntime.seekToPosition(positionMs: Long) {
     val targetPositionMs = manualSeekTargetPosition(
         positionMs = positionMs,
         durationMs = playbackSnapshot.durationMs,
     )
-    activeInitialPositionMs = targetPositionMs
-    activeInitialProgressFraction = null
-    initialSeekApplied = true
+    playerController?.seekTo(targetPositionMs)
+    rememberManualSeekPosition(targetPositionMs)
+    scheduleProgressSyncAfterSeek()
 }
 
 internal fun PlayerScreenRuntime.seekBy(offsetMs: Long) {
@@ -198,9 +204,7 @@ internal fun PlayerScreenRuntime.seekBy(offsetMs: Long) {
     val targetPositionMs = (currentPositionMs + offsetMs).coerceAtLeast(0L).let { position ->
         playbackSnapshot.durationMs.takeIf { it > 0L }?.let { position.coerceAtMost(it) } ?: position
     }
-    playerController?.seekTo(targetPositionMs)
-    rememberManualSeekPosition(targetPositionMs)
-    scheduleProgressSyncAfterSeek()
+    seekToPosition(targetPositionMs)
     controlsVisible = true
     when {
         offsetMs > 0L -> showSeekFeedback(PlayerSeekDirection.Forward, offsetMs)
@@ -249,9 +253,7 @@ internal fun PlayerScreenRuntime.handleDoubleTapSeek(direction: PlayerSeekDirect
             maxDurationMs?.let { unclamped.coerceAtMost(it) } ?: unclamped
         }
     }
-    playerController?.seekTo(targetPositionMs)
-    rememberManualSeekPosition(targetPositionMs)
-    scheduleProgressSyncAfterSeek()
+    seekToPosition(targetPositionMs)
     showSeekFeedback(direction, nextState.amountMs)
 
     accumulatedSeekResetJob?.cancel()
@@ -385,9 +387,7 @@ internal fun PlayerScreenRuntime.rememberSurfaceGestureCallbacks(): PlayerSurfac
         currentPositionMs = rememberUpdatedState(playbackSnapshot.positionMs.coerceAtLeast(0L)),
         currentDurationMs = rememberUpdatedState(playbackSnapshot.durationMs),
         commitHorizontalSeek = rememberUpdatedState { targetPositionMs: Long ->
-            playerController?.seekTo(targetPositionMs)
-            rememberManualSeekPosition(targetPositionMs)
-            scheduleProgressSyncAfterSeek()
+            seekToPosition(targetPositionMs)
         },
     )
 }

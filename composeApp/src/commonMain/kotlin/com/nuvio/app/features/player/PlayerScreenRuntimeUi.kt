@@ -478,8 +478,7 @@ private fun PlayerScreenRuntime.RenderPlayerControls(displayedPositionMs: Long, 
                 onScrubFinished = { positionMs ->
                     isScrubbingTimeline = false
                     scrubbingPositionMs = null
-                    playerController?.seekTo(positionMs)
-                    scheduleProgressSyncAfterSeek()
+                    seekToPosition(positionMs)
                 },
                 horizontalSafePadding = horizontalSafePadding,
                 modifier = Modifier.fillMaxSize(),
@@ -545,8 +544,7 @@ private fun BoxScope.RenderPlaybackOverlays(
             val rawMs = (interval.endTime * 1000.0).toLong()
             val durationMs = playbackSnapshot.durationMs
             val seekMs = if (durationMs > 0L) rawMs.coerceAtMost(durationMs - 1) else rawMs
-            playerController?.seekTo(seekMs)
-            scheduleProgressSyncAfterSeek()
+            seekToPosition(seekMs)
             skipIntervalDismissed = true
         },
         onDismissSkipInterval = { skipIntervalDismissed = true },

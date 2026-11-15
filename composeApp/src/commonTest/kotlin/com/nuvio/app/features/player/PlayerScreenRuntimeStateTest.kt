@@ -62,6 +62,13 @@ class PlayerScreenRuntimeStateTest {
     }
 
     @Test
+    fun manualSeekTargetPosition_clampsToKnownDurationAndKeepsUnknownDurationTargets() {
+        assertEquals(0L, manualSeekTargetPosition(positionMs = -500L, durationMs = 10_000L))
+        assertEquals(10_000L, manualSeekTargetPosition(positionMs = 15_000L, durationMs = 10_000L))
+        assertEquals(15_000L, manualSeekTargetPosition(positionMs = 15_000L, durationMs = 0L))
+    }
+
+    @Test
     fun seekScrobbleUpdate_requiresActiveIncompletePlayback() {
         assertTrue(
             shouldUpdateTrackingScrobbleAfterSeek(
