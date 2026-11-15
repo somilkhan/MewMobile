@@ -295,7 +295,6 @@ import com.nuvio.app.features.watchprogress.nextUpDismissKey
 import com.nuvio.app.features.watchprogress.toContinueWatchingItem
 import com.nuvio.app.features.watching.application.WatchingActions
 import com.nuvio.app.features.watching.application.WatchingState
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.collectLatest
@@ -974,10 +973,7 @@ private fun MainAppContent(
     LaunchedEffect(enhancedSettingsUiState.statusBarVisible) {
         AppSystemUiController.setStatusBarVisible(enhancedSettingsUiState.statusBarVisible)
     }
-    var initialHomeReady by rememberSaveable(
-        ownsAppRuntime,
-        profileState.activeProfile?.profileIndex,
-    ) {
+    var initialHomeReady by rememberSaveable(ownsAppRuntime) {
         mutableStateOf(!ownsAppRuntime)
     }
     var offlineLaunchRouteHandled by rememberSaveable { mutableStateOf(false) }
@@ -1083,18 +1079,25 @@ private fun MainAppContent(
         }
     }
 
-    var profileSwitchLoading by remember { mutableStateOf(false) }
+    var pendingProfileIndex by remember { mutableStateOf<Int?>(null) }
+    val profileSwitchLoading = pendingProfileIndex != null
 
-    LaunchedEffect(profileState.activeProfile?.profileIndex) {
-        if (!ownsAppRuntime) return@LaunchedEffect
-        delay(5_000)
-        initialHomeReady = true
+    // A profile switch is complete when the repository publishes the selected profile.
+    // It must not replay the cold-start splash or wait for Home's first network catalog.
+    LaunchedEffect(profileState.activeProfile?.profileIndex, pendingProfileIndex) {
+        if (pendingProfileIndex != null &&
+            profileState.activeProfile?.profileIndex == pendingProfileIndex
+        ) {
+            pendingProfileIndex = null
+        }
     }
 
-    LaunchedEffect(profileSwitchLoading) {
-        if (!profileSwitchLoading) return@LaunchedEffect
-        delay(1_200)
-        profileSwitchLoading = false
+    // Let Compose draw the Mew-branded launch surface once, then reveal the app shell.
+    // Content discovery remains progressive inside Home; it is not a startup prerequisite.
+    LaunchedEffect(ownsAppRuntime) {
+        if (!ownsAppRuntime) return@LaunchedEffect
+        withFrameNanos { }
+        initialHomeReady = true
     }
 
     LaunchedEffect(
@@ -1115,18 +1118,9 @@ private fun MainAppContent(
         }
     }
     val launchOverlayState = remember(ownsAppRuntime) {
-        MutableTransitionState(
-            ownsAppRuntime && (
-                !initialHomeReady ||
-                    profileSwitchLoading
-                ),
-        )
+        MutableTransitionState(ownsAppRuntime && !initialHomeReady)
     }
-    launchOverlayState.targetState =
-        ownsAppRuntime && (
-            !initialHomeReady ||
-                profileSwitchLoading
-            )
+    launchOverlayState.targetState = ownsAppRuntime && !initialHomeReady
 
     LaunchedEffect(
         launchOverlayState.targetState,
@@ -2104,8 +2098,7 @@ private fun MainAppContent(
                             nativeProfileSwitcherVisible = false
                             activateTab(AppScreenTab.Home)
                             if (profile.profileIndex != profileState.activeProfile?.profileIndex) {
-                                initialHomeReady = false
-                                profileSwitchLoading = true
+                                pendingProfileIndex = profile.profileIndex
                                 NativeTabBridge.publishTabBarVisible(false)
                                 ProfileRepository.selectProfile(profile.profileIndex)
                                 SyncManager.pullAllForProfile(profile.profileIndex)
@@ -2394,10 +2387,7 @@ private fun MainAppContent(
                                         onRequestedSettingsPageConsumed = {
                                             requestedSettingsPageName = null
                                         },
-                                        onInitialHomeContentRendered = {
-                                            initialHomeReady = true
-                                            profileSwitchLoading = false
-                                        },
+                                        onInitialHomeContentRendered = {},
                                     )
                                 }
 
