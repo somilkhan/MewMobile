@@ -58,24 +58,36 @@ internal fun buildCloudStreamHomeSections(
     providerId: String,
     providerName: String,
     categories: List<Pair<String, List<CloudStreamSearchItem>>>,
-): List<HomeCatalogSection> = categories.mapNotNull { (categoryName, items) ->
-    if (items.isEmpty()) return@mapNotNull null
-    val previews = items.take(HOME_CATALOG_PREVIEW_FETCH_LIMIT).map { it.toMetaPreview() }
-    HomeCatalogSection(
-        key = cloudStreamSectionKey(providerStorageKey, categoryName),
-        title = categoryName,
-        subtitle = "$providerName · CloudStream",
-        addonName = providerName,
-        target = CatalogTarget.CloudStream(
-            providerId = providerId,
-            categoryName = categoryName,
-            contentType = items.first().type.nuvioType,
-            supportsPagination = false,
-        ),
-        items = previews,
-        availableItemCount = items.size,
-        hasMore = items.size > previews.size,
-    )
+): List<HomeCatalogSection> {
+    val categoryNameCounts = categories.groupingBy { it.first }.eachCount()
+    val occurrenceByName = mutableMapOf<String, Int>()
+    return categories.mapIndexedNotNull { categoryIndex, (categoryName, items) ->
+        if (items.isEmpty()) return@mapIndexedNotNull null
+        val occurrence = (occurrenceByName[categoryName] ?: 0) + 1
+        occurrenceByName[categoryName] = occurrence
+        val displayName = if ((categoryNameCounts[categoryName] ?: 0) > 1) {
+            "$categoryName $occurrence"
+        } else {
+            categoryName
+        }
+        val previews = items.take(HOME_CATALOG_PREVIEW_FETCH_LIMIT).map { it.toMetaPreview() }
+        HomeCatalogSection(
+            key = cloudStreamSectionKey(providerStorageKey, categoryName, categoryIndex),
+            title = displayName,
+            subtitle = "$providerName · CloudStream",
+            addonName = providerName,
+            target = CatalogTarget.CloudStream(
+                providerId = providerId,
+                categoryName = categoryName,
+                contentType = items.first().type.nuvioType,
+                supportsPagination = false,
+                categoryIndex = categoryIndex,
+            ),
+            items = previews,
+            availableItemCount = items.size,
+            hasMore = items.size > previews.size,
+        )
+    }
 }
 
 private data class CloudHomeProviderResult(
