@@ -59,7 +59,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
@@ -73,7 +72,7 @@ internal actual object CloudStreamPlatformRuntime {
 
     private val log = Logger.withTag("CloudStreamDex")
     private val json = Json { ignoreUnknownKeys = true }
-    private val loadMutex = Mutex()
+    private val pluginLoadLock = Any()
     private val backgroundScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val nativeRepositorySyncLock = Any()
     private val nativeRepositorySyncMutex = Mutex()
@@ -153,30 +152,21 @@ internal actual object CloudStreamPlatformRuntime {
         val syncGeneration = currentNativeRepositorySyncGeneration()
         return withContext(Dispatchers.IO) {
             var loadedNow = false
-            val loadedPlugin = loadMutex.withLock {
-                synchronized(loadedLock) {
+            val loadedPlugin = synchronized(pluginLoadLock) {
+                if (!isNativeRepositorySyncGenerationCurrent(syncGeneration)) {
+                    return@synchronized null
+                }
+                val currentPlugin = synchronized(loadedLock) {
                     loaded[plugin.metadata.id.value]
                         ?: loadPlugin(plugin).also {
                             loaded[plugin.metadata.id.value] = it
                             loadedNow = true
                         }
                 }
-            }
-            if (!isNativeRepositorySyncGenerationCurrent(syncGeneration)) {
-                if (loadedNow) {
-                    // Remove only this exact instance. A profile reset/new load may already
-                    // have installed a different plugin with the same ID.
-                    val stalePlugin = synchronized(loadedLock) {
-                        if (loaded[plugin.metadata.id.value] === loadedPlugin) {
-                            loaded.remove(plugin.metadata.id.value)
-                        } else {
-                            null
-                        }
-                    }
-                    (stalePlugin ?: loadedPlugin).unload()
-                }
-                return@withContext null
-            }
+                if (isNativeRepositorySyncGenerationCurrent(syncGeneration)) currentPlugin else null
+            } ?: return@withContext null
+
+            if (!isNativeRepositorySyncGenerationCurrent(syncGeneration)) return@withContext null
             if (loadedNow) {
                 // Reconcile synchronous registrations immediately. Keep a shared bounded poll
                 // running after every plugin load: bootstrap plugins can register repositories
@@ -264,20 +254,24 @@ internal actual object CloudStreamPlatformRuntime {
     }
 
     actual fun unload(pluginId: String) {
-        synchronized(loadedLock) { loaded.remove(pluginId) }?.unload()
+        val plugin = synchronized(pluginLoadLock) {
+            synchronized(loadedLock) { loaded.remove(pluginId) }
+        }
+        plugin?.unload()
     }
 
     actual fun clear() {
-        val repositorySyncJob = synchronized(nativeRepositorySyncLock) {
-            nativeRepositorySyncGeneration += 1L
-            nativeRepositorySyncJob.also { nativeRepositorySyncJob = null }
+        val (repositorySyncJob, plugins) = synchronized(pluginLoadLock) {
+            val syncJob = synchronized(nativeRepositorySyncLock) {
+                nativeRepositorySyncGeneration += 1L
+                nativeRepositorySyncJob.also { nativeRepositorySyncJob = null }
+            }
+            val loadedPlugins = synchronized(loadedLock) {
+                loaded.values.toList().also { loaded.clear() }
+            }
+            syncJob to loadedPlugins
         }
         repositorySyncJob?.cancel()
-        val plugins = synchronized(loadedLock) {
-            loaded.values.toList().also {
-                loaded.clear()
-            }
-        }
         plugins.forEach(LoadedPlugin::unload)
         // The shared CloudStream HTTP client belongs to the host process, not the plugin registry.
         // Clearing/unloading plugins must not force the next provider load to recreate it.
