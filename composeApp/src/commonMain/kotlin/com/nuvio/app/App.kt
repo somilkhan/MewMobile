@@ -1110,18 +1110,9 @@ private fun MainAppContent(
             }
         }
     }
-    val launchOverlayState = remember(ownsAppRuntime) {
-        MutableTransitionState(ownsAppRuntime && !initialHomeReady)
-    }
-    launchOverlayState.targetState = ownsAppRuntime && !initialHomeReady
-
-    LaunchedEffect(
-        launchOverlayState.targetState,
-        ownsAppRuntime,
-        onRootContentReady,
-    ) {
+    LaunchedEffect(initialHomeReady, ownsAppRuntime, onRootContentReady) {
         if (ownsAppRuntime) {
-            onRootContentReady?.invoke(!launchOverlayState.targetState)
+            onRootContentReady?.invoke(initialHomeReady)
         }
     }
 
@@ -2166,9 +2157,7 @@ private fun MainAppContent(
                             LocalDensity provides Density(density.density, density.fontScale * tvUiScale),
                         ) {
                         Scaffold(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .alpha(if (launchOverlayState.targetState) 0f else 1f),
+                            modifier = Modifier.fillMaxSize(),
                             containerColor = Color.Transparent,
                             contentWindowInsets = WindowInsets(0),
                             bottomBar = {
@@ -4046,16 +4035,6 @@ private fun MainAppContent(
                     showExitConfirmation = false
                 },
             )
-
-            androidx.compose.animation.AnimatedVisibility(
-                visibleState = launchOverlayState,
-                enter = fadeIn(),
-                exit = fadeOut(androidx.compose.animation.core.tween(400)),
-            ) {
-                AppLaunchOverlay(
-                    modifier = Modifier.fillMaxSize(),
-                )
-            }
 
             NuvioFloatingPrompt(
                 visible = resumePromptItem != null,
