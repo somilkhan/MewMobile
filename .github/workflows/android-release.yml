@@ -379,11 +379,11 @@ jobs:
         if: inputs.mode != 'dry-run'
         run: |
           set -euo pipefail
-          # The repository defaults are workstation-sized (12 GiB Gradle +
-          # 8 GiB Kotlin daemon). Override them only in CI so their heaps fit
-          # alongside the OS, R8, resource processing, and Gradle workers.
-          sed -i -E 's|^org\.gradle\.jvmargs=.*|org.gradle.jvmargs=-Xmx6g -Dfile.encoding=UTF-8 -XX:MaxMetaspaceSize=1024m|' gradle.properties
-          sed -i -E 's|^kotlin\.daemon\.jvmargs=.*|kotlin.daemon.jvmargs=-Xmx2g|' gradle.properties
+          # This runner has 15 GiB RAM. Kotlin compilation OOMed at 2 GiB,
+          # so give the Kotlin daemon 5 GiB and reserve 4 GiB for Gradle.
+          # Two workers cap concurrent task memory; Native is not used by this Android task.
+          sed -i -E 's|^org\.gradle\.jvmargs=.*|org.gradle.jvmargs=-Xmx4g -Dfile.encoding=UTF-8 -XX:MaxMetaspaceSize=1024m|' gradle.properties
+          sed -i -E 's|^kotlin\.daemon\.jvmargs=.*|kotlin.daemon.jvmargs=-Xmx5g|' gradle.properties
           sed -i -E 's|^kotlin\.native\.jvmArgs=.*|kotlin.native.jvmArgs=-Xmx2g|' gradle.properties
           if ! grep -q '^org.gradle.workers.max=' gradle.properties; then
             printf '\norg.gradle.workers.max=2\n' >> gradle.properties
