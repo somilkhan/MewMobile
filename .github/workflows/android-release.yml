@@ -175,7 +175,8 @@ jobs:
     name: ${{ inputs.mode }} Mew release
     needs: build-ios
     if: ${{ always() && (!inputs.include_ios || inputs.mode == 'dry-run' || inputs.mode == 'attach-universal' || needs.build-ios.result == 'success') }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
     env:
       GH_TOKEN: ${{ github.token }}
       RELEASE_PROPERTIES_BASE64: ${{ secrets.MEW_LOCAL_PROPERTIES_BASE64 || secrets.NUVIO_LOCAL_PROPERTIES_BASE64 }}
@@ -374,9 +375,29 @@ jobs:
             fi
           done
 
+      - name: Constrain Gradle memory for hosted runner
+        if: inputs.mode != 'dry-run'
+        run: |
+          set -euo pipefail
+          # The repository defaults are workstation-sized (12 GiB Gradle +
+          # 8 GiB Kotlin daemon). Override them only in CI so their heaps fit
+          # alongside the OS, R8, resource processing, and Gradle workers.
+          sed -i -E 's|^org\.gradle\.jvmargs=.*|org.gradle.jvmargs=-Xmx6g -Dfile.encoding=UTF-8 -XX:MaxMetaspaceSize=1024m|' gradle.properties
+          sed -i -E 's|^kotlin\.daemon\.jvmargs=.*|kotlin.daemon.jvmargs=-Xmx2g|' gradle.properties
+          sed -i -E 's|^kotlin\.native\.jvmArgs=.*|kotlin.native.jvmArgs=-Xmx2g|' gradle.properties
+          if ! grep -q '^org.gradle.workers.max=' gradle.properties; then
+            printf '\norg.gradle.workers.max=2\n' >> gradle.properties
+          else
+            sed -i -E 's|^org\.gradle\.workers\.max=.*|org.gradle.workers.max=2|' gradle.properties
+          fi
+          echo "Hosted runner memory before Gradle:"
+          free -h
+          echo "Effective CI Gradle memory settings:"
+          grep -E '^(org\.gradle\.jvmargs|org\.gradle\.workers\.max|kotlin\.daemon\.jvmargs|kotlin\.native\.jvmArgs)=' gradle.properties
+
       - name: Build full release APKs
         if: inputs.mode != 'dry-run'
-        run: ./gradlew :androidApp:assembleFullRelease --stacktrace
+        run: ./gradlew :androidApp:assembleFullRelease --stacktrace --max-workers=2
 
       - name: Verify Android signing certificate
         if: inputs.mode != 'dry-run'
