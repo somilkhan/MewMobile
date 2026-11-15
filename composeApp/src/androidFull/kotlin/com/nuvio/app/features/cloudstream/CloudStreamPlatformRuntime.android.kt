@@ -609,56 +609,80 @@ private class AndroidDexCloudStreamProvider(
     override suspend fun getMainPage(
         page: Int,
     ): List<Pair<String, List<CloudStreamSearchItem>>> = withContext(Dispatchers.IO) {
-        val sections = Collections.synchronizedList(
-            mutableListOf<Pair<String, List<CloudStreamSearchItem>>>(),
-        )
+        val apis = providers.filter(MainAPI::hasMainPage)
         val apiGate = Semaphore(CLOUDSTREAM_API_CONCURRENCY)
+        val errorLock = Any()
         var lastError: Throwable? = null
 
-        coroutineScope {
-            providers.filter(MainAPI::hasMainPage).map { api ->
+        // awaitAll preserves the API and request declaration order. Do not append into a shared
+        // list from concurrent callbacks: many extensions return identical "Raw Catalog" names,
+        // and completion-order collection made category identity/order nondeterministic.
+        val sections = coroutineScope {
+            apis.map { api ->
                 async {
                     apiGate.withPermit {
                         val requests = api.mainPage.ifEmpty {
                             listOf(com.lagradost.cloudstream3.MainPageData(api.name, api.mainUrl, false))
                         }
 
-                        suspend fun loadRequest(data: com.lagradost.cloudstream3.MainPageData) =
-                            runCatching {
+                        suspend fun loadRequest(
+                            data: com.lagradost.cloudstream3.MainPageData,
+                        ): List<Pair<String, List<CloudStreamSearchItem>>> {
+                            val response = runCatching {
                                 withTimeout(stageTimeout(api.getMainPageTimeoutMs, DEFAULT_DISCOVERY_TIMEOUT_MS)) {
                                     api.getMainPage(
                                         page.coerceAtLeast(1),
                                         MainPageRequest(data.name, data.data, data.horizontalImages),
                                     )
                                 }
-                            }.onSuccess { response ->
-                                response?.items.orEmpty().forEach { section ->
-                                    val title = if (providers.size > 1) "${api.name} · ${section.name}" else section.name
-                                    val items = section.list.map { it.toNuvioSearchItem(api) }
-                                    if (items.isNotEmpty()) sections += title to items
-                                }
-                            }.onFailure { error ->
-                                synchronized(sections) { lastError = error }
-                                log.w(error) { "CloudStream main page failed api=${api.name}" }
                             }
+                            return response.fold(
+                                onSuccess = { result ->
+                                    result?.items.orEmpty().mapNotNull { section ->
+                                        val items = section.list.map { it.toNuvioSearchItem(api) }
+                                        if (items.isEmpty()) {
+                                            null
+                                        } else {
+                                            cloudStreamMainPageSectionTitle(
+                                                apiName = api.name,
+                                                requestName = data.name,
+                                                sectionName = section.name,
+                                                multipleApis = apis.size > 1,
+                                            ) to items
+                                        }
+                                    }
+                                },
+                                onFailure = { error ->
+                                    synchronized(errorLock) {
+                                        if (lastError == null) lastError = error
+                                    }
+                                    log.w(error) { "CloudStream main page failed api=${api.name} request=${data.name}" }
+                                    emptyList()
+                                },
+                            )
+                        }
 
                         if (api.sequentialMainPage) {
-                            requests.forEachIndexed { index, data ->
-                                if (index > 0 && api.sequentialMainPageDelay > 0) {
-                                    delay(api.sequentialMainPageDelay)
+                            buildList {
+                                requests.forEachIndexed { index, data ->
+                                    if (index > 0 && api.sequentialMainPageDelay > 0) {
+                                        delay(api.sequentialMainPageDelay)
+                                    }
+                                    addAll(loadRequest(data))
                                 }
-                                loadRequest(data)
                             }
                         } else {
-                            requests.map { data -> async { loadRequest(data) } }.awaitAll()
+                            requests.map { data -> async { loadRequest(data) } }
+                                .awaitAll()
+                                .flatten()
                         }
                     }
                 }
-            }.awaitAll()
+            }.awaitAll().flatten()
         }
 
         if (sections.isEmpty()) throw lastError ?: return@withContext emptyList()
-        synchronized(sections) { sections.toList() }
+        sections
     }
 
     override suspend fun search(query: String): List<CloudStreamSearchItem> = withContext(Dispatchers.IO) {
