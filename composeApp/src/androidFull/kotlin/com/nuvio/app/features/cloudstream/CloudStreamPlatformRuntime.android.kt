@@ -49,6 +49,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.async
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.CoroutineScope
@@ -653,6 +656,12 @@ private class AndroidDexCloudStreamProvider(
                                     }
                                 },
                                 onFailure = { error ->
+                                    if (error is CancellationException && error !is TimeoutCancellationException) {
+                                        throw error
+                                    }
+                                    // A per-request timeout is recoverable; cancellation of the
+                                    // parent operation (for example a profile switch) is not.
+                                    currentCoroutineContext().ensureActive()
                                     synchronized(errorLock) {
                                         if (lastError == null) lastError = error
                                     }
