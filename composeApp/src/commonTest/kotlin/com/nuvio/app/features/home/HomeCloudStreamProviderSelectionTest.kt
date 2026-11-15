@@ -44,7 +44,7 @@ class HomeCloudStreamProviderSelectionTest {
     @Test
     fun cloudStreamSectionKeyKeepsProviderAndFullCategoryIdentity() {
         val provider = "provider-storage-key"
-        assertEquals("cloudstream:provider-storage-key:Movies", cloudStreamSectionKey(provider, "Movies"))
+        assertEquals("cloudstream:provider-storage-key:0:Movies", cloudStreamSectionKey(provider, "Movies"))
         assertNotEquals(cloudStreamSectionKey(provider, "Aa"), cloudStreamSectionKey(provider, "BB"))
         assertNotEquals(cloudStreamSectionKey("provider-a", "Movies"), cloudStreamSectionKey("provider-b", "Movies"))
     }
@@ -64,7 +64,7 @@ class HomeCloudStreamProviderSelectionTest {
 
         assertEquals(2, sections.size)
         assertEquals(listOf("Movies", "Series"), sections.map { it.title })
-        assertEquals(listOf("cloudstream:provider-storage-key:Movies", "cloudstream:provider-storage-key:Series"), sections.map { it.key })
+        assertEquals(listOf("cloudstream:provider-storage-key:0:Movies", "cloudstream:provider-storage-key:1:Series"), sections.map { it.key })
         assertTrue(sections.all { (it.target as com.nuvio.app.features.catalog.CatalogTarget.CloudStream).providerId == providerId })
     }
 }
