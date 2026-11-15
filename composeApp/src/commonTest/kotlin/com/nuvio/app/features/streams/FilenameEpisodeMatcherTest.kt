@@ -58,6 +58,26 @@ class FilenameEpisodeMatcherTest {
     }
 
     @Test
+    fun matchesSeasonXAndSeasonlessEpisodeRanges() {
+        assertTrue(FilenameEpisodeMatcher.matchesEpisode(
+            "Show 01x02-03 1080p.mkv",
+            "Show S01E03 WEB-DL.mkv",
+        ))
+        assertTrue(FilenameEpisodeMatcher.matchesEpisode(
+            "Show EP02-EP03.mkv",
+            "Show EP03.mkv",
+        ))
+        assertFalse(FilenameEpisodeMatcher.matchesEpisode(
+            "Show 01x02-03.mkv",
+            "Show S02E03.mkv",
+        ))
+        assertFalse(FilenameEpisodeMatcher.matchesEpisode(
+            "Show EP04-EP02.mkv",
+            "Show EP03.mkv",
+        ))
+    }
+
+    @Test
     fun matchesEpisodeIdentityAcrossQualitySuffixes() {
         assertTrue(FilenameEpisodeMatcher.matchesEpisode("Black Clover S02E04 720p.mkv", "Black Clover S02E04 1080p.mkv"))
         assertFalse(FilenameEpisodeMatcher.matchesEpisode("Black Clover S01E04.mkv", "Black Clover S02E04.mkv"))

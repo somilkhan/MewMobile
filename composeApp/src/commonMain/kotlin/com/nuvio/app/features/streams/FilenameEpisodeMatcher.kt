@@ -75,10 +75,23 @@ object FilenameEpisodeMatcher {
             if (last < first) return null
             return EpisodeIdentity(season, first, last)
         }
-        val episodeOnly = Regex("""(?i)\bE[Pp]?[.\s]?(\d{1,4})\b""").find(filename)
-            ?: return null
-        val episode = episodeOnly.groupValues[1].toIntOrNull() ?: return null
-        return EpisodeIdentity(null, episode, episode)
+        val seasonXepisode = Regex(
+            """(?<!\d)(\d{1,2})[xX](\d{1,4})(?:\s*-\s*(\d{1,4}))?""",
+        ).find(filename)
+        if (seasonXepisode != null) {
+            val season = seasonXepisode.groupValues[1].toIntOrNull() ?: return null
+            val first = seasonXepisode.groupValues[2].toIntOrNull() ?: return null
+            val last = seasonXepisode.groupValues[3].takeIf(String::isNotBlank)?.toIntOrNull() ?: first
+            if (last < first) return null
+            return EpisodeIdentity(season, first, last)
+        }
+        val episodeOnly = Regex(
+            """(?i)\bE[Pp]?[.\s]?(\d{1,4})(?:\s*-\s*(?:E[Pp]?[.\s]?)?(\d{1,4}))?\b""",
+        ).find(filename) ?: return null
+        val first = episodeOnly.groupValues[1].toIntOrNull() ?: return null
+        val last = episodeOnly.groupValues[2].takeIf(String::isNotBlank)?.toIntOrNull() ?: first
+        if (last < first) return null
+        return EpisodeIdentity(null, first, last)
     }
 
     private interface EpisodePattern {
