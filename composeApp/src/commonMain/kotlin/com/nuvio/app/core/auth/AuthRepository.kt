@@ -141,12 +141,18 @@ object AuthRepository {
         lateinit var retryJob: Job
         retryJob = scope.launch(start = CoroutineStart.LAZY) {
             try {
-                for (waitMs in listOf(2_000L, 5_000L, 10_000L, 20_000L, 40_000L)) {
-                    delay(waitMs)
+                var attempt = 0
+                while (true) {
+                    delay(remoteSessionValidationRetryDelayMs(attempt))
                     val current = _state.value as? AuthState.Authenticated ?: return@launch
-                    if (current.userId != userId || current.isAnonymous) return@launch
+                    if (
+                        current.userId != userId ||
+                        current.isAnonymous ||
+                        current.isRemoteSessionValidated
+                    ) return@launch
                     when (validateRemoteSession(userId)) {
                         true -> {
+                            claimLocalAccountData(userId)
                             val latest = _state.value as? AuthState.Authenticated ?: return@launch
                             if (latest.userId != userId || latest.isAnonymous) return@launch
                             _state.value = latest.copy(isRemoteSessionValidated = true)
@@ -154,10 +160,17 @@ object AuthRepository {
                             return@launch
                         }
                         false -> return@launch
-                        null -> Unit
+                        null -> {
+                            attempt++
+                            if (attempt == 5 || attempt % 10 == 0) {
+                                log.w {
+                                    "Remote session still unavailable; retrying validation " +
+                                        "attempt=$attempt user=$userId"
+                                }
+                            }
+                        }
                     }
                 }
-                log.w { "Remote session validation retries exhausted; sync remains paused for user=$userId" }
             } finally {
                 if (remoteValidationJob === retryJob) remoteValidationJob = null
             }
