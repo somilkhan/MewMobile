@@ -194,7 +194,8 @@ internal fun PlayerScreenRuntime.seekToPosition(positionMs: Long) {
         positionMs = positionMs,
         durationMs = playbackSnapshot.durationMs,
     )
-    playerController?.seekTo(targetPositionMs)
+    val controller = playerController ?: return
+    controller.seekTo(targetPositionMs)
     rememberManualSeekPosition(targetPositionMs)
     scheduleProgressSyncAfterSeek()
 }
