@@ -146,8 +146,10 @@ internal fun PlayerScreenRuntime.BindPartyEffects() {
                 shouldPlay = !remote.paused
                 if (remote.paused) playerController?.pause() else playerController?.play()
                 if (abs(drift) > PartySync.PAUSED_TOLERANCE_MS || remote.paused && abs(drift) > 500L) {
-                    playerController?.seekTo(expected)
-                    rememberManualSeekPosition(expected)
+                    playerController?.let { controller ->
+                        controller.seekTo(expected)
+                        rememberManualSeekPosition(expected)
+                    }
                 }
                 playerController?.setPlaybackSpeed(remote.rate)
                 partyRateNudge = false
@@ -159,8 +161,10 @@ internal fun PlayerScreenRuntime.BindPartyEffects() {
                 }
                 when (val correction = PartySync.correction(playbackSnapshot.positionMs, expected, remote, partyRateNudge)) {
                     is PartyCorrection.Seek -> {
-                        playerController?.seekTo(correction.positionMs)
-                        rememberManualSeekPosition(correction.positionMs)
+                        playerController?.let { controller ->
+                            controller.seekTo(correction.positionMs)
+                            rememberManualSeekPosition(correction.positionMs)
+                        }
                         playerController?.setPlaybackSpeed(remote.rate)
                         partyRateNudge = false
                         seekCooldownTicks = 6
