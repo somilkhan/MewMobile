@@ -578,6 +578,7 @@ object LibraryRepository {
                     }
                     retryAfterCompletion = error.isRetryableLibraryPushFailure()
                     if (!retryAfterCompletion) {
+                        synchronized(persistenceLock) { pushRetryAttemptsByToken.remove(snapshot.token) }
                         log.w { "Not retrying permanent library push failure profile=$profileId" }
                     }
                 }
