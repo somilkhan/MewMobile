@@ -121,7 +121,11 @@ object AuthRepository {
         if (validatedRemoteUserId == userId) return true
 
         return runCatching {
-            SupabaseProvider.client.auth.retrieveUserForCurrentSession(false)
+            val remoteUser = SupabaseProvider.client.auth.retrieveUserForCurrentSession(false)
+            if (remoteUser.id != userId) {
+                log.w { "Supabase session identity changed during validation; remote sync remains paused" }
+                return null
+            }
             validatedRemoteUserId = userId
             true
         }.getOrElse { e ->
@@ -164,8 +168,7 @@ object AuthRepository {
                             attempt++
                             if (attempt == 5 || attempt % 10 == 0) {
                                 log.w {
-                                    "Remote session still unavailable; retrying validation " +
-                                        "attempt=$attempt user=$userId"
+                                    "Remote session still unavailable; retrying validation attempt=$attempt"
                                 }
                             }
                         }
