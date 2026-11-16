@@ -59,7 +59,7 @@ Feature availability depends on the installed integration, build variant and pla
 <p align="center">
   <img src="docs/Screenshot_2026-11-17-05-08-37-525_com.mew.mobile.jpg" width="24%" alt="Mew app screen 1">
   <img src="docs/Screenshot_2026-11-17-05-11-37-861_com.mew.mobile.jpg" width="24%" alt="Mew app screen 2">
-  <img src="docs/Screenshot_2026-11-17-05-11-51-399_com.mew.mobile.jpg" width="24%" alt="Mew app screen 3">
+  <img src="docs/IMG_20261117_051959.jpg" width="24%" alt="Mew player screen">
   <img src="docs/Screenshot_2026-11-17-05-12-15-850_com.mew.mobile.jpg" width="24%" alt="Mew app screen 4">
 </p>
 
