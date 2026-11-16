@@ -31,6 +31,9 @@ sealed interface SettingsDestinationRoute : AppRoute {
 }
 
 @Serializable
+data class WatchPartyRoute(val code: String = "") : AppRoute
+
+@Serializable
 data object TabsRoute : AppRoute
 
 @Serializable

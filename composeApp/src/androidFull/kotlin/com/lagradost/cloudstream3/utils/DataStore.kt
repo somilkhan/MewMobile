@@ -19,6 +19,10 @@ object DataStore {
     fun Context.getSharedPrefs(): SharedPreferences =
         getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
 
+    /** CloudStream extensions use AndroidX's default preference store for app settings. */
+    fun Context.getDefaultSharedPrefs(): SharedPreferences =
+        getSharedPreferences("${packageName}_preferences", Context.MODE_PRIVATE)
+
     fun <T : Any> Context.getKey(path: String, valueType: Class<T>): T? {
         return runCatching {
             val json = getSharedPrefs().getString(path, null) ?: return@runCatching null

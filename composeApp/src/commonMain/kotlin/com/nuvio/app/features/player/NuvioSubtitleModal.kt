@@ -65,6 +65,7 @@ import nuvio.composeapp.generated.resources.action_play
 import nuvio.composeapp.generated.resources.compose_player_built_in
 import nuvio.composeapp.generated.resources.compose_action_pause
 import nuvio.composeapp.generated.resources.compose_player_auto_sync
+import nuvio.composeapp.generated.resources.compose_player_sync_by_ear
 import nuvio.composeapp.generated.resources.compose_player_capture_line
 import nuvio.composeapp.generated.resources.compose_player_fetch_subtitles
 import nuvio.composeapp.generated.resources.compose_player_languages
@@ -104,6 +105,7 @@ internal fun NuvioSubtitleModal(
     onSubtitleDelayChanged: (Int) -> Unit,
     onSubtitleDelayReset: () -> Unit,
     onAutoSyncCapture: () -> Unit,
+    onSyncByEarClick: () -> Unit,
     onAutoSyncCueSelected: (SubtitleSyncCue) -> Unit,
     onAutoSyncReload: () -> Unit,
     onTogglePlayback: () -> Unit,
@@ -228,6 +230,7 @@ internal fun NuvioSubtitleModal(
                         onSubtitleDelayChanged = onSubtitleDelayChanged,
                         onSubtitleDelayReset = onSubtitleDelayReset,
                         onAutoSyncCapture = onAutoSyncCapture,
+            onSyncByEarClick = onSyncByEarClick,
                         onAutoSyncCueSelected = onAutoSyncCueSelected,
                         onAutoSyncReload = onAutoSyncReload,
                         onTogglePlayback = onTogglePlayback,
@@ -386,6 +389,7 @@ private fun NuvioSubtitleSyncContent(
     onSubtitleDelayChanged: (Int) -> Unit,
     onSubtitleDelayReset: () -> Unit,
     onAutoSyncCapture: () -> Unit,
+    onSyncByEarClick: () -> Unit,
     onAutoSyncCueSelected: (SubtitleSyncCue) -> Unit,
     onAutoSyncReload: () -> Unit,
     onTogglePlayback: () -> Unit,
@@ -472,6 +476,7 @@ private fun NuvioSubtitleSyncContent(
                 onSubtitleDelayChanged = onSubtitleDelayChanged,
                 onSubtitleDelayReset = onSubtitleDelayReset,
                 onAutoSyncCapture = onAutoSyncCapture,
+                onSyncByEarClick = onSyncByEarClick,
                 onAutoSyncReload = onAutoSyncReload,
                 onTogglePlayback = onTogglePlayback,
                 tokens = tokens,
@@ -506,6 +511,7 @@ private fun NuvioSubtitleSyncContent(
                 onSubtitleDelayChanged = onSubtitleDelayChanged,
                 onSubtitleDelayReset = onSubtitleDelayReset,
                 onAutoSyncCapture = onAutoSyncCapture,
+                onSyncByEarClick = onSyncByEarClick,
                 onAutoSyncReload = onAutoSyncReload,
                 onTogglePlayback = onTogglePlayback,
                 tokens = tokens,
@@ -657,6 +663,7 @@ private fun SubtitleSyncControls(
     onSubtitleDelayChanged: (Int) -> Unit,
     onSubtitleDelayReset: () -> Unit,
     onAutoSyncCapture: () -> Unit,
+    onSyncByEarClick: () -> Unit,
     onAutoSyncReload: () -> Unit,
     onTogglePlayback: () -> Unit,
     tokens: com.nuvio.app.core.ui.NuvioThemeTokens,
@@ -767,6 +774,14 @@ private fun SubtitleSyncControls(
                     onClick = onSubtitleDelayReset,
                 )
             }
+            NuvioSyncActionButton(
+                modifier = Modifier.fillMaxWidth(),
+                isCompact = isCompact,
+                text = stringResource(Res.string.compose_player_sync_by_ear),
+                icon = Icons.Rounded.CenterFocusStrong,
+                enabled = selectedAddonSubtitle != null,
+                onClick = onSyncByEarClick,
+            )
 
             if (subtitleAutoSyncState.isLoading && sortedCues.isNotEmpty()) {
                 Text(

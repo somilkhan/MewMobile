@@ -3,6 +3,7 @@ package com.lagradost.cloudstream3.network
 import android.content.Context
 import com.lagradost.cloudstream3.USER_AGENT
 import com.lagradost.nicehttp.Requests
+import com.nuvio.app.core.network.ConfiguredDnsOverHttps
 import okhttp3.Cache
 import okhttp3.Headers
 import okhttp3.Headers.Companion.toHeaders
@@ -31,6 +32,7 @@ fun buildDefaultClient(context: Context): OkHttpClient {
     runCatching { Security.insertProviderAt(Conscrypt.newProvider(), 1) }
 
     return OkHttpClient.Builder()
+        .dns(ConfiguredDnsOverHttps)
         .followRedirects(true)
         .followSslRedirects(true)
         .cache(

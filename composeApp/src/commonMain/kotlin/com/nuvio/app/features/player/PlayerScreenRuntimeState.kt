@@ -24,6 +24,13 @@ import com.nuvio.app.features.watchprogress.WatchProgressUiState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 
+internal data class PendingEngineSwitchTrackPreference(
+    val sourceIdentity: String, val capturedController: PlayerEngineController?,
+    val targetEngine: AndroidPlaybackEngine, val preference: PersistedPlayerTrackPreference,
+    val hasAudioSelection: Boolean, val hasSubtitleSelection: Boolean,
+    val audioApplied: Boolean = false, val subtitleApplied: Boolean = false,
+)
+
 internal class PlayerScreenRuntime(
     args: PlayerScreenArgs,
 ) {
@@ -57,6 +64,8 @@ internal class PlayerScreenRuntime(
     val torrentFileIdx: Int? get() = args.torrentFileIdx
     val torrentFilename: String? get() = args.torrentFilename
     val torrentTrackers: List<String> get() = args.torrentTrackers
+    val initialStreamFilename: String? get() = args.initialStreamFilename
+    val initialStreamInfoHash: String? get() = args.initialStreamInfoHash
     val initialPositionMs: Long get() = args.initialPositionMs
     val initialProgressFraction: Float? get() = args.initialProgressFraction
     val externalSubtitles: List<StreamSubtitle> get() = args.externalSubtitles
@@ -136,6 +145,10 @@ internal class PlayerScreenRuntime(
     var activeProviderName by mutableStateOf(providerName)
     var activeProviderAddonId by mutableStateOf(providerAddonId)
     var currentStreamBingeGroup by mutableStateOf(initialBingeGroup)
+    // Preserve source identity before the first cache write. Torrent metadata remains
+    // authoritative for P2P sources; direct addon/debrid links use separate arguments.
+    var currentStreamFilename by mutableStateOf(torrentFilename ?: initialStreamFilename)
+    var currentStreamInfoHash by mutableStateOf(torrentInfoHash ?: initialStreamInfoHash)
     var activeSeasonNumber by mutableStateOf(seasonNumber)
     var activeEpisodeNumber by mutableStateOf(episodeNumber)
     var activeEpisodeTitle by mutableStateOf(episodeTitle)
@@ -145,10 +158,17 @@ internal class PlayerScreenRuntime(
     var activeInitialProgressFraction by mutableStateOf(initialProgressFraction)
     var shouldPlay by mutableStateOf(true)
     var resizeMode by mutableStateOf(playerSettingsUiState.resizeMode)
+    var videoZoom by mutableStateOf(1f)
+    var rawVideoZoom: Float = 1f
     var layoutSize by mutableStateOf(IntSize.Zero)
     var playbackSnapshot by mutableStateOf(PlayerPlaybackSnapshot())
     var randomNextEpisodeMode by mutableStateOf(randomEpisodeMode)
     var playerController by mutableStateOf<PlayerEngineController?>(null)
+    var playbackEngineOverride by mutableStateOf<AndroidPlaybackEngine?>(null)
+    var engineFailoverTriggered by mutableStateOf(false)
+    var engineFailoverDisarmed by mutableStateOf(false)
+    var pendingEngineSwitchTrackPreference by mutableStateOf<PendingEngineSwitchTrackPreference?>(null)
+    var showSwitchEngineConfirm by mutableStateOf(false)
     var playerControllerSourceUrl by mutableStateOf<String?>(null)
     var errorMessage by mutableStateOf<String?>(null)
     var isScrubbingTimeline by mutableStateOf(false)
@@ -179,6 +199,11 @@ internal class PlayerScreenRuntime(
     var hasSentCompletionScrobbleForCurrentItem by mutableStateOf(false)
     var currentTrackingMedia by mutableStateOf<TrackingMediaReference?>(null)
 
+    var showPartyPanel by mutableStateOf(false)
+    var showPartyChat by mutableStateOf(false)
+    var partyBehind by mutableStateOf(false)
+    var partyBehindMs by mutableStateOf<Long?>(null)
+    var partyRateNudge by mutableStateOf(false)
     var showSourcesPanel by mutableStateOf(false)
     var showEpisodesPanel by mutableStateOf(false)
     var showSubmitIntroModal by mutableStateOf(false)
@@ -213,6 +238,7 @@ internal class PlayerScreenRuntime(
     var showAudioModal by mutableStateOf(false)
     var showSubtitleModal by mutableStateOf(false)
     var showVideoSettingsModal by mutableStateOf(false)
+    var showStreamInfo by mutableStateOf(false)
     var showQualityPanel by mutableStateOf(false)
     var showLiveTvChannelsPanel by mutableStateOf(false)
     var audioTracks by mutableStateOf<List<AudioTrack>>(emptyList())
@@ -224,6 +250,8 @@ internal class PlayerScreenRuntime(
     var autoAddonFallbackPending by mutableStateOf(false)
     var preferredAudioSelectionApplied by mutableStateOf(false)
     var preferredSubtitleSelectionApplied by mutableStateOf(false)
+    var isUserExplicitAudioSelection by mutableStateOf(false)
+    var isUserExplicitSubtitleSelection by mutableStateOf(false)
     var manualSubtitleSelectionLocked by mutableStateOf(false)
     var lastAppliedSubtitlePreferenceKey: String? = null
     var activeSubtitleTab by mutableStateOf(SubtitleTab.BuiltIn)
@@ -231,6 +259,9 @@ internal class PlayerScreenRuntime(
     var trackPreferenceRestoreApplied by mutableStateOf(false)
     var subtitleDelayMs by mutableStateOf(0)
     var subtitleAutoSyncState by mutableStateOf(SubtitleAutoSyncUiState())
+    var showSubtitleSyncByEar by mutableStateOf(false)
+    var subtitleSyncHeardPositionMs by mutableStateOf<Long?>(null)
+    var subtitleSyncSawPositionMs by mutableStateOf<Long?>(null)
 
     var visibleAddonSubtitlesCacheSource: List<AddonSubtitle>? = null
     var visibleAddonSubtitlesCacheSettings: PlayerSettingsUiState? = null

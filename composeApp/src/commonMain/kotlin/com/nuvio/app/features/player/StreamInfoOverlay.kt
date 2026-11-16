@@ -1,0 +1,140 @@
+package com.nuvio.app.features.player
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import nuvio.composeapp.generated.resources.Res
+import nuvio.composeapp.generated.resources.player_stream_info_title
+import nuvio.composeapp.generated.resources.player_stream_info_provider
+import nuvio.composeapp.generated.resources.player_stream_info_stream
+import nuvio.composeapp.generated.resources.player_stream_info_description
+import nuvio.composeapp.generated.resources.player_stream_info_addon_id
+import nuvio.composeapp.generated.resources.player_stream_info_filename
+import nuvio.composeapp.generated.resources.player_stream_info_hash
+import nuvio.composeapp.generated.resources.player_stream_info_audio_track
+import nuvio.composeapp.generated.resources.player_stream_info_audio_language
+import nuvio.composeapp.generated.resources.player_stream_info_subtitle_track
+import nuvio.composeapp.generated.resources.player_stream_info_subtitle_language
+import nuvio.composeapp.generated.resources.player_stream_info_subtitle_source
+import nuvio.composeapp.generated.resources.player_stream_info_engine
+import nuvio.composeapp.generated.resources.player_stream_info_type
+import nuvio.composeapp.generated.resources.player_stream_info_resolution
+import nuvio.composeapp.generated.resources.player_stream_info_codec
+import nuvio.composeapp.generated.resources.player_stream_info_fps
+import nuvio.composeapp.generated.resources.player_stream_info_bitrate
+import nuvio.composeapp.generated.resources.player_stream_info_hdr
+import nuvio.composeapp.generated.resources.player_stream_info_audio_codec
+import nuvio.composeapp.generated.resources.player_stream_info_audio_channels
+import nuvio.composeapp.generated.resources.player_stream_info_audio_rate
+import nuvio.composeapp.generated.resources.player_stream_info_section_source
+import nuvio.composeapp.generated.resources.player_stream_info_section_video
+import nuvio.composeapp.generated.resources.player_stream_info_section_audio
+import nuvio.composeapp.generated.resources.player_stream_info_section_subtitles
+import nuvio.composeapp.generated.resources.player_stream_info_subtitle_source_addon
+import nuvio.composeapp.generated.resources.player_stream_info_subtitle_source_embedded
+import org.jetbrains.compose.resources.stringResource
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+
+@Composable
+internal fun StreamInfoOverlay(
+    visible: Boolean,
+    provider: String,
+    streamTitle: String,
+    streamSubtitle: String?,
+    addonId: String?,
+    filename: String?,
+    infoHash: String?,
+    audioTrack: AudioTrack?,
+    subtitleTrack: SubtitleTrack?,
+    addonSubtitle: AddonSubtitle?,
+    engine: AndroidPlaybackEngine?,
+    streamType: String?,
+    resolution: String?,
+    videoCodec: String?,
+    videoFrameRate: Float?,
+    videoBitrate: Int?,
+    audioCodec: String?,
+    audioChannels: Int?,
+    audioSampleRate: Int?,
+    hdrFormat: String?,
+    onDismiss: () -> Unit,
+) {
+    PlayerOverlayScaffold(
+        visible = visible,
+        onDismiss = onDismiss,
+        contentPadding = PaddingValues(horizontal = 32.dp, vertical = 24.dp),
+    ) {
+        Column(
+            modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth(.72f).verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Text(stringResource(Res.string.player_stream_info_title), style = MaterialTheme.typography.labelLarge, color = Color.White.copy(alpha = .6f), fontWeight = FontWeight.Bold)
+            InfoSection(stringResource(Res.string.player_stream_info_section_source)) {
+                InfoLine(stringResource(Res.string.player_stream_info_provider), provider)
+                InfoLine(stringResource(Res.string.player_stream_info_stream), streamTitle)
+                InfoLine(stringResource(Res.string.player_stream_info_description), streamSubtitle)
+                InfoLine(stringResource(Res.string.player_stream_info_addon_id), addonId)
+                InfoLine(stringResource(Res.string.player_stream_info_filename), filename)
+                InfoLine(stringResource(Res.string.player_stream_info_hash), infoHash)
+                InfoLine(stringResource(Res.string.player_stream_info_type), streamType?.takeIf(String::isNotBlank))
+            }
+            InfoSection(stringResource(Res.string.player_stream_info_section_video)) {
+                InfoLine(stringResource(Res.string.player_stream_info_engine), engine?.label)
+                InfoLine(stringResource(Res.string.player_stream_info_resolution), resolution)
+                InfoLine(stringResource(Res.string.player_stream_info_codec), videoCodec)
+                InfoLine(stringResource(Res.string.player_stream_info_fps), videoFrameRate?.takeIf { it.isFinite() && it > 0f }?.let(::formatFrameRate))
+                InfoLine(stringResource(Res.string.player_stream_info_bitrate), videoBitrate?.takeIf { it > 0 }?.let { "${it / 1_000} Kbps" })
+                InfoLine(stringResource(Res.string.player_stream_info_hdr), hdrFormat)
+            }
+            InfoSection(stringResource(Res.string.player_stream_info_section_audio)) {
+                InfoLine(stringResource(Res.string.player_stream_info_audio_track), audioTrack?.label)
+                InfoLine(stringResource(Res.string.player_stream_info_audio_language), audioTrack?.language)
+                InfoLine(stringResource(Res.string.player_stream_info_audio_codec), audioCodec)
+                InfoLine(stringResource(Res.string.player_stream_info_audio_channels), audioChannels?.takeIf { it > 0 }?.let { "$it ch" })
+                InfoLine(stringResource(Res.string.player_stream_info_audio_rate), audioSampleRate?.takeIf { it > 0 }?.let(::formatSampleRate))
+            }
+            InfoSection(stringResource(Res.string.player_stream_info_section_subtitles)) {
+                InfoLine(stringResource(Res.string.player_stream_info_subtitle_track), addonSubtitle?.display ?: subtitleTrack?.label)
+                InfoLine(stringResource(Res.string.player_stream_info_subtitle_language), addonSubtitle?.language ?: subtitleTrack?.language)
+                InfoLine(stringResource(Res.string.player_stream_info_subtitle_source), when { addonSubtitle != null -> addonSubtitle.addonName ?: stringResource(Res.string.player_stream_info_subtitle_source_addon); subtitleTrack != null -> stringResource(Res.string.player_stream_info_subtitle_source_embedded); else -> null })
+            }
+        }
+    }
+}
+
+private fun formatFrameRate(frameRate: Float): String {
+    val hundredths = (frameRate * 100f + 0.5f).toInt()
+    return "${hundredths / 100}.${(hundredths % 100).toString().padStart(2, '0')} fps"
+}
+
+private fun formatSampleRate(sampleRate: Int): String {
+    val tenths = (sampleRate + 50) / 100
+    return "${tenths / 10}.${tenths % 10} kHz"
+}
+
+@Composable
+private fun InfoSection(title: String, content: @Composable () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(title, style = MaterialTheme.typography.labelLarge, color = Color.White.copy(alpha = .6f), fontWeight = FontWeight.Bold)
+        content()
+    }
+}
+
+@Composable
+private fun InfoLine(label: String, value: String?) {
+    if (value.isNullOrBlank()) return
+    Column(verticalArrangement = Arrangement.spacedBy(3.dp), modifier = Modifier.fillMaxWidth()) {
+        Text(label, color = Color.White.copy(alpha = .58f), style = MaterialTheme.typography.labelMedium)
+        Text(value, color = Color.White, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
+    }
+}

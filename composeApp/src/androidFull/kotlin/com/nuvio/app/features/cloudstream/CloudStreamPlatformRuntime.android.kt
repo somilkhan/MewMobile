@@ -37,21 +37,28 @@ import com.lagradost.cloudstream3.utils.ExtractorLinkType
 import com.lagradost.cloudstream3.utils.extractorApis
 import com.nuvio.app.core.diagnostics.RuntimeDiagnostics
 import dalvik.system.PathClassLoader
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.lang.ref.WeakReference
 import java.util.Collections
 import java.util.zip.ZipFile
+import java.util.zip.ZipInputStream
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.async
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
@@ -65,8 +72,12 @@ internal actual object CloudStreamPlatformRuntime {
 
     private val log = Logger.withTag("CloudStreamDex")
     private val json = Json { ignoreUnknownKeys = true }
-    private val loadMutex = Mutex()
+    private val pluginLoadLock = Any()
     private val backgroundScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val nativeRepositorySyncLock = Any()
+    private val nativeRepositorySyncMutex = Mutex()
+    private var nativeRepositorySyncJob: Job? = null
+    private var nativeRepositorySyncGeneration = 0L
     private val loadedLock = Any()
     private val loaded = linkedMapOf<String, LoadedPlugin>()
     private var appContext: Context? = null
@@ -85,32 +96,83 @@ internal actual object CloudStreamPlatformRuntime {
         hostInitialized = false
     }
 
+    actual fun validatePackage(bytes: ByteArray, inspection: CloudStreamPackageInspection) {
+        val expectedNames = inspection.entries.map { it.name }
+        val localNames = mutableListOf<String>()
+        val manifestBytes = ByteArrayOutputStream()
+        var dexHeader: ByteArray? = null
+        var totalUncompressedBytes = 0L
+        ZipInputStream(ByteArrayInputStream(bytes)).use { archive ->
+            while (true) {
+                val entry = archive.nextEntry ?: break
+                require(localNames.size < 256) { "CloudStream package has too many entries" }
+                require(entry.name !in localNames) { "CloudStream package has duplicate entries" }
+                localNames += entry.name
+                val isManifest = entry.name == "manifest.json"
+                val isDex = entry.name == "classes.dex"
+                val dexBytes = if (isDex) ByteArrayOutputStream(8) else null
+                val buffer = ByteArray(8 * 1024)
+                while (true) {
+                    val count = archive.read(buffer)
+                    if (count < 0) break
+                    totalUncompressedBytes += count
+                    require(totalUncompressedBytes <= 50L * 1024L * 1024L) {
+                        "CloudStream package is too large when extracted"
+                    }
+                    if (isManifest) {
+                        require(manifestBytes.size() + count <= 1024 * 1024) {
+                            "CloudStream manifest is too large"
+                        }
+                        manifestBytes.write(buffer, 0, count)
+                    }
+                    if (dexBytes != null && dexBytes.size() < 8) {
+                        dexBytes.write(buffer, 0, minOf(count, 8 - dexBytes.size()))
+                    }
+                }
+                if (isDex) dexHeader = dexBytes?.toByteArray()
+                archive.closeEntry()
+            }
+        }
+        require(localNames.size == expectedNames.size && localNames.toSet() == expectedNames.toSet()) {
+            "CloudStream ZIP headers do not match the central directory"
+        }
+        val manifest = json.decodeFromString<CloudStreamCs3Manifest>(
+            manifestBytes.toString(Charsets.UTF_8.name()),
+        )
+        require(!manifest.pluginClassName.isNullOrBlank()) {
+            "CloudStream manifest has no pluginClassName"
+        }
+        require(CloudStreamPackageInspector.hasValidDexMagic(dexHeader ?: byteArrayOf())) {
+            "CloudStream package has an invalid classes.dex header"
+        }
+    }
+
     actual suspend fun provider(plugin: CloudStreamPluginItem): CloudStreamProvider? {
         if (plugin.compatibility.runtimeKind != CloudStreamRuntimeKind.AndroidDex) return null
+        val syncGeneration = currentNativeRepositorySyncGeneration()
         return withContext(Dispatchers.IO) {
             var loadedNow = false
-            val loadedPlugin = loadMutex.withLock {
-                synchronized(loadedLock) {
+            val loadedPlugin = synchronized(pluginLoadLock) {
+                if (!isNativeRepositorySyncGenerationCurrent(syncGeneration)) {
+                    return@synchronized null
+                }
+                val currentPlugin = synchronized(loadedLock) {
                     loaded[plugin.metadata.id.value]
                         ?: loadPlugin(plugin).also {
                             loaded[plugin.metadata.id.value] = it
                             loadedNow = true
                         }
                 }
-            }
+                if (isNativeRepositorySyncGenerationCurrent(syncGeneration)) currentPlugin else null
+            } ?: return@withContext null
+
+            if (!isNativeRepositorySyncGenerationCurrent(syncGeneration)) return@withContext null
             if (loadedNow) {
-                // Reconcile synchronous repository registrations immediately, then give
-                // asynchronous bootstrap plugins a bounded background window to publish
-                // RepositoryManager entries just like the real CloudStream host does.
-                syncNativeRepositories()
-                if (loadedPlugin.providers.isEmpty()) {
-                    backgroundScope.launch {
-                        repeat(NATIVE_REPOSITORY_SYNC_ATTEMPTS - 1) {
-                            delay(NATIVE_REPOSITORY_SYNC_DELAY_MS)
-                            syncNativeRepositories()
-                        }
-                    }
-                }
+                // Reconcile synchronous registrations immediately. Keep a shared bounded poll
+                // running after every plugin load: bootstrap plugins can register repositories
+                // asynchronously even when that same plugin already exposes MainAPI providers.
+                syncNativeRepositories(syncGeneration)
+                scheduleNativeRepositorySync(syncGeneration)
             }
             loadedPlugin.provider
         }
@@ -192,19 +254,26 @@ internal actual object CloudStreamPlatformRuntime {
     }
 
     actual fun unload(pluginId: String) {
-        synchronized(loadedLock) { loaded.remove(pluginId) }?.unload()
+        synchronized(pluginLoadLock) {
+            synchronized(loadedLock) { loaded.remove(pluginId) }?.unload()
+        }
     }
 
     actual fun clear() {
-        val plugins = synchronized(loadedLock) {
-            loaded.values.toList().also {
-                loaded.clear()
+        synchronized(pluginLoadLock) {
+            val repositorySyncJob = synchronized(nativeRepositorySyncLock) {
+                nativeRepositorySyncGeneration += 1L
+                nativeRepositorySyncJob.also { nativeRepositorySyncJob = null }
             }
+            repositorySyncJob?.cancel()
+            val plugins = synchronized(loadedLock) {
+                loaded.values.toList().also { loaded.clear() }
+            }
+            plugins.forEach(LoadedPlugin::unload)
+            // The shared CloudStream HTTP client belongs to the host process, not the plugin registry.
+            // Clearing/unloading plugins must not force the next provider load to recreate it.
+            PluginManager.clear()
         }
-        plugins.forEach(LoadedPlugin::unload)
-        // The shared CloudStream HTTP client belongs to the host process, not the plugin registry.
-        // Clearing/unloading plugins must not force the next provider load to recreate it.
-        PluginManager.clear()
     }
 
     private fun loadPlugin(item: CloudStreamPluginItem): LoadedPlugin {
@@ -338,12 +407,53 @@ internal actual object CloudStreamPlatformRuntime {
 
     }
 
+    private fun currentNativeRepositorySyncGeneration(): Long =
+        synchronized(nativeRepositorySyncLock) { nativeRepositorySyncGeneration }
+
+    private fun isNativeRepositorySyncGenerationCurrent(generation: Long): Boolean =
+        synchronized(nativeRepositorySyncLock) { nativeRepositorySyncGeneration == generation }
+
+    private fun scheduleNativeRepositorySync(generation: Long) {
+        synchronized(nativeRepositorySyncLock) {
+            if (generation != nativeRepositorySyncGeneration) return
+            if (nativeRepositorySyncJob?.isActive == true) return
+            nativeRepositorySyncJob = backgroundScope.launch {
+                try {
+                    repeat(NATIVE_REPOSITORY_SYNC_ATTEMPTS - 1) {
+                        delay(NATIVE_REPOSITORY_SYNC_DELAY_MS)
+                        if (!isNativeRepositorySyncGenerationCurrent(generation)) return@launch
+                        syncNativeRepositories(generation)
+                    }
+                } finally {
+                    synchronized(nativeRepositorySyncLock) {
+                        if (nativeRepositorySyncGeneration == generation) {
+                            nativeRepositorySyncJob = null
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     /**
      * CloudStream's RepositoryManager persists repositories registered by extensions, but the
      * upstream API does not expose a repository-added callback. Read that native registry after
      * plugin loading and reconcile only repositories Mew does not already own.
      */
-    private suspend fun syncNativeRepositories() {
+    private suspend fun syncNativeRepositories(generation: Long) {
+        if (!isNativeRepositorySyncGenerationCurrent(generation)) return
+        // Skip overlapping reconciliation rather than queueing duplicate manifest fetches.
+        if (!nativeRepositorySyncMutex.tryLock()) return
+        try {
+            if (isNativeRepositorySyncGenerationCurrent(generation)) {
+                syncNativeRepositoriesLocked(generation)
+            }
+        } finally {
+            nativeRepositorySyncMutex.unlock()
+        }
+    }
+
+    private suspend fun syncNativeRepositoriesLocked(generation: Long) {
         val nativeRepositories: List<String> = runCatching {
             val managerClass = Class.forName(CLOUDSTREAM_REPOSITORY_MANAGER_CLASS).kotlin
             val manager = managerClass.java.getField("INSTANCE").get(null) ?: return@runCatching emptyList<String>()
@@ -370,11 +480,10 @@ internal actual object CloudStreamPlatformRuntime {
             .filter(String::isNotBlank)
             .toHashSet()
 
-        nativeRepositories
-            .asSequence()
-            .filter { it !in knownUrls }
-            .distinct()
-            .forEach { url -> importDynamicRepository(url) }
+        for (url in nativeRepositories.distinct()) {
+            if (!isNativeRepositorySyncGenerationCurrent(generation)) return
+            if (url !in knownUrls) importDynamicRepository(url)
+        }
     }
 
     private suspend fun importDynamicRepository(url: String) {
@@ -383,13 +492,16 @@ internal actual object CloudStreamPlatformRuntime {
 
         log.i { "[CS-DYN] repository-import-start url=$normalized" }
         RuntimeDiagnostics.recordLog("CloudStream repository-import-start url=" + normalized)
-        val result = runCatching { CloudStreamRepository.addRepository(normalized) }
-            .getOrElse { error ->
-                log.w(error) {
-                    "[CS-DYN] repository-import-failed url=$normalized error=" + error.message
-                }
-                return
+        val result = try {
+            CloudStreamRepository.addRepository(normalized)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Throwable) {
+            log.w(error) {
+                "[CS-DYN] repository-import-failed url=$normalized error=" + error.message
             }
+            return
+        }
 
         when (result) {
             is AddCloudStreamRepositoryResult.Success -> {
@@ -492,56 +604,91 @@ private class AndroidDexCloudStreamProvider(
     override suspend fun getMainPage(
         page: Int,
     ): List<Pair<String, List<CloudStreamSearchItem>>> = withContext(Dispatchers.IO) {
-        val sections = Collections.synchronizedList(
-            mutableListOf<Pair<String, List<CloudStreamSearchItem>>>(),
-        )
+        val apis = providers.filter(MainAPI::hasMainPage)
         val apiGate = Semaphore(CLOUDSTREAM_API_CONCURRENCY)
+        // Extensions can declare dozens of MainPageData requests. Bound their fan-out
+        // instead of issuing every request simultaneously and overwhelming provider hosts.
+        val requestGate = Semaphore(CLOUDSTREAM_API_CONCURRENCY)
+        val errorLock = Any()
         var lastError: Throwable? = null
 
-        coroutineScope {
-            providers.filter(MainAPI::hasMainPage).map { api ->
+        // awaitAll preserves the API and request declaration order. Do not append into a shared
+        // list from concurrent callbacks: many extensions return identical "Raw Catalog" names,
+        // and completion-order collection made category identity/order nondeterministic.
+        val sections = coroutineScope {
+            apis.map { api ->
                 async {
                     apiGate.withPermit {
                         val requests = api.mainPage.ifEmpty {
                             listOf(com.lagradost.cloudstream3.MainPageData(api.name, api.mainUrl, false))
                         }
 
-                        suspend fun loadRequest(data: com.lagradost.cloudstream3.MainPageData) =
-                            runCatching {
-                                withTimeout(stageTimeout(api.getMainPageTimeoutMs, DEFAULT_DISCOVERY_TIMEOUT_MS)) {
-                                    api.getMainPage(
-                                        page.coerceAtLeast(1),
-                                        MainPageRequest(data.name, data.data, data.horizontalImages),
-                                    )
+                        suspend fun loadRequest(
+                            data: com.lagradost.cloudstream3.MainPageData,
+                        ): List<Pair<String, List<CloudStreamSearchItem>>> {
+                            val response = requestGate.withPermit {
+                                runCatching {
+                                    withTimeout(stageTimeout(api.getMainPageTimeoutMs, DEFAULT_DISCOVERY_TIMEOUT_MS)) {
+                                        api.getMainPage(
+                                            page.coerceAtLeast(1),
+                                            MainPageRequest(data.name, data.data, data.horizontalImages),
+                                        )
+                                    }
                                 }
-                            }.onSuccess { response ->
-                                response?.items.orEmpty().forEach { section ->
-                                    val title = if (providers.size > 1) "${api.name} · ${section.name}" else section.name
-                                    val items = section.list.map { it.toNuvioSearchItem(api) }
-                                    if (items.isNotEmpty()) sections += title to items
-                                }
-                            }.onFailure { error ->
-                                synchronized(sections) { lastError = error }
-                                log.w(error) { "CloudStream main page failed api=${api.name}" }
                             }
+                            return response.fold(
+                                onSuccess = { result ->
+                                    result?.items.orEmpty().mapNotNull { section ->
+                                        val items = section.list.map { it.toNuvioSearchItem(api) }
+                                        if (items.isEmpty()) {
+                                            null
+                                        } else {
+                                            cloudStreamMainPageSectionTitle(
+                                                apiName = api.name,
+                                                requestName = data.name,
+                                                sectionName = section.name,
+                                                multipleApis = apis.size > 1,
+                                            ) to items
+                                        }
+                                    }
+                                },
+                                onFailure = { error ->
+                                    if (error is CancellationException && error !is TimeoutCancellationException) {
+                                        throw error
+                                    }
+                                    // A per-request timeout is recoverable; cancellation of the
+                                    // parent operation (for example a profile switch) is not.
+                                    currentCoroutineContext().ensureActive()
+                                    synchronized(errorLock) {
+                                        if (lastError == null) lastError = error
+                                    }
+                                    log.w(error) { "CloudStream main page failed api=${api.name} request=${data.name}" }
+                                    emptyList()
+                                },
+                            )
+                        }
 
                         if (api.sequentialMainPage) {
-                            requests.forEachIndexed { index, data ->
-                                if (index > 0 && api.sequentialMainPageDelay > 0) {
-                                    delay(api.sequentialMainPageDelay)
+                            buildList {
+                                requests.forEachIndexed { index, data ->
+                                    if (index > 0 && api.sequentialMainPageDelay > 0) {
+                                        delay(api.sequentialMainPageDelay)
+                                    }
+                                    addAll(loadRequest(data))
                                 }
-                                loadRequest(data)
                             }
                         } else {
-                            requests.map { data -> async { loadRequest(data) } }.awaitAll()
+                            requests.map { data -> async { loadRequest(data) } }
+                                .awaitAll()
+                                .flatten()
                         }
                     }
                 }
-            }.awaitAll()
+            }.awaitAll().flatten()
         }
 
         if (sections.isEmpty()) throw lastError ?: return@withContext emptyList()
-        synchronized(sections) { sections.toList() }
+        sections
     }
 
     override suspend fun search(query: String): List<CloudStreamSearchItem> = withContext(Dispatchers.IO) {
@@ -774,7 +921,7 @@ private class AndroidDexCloudStreamProvider(
         }
 
         private const val CLOUDSTREAM_API_CONCURRENCY = 4
-        private const val DEFAULT_DISCOVERY_TIMEOUT_MS = 15_000L
+        private const val DEFAULT_DISCOVERY_TIMEOUT_MS = CLOUDSTREAM_DISCOVERY_TIMEOUT_MS
         private const val DEFAULT_LOAD_TIMEOUT_MS = 120_000L
         private const val DEFAULT_LINK_TIMEOUT_MS = 120_000L
         private const val LEGACY_RUNTIME_DEFAULT_LOAD_TIMEOUT_MS = 5_000L

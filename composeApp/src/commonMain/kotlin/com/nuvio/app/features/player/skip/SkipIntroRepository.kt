@@ -151,13 +151,6 @@ object SkipIntroRepository {
         return chosen.values.toList()
     }
 
-    private fun segmentCategory(type: String): String? = when (type.lowercase()) {
-        "intro", "op", "mixed-op" -> "opening"
-        "outro", "ed", "mixed-ed", "credits", "ending" -> "ending"
-        "recap" -> "recap"
-        else -> null
-    }
-
     // AnimeSkip: season-specific AniList ID first, then season-1 as a season-filtered fallback.
     private suspend fun fetchAnimeSkipForEntries(
         entries: List<ArmEntry>,

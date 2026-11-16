@@ -2,6 +2,8 @@ package com.nuvio.app.features.player
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 import kotlin.test.assertIs
 
 class SubtitleSelectionModelTest {
@@ -143,4 +145,16 @@ class SubtitleSelectionModelTest {
         display = id,
         addonName = "Addon",
     )
+
+    @Test
+    fun pendingEmbeddedSubtitleSelectionWaitsUntilRequestedTrackExists() {
+        assertFalse(pendingSubtitleSelectionCanApply(index = 1, availableTextTrackCount = 0))
+        assertFalse(pendingSubtitleSelectionCanApply(index = 1, availableTextTrackCount = 1))
+        assertTrue(pendingSubtitleSelectionCanApply(index = 1, availableTextTrackCount = 2))
+    }
+
+    @Test
+    fun pendingSubtitleOffSelectionDoesNotWaitForTextTracks() {
+        assertTrue(pendingSubtitleSelectionCanApply(index = -1, availableTextTrackCount = 0))
+    }
 }

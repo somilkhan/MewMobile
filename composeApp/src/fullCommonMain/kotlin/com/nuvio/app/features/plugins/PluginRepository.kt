@@ -6,7 +6,6 @@ import com.nuvio.app.core.diagnostics.RuntimeDiagnostics
 import com.nuvio.app.core.network.SupabaseProvider
 import com.nuvio.app.features.addons.httpGetText
 import com.nuvio.app.features.profiles.ProfileRepository
-import com.nuvio.app.features.tmdb.TmdbService
 import com.nuvio.app.features.plugins.runtime.PluginRuntime
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Order
@@ -437,34 +436,26 @@ actual object PluginRepository {
         season: Int?,
         episode: Int?,
     ): Result<List<PluginRuntimeResult>> {
-        val resolvedTmdbId = resolvePluginTmdbId(
-            tmdbId = tmdbId,
-            mediaType = mediaType,
-        )
+        // Stream repositories resolve the content identity once per request before
+        // fanning out to scrapers. Do not repeat TMDB network lookups for every plugin.
+        if (tmdbId.isBlank()) return Result.success(emptyList())
 
-        return runCatching {
-            PluginRuntime.executePlugin(
-                code = scraper.code,
-                tmdbId = resolvedTmdbId,
-                mediaType = normalizePluginType(mediaType),
-                season = season,
-                episode = episode,
-                scraperId = scraper.id,
+        return try {
+            Result.success(
+                PluginRuntime.executePlugin(
+                    code = scraper.code,
+                    tmdbId = tmdbId,
+                    mediaType = normalizePluginType(mediaType),
+                    season = season,
+                    episode = episode,
+                    scraperId = scraper.id,
+                ),
             )
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Throwable) {
+            Result.failure(error)
         }
-    }
-
-    private suspend fun resolvePluginTmdbId(
-        tmdbId: String,
-        mediaType: String,
-    ): String {
-        val trimmed = tmdbId.trim()
-        if (trimmed.isBlank()) return tmdbId
-
-        return TmdbService.ensureTmdbId(
-            videoId = trimmed,
-            mediaType = mediaType,
-        ) ?: trimmed
     }
 
     private suspend fun fetchRepositoryData(

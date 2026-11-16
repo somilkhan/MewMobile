@@ -9,6 +9,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlin.math.abs
 
+val PLAYER_SKIP_SECONDS_OPTIONS: List<Int> = listOf(5, 10, 15, 30)
+const val PLAYER_SKIP_SECONDS_DEFAULT = 10
+fun normalizePlayerSkipSeconds(seconds: Int?): Int = seconds?.takeIf { it in PLAYER_SKIP_SECONDS_OPTIONS } ?: PLAYER_SKIP_SECONDS_DEFAULT
+
 val STREAM_AUTO_PLAY_TIMEOUT_VALUES: List<Int> = listOf(
     0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 30, Int.MAX_VALUE
 )
@@ -33,6 +37,11 @@ fun snapToAllowedTimeout(value: Int): Int {
 
 data class PlayerSettingsUiState(
     val showLoadingOverlay: Boolean = true,
+    val pauseOverlayEnabled: Boolean = true,
+    val playerLiquidGlassEnabled: Boolean = false,
+    val skipBackwardSeconds: Int = PLAYER_SKIP_SECONDS_DEFAULT,
+    val skipForwardSeconds: Int = PLAYER_SKIP_SECONDS_DEFAULT,
+    val toolbarLayout: PlayerToolbarLayout = PlayerToolbarLayout.Default,
     val showParentalGuide: Boolean = true,
     val resizeMode: PlayerResizeMode = PlayerResizeMode.Fit,
     val holdToSpeedEnabled: Boolean = true,
@@ -107,6 +116,11 @@ object PlayerSettingsRepository {
 
     private var hasLoaded = false
     private var showLoadingOverlay = true
+    private var pauseOverlayEnabled = true
+    private var playerLiquidGlassEnabled = false
+    private var skipBackwardSeconds = PLAYER_SKIP_SECONDS_DEFAULT
+    private var skipForwardSeconds = PLAYER_SKIP_SECONDS_DEFAULT
+    private var toolbarLayout = PlayerToolbarLayout.Default
     private var showParentalGuide = true
     private var resizeMode = PlayerResizeMode.Fit
     private var holdToSpeedEnabled = true
@@ -186,6 +200,11 @@ object PlayerSettingsRepository {
     fun clearLocalState() {
         hasLoaded = false
         showLoadingOverlay = true
+        pauseOverlayEnabled = true
+        playerLiquidGlassEnabled = false
+        skipBackwardSeconds = PLAYER_SKIP_SECONDS_DEFAULT
+        skipForwardSeconds = PLAYER_SKIP_SECONDS_DEFAULT
+        toolbarLayout = PlayerToolbarLayout.Default
         showParentalGuide = true
         resizeMode = PlayerResizeMode.Fit
         holdToSpeedEnabled = true
@@ -258,6 +277,11 @@ object PlayerSettingsRepository {
     private fun loadFromDisk() {
         hasLoaded = true
         showLoadingOverlay = PlayerSettingsStorage.loadShowLoadingOverlay() ?: true
+        pauseOverlayEnabled = PlayerSettingsStorage.loadPauseOverlayEnabled() ?: true
+        playerLiquidGlassEnabled = PlayerSettingsStorage.loadPlayerLiquidGlassEnabled() ?: false
+        skipBackwardSeconds = normalizePlayerSkipSeconds(PlayerSettingsStorage.loadSkipBackwardSeconds())
+        skipForwardSeconds = normalizePlayerSkipSeconds(PlayerSettingsStorage.loadSkipForwardSeconds())
+        toolbarLayout = PlayerToolbarLayout.decode(PlayerSettingsStorage.loadToolbarLayout())
         showParentalGuide = PlayerSettingsStorage.loadShowParentalGuide() ?: true
         resizeMode = PlayerSettingsStorage.loadResizeMode()
             ?.let { runCatching { PlayerResizeMode.valueOf(it) }.getOrNull() }
@@ -295,6 +319,11 @@ object PlayerSettingsRepository {
                 ?: SubtitleStyleState.DEFAULT.outlineEnabled,
             outlineWidth = PlayerSettingsStorage.loadSubtitleOutlineWidth()
                 ?: SubtitleStyleState.DEFAULT.outlineWidth,
+            shadowEnabled = PlayerSettingsStorage.loadSubtitleShadowEnabled()
+                ?: SubtitleStyleState.DEFAULT.shadowEnabled,
+            shadowStrength = normalizeSubtitleShadowStrength(
+                PlayerSettingsStorage.loadSubtitleShadowStrength() ?: SubtitleStyleState.DEFAULT.shadowStrength,
+            ),
             bold = PlayerSettingsStorage.loadSubtitleBold()
                 ?: SubtitleStyleState.DEFAULT.bold,
             fontSizeSp = PlayerSettingsStorage.loadSubtitleFontSizeSp()
@@ -403,6 +432,49 @@ object PlayerSettingsRepository {
         iosSaturation = PlayerSettingsStorage.loadIosSaturation() ?: 0
         iosGamma = PlayerSettingsStorage.loadIosGamma() ?: 0
         publish()
+    }
+
+    fun setPlayerSkipBackwardSeconds(seconds: Int) {
+        ensureLoaded()
+        val normalized = normalizePlayerSkipSeconds(seconds)
+        if (skipBackwardSeconds == normalized) return
+        skipBackwardSeconds = normalized
+        publish()
+        PlayerSettingsStorage.saveSkipBackwardSeconds(normalized)
+    }
+
+    fun setPlayerSkipForwardSeconds(seconds: Int) {
+        ensureLoaded()
+        val normalized = normalizePlayerSkipSeconds(seconds)
+        if (skipForwardSeconds == normalized) return
+        skipForwardSeconds = normalized
+        publish()
+        PlayerSettingsStorage.saveSkipForwardSeconds(normalized)
+    }
+
+    fun setPlayerToolbarLayout(layout: PlayerToolbarLayout) {
+        ensureLoaded()
+        val normalized = PlayerToolbarLayout.decode(layout.encode())
+        if (toolbarLayout == normalized) return
+        toolbarLayout = normalized
+        publish()
+        PlayerSettingsStorage.saveToolbarLayout(normalized.encode())
+    }
+
+    fun setPauseOverlayEnabled(enabled: Boolean) {
+        ensureLoaded()
+        if (pauseOverlayEnabled == enabled) return
+        pauseOverlayEnabled = enabled
+        publish()
+        PlayerSettingsStorage.savePauseOverlayEnabled(enabled)
+    }
+
+    fun setPlayerLiquidGlassEnabled(enabled: Boolean) {
+        ensureLoaded()
+        if (playerLiquidGlassEnabled == enabled) return
+        playerLiquidGlassEnabled = enabled
+        publish()
+        PlayerSettingsStorage.savePlayerLiquidGlassEnabled(enabled)
     }
 
     fun setShowLoadingOverlay(enabled: Boolean) {
@@ -570,6 +642,8 @@ object PlayerSettingsRepository {
         PlayerSettingsStorage.saveSubtitleOutlineColor(style.outlineColor.toStorageHexString())
         PlayerSettingsStorage.saveSubtitleOutlineEnabled(style.outlineEnabled)
         PlayerSettingsStorage.saveSubtitleOutlineWidth(style.outlineWidth)
+        PlayerSettingsStorage.saveSubtitleShadowEnabled(style.shadowEnabled)
+        PlayerSettingsStorage.saveSubtitleShadowStrength(normalizeSubtitleShadowStrength(style.shadowStrength))
         PlayerSettingsStorage.saveSubtitleBold(style.bold)
         PlayerSettingsStorage.saveSubtitleFontSizeSp(style.fontSizeSp)
         PlayerSettingsStorage.saveSubtitleFontFamily(style.fontFamily.name)
@@ -1028,6 +1102,11 @@ object PlayerSettingsRepository {
     private fun publish() {
         _uiState.value = PlayerSettingsUiState(
             showLoadingOverlay = showLoadingOverlay,
+            pauseOverlayEnabled = pauseOverlayEnabled,
+            playerLiquidGlassEnabled = playerLiquidGlassEnabled,
+            skipBackwardSeconds = skipBackwardSeconds,
+            skipForwardSeconds = skipForwardSeconds,
+            toolbarLayout = toolbarLayout,
             showParentalGuide = showParentalGuide,
             resizeMode = resizeMode,
             holdToSpeedEnabled = holdToSpeedEnabled,

@@ -4,6 +4,7 @@ import com.nuvio.app.features.collection.CollectionRepository
 import com.nuvio.app.features.collection.TmdbCollectionSourceResolver
 import com.nuvio.app.features.collection.catalogRouteKey
 import com.nuvio.app.features.cloudstream.CloudStreamRepository
+import com.nuvio.app.features.cloudstream.CloudStreamSearchItem
 import com.nuvio.app.features.cloudstream.toMetaPreview
 import com.nuvio.app.features.library.LibraryRepository
 import com.nuvio.app.features.library.sortLibraryItems
@@ -22,6 +23,18 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.getString
+
+internal fun selectCloudStreamCategoryItems(
+    categories: List<Pair<String, List<CloudStreamSearchItem>>>,
+    categoryName: String,
+    categoryIndex: Int?,
+): List<CloudStreamSearchItem> {
+    val indexedCategory = categoryIndex?.let { categories.getOrNull(it) }
+        ?.takeIf { it.first == categoryName }
+    return (indexedCategory ?: categories.firstOrNull { it.first == categoryName })
+        ?.second
+        .orEmpty()
+}
 
 object CatalogRepository {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -166,11 +179,11 @@ object CatalogRepository {
                                 .orEmpty()
                                 .map { it.toMetaPreview() }
                         } else {
-                            CloudStreamRepository.getMainPage(target.providerId, pageNumber).getOrThrow()
-                                .firstOrNull { it.first == target.categoryName }
-                                ?.second
-                                .orEmpty()
-                                .map { it.toMetaPreview() }
+                            selectCloudStreamCategoryItems(
+                                categories = CloudStreamRepository.getMainPage(target.providerId, pageNumber).getOrThrow(),
+                                categoryName = target.categoryName,
+                                categoryIndex = target.categoryIndex,
+                            ).map { it.toMetaPreview() }
                         }
                         CatalogPage(
                             items = items,

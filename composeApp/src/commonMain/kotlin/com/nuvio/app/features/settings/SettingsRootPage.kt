@@ -34,6 +34,8 @@ import com.nuvio.app.core.build.AppVersionConfig
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.compose_about_nuvio_version_format
 import nuvio.composeapp.generated.resources.compose_about_version_format
+import nuvio.composeapp.generated.resources.party_title
+import nuvio.composeapp.generated.resources.party_start_description
 import nuvio.composeapp.generated.resources.compose_settings_page_account
 import nuvio.composeapp.generated.resources.compose_settings_page_advanced
 import nuvio.composeapp.generated.resources.compose_settings_page_appearance
@@ -82,6 +84,7 @@ private const val PRIVACY_POLICY_URL = "https://nuvio.tv/privacy-policy"
 internal fun LazyListScope.settingsRootContent(
     isTablet: Boolean,
     onPlaybackClick: () -> Unit,
+    onWatchPartyClick: () -> Unit,
     onAppearanceClick: () -> Unit,
     onAdvancedClick: () -> Unit,
     onNotificationsClick: () -> Unit,
@@ -216,6 +219,14 @@ internal fun LazyListScope.settingsRootContent(
                         icon = Icons.Rounded.PlayArrow,
                         isTablet = isTablet,
                         onClick = onPlaybackClick,
+                    )
+                    SettingsGroupDivider(isTablet = isTablet)
+                    SettingsNavigationRow(
+                        title = stringResource(Res.string.party_title),
+                        description = stringResource(Res.string.party_start_description),
+                        icon = Icons.Rounded.People,
+                        isTablet = isTablet,
+                        onClick = onWatchPartyClick,
                     )
                     SettingsGroupDivider(isTablet = isTablet)
                     SettingsNavigationRow(

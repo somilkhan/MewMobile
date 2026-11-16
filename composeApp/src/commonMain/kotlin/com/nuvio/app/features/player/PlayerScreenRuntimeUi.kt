@@ -7,15 +7,33 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Groups
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.dp
+import com.nuvio.app.core.ui.DialogButton
+import com.nuvio.app.core.ui.DialogButtonStyle
+import com.nuvio.app.core.ui.DialogButtons
+import com.nuvio.app.core.ui.DialogSurface
+import com.nuvio.app.core.ui.glass.LocalLiquidGlassBackdrop
 import com.nuvio.app.features.p2p.P2pStreamingState
 import com.nuvio.app.features.p2p.formatP2pMegabytes
 import com.nuvio.app.features.p2p.formatP2pSpeed
 import com.nuvio.app.isIos
 import kotlinx.coroutines.launch
 import nuvio.composeapp.generated.resources.*
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
@@ -104,6 +122,11 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
         }
     }
     val gestureCallbacks = rememberSurfaceGestureCallbacks()
+    val onPinchZoom = rememberUpdatedState<(Float) -> Unit> { factor -> pinchVideoZoom(factor) }
+    val playbackGesturesEnabled = initialLoadCompleted && errorMessage == null
+    LaunchedEffect(playerController) {
+        if (videoZoom != 1f) playerController?.setVideoZoom(videoZoom)
+    }
 
     Box(
         modifier = Modifier
@@ -136,6 +159,12 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
                 clearLiveGestureFeedbackState = gestureCallbacks.clearLiveGestureFeedback,
                 revealLockedOverlayState = gestureCallbacks.revealLockedOverlay,
                 commitHorizontalSeekState = gestureCallbacks.commitHorizontalSeek,
+            )
+            .playerSurfacePinchGestures(
+                playbackGesturesEnabled = playbackGesturesEnabled,
+                playerControlsLockedState = gestureCallbacks.playerControlsLocked,
+                touchGesturesEnabledState = gestureCallbacks.touchGesturesEnabled,
+                onPinchZoomState = onPinchZoom,
             ),
     ) {
         val playerSurfaceSourceUrl = currentPlaybackSurfaceSourceUrl
@@ -153,6 +182,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
                 initialPositionMs = activeInitialPositionMs.takeIf { it > 0L },
                 initialPositionRequestKey = initialPositionRequestKey,
                 resizeMode = resizeMode,
+                playbackEngine = playbackEngineOverride ?: playerSettingsUiState.androidPlaybackEngine,
                 onInitialPositionHandled = { key, handled ->
                     if (key == currentInitialPositionRequestKey()) {
                         initialSeekApplied = handled
@@ -178,7 +208,8 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
                     if (message != null && tryRefreshCredentialedSourceAfterError(message)) {
                         return@PlatformPlayerSurface
                     }
-                    errorMessage = message
+                    if (maybeFailoverPlaybackEngine(message)) return@PlatformPlayerSurface
+                    errorMessage = message?.removePrefix("audio-route:")
                     if (message != null) {
                         controlsVisible = !playerControlsLocked
                         removeFailedStreamFromCache()
@@ -188,7 +219,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
         }
 
         AnimatedVisibility(
-            visible = pausedOverlayVisible && !controlsVisible && !playerControlsLocked,
+            visible = playerSettingsUiState.pauseOverlayEnabled && pausedOverlayVisible && !controlsVisible && !playerControlsLocked,
             enter = fadeIn(animationSpec = tween(durationMillis = 220)),
             exit = fadeOut(animationSpec = tween(durationMillis = 180)),
         ) {
@@ -218,7 +249,57 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
             p2pRebufferMessage = p2pRebufferMessage,
             p2pRebufferProgress = p2pRebufferProgress,
         )
+        if (!rememberIsInPictureInPicture()) {
+            IconButton(
+                onClick = { showPartyPanel = true },
+                modifier = Modifier.align(Alignment.TopEnd).padding(12.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Groups,
+                    contentDescription = stringResource(Res.string.party_title),
+                )
+            }
+        }
+        RenderPartyPanel()
+        if (showSubtitleSyncByEar) {
+            SubtitleSyncByEarCard(
+                visible = true,
+                subtitleDelayMs = subtitleDelayMs,
+                heardCaptured = subtitleSyncHeardPositionMs != null,
+                sawCaptured = subtitleSyncSawPositionMs != null,
+                onHeard = { captureSubtitleSyncHeard() },
+                onSaw = { captureSubtitleSyncSaw() },
+                onClose = { closeSubtitleSyncByEar() },
+                modifier = Modifier.align(androidx.compose.ui.Alignment.TopCenter)
+                    .padding(top = 16.dp, start = horizontalSafePadding, end = horizontalSafePadding),
+            )
+        }
         RenderPlayerModals(displayedPositionMs = displayedPositionMs)
+        StreamInfoOverlay(visible=showStreamInfo,provider=activeProviderName,streamTitle=activeStreamTitle,streamSubtitle=activeStreamSubtitle,addonId=activeProviderAddonId,filename=currentStreamFilename,infoHash=currentStreamInfoHash,audioTrack=audioTracks.firstOrNull { it.index == selectedAudioIndex } ?: audioTracks.firstOrNull { it.isSelected },subtitleTrack=subtitleTracks.firstOrNull { it.index == selectedSubtitleIndex } ?: subtitleTracks.firstOrNull { it.isSelected }.takeUnless { useCustomSubtitles },addonSubtitle=addonSubtitles.firstOrNull { it.selectionKey == selectedAddonSubtitleId },engine=playerController?.playbackEngine,streamType=activeStreamType,resolution=if(playbackSnapshot.videoWidth!=null&&playbackSnapshot.videoHeight!=null) "${playbackSnapshot.videoWidth} × ${playbackSnapshot.videoHeight}" else null,videoCodec=playbackSnapshot.videoCodec,videoFrameRate=playbackSnapshot.videoFrameRate,videoBitrate=playbackSnapshot.videoBitrate,audioCodec=playbackSnapshot.audioCodec,audioChannels=playbackSnapshot.audioChannels,audioSampleRate=playbackSnapshot.audioSampleRate,hdrFormat=playbackSnapshot.hdrFormat,onDismiss={showStreamInfo=false})
+        val switchEngineTarget = playerController?.playbackEngine?.switchTarget
+        if (switchEngineTarget != null && showSwitchEngineConfirm) {
+            DialogSurface(
+                onDismissRequest = { showSwitchEngineConfirm = false },
+                title = stringResource(Res.string.player_engine_switch_title, switchEngineTarget.label),
+                message = stringResource(Res.string.player_engine_switch_message),
+            ) {
+                DialogButtons {
+                    DialogButton(
+                        text = stringResource(Res.string.action_cancel),
+                        onClick = { showSwitchEngineConfirm = false },
+                        style = DialogButtonStyle.Secondary,
+                    )
+                    DialogButton(
+                        text = stringResource(Res.string.action_switch),
+                        onClick = {
+                            showSwitchEngineConfirm = false
+                            switchPlaybackEngine()
+                        },
+                        style = DialogButtonStyle.Primary,
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -256,11 +337,14 @@ private fun PlayerScreenRuntime.currentInitialPositionRequestKey(): String? {
 @Composable
 private fun PlayerScreenRuntime.RenderPlayerControls(displayedPositionMs: Long, isEpisode: Boolean) {
     val isInPip = rememberIsInPictureInPicture()
+    val orientationToggleSupported = rememberPlayerOrientationToggleSupported()
+    val portraitPlayback by PlayerOrientationPreference.portrait.collectAsState()
+    val playerVideoFrameBackdrop = rememberVideoFrameBackdrop(enabled = playerSettingsUiState.playerLiquidGlassEnabled)
     val showQuietDeviceStatusOverlay = nuvioEnhancedSettingsUiState.playerStatusOverlayEnabled &&
         !controlsVisible &&
         !showParentalGuide &&
         !playerControlsLocked &&
-        !pausedOverlayVisible
+        !(playerSettingsUiState.pauseOverlayEnabled && pausedOverlayVisible)
     AnimatedVisibility(
         visible = shouldShowPlayerControlsShell(
             isInPip = isInPip,
@@ -272,153 +356,166 @@ private fun PlayerScreenRuntime.RenderPlayerControls(displayedPositionMs: Long, 
         enter = fadeIn(),
         exit = fadeOut(),
     ) {
-        PlayerControlsShell(
-            title = title,
-            streamTitle = activeStreamTitle,
-            providerName = activeProviderName,
-            seasonNumber = activeSeasonNumber,
-            episodeNumber = activeEpisodeNumber,
-            episodeTitle = activeEpisodeTitle,
-            playbackSnapshot = playbackSnapshot,
-            displayedPositionMs = displayedPositionMs,
-            metrics = metrics,
-            resizeMode = resizeMode,
-            isLocked = playerControlsLocked,
-            showPlaybackControls = controlsVisible,
-            showDeviceStatusOverlay = showQuietDeviceStatusOverlay,
-            showClockEndTime = nuvioEnhancedSettingsUiState.enhancedHomeFeaturesEnabled &&
-                playerSettingsUiState.playerClockEndTimeEnabled &&
-                contentType != "live-tv",
-            onLockToggle = {
-                if (playerControlsLocked) unlockPlayerControls() else lockPlayerControls()
-            },
-            onBack = {
-                flushWatchProgress()
-                args.onBack()
-            },
-            onTogglePlayback = { togglePlayback() },
-            onSeekBack = { seekBy(-10_000L) },
-            onSeekForward = { seekBy(10_000L) },
-            onResizeModeClick = { cycleResizeMode() },
-            onSpeedClick = { cyclePlaybackSpeed() },
-            onSubtitleClick = if (isLiveTv) null else {
-                {
+        CompositionLocalProvider(
+            LocalLiquidGlassBackdrop provides playerVideoFrameBackdrop,
+            LocalPlayerLiquidGlassEnabled provides playerSettingsUiState.playerLiquidGlassEnabled,
+        ) {
+            PlayerControlsShell(
+                title = title,
+                streamTitle = activeStreamTitle,
+                providerName = activeProviderName,
+                seasonNumber = activeSeasonNumber,
+                episodeNumber = activeEpisodeNumber,
+                episodeTitle = activeEpisodeTitle,
+                playbackSnapshot = playbackSnapshot,
+                displayedPositionMs = displayedPositionMs,
+                metrics = metrics,
+                resizeMode = resizeMode,
+                isLocked = playerControlsLocked,
+                skipBackwardSeconds = playerSettingsUiState.skipBackwardSeconds,
+                skipForwardSeconds = playerSettingsUiState.skipForwardSeconds,
+                showPlaybackControls = controlsVisible,
+                showDeviceStatusOverlay = showQuietDeviceStatusOverlay,
+                showClockEndTime = nuvioEnhancedSettingsUiState.enhancedHomeFeaturesEnabled &&
+                    playerSettingsUiState.playerClockEndTimeEnabled &&
+                    contentType != "live-tv",
+                onLockToggle = {
+                    if (playerControlsLocked) unlockPlayerControls() else lockPlayerControls()
+                },
+                onBack = {
+                    flushWatchProgress()
+                    args.onBack()
+                },
+                onTogglePlayback = { togglePlayback() },
+                onSeekBack = { seekBy(-playerSettingsUiState.skipBackwardSeconds * 1_000L) },
+                onSeekForward = { seekBy(playerSettingsUiState.skipForwardSeconds * 1_000L) },
+                onResizeModeClick = { cycleResizeMode() },
+                onSpeedClick = { cyclePlaybackSpeed() },
+                onSubtitleClick = if (isLiveTv) null else {
+                    {
+                        refreshTracks()
+                        activeSubtitleTab = SubtitleTab.BuiltIn
+                        showSubtitleModal = true
+                    }
+                },
+                onSubtitleSyncClick = if (
+                    nuvioEnhancedSettingsUiState.enhancedHomeFeaturesEnabled &&
+                    playerSettingsUiState.subtitleSyncMenuEnabled
+                ) {
+                    {
+                        activeSubtitleTab = SubtitleTab.Sync
+                        loadSubtitleAutoSyncCues()
+                        showSubtitleModal = true
+                    }
+                } else {
+                    null
+                },
+                onAudioClick = {
                     refreshTracks()
-                    activeSubtitleTab = SubtitleTab.BuiltIn
-                    showSubtitleModal = true
-                }
-            },
-            onSubtitleSyncClick = if (
-                nuvioEnhancedSettingsUiState.enhancedHomeFeaturesEnabled &&
-                playerSettingsUiState.subtitleSyncMenuEnabled
-            ) {
-                {
-                    activeSubtitleTab = SubtitleTab.Sync
-                    loadSubtitleAutoSyncCues()
-                    showSubtitleModal = true
-                }
-            } else {
-                null
-            },
-            onAudioClick = {
-                refreshTracks()
-                showAudioModal = true
-            },
-            qualityLabel = playerQualityControlLabel(),
-            onQualityClick = if (!isLiveTv && activeTorrentInfoHash == null) {
-                { openQualityPanel() }
-            } else {
-                null
-            },
-            onChannelsClick = if (isLiveTv) {
-                { showLiveTvChannelsPanel = true }
-            } else {
-                null
-            },
-            onVideoSettingsClick = if (isIos) {
-                {
-                    showVideoSettingsModal = true
-                    controlsVisible = true
-                }
-            } else {
-                null
-            },
-            onSourcesClick = if (activeVideoId != null) { { openSourcesPanel() } } else null,
-            onEpisodesClick = if (isSeries) { { openEpisodesPanel() } } else null,
-            onNextEpisodeClick = if (
-                nuvioEnhancedSettingsUiState.enhancedHomeFeaturesEnabled &&
-                nuvioEnhancedSettingsUiState.nextEpisodeButtonEnabled &&
-                isSeries &&
-                nextEpisodeInfo?.hasAired == true
-            ) {
-                {
-                    playPreparedNextEpisode()
-                }
-            } else null,
-            nextEpisodeSearching = nextEpisodeAutoPlaySearching,
-            nextEpisodeReady = nextEpisodeAutoPlayReady,
-            randomNextEpisodeMode = randomNextEpisodeMode,
-            onRandomNextEpisodeModeToggle = if (
-                nuvioEnhancedSettingsUiState.enhancedHomeFeaturesEnabled &&
-                isSeries &&
-                playerSettingsUiState.randomNextEpisodeEnabled
-            ) {
-                { randomNextEpisodeMode = !randomNextEpisodeMode }
-            } else null,
-            onOpenInExternalPlayer = args.onOpenInExternalPlayer?.let { openExternal ->
-                {
-                    val loadedSubtitles = addonSubtitles
-                        .takeIf { it.isNotEmpty() }
-                        ?.map { sub ->
-                            SubtitleInput(
-                                url = sub.url,
-                                name = buildString {
-                                    if (!sub.addonName.isNullOrBlank()) append("[${sub.addonName}] ")
-                                    append(sub.display)
-                                },
-                                lang = sub.language,
-                            )
-                        }
-                    openExternal(
-                        ExternalPlayerPlaybackRequest(
-                            sourceUrl = externalPlayerSourceUrl(),
-                            title = title,
-                            streamTitle = activeStreamTitle,
-                            sourceHeaders = activeSourceHeaders,
-                            resumePositionMs = playbackSnapshot.positionMs,
-                            subtitles = loadedSubtitles,
-                            season = activeSeasonNumber,
-                            episode = activeEpisodeNumber,
-                            episodeTitle = activeEpisodeTitle,
-                        ),
-                    )
-                }
-            },
-            onSubmitIntroClick = if (
-                isSeries &&
-                playerSettingsUiState.introSubmitEnabled &&
-                playerSettingsUiState.introDbApiKey.isNotBlank()
-            ) {
-                { showSubmitIntroModal = true }
-            } else {
-                null
-            },
-            parentalWarnings = parentalWarnings,
-            showParentalGuide = showParentalGuide,
-            onParentalGuideAnimationComplete = { showParentalGuide = false },
-            onScrubChange = { positionMs ->
-                isScrubbingTimeline = true
-                scrubbingPositionMs = positionMs
-            },
-            onScrubFinished = { positionMs ->
-                isScrubbingTimeline = false
-                scrubbingPositionMs = null
-                playerController?.seekTo(positionMs)
-                scheduleProgressSyncAfterSeek()
-            },
-            horizontalSafePadding = horizontalSafePadding,
-            modifier = Modifier.fillMaxSize(),
-        )
+                    showAudioModal = true
+                },
+                qualityLabel = playerQualityControlLabel(),
+                onQualityClick = if (!isLiveTv && activeTorrentInfoHash == null) {
+                    { openQualityPanel() }
+                } else {
+                    null
+                },
+                onChannelsClick = if (isLiveTv) {
+                    { showLiveTvChannelsPanel = true }
+                } else {
+                    null
+                },
+                onStreamInfoClick = { showStreamInfo = true; controlsVisible = true },
+                onVideoSettingsClick = if (isIos) {
+                    {
+                        showVideoSettingsModal = true
+                        controlsVisible = true
+                    }
+                } else {
+                    null
+                },
+                onOrientationToggleClick = if (orientationToggleSupported) {
+                    { PlayerOrientationPreference.toggle() }
+                } else null,
+                isPortraitPlayback = portraitPlayback,
+                onSourcesClick = if (activeVideoId != null) { { openSourcesPanel() } } else null,
+                onEpisodesClick = if (isSeries) { { openEpisodesPanel() } } else null,
+                onNextEpisodeClick = if (
+                    nuvioEnhancedSettingsUiState.enhancedHomeFeaturesEnabled &&
+                    nuvioEnhancedSettingsUiState.nextEpisodeButtonEnabled &&
+                    isSeries &&
+                    nextEpisodeInfo?.hasAired == true
+                ) {
+                    {
+                        playPreparedNextEpisode()
+                    }
+                } else null,
+                nextEpisodeSearching = nextEpisodeAutoPlaySearching,
+                nextEpisodeReady = nextEpisodeAutoPlayReady,
+                randomNextEpisodeMode = randomNextEpisodeMode,
+                onRandomNextEpisodeModeToggle = if (
+                    nuvioEnhancedSettingsUiState.enhancedHomeFeaturesEnabled &&
+                    isSeries &&
+                    playerSettingsUiState.randomNextEpisodeEnabled
+                ) {
+                    { randomNextEpisodeMode = !randomNextEpisodeMode }
+                } else null,
+                onSwitchEngineClick = if (!isIos && playerController?.playbackEngine != null) { { showSwitchEngineConfirm = true } } else null,
+                onOpenInExternalPlayer = args.onOpenInExternalPlayer?.let { openExternal ->
+                    {
+                        val loadedSubtitles = addonSubtitles
+                            .takeIf { it.isNotEmpty() }
+                            ?.map { sub ->
+                                SubtitleInput(
+                                    url = sub.url,
+                                    name = buildString {
+                                        if (!sub.addonName.isNullOrBlank()) append("[${sub.addonName}] ")
+                                        append(sub.display)
+                                    },
+                                    lang = sub.language,
+                                )
+                            }
+                        openExternal(
+                            ExternalPlayerPlaybackRequest(
+                                sourceUrl = externalPlayerSourceUrl(),
+                                title = title,
+                                streamTitle = activeStreamTitle,
+                                sourceHeaders = activeSourceHeaders,
+                                resumePositionMs = playbackSnapshot.positionMs,
+                                subtitles = loadedSubtitles,
+                                season = activeSeasonNumber,
+                                episode = activeEpisodeNumber,
+                                episodeTitle = activeEpisodeTitle,
+                            ),
+                        )
+                    }
+                },
+                onSubmitIntroClick = if (
+                    isSeries &&
+                    playerSettingsUiState.introSubmitEnabled &&
+                    playerSettingsUiState.introDbApiKey.isNotBlank()
+                ) {
+                    { showSubmitIntroModal = true }
+                } else {
+                    null
+                },
+                parentalWarnings = parentalWarnings,
+                showParentalGuide = showParentalGuide,
+                onParentalGuideAnimationComplete = { showParentalGuide = false },
+                onScrubChange = { positionMs ->
+                    isScrubbingTimeline = true
+                    scrubbingPositionMs = positionMs
+                },
+                onScrubFinished = { positionMs ->
+                    isScrubbingTimeline = false
+                    scrubbingPositionMs = null
+                    seekToPosition(positionMs)
+                },
+                horizontalSafePadding = horizontalSafePadding,
+                modifier = Modifier.fillMaxSize(),
+            )
+
+        }
     }
 }
 
@@ -467,7 +564,7 @@ private fun BoxScope.RenderPlaybackOverlays(
         currentGestureFeedback = currentGestureFeedback,
         renderedGestureFeedback = renderedGestureFeedback,
         initialLoadCompleted = initialLoadCompleted,
-        pausedOverlayVisible = pausedOverlayVisible,
+        pausedOverlayVisible = playerSettingsUiState.pauseOverlayEnabled && pausedOverlayVisible,
         activeSkipInterval = activeSkipInterval,
         skipIntervalDismissed = skipIntervalDismissed,
         controlsVisible = controlsVisible,
@@ -475,8 +572,7 @@ private fun BoxScope.RenderPlaybackOverlays(
             val rawMs = (interval.endTime * 1000.0).toLong()
             val durationMs = playbackSnapshot.durationMs
             val seekMs = if (durationMs > 0L) rawMs.coerceAtMost(durationMs - 1) else rawMs
-            playerController?.seekTo(seekMs)
-            scheduleProgressSyncAfterSeek()
+            seekToPosition(seekMs)
             skipIntervalDismissed = true
         },
         onDismissSkipInterval = { skipIntervalDismissed = true },
@@ -675,13 +771,14 @@ private fun PlayerScreenRuntime.RenderPlayerModals(displayedPositionMs: Long) {
              trackPreferenceRestoreApplied = true
              preferredSubtitleSelectionApplied = true
              persistAddonSubtitlePreference(addon)
-             playerController?.setSubtitleUri(addon.url)
+             attachSelectedAddonSubtitleWithAutoSync(addon.url)
         },
         onFetchAddonSubtitles = { fetchAddonSubtitlesForActiveItem() },
         onSubtitleStyleChanged = PlayerSettingsRepository::updateSubtitleStyle,
         onSubtitleDelayChanged = { delayMs -> setSubtitleDelay(delayMs) },
         onSubtitleDelayReset = { setSubtitleDelay(0) },
         onAutoSyncCapture = { captureSubtitleAutoSyncTime() },
+        onSyncByEarClick = { openSubtitleSyncByEar() },
         onAutoSyncCueSelected = { cue -> applySubtitleAutoSyncCue(cue) },
         onAutoSyncReload = { loadSubtitleAutoSyncCues(force = true) },
         onTogglePlayback = { togglePlayback() },

@@ -404,6 +404,8 @@
     <string name="settings_tmdb_preferred_language">שפה</string>
     <string name="settings_tmdb_section_credentials">פרטי התחברות</string>
     <string name="settings_tmdb_section_localization">לוקליזציה</string>
+    <string name="settings_tmdb_original_title_language">שפת המקור</string>
+    <string name="settings_tmdb_original_title_language_description">העדפת כותרים, סמלים, פוסטרים ותמונות רקע בשפת המקור. אם הם אינם זמינים, תיעשה שימוש בשפה המועדפת עליך.</string>
     <string name="settings_tmdb_section_modules">מודלים</string>
     <string name="trakt_library_source_title">מקור ספרייה</string>
     <string name="trakt_library_source_subtitle">בחר באיזו ספרייה להשתמש לשמירה וצפייה באוסף שלך</string>

@@ -4,7 +4,6 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -25,6 +24,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -35,6 +35,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -73,7 +74,6 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
@@ -119,6 +119,11 @@ import com.nuvio.app.core.sync.ProviderCredentialSync
 import com.nuvio.app.core.sync.SyncManager
 import com.nuvio.app.core.ui.LocalNuvioNavBarScrollState
 import com.nuvio.app.core.ui.NuvioNavigationBar
+import com.nuvio.app.core.ui.FloatingNavigationBar
+import com.nuvio.app.core.ui.FloatingNavigationItem
+import com.nuvio.app.core.ui.floatingNavigationBarPadding
+import com.nuvio.app.core.ui.glass.nuvioBackdropSource
+import com.nuvio.app.core.ui.glass.rememberNuvioBackdrop
 import com.nuvio.app.core.ui.NuvioClassicNavigationBar
 import com.nuvio.app.core.ui.NuvioNavBarScrollState
 import com.nuvio.app.core.ui.rememberNuvioNavBarScrollState
@@ -209,6 +214,8 @@ import com.nuvio.app.features.notifications.EpisodeReleaseNotificationsRepositor
 import com.nuvio.app.features.p2p.P2pConsentDialog
 import com.nuvio.app.features.p2p.P2pSettingsRepository
 import com.nuvio.app.features.player.PlayerLaunch
+import com.nuvio.app.features.party.PartyScreen
+import com.nuvio.app.features.streams.PartyStreamsProvider
 import com.nuvio.app.features.player.PlayerLaunchStore
 import com.nuvio.app.features.player.PlayerScreen
 import com.nuvio.app.features.player.PlayerPlaybackSnapshot
@@ -286,7 +293,6 @@ import com.nuvio.app.features.watchprogress.nextUpDismissKey
 import com.nuvio.app.features.watchprogress.toContinueWatchingItem
 import com.nuvio.app.features.watching.application.WatchingActions
 import com.nuvio.app.features.watching.application.WatchingState
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.collectLatest
@@ -727,14 +733,7 @@ fun App(
         ) { currentGate ->
             when (currentGate) {
                 AppGateScreen.Loading.name -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(MaterialTheme.nuvio.colors.background),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        NuvioLoadingIndicator(color = MaterialTheme.nuvio.colors.accent)
-                    }
+                    AppLaunchOverlay(modifier = Modifier.fillMaxSize())
                 }
                 AppGateScreen.Auth.name -> {
                     AuthScreen(modifier = Modifier.fillMaxSize())
@@ -965,10 +964,7 @@ private fun MainAppContent(
     LaunchedEffect(enhancedSettingsUiState.statusBarVisible) {
         AppSystemUiController.setStatusBarVisible(enhancedSettingsUiState.statusBarVisible)
     }
-    var initialHomeReady by rememberSaveable(
-        ownsAppRuntime,
-        profileState.activeProfile?.profileIndex,
-    ) {
+    var initialHomeReady by rememberSaveable(ownsAppRuntime) {
         mutableStateOf(!ownsAppRuntime)
     }
     var offlineLaunchRouteHandled by rememberSaveable { mutableStateOf(false) }
@@ -1074,18 +1070,25 @@ private fun MainAppContent(
         }
     }
 
-    var profileSwitchLoading by remember { mutableStateOf(false) }
+    var pendingProfileIndex by remember { mutableStateOf<Int?>(null) }
+    val profileSwitchLoading = pendingProfileIndex != null
 
-    LaunchedEffect(profileState.activeProfile?.profileIndex) {
-        if (!ownsAppRuntime) return@LaunchedEffect
-        delay(5_000)
-        initialHomeReady = true
+    // A profile switch is complete when the repository publishes the selected profile.
+    // It must not replay the cold-start splash or wait for Home's first network catalog.
+    LaunchedEffect(profileState.activeProfile?.profileIndex, pendingProfileIndex) {
+        if (pendingProfileIndex != null &&
+            profileState.activeProfile?.profileIndex == pendingProfileIndex
+        ) {
+            pendingProfileIndex = null
+        }
     }
 
-    LaunchedEffect(profileSwitchLoading) {
-        if (!profileSwitchLoading) return@LaunchedEffect
-        delay(1_200)
-        profileSwitchLoading = false
+    // Let Compose draw the Mew-branded launch surface once, then reveal the app shell.
+    // Content discovery remains progressive inside Home; it is not a startup prerequisite.
+    LaunchedEffect(ownsAppRuntime) {
+        if (!ownsAppRuntime) return@LaunchedEffect
+        withFrameNanos { }
+        initialHomeReady = true
     }
 
     LaunchedEffect(
@@ -1105,27 +1108,9 @@ private fun MainAppContent(
             }
         }
     }
-    val launchOverlayState = remember(ownsAppRuntime) {
-        MutableTransitionState(
-            ownsAppRuntime && (
-                !initialHomeReady ||
-                    profileSwitchLoading
-                ),
-        )
-    }
-    launchOverlayState.targetState =
-        ownsAppRuntime && (
-            !initialHomeReady ||
-                profileSwitchLoading
-            )
-
-    LaunchedEffect(
-        launchOverlayState.targetState,
-        ownsAppRuntime,
-        onRootContentReady,
-    ) {
+    LaunchedEffect(initialHomeReady, ownsAppRuntime, onRootContentReady) {
         if (ownsAppRuntime) {
-            onRootContentReady?.invoke(!launchOverlayState.targetState)
+            onRootContentReady?.invoke(initialHomeReady)
         }
     }
 
@@ -1417,6 +1402,12 @@ private fun MainAppContent(
                         ) {
                             launchSingleTop = true
                         }
+                        AppDeepLinkRepository.markConsumed(deepLink)
+                    }
+
+                    is AppDeepLink.Party -> {
+                        activateTab(AppScreenTab.Home)
+                        navController.navigate(WatchPartyRoute(code = deepLink.code)) { launchSingleTop = true }
                         AppDeepLinkRepository.markConsumed(deepLink)
                     }
 
@@ -2084,18 +2075,79 @@ private fun MainAppContent(
                         }
                         val tabsRouteActive = currentRoute is TabsRoute
                         val navBarScrollState = rememberNuvioNavBarScrollState()
-                        val navBarHazeState = rememberHazeState()
                         val navBarStyleSetting by remember { ThemeSettingsRepository.navBarStyle }.collectAsStateWithLifecycle()
                         val onProfileSelected: (NuvioProfile) -> Unit = { profile ->
                             nativeProfileSwitcherVisible = false
                             activateTab(AppScreenTab.Home)
                             if (profile.profileIndex != profileState.activeProfile?.profileIndex) {
-                                initialHomeReady = false
-                                profileSwitchLoading = true
+                                pendingProfileIndex = profile.profileIndex
                                 NativeTabBridge.publishTabBarVisible(false)
                                 ProfileRepository.selectProfile(profile.profileIndex)
                                 SyncManager.pullAllForProfile(profile.profileIndex)
                             }
+                        }
+
+                        val navBarBackdrop = if (navBarStyleSetting == NavBarStyle.LIQUID_GLASS && tabsRouteActive) {
+                            rememberNuvioBackdrop()
+                        } else {
+                            null
+                        }
+                        val navHomeLabel = stringResource(Res.string.compose_nav_home)
+                        val navSearchLabel = stringResource(Res.string.compose_nav_search)
+                        val navLiveTvLabel = stringResource(Res.string.compose_nav_live_tv)
+                        val navLibraryLabel = stringResource(Res.string.compose_nav_library)
+                        val navProfileLabel = stringResource(Res.string.compose_nav_profile)
+                        val liquidGlassNavigationItems = buildList {
+                            add(
+                                FloatingNavigationItem(
+                                    label = navHomeLabel,
+                                    selected = selectedTab == AppScreenTab.Home,
+                                    onClick = { handleRootTabClick(AppScreenTab.Home) },
+                                    icon = Icons.Filled.Home,
+                                ),
+                            )
+                            add(
+                                FloatingNavigationItem(
+                                    label = navSearchLabel,
+                                    selected = selectedTab == AppScreenTab.Search,
+                                    onClick = { handleRootTabClick(AppScreenTab.Search) },
+                                    drawable = Res.drawable.sidebar_search,
+                                ),
+                            )
+                            if (liveTvEnabled) {
+                                add(
+                                    FloatingNavigationItem(
+                                        label = navLiveTvLabel,
+                                        selected = selectedTab == AppScreenTab.LiveTv,
+                                        onClick = { handleRootTabClick(AppScreenTab.LiveTv) },
+                                        icon = Icons.Filled.Tv,
+                                    ),
+                                )
+                            }
+                            add(
+                                FloatingNavigationItem(
+                                    label = navLibraryLabel,
+                                    selected = selectedTab == AppScreenTab.Library,
+                                    onClick = { handleRootTabClick(AppScreenTab.Library) },
+                                    drawable = Res.drawable.sidebar_library,
+                                ),
+                            )
+                            add(
+                                FloatingNavigationItem(
+                                    label = navProfileLabel,
+                                    selected = selectedTab == AppScreenTab.Settings,
+                                    onClick = { handleRootTabClick(AppScreenTab.Settings) },
+                                    content = { itemOnClick, _ ->
+                                        ProfileSwitcherTab(
+                                            selected = selectedTab == AppScreenTab.Settings,
+                                            onClick = itemOnClick,
+                                            onProfileSelected = onProfileSelected,
+                                            onAddProfileRequested = onSwitchProfile,
+                                            rememberTriggerAsContentFocus = false,
+                                        )
+                                    },
+                                ),
+                            )
                         }
 
                         CompositionLocalProvider(
@@ -2103,9 +2155,7 @@ private fun MainAppContent(
                             LocalDensity provides Density(density.density, density.fontScale * tvUiScale),
                         ) {
                         Scaffold(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .alpha(if (launchOverlayState.targetState) 0f else 1f),
+                            modifier = Modifier.fillMaxSize(),
                             containerColor = Color.Transparent,
                             contentWindowInsets = WindowInsets(0),
                             bottomBar = {
@@ -2161,6 +2211,7 @@ private fun MainAppContent(
                                     AppTabHost(
                                         modifier = Modifier
                                             .fillMaxSize()
+                                            .then(if (navBarBackdrop != null) Modifier.nuvioBackdropSource(navBarBackdrop) else Modifier)
                                             .then(if (navBarStyleSetting == NavBarStyle.ADAPTIVE) Modifier.nestedScroll(navBarScrollState.nestedScrollConnection) else Modifier)
                                             .padding(innerPadding)
                                             .padding(start = if (useTvLayout) 80.dp else 0.dp),
@@ -2174,6 +2225,7 @@ private fun MainAppContent(
                                         settingsRootActionRequests = settingsRootActionRequests,
                                         animateHomeCollectionGifs = tabsRouteActive,
                                         onCatalogClick = onCatalogClick,
+                                        onWatchPartyClick = { navController.navigate(WatchPartyRoute()) },
                                         onPosterClick = { meta ->
                                             navController.navigate(DetailRoute(type = meta.type, id = meta.id, title = meta.name))
                                         },
@@ -2315,21 +2367,32 @@ private fun MainAppContent(
                                         onRequestedSettingsPageConsumed = {
                                             requestedSettingsPageName = null
                                         },
-                                        onInitialHomeContentRendered = {
-                                            initialHomeReady = true
-                                            profileSwitchLoading = false
-                                        },
+                                        onInitialHomeContentRendered = {},
                                     )
                                 }
 
                                 if (isTabletLayout && !useNativeBottomTabs && !useTvLayout) {
-                                    TabletFloatingTopBar(
-                                        selectedTab = selectedTab,
-                                        liveTvEnabled = liveTvEnabled,
-                                        onTabSelected = ::handleRootTabClick,
-                                        onProfileSelected = onProfileSelected,
-                                        onAddProfileRequested = onSwitchProfile,
-                                    )
+                                    if (navBarStyleSetting == NavBarStyle.LIQUID_GLASS) {
+                                        FloatingNavigationBar(
+                                            items = liquidGlassNavigationItems,
+                                            modifier = Modifier.align(Alignment.TopCenter).widthIn(max = 416.dp),
+                                            scrollState = remember { NuvioNavBarScrollState().apply { collapse() } },
+                                            backdrop = navBarBackdrop,
+                                            contentPadding = PaddingValues(
+                                                top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 10.dp,
+                                                bottom = 8.dp,
+                                            ),
+                                            compactSize = true,
+                                        )
+                                    } else {
+                                        TabletFloatingTopBar(
+                                            selectedTab = selectedTab,
+                                            liveTvEnabled = liveTvEnabled,
+                                            onTabSelected = ::handleRootTabClick,
+                                            onProfileSelected = onProfileSelected,
+                                            onAddProfileRequested = onSwitchProfile,
+                                        )
+                                    }
                                 }
 
                                 if (useTvLayout) {
@@ -2359,59 +2422,69 @@ private fun MainAppContent(
 
                                 // Floating pill navigation bar overlay
                                 if (!isTabletLayout && !useTvLayout && !useNativeBottomTabs && navBarStyleSetting != NavBarStyle.CLASSIC) {
-                                    // Force expand/collapse for non-adaptive modes
                                     when (navBarStyleSetting) {
                                         NavBarStyle.EXPANDED -> navBarScrollState.expand()
                                         NavBarStyle.COMPACT -> navBarScrollState.collapse()
-                                        else -> {} // ADAPTIVE — scroll controls it
+                                        NavBarStyle.LIQUID_GLASS -> navBarScrollState.expand()
+                                        else -> {}
                                     }
-                                    NuvioNavigationBar(
-                                        modifier = Modifier.align(Alignment.BottomCenter),
-                                        scrollState = navBarScrollState,
-                                        hazeState = null,
-                                    ) {
-                                        NavItem(
-                                            selected = selectedTab == AppScreenTab.Home,
-                                            onClick = { handleRootTabClick(AppScreenTab.Home) },
-                                            icon = Icons.Filled.Home,
-                                            contentDescription = stringResource(Res.string.compose_nav_home),
-                                            label = stringResource(Res.string.compose_nav_home),
+                                    if (navBarStyleSetting == NavBarStyle.LIQUID_GLASS) {
+                                        FloatingNavigationBar(
+                                            items = liquidGlassNavigationItems,
+                                            modifier = Modifier.align(Alignment.BottomCenter),
+                                            scrollState = navBarScrollState,
+                                            backdrop = navBarBackdrop,
+                                            contentPadding = floatingNavigationBarPadding(),
                                         )
-                                        NavItem(
-                                            selected = selectedTab == AppScreenTab.Search,
-                                            onClick = { handleRootTabClick(AppScreenTab.Search) },
-                                            icon = Res.drawable.sidebar_search,
-                                            contentDescription = stringResource(Res.string.compose_nav_search),
-                                            label = stringResource(Res.string.compose_nav_search),
-                                        )
-                                        if (liveTvEnabled) {
-                                            NavItem(
-                                                selected = selectedTab == AppScreenTab.LiveTv,
-                                                onClick = { handleRootTabClick(AppScreenTab.LiveTv) },
-                                                icon = Icons.Filled.Tv,
-                                                contentDescription = stringResource(Res.string.compose_nav_live_tv),
-                                                label = stringResource(Res.string.compose_nav_live_tv),
-                                            )
-                                        }
-                                        NavItem(
-                                            selected = selectedTab == AppScreenTab.Library,
-                                            onClick = { handleRootTabClick(AppScreenTab.Library) },
-                                            icon = Res.drawable.sidebar_library,
-                                            contentDescription = stringResource(Res.string.compose_nav_library),
-                                            label = stringResource(Res.string.compose_nav_library),
-                                        )
-                                        NavItem(
-                                            selected = selectedTab == AppScreenTab.Settings,
-                                            onClick = { handleRootTabClick(AppScreenTab.Settings) },
-                                            label = stringResource(Res.string.compose_nav_profile),
+                                    } else {
+                                                                                NuvioNavigationBar(
+                                            modifier = Modifier.align(Alignment.BottomCenter),
+                                            scrollState = navBarScrollState,
+                                            hazeState = null,
                                         ) {
-                                            ProfileSwitcherTab(
+                                            NavItem(
+                                                selected = selectedTab == AppScreenTab.Home,
+                                                onClick = { handleRootTabClick(AppScreenTab.Home) },
+                                                icon = Icons.Filled.Home,
+                                                contentDescription = stringResource(Res.string.compose_nav_home),
+                                                label = stringResource(Res.string.compose_nav_home),
+                                            )
+                                            NavItem(
+                                                selected = selectedTab == AppScreenTab.Search,
+                                                onClick = { handleRootTabClick(AppScreenTab.Search) },
+                                                icon = Res.drawable.sidebar_search,
+                                                contentDescription = stringResource(Res.string.compose_nav_search),
+                                                label = stringResource(Res.string.compose_nav_search),
+                                            )
+                                            if (liveTvEnabled) {
+                                                NavItem(
+                                                    selected = selectedTab == AppScreenTab.LiveTv,
+                                                    onClick = { handleRootTabClick(AppScreenTab.LiveTv) },
+                                                    icon = Icons.Filled.Tv,
+                                                    contentDescription = stringResource(Res.string.compose_nav_live_tv),
+                                                    label = stringResource(Res.string.compose_nav_live_tv),
+                                                )
+                                            }
+                                            NavItem(
+                                                selected = selectedTab == AppScreenTab.Library,
+                                                onClick = { handleRootTabClick(AppScreenTab.Library) },
+                                                icon = Res.drawable.sidebar_library,
+                                                contentDescription = stringResource(Res.string.compose_nav_library),
+                                                label = stringResource(Res.string.compose_nav_library),
+                                            )
+                                            NavItem(
                                                 selected = selectedTab == AppScreenTab.Settings,
                                                 onClick = { handleRootTabClick(AppScreenTab.Settings) },
-                                                onProfileSelected = onProfileSelected,
-                                                onAddProfileRequested = onSwitchProfile,
-                                                rememberTriggerAsContentFocus = false,
-                                            )
+                                                label = stringResource(Res.string.compose_nav_profile),
+                                            ) {
+                                                ProfileSwitcherTab(
+                                                    selected = selectedTab == AppScreenTab.Settings,
+                                                    onClick = { handleRootTabClick(AppScreenTab.Settings) },
+                                                    onProfileSelected = onProfileSelected,
+                                                    onAddProfileRequested = onSwitchProfile,
+                                                    rememberTriggerAsContentFocus = false,
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -2715,6 +2788,8 @@ private fun MainAppContent(
                             streamTitle = stream.streamLabel,
                             streamSubtitle = stream.streamSubtitle,
                             bingeGroup = stream.behaviorHints.bingeGroup,
+                            initialStreamFilename = stream.behaviorHints.filename,
+                            initialStreamInfoHash = stream.infoHash ?: stream.p2pInfoHash,
                             pauseDescription = pauseDescription,
                             providerName = stream.addonName,
                             providerAddonId = stream.addonId,
@@ -2837,6 +2912,8 @@ private fun MainAppContent(
                                 streamTitle = cached.streamName,
                                 streamSubtitle = null,
                                 bingeGroup = cached.bingeGroup,
+                                initialStreamFilename = cached.filename,
+                                initialStreamInfoHash = cached.infoHash,
                                 pauseDescription = pauseDescription,
                                 providerName = cached.addonName,
                                 providerAddonId = cached.addonId,
@@ -2974,6 +3051,8 @@ private fun MainAppContent(
                             streamTitle = stream.streamLabel,
                             streamSubtitle = stream.streamSubtitle,
                             bingeGroup = stream.behaviorHints.bingeGroup,
+                            initialStreamFilename = stream.behaviorHints.filename,
+                            initialStreamInfoHash = stream.infoHash ?: stream.p2pInfoHash,
                             pauseDescription = pauseDescription,
                             providerName = stream.addonName,
                             providerAddonId = stream.addonId,
@@ -3109,6 +3188,8 @@ private fun MainAppContent(
                             streamTitle = stream.streamLabel,
                             streamSubtitle = stream.streamSubtitle,
                             bingeGroup = stream.behaviorHints.bingeGroup,
+                            initialStreamFilename = stream.behaviorHints.filename,
+                            initialStreamInfoHash = stream.infoHash ?: stream.p2pInfoHash,
                             pauseDescription = pauseDescription,
                             providerName = stream.addonName,
                             providerAddonId = stream.addonId,
@@ -3142,6 +3223,12 @@ private fun MainAppContent(
                         }
                     }
 
+                    PartyStreamsProvider(
+                        metaType = launch.parentMetaType ?: launch.type,
+                        metaId = launch.parentMetaId ?: effectiveVideoId,
+                        season = launch.seasonNumber,
+                        episode = launch.episodeNumber,
+                    ) {
                     Box(modifier = Modifier.fillMaxSize()) {
                         StreamsScreen(
                             type = launch.type,
@@ -3224,6 +3311,11 @@ private fun MainAppContent(
                             }
                         }
                     }
+                    }
+                }
+                entry<WatchPartyRoute> { route ->
+                    val onBack = rememberGuardedPopBackStack(navController, route)
+                    PartyScreen(initialCode = route.code, onBack = onBack, onWatch = { media -> navController.navigate(DetailRoute(media.metaType, media.metaId, media.title)) })
                 }
                 entry<PlayerRoute>(
                     metadata = if (isIos) {
@@ -3280,10 +3372,13 @@ private fun MainAppContent(
                         torrentFileIdx = launch.torrentFileIdx,
                         torrentFilename = launch.torrentFilename,
                         torrentTrackers = launch.torrentTrackers,
+                        initialStreamFilename = launch.initialStreamFilename,
+                        initialStreamInfoHash = launch.initialStreamInfoHash,
                         initialPositionMs = launch.initialPositionMs,
                         initialProgressFraction = launch.initialProgressFraction,
                         contentLanguage = launch.contentLanguage,
                         onBack = onBack,
+                        onOpenPartyMedia = { media -> navController.navigate(DetailRoute(media.metaType, media.metaId, media.title)) },
                         onOpenInExternalPlayer = { request ->
                             val playerLaunch = PlayerLaunch(
                                 profileId = launch.profileId,
@@ -3300,6 +3395,8 @@ private fun MainAppContent(
                                 streamTitle = request.streamTitle ?: launch.streamTitle,
                                 streamSubtitle = launch.streamSubtitle,
                                 bingeGroup = launch.bingeGroup,
+                                initialStreamFilename = launch.initialStreamFilename,
+                                initialStreamInfoHash = launch.initialStreamInfoHash,
                                 pauseDescription = launch.pauseDescription,
                                 providerName = launch.providerName,
                                 providerAddonId = launch.providerAddonId,
@@ -3937,16 +4034,6 @@ private fun MainAppContent(
                 },
             )
 
-            androidx.compose.animation.AnimatedVisibility(
-                visibleState = launchOverlayState,
-                enter = fadeIn(),
-                exit = fadeOut(androidx.compose.animation.core.tween(400)),
-            ) {
-                AppLaunchOverlay(
-                    modifier = Modifier.fillMaxSize(),
-                )
-            }
-
             NuvioFloatingPrompt(
                 visible = resumePromptItem != null,
                 imageUrl = resumePromptItem?.poster ?: resumePromptItem?.imageUrl,
@@ -4007,6 +4094,7 @@ private fun AppTabHost(
     settingsRootActionRequests: Flow<Unit>,
     animateHomeCollectionGifs: Boolean = true,
     onCatalogClick: ((HomeCatalogSection) -> Unit)? = null,
+    onWatchPartyClick: () -> Unit = {},
     onPosterClick: ((MetaPreview) -> Unit)? = null,
     onPosterLongClick: ((MetaPreview) -> Unit)? = null,
     onLiveTvChannelClick: ((LiveTvChannel) -> Unit)? = null,
@@ -4110,6 +4198,7 @@ private fun AppTabHost(
                         onRequestedPageConsumed = onRequestedSettingsPageConsumed,
                         rootActionsEnabled = rootActionsEnabled && tab == AppScreenTab.Settings,
                         onNavigatePage = onSettingsPageClick,
+                        onWatchPartyClick = onWatchPartyClick,
                         onSwitchProfile = onSwitchProfile,
                         onHomescreenClick = onHomescreenSettingsClick,
                         onMetaScreenClick = onMetaScreenSettingsClick,

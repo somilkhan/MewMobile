@@ -659,6 +659,8 @@
     <string name="settings_tmdb_personal_api_key">Προσωπικό κλειδί API</string>
     <string name="settings_tmdb_preferred_language">Προτιμώμενη γλώσσα</string>
     <string name="settings_tmdb_preferred_language_description">Ορίστε τον κωδικό γλώσσας TMDB που χρησιμοποιείται για τοπικοποιημένα μεταδεδομένα, για παράδειγμα `el`, `el-GR` ή `en-US`.</string>
+    <string name="settings_tmdb_original_title_language">Πρωτότυπη γλώσσα</string>
+    <string name="settings_tmdb_original_title_language_description">Προτίμηση τίτλων, λογοτύπων, αφισών και εικόνων φόντου στην πρωτότυπη γλώσσα. Αν δεν είναι διαθέσιμα, χρησιμοποιείται η προτιμώμενη γλώσσα σας.</string>
     <string name="settings_tmdb_section_credentials">ΔΙΑΠΙΣΤΕΥΤΗΡΙΑ</string>
     <string name="settings_tmdb_section_localization">ΤΟΠΙΚΟΠΟΙΗΣΗ</string>
     <string name="settings_tmdb_section_modules">ΕΝΟΤΗΤΕΣ</string>

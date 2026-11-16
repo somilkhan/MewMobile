@@ -1,6 +1,10 @@
 package com.nuvio.app.features.tmdb
 
 import com.nuvio.app.core.time.EpisodeReleaseDatePlatform
+import com.nuvio.app.features.details.MetaDetailsRepository
+import com.nuvio.app.features.home.HomeRepository
+import com.nuvio.app.features.profiles.ProfileRepository
+import com.nuvio.app.features.watchprogress.ContinueWatchingEnrichmentCache
 import com.nuvio.app.features.player.DeviceLanguagePreferences
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -11,6 +15,9 @@ object TmdbSettingsRepository {
     val uiState: StateFlow<TmdbSettings> = _uiState.asStateFlow()
 
     private var hasLoaded = false
+
+    private val _enableAfterConfigRequested = MutableStateFlow(false)
+    val enableAfterConfigRequested: StateFlow<Boolean> = _enableAfterConfigRequested.asStateFlow()
 
     private var enabled = false
     private var apiKey = ""
@@ -27,6 +34,7 @@ object TmdbSettingsRepository {
     private var useSeasonPosters = true
     private var useMoreLikeThis = true
     private var useCollections = true
+    private var titleLanguage = TmdbTitleLanguage.APP
 
     fun ensureLoaded() {
         if (hasLoaded) return
@@ -37,10 +45,26 @@ object TmdbSettingsRepository {
         loadFromDisk()
     }
 
+    fun requestEnableAfterConfig() {
+        _enableAfterConfigRequested.value = true
+    }
+
+    fun completeEnableAfterConfigIfPossible() {
+        ensureLoaded()
+        if (!_enableAfterConfigRequested.value || apiKey.isBlank()) return
+        _enableAfterConfigRequested.value = false
+        setEnabled(true)
+    }
+
     fun snapshot(): TmdbSettings {
         ensureLoaded()
         return _uiState.value
     }
+
+    /** Matches Enhanced: plugin requests use the configured key, then the bundled build key. */
+    fun effectiveApiKey(): String = snapshot().apiKey
+        .takeIf(String::isNotBlank)
+        ?: TmdbConfig.API_KEY
 
     fun setEnabled(value: Boolean) {
         ensureLoaded()
@@ -49,10 +73,13 @@ object TmdbSettingsRepository {
         enabled = value
         publish()
         TmdbSettingsStorage.saveEnabled(value)
+        invalidateMetadata()
+        HomeRepository.onTmdbEnabledChanged()
     }
 
     fun setApiKey(value: String) {
         ensureLoaded()
+        val wasEnabled = enabled
         val normalized = value.trim()
         if (apiKey == normalized) return
         apiKey = normalized
@@ -62,6 +89,8 @@ object TmdbSettingsRepository {
         }
         publish()
         TmdbSettingsStorage.saveApiKey(normalized, EpisodeReleaseDatePlatform.nowEpochMs())
+        invalidateMetadata()
+        if (wasEnabled != enabled) HomeRepository.onTmdbEnabledChanged()
     }
 
     fun setLanguage(value: String) {
@@ -71,6 +100,17 @@ object TmdbSettingsRepository {
         language = normalized
         publish()
         TmdbSettingsStorage.saveLanguage(normalized)
+    }
+
+    fun setTitleLanguage(value: TmdbTitleLanguage) {
+        ensureLoaded()
+        if (titleLanguage == value) return
+        titleLanguage = value
+        publish()
+        TmdbSettingsStorage.saveTitleLanguage(value.storageId)
+        TmdbMetadataService.clearEnrichmentCache()
+        invalidateMetadata()
+        HomeRepository.invalidateLocalizedHeroArtwork()
     }
 
     fun setUseTrailers(value: Boolean) = setBoolean(
@@ -193,7 +233,13 @@ object TmdbSettingsRepository {
         useSeasonPosters = TmdbSettingsStorage.loadUseSeasonPosters() ?: true
         useMoreLikeThis = TmdbSettingsStorage.loadUseMoreLikeThis() ?: true
         useCollections = TmdbSettingsStorage.loadUseCollections() ?: true
+        titleLanguage = TmdbTitleLanguage.fromStorageId(TmdbSettingsStorage.loadTitleLanguage())
         publish()
+    }
+
+    private fun invalidateMetadata() {
+        MetaDetailsRepository.invalidateTmdbEnrichment()
+        ContinueWatchingEnrichmentCache.clearAll(ProfileRepository.activeProfileId)
     }
 
     private fun publish() {
@@ -213,6 +259,7 @@ object TmdbSettingsRepository {
             useSeasonPosters = useSeasonPosters,
             useMoreLikeThis = useMoreLikeThis,
             useCollections = useCollections,
+            titleLanguage = titleLanguage,
         )
     }
 

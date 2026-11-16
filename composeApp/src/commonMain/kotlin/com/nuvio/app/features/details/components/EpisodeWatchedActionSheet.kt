@@ -39,6 +39,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import com.nuvio.app.core.i18n.localizedEpisodeTitle
 import com.nuvio.app.core.i18n.localizedSeasonEpisodeCode
 import com.nuvio.app.core.ui.NuvioMediaActionOverlay
 import com.nuvio.app.features.details.MetaVideo
@@ -292,7 +293,7 @@ private fun EpisodeActionSheetHeader(
 
         Spacer(modifier = Modifier.height(14.dp))
         Text(
-            text = episode.title,
+            text = localizedEpisodeTitle(episode.title, episode.episode) ?: episode.title,
             modifier = Modifier
                 .fillMaxWidth(0.86f)
                 .widthIn(max = 390.dp),

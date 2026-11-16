@@ -1050,6 +1050,8 @@
     <string name="settings_tmdb_personal_api_key">Persoonlijke API-sleutel</string>
     <string name="settings_tmdb_preferred_language">Taal</string>
     <string name="settings_tmdb_preferred_language_description">TMDB-metadatataal voor titel, logo en ingeschakelde velden</string>
+    <string name="settings_tmdb_original_title_language">Oorspronkelijke taal</string>
+    <string name="settings_tmdb_original_title_language_description">Geef de voorkeur aan titels, logo's, posters en achtergronden in de oorspronkelijke taal. Gebruik je voorkeurstaal als ze niet beschikbaar zijn.</string>
     <string name="settings_tmdb_section_credentials">INLOGGEGEVENS</string>
     <string name="settings_tmdb_section_localization">LOKALISATIE</string>
     <string name="settings_tmdb_section_modules">MODULES</string>

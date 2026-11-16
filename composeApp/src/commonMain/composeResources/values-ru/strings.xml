@@ -1197,6 +1197,8 @@
     <string name="settings_tmdb_personal_api_key">Персональный ключ API</string>
     <string name="settings_tmdb_preferred_language">Язык</string>
     <string name="settings_tmdb_preferred_language_description">TMDB язык метаданных для заголовка, логотипа и активированных полей</string>
+    <string name="settings_tmdb_original_title_language">Оригинальный язык</string>
+    <string name="settings_tmdb_original_title_language_description">Предпочитать оригинальные названия, логотипы, постеры и фоны. Если они недоступны, используется выбранный язык.</string>
     <string name="settings_tmdb_section_credentials">РЕКВИЗИТЫ ДЛЯ ВХОДА</string>
     <string name="settings_tmdb_section_localization">ЛОКАЛИЗАЦИЯ</string>
     <string name="settings_tmdb_section_modules">МОДУЛИ</string>

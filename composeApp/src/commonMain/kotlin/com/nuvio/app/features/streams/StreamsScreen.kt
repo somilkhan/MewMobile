@@ -51,6 +51,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.nuvio.app.core.i18n.localizedEpisodeTitle
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -100,6 +101,7 @@ import com.nuvio.app.features.debrid.toastMessage
 import com.nuvio.app.features.player.PlayerSettingsRepository
 import com.nuvio.app.features.settings.NuvioEnhancedSettingsRepository
 import com.nuvio.app.features.watchprogress.WatchProgressRepository
+import com.nuvio.app.features.tmdb.TmdbSettingsRepository
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import nuvio.composeapp.generated.resources.*
@@ -129,6 +131,7 @@ fun StreamsScreen(
     manualSelection: Boolean = false,
     startFromBeginning: Boolean = false,
     onStreamSelected: (stream: StreamItem, resumePositionMs: Long?, resumeProgressFraction: Float?) -> Unit = { _, _, _ -> },
+    streamHighlight: ((StreamItem) -> String?)? = null,
     onStreamActionOpen: (
         stream: StreamItem,
         openExternally: Boolean,
@@ -158,6 +161,10 @@ fun StreamsScreen(
     val enhancedSettings by remember {
         NuvioEnhancedSettingsRepository.ensureLoaded()
         NuvioEnhancedSettingsRepository.uiState
+    }.collectAsStateWithLifecycle()
+    val tmdbSettingsUiState by remember {
+        TmdbSettingsRepository.ensureLoaded()
+        TmdbSettingsRepository.uiState
     }.collectAsStateWithLifecycle()
     remember {
         DownloadsRepository.ensureLoaded()
@@ -206,7 +213,7 @@ fun StreamsScreen(
         }
     }
 
-    LaunchedEffect(type, videoId, seasonNumber, episodeNumber, manualSelection, title) {
+    LaunchedEffect(type, videoId, seasonNumber, episodeNumber, manualSelection, title, tmdbSettingsUiState.enabled) {
         StreamsRepository.load(
             type = type,
             videoId = videoId,
@@ -834,7 +841,7 @@ private fun EpisodeHeroBlock(
             Spacer(modifier = Modifier.height(2.dp))
             // Episode title
             Text(
-                text = episodeTitle,
+                text = localizedEpisodeTitle(episodeTitle, episodeNumber) ?: episodeTitle,
                 style = MaterialTheme.typography.titleLarge.copy(
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
@@ -1121,6 +1128,8 @@ internal fun StreamList(
     resumeProgressFraction: Float?,
     modifier: Modifier = Modifier,
 ) {
+    val sharedStream = LocalSharedStream.current
+    val streamHighlight = LocalStreamHighlight.current
     val filteredGroups = uiState.filteredGroups.withPinnedGroupsFirst(pinnedSourceIds)
     val hasGroups = filteredGroups.isNotEmpty()
     val hasAnyStreams = filteredGroups.any { it.streams.isNotEmpty() }
@@ -1142,6 +1151,25 @@ internal fun StreamList(
         ),
         verticalArrangement = Arrangement.spacedBy(0.dp),
     ) {
+        sharedStream?.let { shared ->
+            item(key = "party_shared_stream", contentType = STREAM_CONTENT_TYPE_STREAM) {
+                Column {
+                    StreamSectionHeader(addonName = shared.label, isLoading = false)
+                    StreamCard(
+                        stream = shared.stream,
+                        enabled = true,
+                        appendInstantServiceToDefaultName = false,
+                        showFileSizeBadges = streamBadgeSettings.showFileSizeBadges,
+                        showAddonLogo = streamBadgeSettings.showAddonLogo,
+                        badgePlacement = streamBadgeSettings.badgePlacement,
+                        onClick = { onStreamSelected(shared.stream, resumePositionMs, resumeProgressFraction) },
+                        isCurrent = true,
+                        currentLabel = stringResource(Res.string.party_source),
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                }
+            }
+        }
         when {
             hasGroups && anyLoading && !hasAnyStreams -> {
                 item(
@@ -1152,7 +1180,7 @@ internal fun StreamList(
                 }
             }
 
-            !hasAnyStreams && !uiState.isAnyLoading -> {
+            !hasAnyStreams && !uiState.isAnyLoading && sharedStream == null -> {
                 item(
                     key = "streams_empty",
                     contentType = STREAM_CONTENT_TYPE_EMPTY,
@@ -1172,6 +1200,7 @@ internal fun StreamList(
                         showAddonLogo = streamBadgeSettings.showAddonLogo,
                         badgePlacement = streamBadgeSettings.badgePlacement,
                         torrentNotSupportedText = torrentNotSupportedText,
+                        streamHighlight = streamHighlight,
                         onStreamSelected = onStreamSelected,
                         onStreamLongPress = onStreamLongPress,
                         resumePositionMs = resumePositionMs,
@@ -1243,6 +1272,7 @@ private fun LazyListScope.streamSection(
     showAddonLogo: Boolean,
     badgePlacement: StreamBadgePlacement,
     torrentNotSupportedText: String,
+    streamHighlight: ((StreamItem) -> String?)?,
     onStreamSelected: (stream: StreamItem, resumePositionMs: Long?, resumeProgressFraction: Float?) -> Unit,
     onStreamLongPress: (StreamItem) -> Unit,
     resumePositionMs: Long?,
@@ -1303,6 +1333,8 @@ private fun LazyListScope.streamSection(
                         onStreamLongPress(stream)
                     }
                 },
+                isCurrent = streamHighlight?.invoke(stream) != null,
+                currentLabel = streamHighlight?.invoke(stream),
             )
             Spacer(modifier = Modifier.height(10.dp))
         }

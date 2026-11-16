@@ -9,7 +9,11 @@ import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import androidx.core.content.FileProvider
+import com.nuvio.app.core.network.SharedOkHttpClient
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import nuvio.composeapp.generated.resources.Res
@@ -27,7 +31,7 @@ object AndroidAppUpdaterPlatform {
     private const val preferencesName = "nuvio_updater"
     private const val ignoredTagKey = "ignored_release_tag"
 
-    private val httpClient = OkHttpClient.Builder()
+    private val httpClient = SharedOkHttpClient.base.newBuilder()
         .connectTimeout(60, TimeUnit.SECONDS)
         .readTimeout(60, TimeUnit.SECONDS)
         .writeTimeout(60, TimeUnit.SECONDS)
@@ -62,13 +66,15 @@ object AndroidAppUpdaterPlatform {
         assetName: String,
         onProgress: (downloadedBytes: Long, totalBytes: Long?) -> Unit,
     ): Result<String> = withContext(Dispatchers.IO) {
+        var destination: File? = null
         runCatching {
             val context = requireContext()
             val safeName = assetName.replace(Regex("[^a-zA-Z0-9._-]"), "_")
-            val destination = File(File(context.cacheDir, "updates"), safeName)
-            destination.parentFile?.mkdirs()
-            if (destination.exists()) {
-                destination.delete()
+            val outputFile = File(File(context.cacheDir, "updates"), safeName)
+            destination = outputFile
+            outputFile.parentFile?.mkdirs()
+            if (outputFile.exists()) {
+                outputFile.delete()
             }
 
             val request = Request.Builder()
@@ -80,14 +86,16 @@ object AndroidAppUpdaterPlatform {
                     error(runBlocking { getString(Res.string.updates_download_failed_http, response.code) })
                 }
 
-                val body = response.body
+                val body = response.body ?: error(runBlocking { getString(Res.string.updates_empty_download_body) })
                 val totalBytes = body.contentLength().takeIf { it > 0L }
                 body.byteStream().use { input ->
-                    FileOutputStream(destination).use { output ->
+                    FileOutputStream(outputFile).use { output ->
                         val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
                         var downloadedBytes = 0L
                         while (true) {
+                            currentCoroutineContext().ensureActive()
                             val read = input.read(buffer)
+                            currentCoroutineContext().ensureActive()
                             if (read <= 0) break
                             output.write(buffer, 0, read)
                             downloadedBytes += read
@@ -98,7 +106,11 @@ object AndroidAppUpdaterPlatform {
                 }
             }
 
-            destination.absolutePath
+            outputFile.absolutePath
+        }.onFailure { failure ->
+            // Never leave a truncated APK behind after an HTTP error or cancelled download.
+            destination?.delete()
+            if (failure is CancellationException) throw failure
         }
     }
 

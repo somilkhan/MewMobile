@@ -4,8 +4,15 @@ import com.nuvio.app.core.build.AppVersionConfig
 import io.github.jan.supabase.annotations.SupabaseInternal
 import io.github.jan.supabase.auth.Auth
 import io.github.jan.supabase.createSupabaseClient
+import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.functions.Functions
 import io.github.jan.supabase.postgrest.Postgrest
+import io.github.jan.supabase.realtime.Realtime
+import io.github.jan.supabase.realtime.websocket.KtorRealtimeWebsocketFactory
+import io.ktor.client.plugins.websocket.WebSockets
+import io.ktor.serialization.kotlinx.KotlinxWebsocketSerializationConverter
+import io.github.jan.supabase.supabaseJson
+import kotlin.time.Duration.Companion.seconds
 import io.ktor.client.plugins.HttpRequestRetry
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.defaultRequest
@@ -14,7 +21,7 @@ import io.ktor.http.takeFrom
 
 object SupabaseProvider {
     @OptIn(SupabaseInternal::class)
-    val client by lazy {
+    val client: SupabaseClient by lazy {
         val userAgent = "NuvioMobile/${AppVersionConfig.VERSION_NAME.ifBlank { "dev" }}"
         createSupabaseClient(
             supabaseUrl = SupabaseConfig.URL,
@@ -26,6 +33,7 @@ object SupabaseProvider {
                     connectTimeoutMillis = 30_000
                     socketTimeoutMillis = 60_000
                 }
+                install(WebSockets) { contentConverter = KotlinxWebsocketSerializationConverter(supabaseJson) }
                 if (SupabaseEndpointConfig.hasFallback) {
                     install(HttpRequestRetry) {
                         retryOnExceptionIf(maxRetries = 1) { request, cause ->
@@ -55,6 +63,11 @@ object SupabaseProvider {
             install(Auth)
             install(Postgrest)
             install(Functions)
+            install(Realtime) {
+                customUrl = SupabaseEndpointConfig.realtimeUrl(SupabaseConfig.URL)
+                reconnectDelay = 3.seconds
+                websocketFactory = RealtimeSocketFactory { url -> KtorRealtimeWebsocketFactory(client.httpClient.httpClient).create(url) }
+            }
         }
     }
 }

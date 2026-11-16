@@ -10,6 +10,8 @@ internal expect object TmdbSettingsStorage {
     fun saveApiKey(apiKey: String, updatedAtEpochMs: Long)
     fun loadLanguage(): String?
     fun saveLanguage(language: String)
+    fun loadTitleLanguage(): String?
+    fun saveTitleLanguage(value: String)
     fun loadUseTrailers(): Boolean?
     fun saveUseTrailers(enabled: Boolean)
     fun loadUseArtwork(): Boolean?

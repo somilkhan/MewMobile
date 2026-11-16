@@ -494,3 +494,18 @@ internal fun findPersistedSubtitleTrackIndex(
     }
     return -1
 }
+
+internal fun findPersistedAddonSubtitle(
+    subtitles: List<AddonSubtitle>,
+    preference: PersistedPlayerTrackPreference,
+): AddonSubtitle? {
+    val language = preference.subtitleLanguage?.takeIf { it.isNotBlank() } ?: return null
+    val candidates = subtitles.filter { addonSubtitleMatchesLanguage(it, language) }
+    val providerCandidates = preference.addonSubtitleAddonName?.takeIf { it.isNotBlank() }?.let { name ->
+        candidates.filter { it.addonName.equals(name, ignoreCase = true) }
+    }.orEmpty()
+    val preferredCandidates = providerCandidates.ifEmpty { candidates }
+    return preferredCandidates.firstOrNull {
+        it.display.equals(preference.subtitleName, ignoreCase = true)
+    } ?: preferredCandidates.firstOrNull()
+}

@@ -2,6 +2,7 @@ package com.nuvio.app.features.tmdb
 
 import co.touchlab.kermit.Logger
 import com.nuvio.app.features.addons.httpGetText
+import com.nuvio.app.features.addons.httpGetTextWithHeaders
 import com.nuvio.app.features.home.MetaPreview
 import com.nuvio.app.features.home.PosterShape
 import io.ktor.http.encodeURLParameter
@@ -171,16 +172,27 @@ object TmdbService {
         apiKey: String,
         query: Map<String, String> = emptyMap(),
     ): T? {
-        val url = buildTmdbUrl(endpoint = endpoint, apiKey = apiKey, query = query)
+        val useBearerToken = isTmdbV4ReadAccessToken(apiKey)
+        val url = buildTmdbUrl(
+            endpoint = endpoint,
+            apiKey = apiKey.takeUnless { useBearerToken },
+            query = query,
+        )
         return runCatching {
-            json.decodeFromString<T>(httpGetText(url))
+            val payload = if (useBearerToken) {
+                httpGetTextWithHeaders(url, mapOf("Authorization" to "Bearer $apiKey"))
+            } else {
+                httpGetText(url)
+            }
+            json.decodeFromString<T>(payload)
         }.onFailure { error ->
             log.w { "TMDB request failed for $endpoint: ${error.message}" }
         }.getOrNull()
     }
 
-    private fun currentApiKey(): String? =
-        TmdbSettingsRepository.snapshot().apiKey.trim().takeIf(String::isNotBlank)
+    private fun currentApiKey(): String? = TmdbSettingsRepository.effectiveApiKey()
+        .trim()
+        .takeIf(String::isNotBlank)
 
     internal fun normalizeMediaType(mediaType: String): String =
         when (mediaType.trim().lowercase()) {
@@ -192,10 +204,11 @@ object TmdbService {
 
 internal fun buildTmdbUrl(
     endpoint: String,
-    apiKey: String,
+    apiKey: String?,
     query: Map<String, String> = emptyMap(),
 ): String {
-    val params = linkedMapOf("api_key" to apiKey)
+    val params = linkedMapOf<String, String>()
+    apiKey?.trim()?.takeIf(String::isNotBlank)?.let { params["api_key"] = it }
     query.forEach { (key, value) ->
         if (value.isNotBlank()) {
             params[key] = value
@@ -211,6 +224,12 @@ internal fun buildTmdbUrl(
             })
         }
     }
+}
+
+internal fun isTmdbV4ReadAccessToken(value: String): Boolean {
+    val token = value.trim()
+    val segments = token.split('.')
+    return token.startsWith("eyJ") && segments.size == 3 && segments.all(String::isNotBlank)
 }
 
 private fun buildTmdbImageUrl(path: String?, size: String): String? {

@@ -47,6 +47,7 @@ import nuvio.composeapp.generated.resources.settings_stream_badge_enter_url
 import nuvio.composeapp.generated.resources.settings_stream_badge_import_failed
 import nuvio.composeapp.generated.resources.settings_stream_badge_import_limit
 import nuvio.composeapp.generated.resources.settings_stream_badge_url_scheme_invalid
+import nuvio.composeapp.generated.resources.streams_episode_fallback_title
 import nuvio.composeapp.generated.resources.unit_bytes_b
 import nuvio.composeapp.generated.resources.unit_bytes_gb
 import nuvio.composeapp.generated.resources.unit_bytes_kb
@@ -62,6 +63,19 @@ fun localizedMediaTypeLabel(type: String): String {
         "channel" -> resourceString("Channels") { getString(Res.string.media_channels) }
         "tv" -> resourceString("TV") { getString(Res.string.media_tv) }
         else -> fallback
+    }
+}
+
+
+private val genericEpisodeTitleRegex = Regex("""(?i)^Episode\s+(\d+)$""")
+
+/** Localizes generic episode labels such as "Episode 12" without changing real episode titles. */
+fun localizedEpisodeTitle(episodeTitle: String?, episodeNumber: Int? = null): String? {
+    val title = episodeTitle?.trim()?.takeIf { it.isNotBlank() } ?: return null
+    val match = genericEpisodeTitleRegex.matchEntire(title) ?: return title
+    val number = match.groupValues[1].toIntOrNull() ?: episodeNumber ?: return title
+    return resourceString("Episode $number") {
+        "${getString(Res.string.streams_episode_fallback_title)} $number"
     }
 }
 

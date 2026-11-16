@@ -19,6 +19,7 @@ fun PlayerScreen(
     initialBingeGroup: String? = null,
     pauseDescription: String? = null,
     onBack: () -> Unit,
+    onOpenPartyMedia: ((com.nuvio.app.features.party.PartyMedia) -> Unit)? = null,
     onOpenInExternalPlayer: ((ExternalPlayerPlaybackRequest) -> Unit)? = null,
     onOpenExternalUrl: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier,
@@ -42,6 +43,8 @@ fun PlayerScreen(
     initialProgressFraction: Float? = null,
     contentLanguage: String? = null,
     randomEpisodeMode: Boolean = false,
+    initialStreamFilename: String? = null,
+    initialStreamInfoHash: String? = null,
 ) {
     PlayerScreenContent(
         PlayerScreenArgs(
@@ -59,6 +62,7 @@ fun PlayerScreen(
             initialBingeGroup = initialBingeGroup,
             pauseDescription = pauseDescription,
             onBack = onBack,
+            onOpenPartyMedia = onOpenPartyMedia,
             onOpenInExternalPlayer = onOpenInExternalPlayer,
             onOpenExternalUrl = onOpenExternalUrl,
             modifier = modifier,
@@ -82,6 +86,8 @@ fun PlayerScreen(
             initialProgressFraction = initialProgressFraction,
             contentLanguage = contentLanguage,
             randomEpisodeMode = randomEpisodeMode,
+            initialStreamFilename = initialStreamFilename,
+            initialStreamInfoHash = initialStreamInfoHash,
         )
     )
 }

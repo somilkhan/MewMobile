@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.nuvio.app.core.i18n.localizedEpisodeTitle
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -346,7 +347,9 @@ private fun TabletEpisodeInfoPanel(
                 Res.string.streams_episode_title_with_name,
                 seasonNumber,
                 episodeNumber,
-                episodeTitle?.takeIf { it.isNotBlank() } ?: stringResource(Res.string.streams_episode_fallback_title),
+                localizedEpisodeTitle(episodeTitle, episodeNumber)
+                    ?: episodeTitle?.takeIf { it.isNotBlank() }
+                    ?: stringResource(Res.string.streams_episode_fallback_title),
             ),
             style = MaterialTheme.typography.bodyLarge.copy(
                 fontSize = 16.sp,

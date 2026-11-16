@@ -37,6 +37,7 @@ sealed interface CatalogTarget {
         val searchQuery: String? = null,
         override val contentType: String,
         override val supportsPagination: Boolean = false,
+        val categoryIndex: Int? = null,
     ) : CatalogTarget
 }
 

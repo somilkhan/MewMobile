@@ -86,6 +86,7 @@ class HomeCatalogPreferenceSnapshotStoreTest {
             showCatalogType = false,
             hideUnreleasedContent = true,
             hideCatalogUnderline = true,
+            cloudStreamProviderId = null,
             preferences = mapOf(
                 "first" to HomeCatalogPreference(
                     customTitle = "Original",

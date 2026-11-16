@@ -104,6 +104,24 @@ internal actual object EpisodeReleaseNotificationPlatform {
         NSUserDefaults.standardUserDefaults.removeObjectForKey(ProfileScopedKey.of(scheduledIdsKey))
     }
 
+    actual suspend fun showCloudStreamPluginUpdates(pluginNames: List<String>) {
+        if (pluginNames.isEmpty() || !notificationsAuthorized()) return
+        val content = UNMutableNotificationContent().apply {
+            setTitle("CloudStream extensions updated")
+            setBody(pluginNames.distinct().joinToString(separator = ", "))
+            setSound(null)
+        }
+        val request = UNNotificationRequest.requestWithIdentifier(
+            identifier = "cloudstream-plugin-updates-${NSDate().timeIntervalSince1970.toLong()}",
+            content = content,
+            trigger = UNTimeIntervalNotificationTrigger.triggerWithTimeInterval(
+                timeInterval = 1.0,
+                repeats = false,
+            ),
+        )
+        UNUserNotificationCenter.currentNotificationCenter().addNotificationRequest(request) { _ -> }
+    }
+
     actual suspend fun showTestNotification(request: EpisodeReleaseNotificationRequest) {
         val content = buildNotificationContent(request)
         val trigger = UNTimeIntervalNotificationTrigger.triggerWithTimeInterval(

@@ -1039,6 +1039,8 @@
     <string name="settings_tmdb_personal_api_key">Clave API personal</string>
     <string name="settings_tmdb_preferred_language">Idioma preferido</string>
     <string name="settings_tmdb_preferred_language_description">Configura el código de idioma de TMDB usado para metadatos localizados, por ejemplo `en`, `en-US` o `pt-BR`.</string>
+    <string name="settings_tmdb_original_title_language">Idioma original</string>
+    <string name="settings_tmdb_original_title_language_description">Priorizar títulos, logotipos, pósteres y fondos en el idioma original. Si no están disponibles, se usará el idioma preferido.</string>
     <string name="settings_tmdb_section_credentials">CREDENCIALES</string>
     <string name="settings_tmdb_section_localization">LOCALIZACIÓN</string>
     <string name="settings_tmdb_section_modules">MÓDULOS</string>

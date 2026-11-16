@@ -939,6 +939,8 @@
     <string name="settings_tmdb_personal_api_key">Osobisty klucz API</string>
     <string name="settings_tmdb_preferred_language">Preferowany język</string>
     <string name="settings_tmdb_preferred_language_description">Ustaw kod języka TMDB używany do zlokalizowanych metadanych, na przykład `en`, `en-US` lub `pt-BR`.</string>
+    <string name="settings_tmdb_original_title_language">Język oryginalny</string>
+    <string name="settings_tmdb_original_title_language_description">Preferuj oryginalne tytuły, logotypy, plakaty i tła. Jeśli nie są dostępne, użyj wybranego języka.</string>
     <string name="settings_tmdb_section_credentials">DANE UWIERZYTELNIAJĄCE</string>
     <string name="settings_tmdb_section_localization">LOKALIZACJA</string>
     <string name="settings_tmdb_section_modules">MODUŁY</string>

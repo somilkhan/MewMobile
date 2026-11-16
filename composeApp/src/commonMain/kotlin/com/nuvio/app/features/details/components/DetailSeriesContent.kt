@@ -63,6 +63,7 @@ import coil3.compose.AsyncImage
 import co.touchlab.kermit.Logger
 import com.nuvio.app.core.build.AppFeaturePolicy
 import com.nuvio.app.core.format.formatReleaseDateForDisplay
+import com.nuvio.app.core.i18n.localizedEpisodeTitle
 import com.nuvio.app.core.i18n.localizedSeasonEpisodeCode
 import com.nuvio.app.core.ui.NuvioAnimatedWatchedBadge
 import com.nuvio.app.core.ui.NuvioCardDepthSurface
@@ -880,7 +881,7 @@ private fun EpisodeHorizontalCard(
             )
 
             Text(
-                text = video.title,
+                text = localizedEpisodeTitle(video.title, video.episode) ?: video.title,
                 style = MaterialTheme.typography.titleMedium.copy(
                     fontSize = metrics.titleTextSize,
                     fontWeight = FontWeight.ExtraBold,
@@ -1288,7 +1289,7 @@ private fun EpisodeListCard(
                 verticalArrangement = Arrangement.spacedBy(sizing.contentSpacing),
             ) {
                 Text(
-                    text = video.title,
+                    text = localizedEpisodeTitle(video.title, video.episode) ?: video.title,
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontSize = sizing.titleTextSize,
                         fontWeight = FontWeight.Bold,

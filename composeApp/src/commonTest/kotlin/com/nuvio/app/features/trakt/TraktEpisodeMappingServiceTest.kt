@@ -9,6 +9,51 @@ import kotlin.test.assertTrue
 class TraktEpisodeMappingServiceTest {
 
     @Test
+    fun `TMDB search resolves only show result to Trakt slug`() {
+        val payload = """
+            [
+              {"type":"movie","movie":{"ids":{"slug":"wrong-movie","trakt":10}}},
+              {"type":"show","show":{"ids":{"slug":"attack-on-titan","trakt":12345,"imdb":"tt2560140"}}}
+            ]
+        """.trimIndent()
+
+        assertEquals("attack-on-titan", parseTraktShowLookupIdFromSearch(payload))
+    }
+
+    @Test
+    fun `TMDB search returns null when no show identity exists`() {
+        assertNull(
+            parseTraktShowLookupIdFromSearch(
+                """[{"type":"movie","movie":{"ids":{"slug":"wrong-movie"}}}]""",
+            ),
+        )
+    }
+
+
+    @Test
+    fun `Trakt season zero specials do not shift anime episode mapping`() {
+        val payload = """
+            [
+              {"number":0,"episodes":[{"season":0,"number":1,"title":"OVA"}]},
+              {"number":1,"episodes":[{"season":1,"number":1,"title":"Episode 1"}]}
+            ]
+        """.trimIndent()
+
+        assertEquals(
+            listOf(EpisodeMappingEntry(season = 1, episode = 1, title = "Episode 1")),
+            TraktEpisodeMappingService.parseTraktSeasonsPayload(payload),
+        )
+    }
+
+    @Test
+    fun `same episode counts with different numbering still require mapping`() {
+        val addon = listOf(episode(1, 1), episode(1, 2), episode(2, 1))
+        val trakt = listOf(episode(1, 1), episode(1, 2), episode(2, 2))
+
+        assertFalse(TraktEpisodeMappingService.hasSameSeasonStructure(addon, trakt))
+    }
+
+    @Test
     fun `same structure compares per-season episode counts`() {
         val addon = listOf(
             episode(1, 1),

@@ -1,6 +1,7 @@
 package com.nuvio.app.features.player
 
 import androidx.compose.runtime.Composable
+import com.nuvio.app.features.party.PartyRepository
 import androidx.compose.runtime.State
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.geometry.Offset
@@ -169,7 +170,7 @@ internal fun PlayerScreenRuntime.togglePlayback() {
         playerController?.pause()
     } else {
         if (playbackSnapshot.isEnded) {
-            playerController?.seekTo(0L)
+            seekToPosition(0L)
         }
         shouldPlay = true
         playerController?.play()
@@ -182,14 +183,21 @@ internal fun manualSeekTargetPosition(positionMs: Long, durationMs: Long): Long 
         durationMs.takeIf { it > 0L }?.let { position.coerceAtMost(it) } ?: position
     }
 
-private fun PlayerScreenRuntime.rememberManualSeekPosition(positionMs: Long) {
+internal fun PlayerScreenRuntime.rememberManualSeekPosition(positionMs: Long) {
+    activeInitialPositionMs = positionMs
+    activeInitialProgressFraction = null
+    initialSeekApplied = true
+}
+
+internal fun PlayerScreenRuntime.seekToPosition(positionMs: Long) {
     val targetPositionMs = manualSeekTargetPosition(
         positionMs = positionMs,
         durationMs = playbackSnapshot.durationMs,
     )
-    activeInitialPositionMs = targetPositionMs
-    activeInitialProgressFraction = null
-    initialSeekApplied = true
+    val controller = playerController ?: return
+    controller.seekTo(targetPositionMs)
+    rememberManualSeekPosition(targetPositionMs)
+    scheduleProgressSyncAfterSeek()
 }
 
 internal fun PlayerScreenRuntime.seekBy(offsetMs: Long) {
@@ -197,9 +205,7 @@ internal fun PlayerScreenRuntime.seekBy(offsetMs: Long) {
     val targetPositionMs = (currentPositionMs + offsetMs).coerceAtLeast(0L).let { position ->
         playbackSnapshot.durationMs.takeIf { it > 0L }?.let { position.coerceAtMost(it) } ?: position
     }
-    playerController?.seekTo(targetPositionMs)
-    rememberManualSeekPosition(targetPositionMs)
-    scheduleProgressSyncAfterSeek()
+    seekToPosition(targetPositionMs)
     controlsVisible = true
     when {
         offsetMs > 0L -> showSeekFeedback(PlayerSeekDirection.Forward, offsetMs)
@@ -207,16 +213,33 @@ internal fun PlayerScreenRuntime.seekBy(offsetMs: Long) {
     }
 }
 
+internal fun playerSkipStepMs(
+    direction: PlayerSeekDirection,
+    skipBackwardSeconds: Int,
+    skipForwardSeconds: Int,
+): Long = when (direction) {
+    PlayerSeekDirection.Backward -> skipBackwardSeconds
+    PlayerSeekDirection.Forward -> skipForwardSeconds
+} * 1_000L
+
+internal fun PlayerScreenRuntime.skipStepMs(direction: PlayerSeekDirection): Long =
+    playerSkipStepMs(
+        direction = direction,
+        skipBackwardSeconds = playerSettingsUiState.skipBackwardSeconds,
+        skipForwardSeconds = playerSettingsUiState.skipForwardSeconds,
+    )
+
 internal fun PlayerScreenRuntime.handleDoubleTapSeek(direction: PlayerSeekDirection) {
+    val stepMs = skipStepMs(direction)
     val currentPositionMs = playbackSnapshot.positionMs.coerceAtLeast(0L)
     val currentSeekState = accumulatedSeekState
     val nextState = if (currentSeekState?.direction == direction) {
-        currentSeekState.copy(amountMs = currentSeekState.amountMs + PlayerDoubleTapSeekStepMs)
+        currentSeekState.copy(amountMs = currentSeekState.amountMs + stepMs)
     } else {
         PlayerAccumulatedSeekState(
             direction = direction,
             baselinePositionMs = currentPositionMs,
-            amountMs = PlayerDoubleTapSeekStepMs,
+            amountMs = stepMs,
         )
     }
     accumulatedSeekState = nextState
@@ -231,9 +254,7 @@ internal fun PlayerScreenRuntime.handleDoubleTapSeek(direction: PlayerSeekDirect
             maxDurationMs?.let { unclamped.coerceAtMost(it) } ?: unclamped
         }
     }
-    playerController?.seekTo(targetPositionMs)
-    rememberManualSeekPosition(targetPositionMs)
-    scheduleProgressSyncAfterSeek()
+    seekToPosition(targetPositionMs)
     showSeekFeedback(direction, nextState.amountMs)
 
     accumulatedSeekResetJob?.cancel()
@@ -248,6 +269,11 @@ internal fun PlayerScreenRuntime.cycleResizeMode() {
     resizeMode = nextMode
     lastSyncedSettingsResizeMode = nextMode
     PlayerSettingsRepository.setResizeMode(nextMode)
+    rawVideoZoom = 1f
+    if (videoZoom != 1f) {
+        videoZoom = 1f
+        playerController?.setVideoZoom(1f)
+    }
     showGestureMessage(
         when (nextMode) {
             PlayerResizeMode.Fit -> resizeModeFitLabel
@@ -256,6 +282,20 @@ internal fun PlayerScreenRuntime.cycleResizeMode() {
         },
     )
     controlsVisible = true
+}
+
+internal const val PlayerMinVideoZoom = 0.8f
+internal const val PlayerMaxVideoZoom = 2.0f
+private const val PlayerVideoZoomSnapRange = 0.04f
+
+internal fun PlayerScreenRuntime.pinchVideoZoom(zoomFactor: Float) {
+    if (zoomFactor <= 0f || zoomFactor == 1f) return
+    rawVideoZoom = (rawVideoZoom * zoomFactor).coerceIn(PlayerMinVideoZoom, PlayerMaxVideoZoom)
+    val next = if (abs(rawVideoZoom - 1f) < PlayerVideoZoomSnapRange) 1f else rawVideoZoom
+    if (next == videoZoom) return
+    videoZoom = next
+    playerController?.setVideoZoom(next)
+    showGestureMessage((next * 100f).roundToInt().toString() + "%")
 }
 
 internal fun PlayerScreenRuntime.cyclePlaybackSpeed() {
@@ -348,9 +388,7 @@ internal fun PlayerScreenRuntime.rememberSurfaceGestureCallbacks(): PlayerSurfac
         currentPositionMs = rememberUpdatedState(playbackSnapshot.positionMs.coerceAtLeast(0L)),
         currentDurationMs = rememberUpdatedState(playbackSnapshot.durationMs),
         commitHorizontalSeek = rememberUpdatedState { targetPositionMs: Long ->
-            playerController?.seekTo(targetPositionMs)
-            rememberManualSeekPosition(targetPositionMs)
-            scheduleProgressSyncAfterSeek()
+            seekToPosition(targetPositionMs)
         },
     )
 }

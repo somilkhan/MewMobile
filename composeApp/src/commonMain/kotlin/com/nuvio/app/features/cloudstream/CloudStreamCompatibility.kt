@@ -1,5 +1,12 @@
 package com.nuvio.app.features.cloudstream
 
+/**
+ * TMDB metadata and CloudStream provider discovery are independent features.
+ * The TMDB setting must never gate CloudStream provider availability.
+ */
+@Suppress("UNUSED_PARAMETER")
+internal fun isCloudStreamDiscoveryAllowed(tmdbEnabled: Boolean): Boolean = true
+
 object CloudStreamCompatibilityResolver {
     private val crossPlatformAdapters = mapOf(
         "https://raw.githubusercontent.com/Kraptor123/cs-kraptor/master/repo.json#KickTR" to "kick-tr-v1",

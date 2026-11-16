@@ -21,8 +21,15 @@ object CloudStreamPackageInspector {
     private const val endOfCentralDirectorySignature = 0x06054b50
     private const val maxEntries = 256
     private const val maxTotalUncompressedBytes = 50L * 1024L * 1024L
+    const val MAX_PACKAGE_DOWNLOAD_BYTES = 50 * 1024 * 1024
+
+    internal fun validateDownloadSize(size: Int, maxBytes: Int = MAX_PACKAGE_DOWNLOAD_BYTES) {
+        require(size >= 0 && maxBytes >= 0) { "Invalid .cs3 package size limit" }
+        require(size <= maxBytes) { ".cs3 package exceeds the safe download size limit" }
+    }
 
     fun inspect(bytes: ByteArray): CloudStreamPackageInspection {
+        validateDownloadSize(bytes.size)
         require(bytes.size >= 22) { "Invalid .cs3 ZIP archive" }
         val endOffset = findEndOfCentralDirectory(bytes)
         val entryCount = bytes.readUInt16Le(endOffset + 10)
@@ -64,6 +71,17 @@ object CloudStreamPackageInspector {
             require(inspection.containsDex) { ".cs3 package is missing classes.dex" }
         }
     }
+
+    internal fun hasValidDexMagic(header: ByteArray): Boolean =
+        header.size >= 8 &&
+            header[0] == 'd'.code.toByte() &&
+            header[1] == 'e'.code.toByte() &&
+            header[2] == 'x'.code.toByte() &&
+            header[3] == '\n'.code.toByte() &&
+            (header[4].toInt() and 0xff) in '0'.code..'9'.code &&
+            (header[5].toInt() and 0xff) in '0'.code..'9'.code &&
+            (header[6].toInt() and 0xff) in '0'.code..'9'.code &&
+            header[7] == 0.toByte()
 
     private fun findEndOfCentralDirectory(bytes: ByteArray): Int {
         val minimum = (bytes.size - 65_557).coerceAtLeast(0)

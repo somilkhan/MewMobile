@@ -629,6 +629,52 @@ class HomeScreenTest {
     }
 
     @Test
+    fun `home next up seed dedupes aliases by canonical identity and keeps latest activity`() {
+        val olderAlias = CompletedSeriesCandidate(
+            content = WatchingContentRef(type = "series", id = "mal:123"),
+            seasonNumber = 1,
+            episodeNumber = 12,
+            markedAtEpochMs = 2_000L,
+        )
+        val newerAlias = CompletedSeriesCandidate(
+            content = WatchingContentRef(type = "series", id = "mal:4372"),
+            seasonNumber = 2,
+            episodeNumber = 4,
+            markedAtEpochMs = 3_000L,
+        )
+
+        val result = listOf(newerAlias, olderAlias).distinctBySeedContentIdentity { id ->
+            if (id == "mal:123" || id == "mal:4372") "tt2560140" else id
+        }
+
+        assertEquals(listOf(newerAlias), result)
+    }
+
+    @Test
+    fun `home next up item claimed by another active canonical series is removed`() {
+        val nextUpItems = mapOf(
+            "show-a" to (3_000L to continueWatchingItem(
+                videoId = "show-b:2:1",
+                subtitle = "Next Up • S2E1",
+            )),
+            "show-b" to (2_000L to continueWatchingItem(
+                videoId = "show-b:2:1",
+                subtitle = "Next Up • S2E1",
+            )),
+        )
+
+        val result = dropNextUpItemsClaimedByOtherSeries(nextUpItems) { id ->
+            when {
+                id == "show-a" -> "tt-show-a"
+                id == "show-b" || id.startsWith("show-b:") -> "tt-show-b"
+                else -> id
+            }
+        }
+
+        assertEquals(setOf("show-b"), result.keys)
+    }
+
+    @Test
     fun `furthest next up seed retains the most recent series activity timestamp`() {
         val oldFurthestEpisode = watchedItem(
             id = "show",

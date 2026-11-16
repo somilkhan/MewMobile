@@ -5,6 +5,12 @@ internal expect object AddonStorage {
     fun saveInstalledAddonUrls(profileId: Int, urls: List<String>)
     fun loadAddonEnabledStates(profileId: Int): Map<String, Boolean>
     fun saveAddonEnabledStates(profileId: Int, states: Map<String, Boolean>)
+    fun loadKnownAddonVersions(profileId: Int): Map<String, String>
+    fun saveKnownAddonVersions(profileId: Int, versions: Map<String, String>)
+    fun loadPendingAddonVersionChanges(profileId: Int): Map<String, String>
+    fun savePendingAddonVersionChanges(profileId: Int, changes: Map<String, String>)
+    fun hasPendingRemoteSync(profileId: Int): Boolean
+    fun setPendingRemoteSync(profileId: Int, pending: Boolean)
 }
 
 data class RawHttpResponse(
@@ -13,6 +19,8 @@ data class RawHttpResponse(
     val url: String,
     val body: String,
     val headers: Map<String, String>,
+    /** Raw response bytes for plugin fetch(arrayBuffer) compatibility. */
+    val bodyBytes: ByteArray = body.encodeToByteArray(),
 )
 
 /** Default safety limit for generic and plugin-provided HTTP responses. */
@@ -46,4 +54,5 @@ expect suspend fun httpRequestRaw(
     body: String,
     followRedirects: Boolean = true,
     maxResponseBodyBytes: Int = DefaultRawHttpResponseMaxBytes,
+    bodyBytes: ByteArray? = null,
 ): RawHttpResponse

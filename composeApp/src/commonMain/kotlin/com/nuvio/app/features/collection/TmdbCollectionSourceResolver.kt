@@ -35,7 +35,7 @@ object TmdbCollectionSourceResolver {
 
     suspend fun resolve(source: CollectionSource, page: Int = 1): CatalogPage = withContext(Dispatchers.Default) {
         val settings = TmdbSettingsRepository.snapshot()
-        val apiKey = settings.apiKey.trim().takeIf { it.isNotBlank() }
+        val apiKey = settings.apiKey.trim().takeIf { settings.canUseMetadata && it.isNotBlank() }
             ?: return@withContext emptyCatalogPage()
         val language = normalizeTmdbLanguage(settings.language)
         val sourceType = source.tmdbType()
@@ -63,7 +63,7 @@ object TmdbCollectionSourceResolver {
     suspend fun importMetadata(sourceType: TmdbCollectionSourceType, id: Int): TmdbSourceImportMetadata =
         withContext(Dispatchers.Default) {
             val settings = TmdbSettingsRepository.snapshot()
-            val apiKey = settings.apiKey.trim().takeIf { it.isNotBlank() }
+            val apiKey = settings.apiKey.trim().takeIf { settings.canUseMetadata && it.isNotBlank() }
                 ?: return@withContext TmdbSourceImportMetadata()
             val language = normalizeTmdbLanguage(settings.language)
             when (sourceType) {
@@ -131,7 +131,7 @@ object TmdbCollectionSourceResolver {
         val trimmed = query.trim()
         if (trimmed.isBlank()) return@withContext emptyList()
         val settings = TmdbSettingsRepository.snapshot()
-        val apiKey = settings.apiKey.trim().takeIf { it.isNotBlank() }
+        val apiKey = settings.apiKey.trim().takeIf { settings.canUseMetadata && it.isNotBlank() }
             ?: return@withContext emptyList()
         fetch<TmdbCompanySearchResponse>(
             endpoint = "search/company",
@@ -144,7 +144,7 @@ object TmdbCollectionSourceResolver {
         val trimmed = query.trim()
         if (trimmed.isBlank()) return@withContext emptyList()
         val settings = TmdbSettingsRepository.snapshot()
-        val apiKey = settings.apiKey.trim().takeIf { it.isNotBlank() }
+        val apiKey = settings.apiKey.trim().takeIf { settings.canUseMetadata && it.isNotBlank() }
             ?: return@withContext emptyList()
         val language = normalizeTmdbLanguage(settings.language)
         fetch<TmdbCollectionSearchResponse>(
@@ -158,7 +158,7 @@ object TmdbCollectionSourceResolver {
         val trimmed = query.trim()
         if (trimmed.isBlank()) return@withContext emptyMap()
         val settings = TmdbSettingsRepository.snapshot()
-        val apiKey = settings.apiKey.trim().takeIf { it.isNotBlank() }
+        val apiKey = settings.apiKey.trim().takeIf { settings.canUseMetadata && it.isNotBlank() }
             ?: return@withContext emptyMap()
         fetch<TmdbKeywordSearchResponse>(
             endpoint = "search/keyword",
@@ -174,7 +174,7 @@ object TmdbCollectionSourceResolver {
 
     suspend fun genres(mediaType: TmdbCollectionMediaType): Map<Int, String> = withContext(Dispatchers.Default) {
         val settings = TmdbSettingsRepository.snapshot()
-        val apiKey = settings.apiKey.trim().takeIf { it.isNotBlank() }
+        val apiKey = settings.apiKey.trim().takeIf { settings.canUseMetadata && it.isNotBlank() }
             ?: return@withContext emptyMap()
         val language = normalizeTmdbLanguage(settings.language)
         val endpoint = when (mediaType) {

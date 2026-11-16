@@ -6,6 +6,7 @@ import com.nuvio.app.core.storage.LocalAccountDataCleaner
 import com.nuvio.app.core.sync.ProfileSettingsSync
 import com.nuvio.app.core.sync.ProviderCredentialSync
 import com.nuvio.app.core.sync.SyncManager
+import com.nuvio.app.features.profiles.ProfileRepository
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.exception.AuthRestException
 import io.github.jan.supabase.auth.providers.builtin.Email
@@ -15,6 +16,9 @@ import io.github.jan.supabase.functions.functions
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -37,6 +41,7 @@ object AuthRepository {
 
     private var initialized = false
     private var validatedRemoteUserId: String? = null
+    private var remoteValidationJob: Job? = null
 
     fun initialize() {
         if (initialized) return
@@ -59,15 +64,35 @@ object AuthRepository {
                     is SessionStatus.Authenticated -> {
                         val user = status.session.user
                         val userId = user?.id.orEmpty()
-                        if (!validateRemoteSession(userId)) return@collect
-                        claimLocalAccountData(userId)
+                        val sessionValidated = validateRemoteSession(userId)
+                        if (sessionValidated == false) return@collect
+                        if (sessionValidated == true) claimLocalAccountData(userId)
+                        val previousState = _state.value as? AuthState.Authenticated
                         _state.value = AuthState.Authenticated(
                             userId = userId,
                             email = user?.email,
                             isAnonymous = false,
+                            isRemoteSessionValidated = sessionValidated == true,
                         )
+                        if (sessionValidated == true) {
+                            remoteValidationJob?.cancel()
+                            remoteValidationJob = null
+                            if (
+                                previousState == null ||
+                                previousState.isAnonymous ||
+                                previousState.userId != userId ||
+                                !previousState.isRemoteSessionValidated
+                            ) {
+                                SyncManager.pullAllForProfile(ProfileRepository.activeProfileId)
+                            }
+                        } else {
+                            scheduleRemoteSessionValidation(userId)
+                        }
                     }
                     is SessionStatus.NotAuthenticated -> {
+                        remoteValidationJob?.cancel()
+                        remoteValidationJob = null
+                        validatedRemoteUserId = null
                         _state.value = AuthState.Unauthenticated
                     }
                     is SessionStatus.Initializing -> {
@@ -76,6 +101,9 @@ object AuthRepository {
                         }
                     }
                     is SessionStatus.RefreshFailure -> {
+                        remoteValidationJob?.cancel()
+                        remoteValidationJob = null
+                        validatedRemoteUserId = null
                         _state.value = AuthState.Unauthenticated
                     }
                 }
@@ -83,11 +111,21 @@ object AuthRepository {
         }
     }
 
-    private suspend fun validateRemoteSession(userId: String): Boolean {
-        if (userId.isBlank() || validatedRemoteUserId == userId) return true
+    /**
+     * Returns true for a remotely validated session, false for an invalid session, and
+     * null when validation is temporarily unavailable. Cached auth may remain visible to
+     * the UI while null, but it must not authorize remote writes.
+     */
+    private suspend fun validateRemoteSession(userId: String): Boolean? {
+        if (userId.isBlank()) return false
+        if (validatedRemoteUserId == userId) return true
 
         return runCatching {
-            SupabaseProvider.client.auth.retrieveUserForCurrentSession(false)
+            val remoteUser = SupabaseProvider.client.auth.retrieveUserForCurrentSession(false)
+            if (remoteUser.id != userId) {
+                log.w { "Supabase session identity changed during validation; remote sync remains paused" }
+                return null
+            }
             validatedRemoteUserId = userId
             true
         }.getOrElse { e ->
@@ -96,14 +134,59 @@ object AuthRepository {
                 clearLocalSessionAfterRemoteInvalidation()
                 false
             } else {
-                log.w(e) { "Unable to validate stored Supabase session; keeping cached auth state" }
-                true
+                log.w(e) { "Unable to validate stored Supabase session; remote sync remains paused" }
+                null
             }
         }
     }
 
+    private fun scheduleRemoteSessionValidation(userId: String) {
+        remoteValidationJob?.cancel()
+        lateinit var retryJob: Job
+        retryJob = scope.launch(start = CoroutineStart.LAZY) {
+            try {
+                var attempt = 0
+                while (true) {
+                    delay(remoteSessionValidationRetryDelayMs(attempt))
+                    val current = _state.value as? AuthState.Authenticated ?: return@launch
+                    if (
+                        current.userId != userId ||
+                        current.isAnonymous ||
+                        current.isRemoteSessionValidated
+                    ) return@launch
+                    when (validateRemoteSession(userId)) {
+                        true -> {
+                            claimLocalAccountData(userId)
+                            val latest = _state.value as? AuthState.Authenticated ?: return@launch
+                            if (latest.userId != userId || latest.isAnonymous) return@launch
+                            _state.value = latest.copy(isRemoteSessionValidated = true)
+                            SyncManager.pullAllForProfile(ProfileRepository.activeProfileId)
+                            return@launch
+                        }
+                        false -> return@launch
+                        null -> {
+                            attempt++
+                            if (attempt == 5 || attempt % 10 == 0) {
+                                log.w {
+                                    "Remote session still unavailable; retrying validation attempt=$attempt"
+                                }
+                            }
+                        }
+                    }
+                }
+            } finally {
+                if (remoteValidationJob === retryJob) remoteValidationJob = null
+            }
+        }
+        remoteValidationJob = retryJob
+        retryJob.start()
+    }
+
     @OptIn(ExperimentalUuidApi::class)
     fun signInAnonymously() {
+        remoteValidationJob?.cancel()
+        remoteValidationJob = null
+        validatedRemoteUserId = null
         _error.value = null
         val userId = Uuid.random().toString()
         claimLocalAccountData(userId)
@@ -145,6 +228,8 @@ object AuthRepository {
         val anonymousRead = runCatching { AuthStorage.loadAnonymousUserId() }
         val wasAnonymous = anonymousRead.getOrNull() != null
         val anonymousClear = runCatching { AuthStorage.clearAnonymousUserId() }
+        remoteValidationJob?.cancel()
+        remoteValidationJob = null
         validatedRemoteUserId = null
         val remoteSignOut = if (wasAnonymous) {
             Result.success(Unit)
@@ -193,6 +278,8 @@ object AuthRepository {
     private suspend fun clearLocalSessionAfterRemoteInvalidation() {
         _error.value = null
         AuthStorage.clearAnonymousUserId()
+        remoteValidationJob?.cancel()
+        remoteValidationJob = null
         validatedRemoteUserId = null
         runCatching {
             SupabaseProvider.client.auth.clearSession()
@@ -209,6 +296,8 @@ object AuthRepository {
         _error.value = null
         SupabaseProvider.client.functions.invoke("delete-account")
         SupabaseProvider.client.auth.signOut()
+        remoteValidationJob?.cancel()
+        remoteValidationJob = null
         validatedRemoteUserId = null
         try {
             LocalAccountDataCleaner.wipe()

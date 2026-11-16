@@ -13,6 +13,7 @@ import com.nuvio.app.features.addons.enabledAddons
 import com.nuvio.app.features.addons.httpGetText
 import com.nuvio.app.features.cloudstream.CloudStreamRepository
 import com.nuvio.app.features.cloudstream.CloudStreamRouteData
+import com.nuvio.app.features.cloudstream.isCloudStreamDiscoveryAllowed
 import com.nuvio.app.features.cloudstream.parseCloudStreamRouteId
 import com.nuvio.app.features.cloudstream.toMetaDetails
 import com.nuvio.app.features.home.HomeCatalogSettingsRepository
@@ -83,8 +84,22 @@ object MetaDetailsRepository {
     fun load(type: String, id: String, trigger: MetadataLoadTrigger = MetadataLoadTrigger.Initial) {
         log.d { "load() called — type=$type id=$id" }
         val requestKey = metaDetailsRequestKey(type, id)
-        parseCloudStreamRouteId(id)?.let { route ->
-            loadCloudStream(type = type, id = id, requestKey = requestKey, route = route, trigger = trigger)
+        val cloudStreamRoute = parseCloudStreamRouteId(id)
+        if (cloudStreamRoute != null) {
+            if (!isCloudStreamRouteAllowed(id)) {
+                activeRequestGeneration += 1
+                activeJob?.cancel()
+                activeJob = null
+                activeRequestKey = requestKey
+                activeSettingsFingerprint = null
+                _uiState.value = MetaDetailsUiState(
+                    requestKey = requestKey,
+                    errorMessage = "CloudStream detail could not be loaded",
+                )
+                RuntimeDiagnostics.updateMetadataLoading(false)
+                return
+            }
+            loadCloudStream(type = type, id = id, requestKey = requestKey, route = cloudStreamRoute, trigger = trigger)
             return
         }
         val currentState = _uiState.value
@@ -276,6 +291,69 @@ object MetaDetailsRepository {
             ?: cachedEntry.baseMeta
     }
 
+    fun invalidateTmdbEnrichment() {
+        val currentState = _uiState.value
+        val requestKey = currentState.requestKey
+        val tmdbEnabled = TmdbSettingsRepository.snapshot().enabled
+        val currentRequestIsCloudStream =
+            currentState.meta?.id?.let(::parseCloudStreamRouteId) != null ||
+                requestKey?.substringAfter(':')?.let(::parseCloudStreamRouteId) != null
+        activeJob?.cancel()
+        activeJob = null
+        activeRequestGeneration += 1
+        activeSettingsFingerprint = null
+
+        synchronized(cacheLock) {
+            cacheGeneration += 1
+            val iterator = cachedMetaByRequestKey.entries.iterator()
+            while (iterator.hasNext()) {
+                val entry = iterator.next()
+                if (entry.value.baseMeta.id.startsWith("tmdb:", ignoreCase = true)) {
+                    iterator.remove()
+                } else {
+                    entry.setValue(
+                        entry.value.copy(
+                            metaScreenMeta = null,
+                            metaScreenSettingsFingerprint = null,
+                        ),
+                    )
+                }
+            }
+        }
+
+        val cachedBase = requestKey?.let(::cachedEntry)
+        val currentCloudStreamRouteIsDisabled = tmdbEnabled && currentRequestIsCloudStream
+        val shouldReloadCloudStreamRoute = !tmdbEnabled && currentRequestIsCloudStream && cachedBase == null
+        activeRequestKey = requestKey?.takeIf { cachedBase != null && !currentCloudStreamRouteIsDisabled }
+        if (currentCloudStreamRouteIsDisabled) {
+            _uiState.value = MetaDetailsUiState(
+                requestKey = requestKey,
+                errorMessage = "CloudStream detail could not be loaded",
+            )
+        } else if (cachedBase != null) {
+            _uiState.value = MetaDetailsUiState(
+                requestKey = requestKey,
+                meta = cachedBase.baseMeta.withUnreleasedFilter(),
+            )
+        } else if (requestKey != null && currentState.meta?.id?.startsWith("tmdb:", ignoreCase = true) == true) {
+            // Remove the stale standalone TMDB result without launching network work from settings.
+            // The detail route will fetch again when it is next loaded with the new settings.
+            _uiState.value = MetaDetailsUiState(requestKey = requestKey)
+        } else if (shouldReloadCloudStreamRoute) {
+            _uiState.value = MetaDetailsUiState(requestKey = requestKey)
+        } else if (currentState.isLoading) {
+            _uiState.value = currentState.copy(isLoading = false)
+        }
+        RuntimeDiagnostics.updateMetadataLoading(false)
+        if (shouldReloadCloudStreamRoute && requestKey != null) {
+            load(
+                type = requestKey.substringBefore(':'),
+                id = requestKey.substringAfter(':'),
+                trigger = MetadataLoadTrigger.Initial,
+            )
+        }
+    }
+
     fun clear() {
         activeJob?.cancel()
         activeJob = null
@@ -313,6 +391,7 @@ object MetaDetailsRepository {
         cacheResult: Boolean,
         includeOptionalEnrichment: Boolean,
     ): MetaDetails? {
+        if (!isCloudStreamRouteAllowed(id)) return null
         val requestKey = metaDetailsRequestKey(type, id)
         cachedEntry(requestKey)?.let {
             RuntimeDiagnostics.recordMetadataCacheHit(MetadataLoadTrigger.Background)
@@ -357,6 +436,12 @@ object MetaDetailsRepository {
                 durationMs = diagnosticStart.elapsedNow().inWholeMilliseconds,
             )
         }
+    }
+
+    private fun isCloudStreamRouteAllowed(id: String): Boolean {
+        if (parseCloudStreamRouteId(id) == null) return true
+        TmdbSettingsRepository.ensureLoaded()
+        return isCloudStreamDiscoveryAllowed(TmdbSettingsRepository.snapshot().enabled)
     }
 
     private const val FETCH_TIMEOUT_MS = 5_000L

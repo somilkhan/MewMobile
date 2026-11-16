@@ -44,6 +44,9 @@ abstract class GenerateRuntimeConfigsTask : DefaultTask() {
     abstract val sentryEnvironment: Property<String>
 
     @get:Input
+    abstract val tmdbApiKey: Property<String>
+
+    @get:Input
     abstract val realtimeSyncEnabled: Property<Boolean>
 
     @get:Input
@@ -142,7 +145,18 @@ abstract class GenerateRuntimeConfigsTask : DefaultTask() {
             )
         }
 
-        outDir.resolve("com/nuvio/app/features/tmdb/TmdbConfig.kt").delete()
+        outDir.resolve("com/nuvio/app/features/tmdb").apply {
+            mkdirs()
+            resolve("TmdbConfig.kt").writeText(
+                """
+                |package com.nuvio.app.features.tmdb
+                |
+                |object TmdbConfig {
+                |    const val API_KEY = "${tmdbApiKey.get()}"
+                |}
+                """.trimMargin()
+            )
+        }
 
         outDir.resolve("com/nuvio/app/features/trakt").apply {
             mkdirs()
@@ -360,6 +374,7 @@ val requestedAndroidDistributions = requestedGradleTasks.mapNotNull { taskName -
 val isAndroidHostTestRequested = requestedGradleTasks.any { taskName ->
     "androidhosttest" in taskName
 }
+
 require(requestedAndroidDistributions.size <= 1) {
     "Build Android full and playstore distributions separately, or set -Pnuvio.android.distribution=full|playstore."
 }
@@ -422,6 +437,7 @@ val generateRuntimeConfigs = tasks.register<GenerateRuntimeConfigsTask>("generat
     supabaseAnonKey.set(runtimeConfigValue("NUVIO_SUPABASE_ANON_KEY", "SUPABASE_ANON_KEY", fallback = publicNuvioApiKey))
     supabaseFallbackUrl.set(runtimeConfigValue("NUVIO_SUPABASE_FALLBACK_URL"))
     sentryDsn.set(runtimeConfigValue("SENTRY_DSN"))
+    tmdbApiKey.set(runtimeConfigValue("TMDB_API_KEY"))
     sentryEnvironment.set(
         when {
             requestedGradleTasks.any { "benchmark" in it } -> "benchmark"
@@ -488,7 +504,7 @@ kotlin {
         }
         minSdk = libs.versions.android.minSdk.get().toInt()
         androidResources.enable = true
-        withHostTest {}
+        withHostTest { isIncludeAndroidResources = true }
 
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_11)
@@ -624,6 +640,11 @@ kotlin {
             }
         }
         getByName("androidHostTest") {
+            dependencies {
+                implementation(libs.androidx.activity.compose)
+                implementation("org.robolectric:robolectric:4.16")
+                implementation("androidx.compose.ui:ui-test-junit4:${libs.versions.composeMultiplatform.get()}")
+            }
             if (androidDistribution == "full") {
                 kotlin.srcDir(project.file("src/androidFullHostTest/kotlin"))
             }
@@ -642,6 +663,7 @@ kotlin {
                 exclude(group = "org.jetbrains.skiko", module = "skiko")
             }
             implementation("dev.chrisbanes.haze:haze:1.7.2")
+            implementation(libs.kyant.backdrop)
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
             implementation(libs.compose.material3)
@@ -658,12 +680,14 @@ kotlin {
             implementation(libs.androidx.navigation3.ui)
             implementation(libs.kermit)
             implementation(libs.supabase.postgrest)
+            implementation(libs.supabase.realtime)
             implementation(libs.supabase.auth)
             implementation(libs.supabase.functions)
             implementation(libs.reorderable)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
+            implementation(libs.kotlinx.coroutines.test)
         }
     }
 }

@@ -1,8 +1,11 @@
 package com.nuvio.app.features.library
 
 import co.touchlab.kermit.Logger
+import io.github.jan.supabase.exceptions.RestException
 import com.nuvio.app.core.auth.AuthRepository
-import com.nuvio.app.core.auth.AuthState
+import com.nuvio.app.core.auth.isAnonymous
+import com.nuvio.app.core.auth.userId
+import com.nuvio.app.core.auth.canSyncRemotely
 import com.nuvio.app.core.tracking.ensureTrackingProvidersRegistered
 import com.nuvio.app.features.library.sync.LibrarySyncAdapter
 import com.nuvio.app.features.library.sync.SupabaseLibrarySyncAdapter
@@ -62,6 +65,7 @@ object LibraryRepository {
     private val nuvioSyncMutex = Mutex()
     private val persistenceLock = SynchronizedObject()
     private val lastPersistedRevisionByProfile = mutableMapOf<Int, Long>()
+    private val pushRetryAttemptsByToken = mutableMapOf<LibraryProfileToken, Int>()
     internal var syncAdapter: LibrarySyncAdapter = SupabaseLibrarySyncAdapter
 
     init {
@@ -130,6 +134,7 @@ object LibraryRepository {
     fun clearLocalState() {
         val transition = synchronized(loadLock) { localState.reset() }
         transition.detachedPushJob?.cancel()
+        synchronized(persistenceLock) { pushRetryAttemptsByToken.clear() }
         TrackingProviderRegistry.libraryProviders().forEach(TrackingLibraryProvider::clearLocalState)
         _uiState.value = LibraryUiState()
     }
@@ -143,6 +148,7 @@ object LibraryRepository {
                     wipeStorage()
                 } finally {
                     lastPersistedRevisionByProfile.clear()
+                    pushRetryAttemptsByToken.clear()
                 }
             }
         }
@@ -159,6 +165,7 @@ object LibraryRepository {
 
             val transition = localState.beginProfileLoad(profileId)
             transition.detachedPushJob?.cancel()
+            synchronized(persistenceLock) { pushRetryAttemptsByToken.clear() }
             shouldPublish = completeLoadFromDisk(transition.snapshot.token)
             shouldPublish
         }
@@ -523,14 +530,15 @@ object LibraryRepository {
         if (!snapshot.hasPendingPush) return
         val authState = AuthRepository.state.value
         val profileId = snapshot.token.profileId
-        if (authState !is AuthState.Authenticated) {
-            log.w { "Skipping library push: auth state is ${authState::class.simpleName} profile=$profileId" }
-            return
-        }
         if (authState.isAnonymous) {
             log.w { "Skipping library push: anonymous auth user=${authState.userId} profile=$profileId" }
             return
         }
+        if (!authState.canSyncRemotely) {
+            log.w { "Skipping library push: auth state is ${authState::class.simpleName} profile=$profileId" }
+            return
+        }
+        var retryAfterCompletion = false
         val pushJob = syncScope.launch(start = CoroutineStart.LAZY) {
             delay(delayMs)
             nuvioSyncMutex.withLock {
@@ -544,7 +552,7 @@ object LibraryRepository {
                     return@withLock
                 }
                 val currentAuthState = AuthRepository.state.value
-                if (currentAuthState !is AuthState.Authenticated || currentAuthState.isAnonymous) {
+                if (!currentAuthState.canSyncRemotely) {
                     return@withLock
                 }
                 runCatching {
@@ -557,6 +565,7 @@ object LibraryRepository {
                     syncAdapter.pushItems(profileId, upsertItems)
                     syncAdapter.deleteItems(profileId, snapshot.pendingDeleteKeys)
                     localState.markPushCompleted(snapshot)?.let(::persist)
+                    synchronized(persistenceLock) { pushRetryAttemptsByToken.remove(snapshot.token) }
                     log.i {
                         "Library delta push completed profile=$profileId " +
                             "upserts=${upsertItems.size} deletes=${snapshot.pendingDeleteKeys.size}"
@@ -567,10 +576,22 @@ object LibraryRepository {
                         "Failed to push library delta profile=$profileId " +
                             "upserts=${snapshot.pendingUpsertKeys.size} deletes=${snapshot.pendingDeleteKeys.size}"
                     }
+                    retryAfterCompletion = error.isRetryableLibraryPushFailure()
+                    if (!retryAfterCompletion) {
+                        synchronized(persistenceLock) { pushRetryAttemptsByToken.remove(snapshot.token) }
+                        log.w { "Not retrying permanent library push failure profile=$profileId" }
+                    }
                 }
             }
         }
-        pushJob.invokeOnCompletion { localState.clearPushJob(pushJob) }
+        pushJob.invokeOnCompletion { cause ->
+            localState.clearPushJob(pushJob)
+            // Install the replacement only after this job has released its slot; doing it
+            // inside the failing coroutine can cancel the coroutine that schedules it.
+            if (cause == null && retryAfterCompletion) {
+                scheduleLibraryPushRetry(snapshot)
+            }
+        }
 
         val installResult = localState.installPushJob(snapshot, pushJob)
         if (!installResult.installed) {
@@ -579,6 +600,41 @@ object LibraryRepository {
         }
         installResult.detachedPushJob?.cancel()
         pushJob.start()
+    }
+
+    private fun Throwable.isRetryableLibraryPushFailure(): Boolean {
+        var current: Throwable? = this
+        while (current != null) {
+            if (current is RestException) {
+                return LibraryPushRetryPolicy.isRetryableHttpStatus(current.statusCode)
+            }
+            current = current.cause
+        }
+        // Socket, timeout, DNS and other transport failures have no HTTP status.
+        return true
+    }
+
+    /**
+     * Retry transient failures without losing persisted mutations. Attempts are scoped
+     * to a profile generation and stop after a bounded burst; pending work remains
+     * durable for the next explicit sync or local change.
+     */
+    private fun scheduleLibraryPushRetry(snapshot: LibraryLocalSnapshot) {
+        if (!snapshot.hasPendingPush || !localState.isCurrent(snapshot)) return
+        val authState = AuthRepository.state.value
+        if (!authState.canSyncRemotely) return
+
+        val attempt = synchronized(persistenceLock) {
+            val previous = pushRetryAttemptsByToken[snapshot.token] ?: 0
+            if (previous >= LibraryPushRetryPolicy.maxAutomaticAttempts) {
+                pushRetryAttemptsByToken.remove(snapshot.token)
+                return
+            }
+            (previous + 1).also { pushRetryAttemptsByToken[snapshot.token] = it }
+        }
+        val retryDelayMs = requireNotNull(LibraryPushRetryPolicy.delayForAttempt(attempt))
+        log.w { "Scheduling library push retry profile=${snapshot.token.profileId} attempt=$attempt delayMs=$retryDelayMs" }
+        pushToServer(snapshot, delayMs = retryDelayMs)
     }
 
     private fun publish() {
@@ -608,7 +664,8 @@ object LibraryRepository {
                 LibrarySection(
                     type = type,
                     displayTitle = type.toLibraryDisplayTitle(),
-                    items = typeItems.sortedByDescending { it.savedAtEpochMs },
+                    // groupBy preserves encounter order from the globally sorted list above.
+                items = typeItems,
                 )
             }
             .sortedWith(

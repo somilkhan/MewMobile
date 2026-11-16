@@ -177,3 +177,5 @@ private val LatinAmericanSpanishHints = listOf(
 private val CastilianSpanishHints = listOf(
     "es-es", "es_es", "castilian", "castellano", "spain", "españa", "espana", "iberian",
 )
+
+internal fun pendingSubtitleSelectionCanApply(index: Int, availableTextTrackCount: Int): Boolean = index < 0 || availableTextTrackCount > index

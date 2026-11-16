@@ -89,7 +89,7 @@ object SubtitleRepository {
                                     val obj = element.jsonObject
                                     val id = obj.stringValue("id")
                                         ?: "${manifest.id}_$index"
-                                    val url = obj.stringValue("url") ?: return@mapIndexedNotNull null
+                                    val url = obj.stringValue("url")?.takeIf(::isSupportedAddonSubtitleUrl) ?: return@mapIndexedNotNull null
                                     val rawLang = obj.subtitleLanguage() ?: "unknown"
                                     val normalizedLang = normalizeLanguageCode(rawLang) ?: rawLang
 
@@ -187,3 +187,18 @@ private fun JsonObject.stringValue(name: String): String? =
         ?.contentOrNull
         ?.trim()
         ?.takeIf { it.isNotBlank() }
+
+
+/**
+ * Add-on subtitle URLs are untrusted input and are forwarded to external players.
+ * Accept only absolute HTTP(S) URLs; file/content/data schemes could expose local data.
+ */
+internal fun isSupportedAddonSubtitleUrl(url: String): Boolean {
+    if (url != url.trim()) return false
+    val schemeSeparator = url.indexOf("://")
+    if (schemeSeparator <= 0) return false
+    return when (url.substring(0, schemeSeparator).lowercase()) {
+        "http", "https" -> true
+        else -> false
+    }
+}

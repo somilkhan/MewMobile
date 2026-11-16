@@ -30,7 +30,8 @@ import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.generic_unknown
 import org.jetbrains.compose.resources.getString
 
-private const val PLUGIN_TIMEOUT_MS = 60_000L
+internal const val PLUGIN_TIMEOUT_MS = 60_000L
+internal const val MAX_CONCURRENT_PLUGINS = 4
 
 internal object PluginRuntime {
     private val json = Json { ignoreUnknownKeys = true }
@@ -71,9 +72,21 @@ internal object PluginRuntime {
 
             try {
                 jsRuntime.use {
+                    HostApiRegistry().apply {
+                        addModule(
+                            HostFunctions(
+                                scraperId = scraperId,
+                                scraperSettingsJson = PluginStorage.loadScraperSettings(scraperId) ?: "{}",
+                                onResult = {},
+                            ),
+                        )
+                        addModule(FetchBridge())
+                        addModule(UrlBridge())
+                        addModule(CryptoBridge())
+                    }.registerAll(this)
                     val polyfillCode = JsBindings.buildPolyfillCode(
                         scraperIdJson = JsonPrimitive(scraperId).toString(),
-                        settingsJson = "{}"
+                        settingsJson = PluginStorage.loadScraperSettings(scraperId) ?: "{}",
                     )
                     evaluate<Any?>(polyfillCode)
 
@@ -131,7 +144,13 @@ internal object PluginRuntime {
 
         val domBridge = DomBridge()
         val hostRegistry = HostApiRegistry().apply {
-            addModule(HostFunctions(scraperId) { deferred.complete(it) })
+            addModule(
+                HostFunctions(
+                    scraperId = scraperId,
+                    scraperSettingsJson = JsonObject(scraperSettings).toString(),
+                    onResult = { deferred.complete(it) },
+                ),
+            )
             addModule(FetchBridge())
             addModule(UrlBridge())
             addModule(CryptoBridge())
