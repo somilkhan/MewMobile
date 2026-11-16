@@ -1695,6 +1695,13 @@ private class NuvioLibmpvView(
             mpv.setOptionString("vf", "format=yuv420p")
         }
         mpv.setOptionString("msg-level", "all=warn")
+        // Android has no youtube-dl; disable mpv's unavailable fallback so the
+        // actual network/protocol error is surfaced by the configured source.
+        mpv.setOptionString("ytdl", "no").logIfMpvError("ytdl")
+        mpv.setOptionString(
+            "demuxer-lavf-o",
+            "protocol_whitelist=[file,crypto,data,http,https,tcp,tls]",
+        ).logIfMpvError("demuxer-lavf-o")
         mpv.setOptionString("tls-verify", "yes")
         mpv.setOptionString("tls-ca-file", "${context.filesDir.path}/cacert.pem")
         mpv.setOptionString("demuxer-max-bytes", "${libmpvCacheBytes()}").logIfMpvError("demuxer-max-bytes")

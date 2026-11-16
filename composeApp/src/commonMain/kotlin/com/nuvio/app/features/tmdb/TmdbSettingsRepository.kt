@@ -61,6 +61,11 @@ object TmdbSettingsRepository {
         return _uiState.value
     }
 
+    /** Matches Enhanced: plugin requests use the configured key, then the bundled build key. */
+    fun effectiveApiKey(): String = snapshot().apiKey
+        .takeIf(String::isNotBlank)
+        ?: TmdbConfig.API_KEY
+
     fun setEnabled(value: Boolean) {
         ensureLoaded()
         if (value && apiKey.isBlank()) return

@@ -155,7 +155,8 @@ private tailrec fun Context.findActivity(): Activity? =
     }
 
 private fun Activity.shouldForceLandscapePlayer(): Boolean {
-    if (resources.configuration.smallestScreenWidthDp >= 600) return false
+    // Match the Enhanced player: allow orientation toggle on large-screen phones too.
+    // Only disable forced orientation while the activity is in multi-window mode.
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && isInMultiWindowMode) return false
     return true
 }

@@ -220,6 +220,7 @@ actual suspend fun httpRequestRaw(
     body: String,
     followRedirects: Boolean,
     maxResponseBodyBytes: Int,
+    bodyBytes: ByteArray?,
 ): RawHttpResponse =
     addonHttpClient
         .request {
@@ -229,15 +230,19 @@ actual suspend fun httpRequestRaw(
                 header(key, value)
             }
             if (this.method == HttpMethod.Post || this.method == HttpMethod.Put || this.method == HttpMethod.Patch) {
-                setBody(body)
+                setBody(bodyBytes ?: body)
             }
         }
         .let { response ->
+            val receivedBytes = response.body<ByteArray>()
+            val limitedBytes = receivedBytes.copyOf(minOf(receivedBytes.size, maxResponseBodyBytes.coerceAtLeast(0)))
+            val decoded = limitedBytes.decodeToString()
             RawHttpResponse(
                 status = response.status.value,
                 statusText = response.status.description,
                 url = response.call.request.url.toString(),
-                body = response.bodyAsText(),
+                body = if (receivedBytes.size > limitedBytes.size) "$decoded\n...[truncated]" else decoded,
+                bodyBytes = limitedBytes,
                 headers = response.headers.entries().associate { (name, values) ->
                     name.lowercase() to values.joinToString(",")
                 },

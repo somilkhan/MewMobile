@@ -20,13 +20,22 @@ class HomeCloudStreamProviderSelectionTest {
     }
 
     @Test
-    fun ignoresPersistedProviderFilterWhenAddonCatalogsAreAvailable() {
+    fun hidesCloudStreamHomeCatalogsWhenAddonCatalogsAreAvailable() {
         assertEquals(
-            null,
-            effectiveHomeCloudStreamProviderId(
-                selectedProviderId = "provider-a",
-                hasAddonCatalogs = true,
-            ),
+            false,
+            shouldShowCloudStreamHomeCatalogs(hasAddonCatalogs = true, tmdbEnabled = true),
+        )
+    }
+
+    @Test
+    fun showsCloudStreamHomeCatalogsAsFallbackWhenNoAddonCatalogsAreEnabled() {
+        assertEquals(
+            true,
+            shouldShowCloudStreamHomeCatalogs(hasAddonCatalogs = false, tmdbEnabled = true),
+        )
+        assertEquals(
+            false,
+            shouldShowCloudStreamHomeCatalogs(hasAddonCatalogs = false, tmdbEnabled = false),
         )
     }
 

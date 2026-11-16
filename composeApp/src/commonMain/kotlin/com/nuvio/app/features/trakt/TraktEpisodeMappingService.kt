@@ -16,9 +16,28 @@ import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.contentOrNull
 import kotlin.time.TimeSource
 
 private const val BASE_URL = "https://api.trakt.tv"
+
+internal fun parseTraktShowLookupIdFromSearch(payload: String): String? = runCatching {
+    val results = kotlinx.serialization.json.Json.parseToJsonElement(payload) as? kotlinx.serialization.json.JsonArray
+        ?: return null
+    results.firstNotNullOfOrNull { result ->
+        val item = result as? kotlinx.serialization.json.JsonObject ?: return@firstNotNullOfOrNull null
+        if (item["type"]?.let { (it as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull }
+                ?.equals("show", ignoreCase = true) != true) return@firstNotNullOfOrNull null
+        val ids = item["show"] as? kotlinx.serialization.json.JsonObject
+            ?: return@firstNotNullOfOrNull null
+        val externalIds = ids["ids"] as? kotlinx.serialization.json.JsonObject
+            ?: return@firstNotNullOfOrNull null
+        (externalIds["slug"] as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull
+            ?: (externalIds["trakt"] as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull
+            ?: (externalIds["imdb"] as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull
+    }
+}.getOrNull()
+
 
 private val NON_ALPHANUMERIC = Regex("[^a-z0-9]+")
 private val COLLAPSED_SPACES = Regex("\\s+")
@@ -43,6 +62,7 @@ object TraktEpisodeMappingService {
     private val reverseMappingCache = mutableMapOf<String, EpisodeMappingEntry>()
     private val addonEpisodesCache = mutableMapOf<String, List<EpisodeMappingEntry>>()
     private val traktEpisodesCache = mutableMapOf<String, List<EpisodeMappingEntry>>()
+    private val tmdbShowLookupCache = mutableMapOf<Int, String>()
     // In-flight dedup: prevents multiple concurrent coroutines from fetching
     // In-flight dedup: prevents multiple concurrent coroutines from fetching
     // the same show's addon episodes simultaneously.
@@ -265,6 +285,7 @@ object TraktEpisodeMappingService {
         reverseMappingCache.clear()
         addonEpisodesCache.clear()
         traktEpisodesCache.clear()
+        tmdbShowLookupCache.clear()
     }
 
     // ── Season structure comparison ───────────────────────────────────────
@@ -273,9 +294,9 @@ object TraktEpisodeMappingService {
         addonEpisodes: List<EpisodeMappingEntry>,
         traktEpisodes: List<EpisodeMappingEntry>,
     ): Boolean {
-        val addonPerSeason = addonEpisodes.groupBy { it.season }.mapValues { it.value.size }
-        val traktPerSeason = traktEpisodes.groupBy { it.season }.mapValues { it.value.size }
-        return addonPerSeason == traktPerSeason
+        val addonCoordinates = addonEpisodes.map { it.season to it.episode }.toSet()
+        val traktCoordinates = traktEpisodes.map { it.season to it.episode }.toSet()
+        return addonCoordinates == traktCoordinates
     }
 
     // ── Forward mapping: addon → Trakt ──────────────────────────────────
@@ -507,14 +528,15 @@ object TraktEpisodeMappingService {
         cacheMutex.withLock { traktEpisodesInFlight.remove(showLookupId) }
     }
 
-    private fun parseTraktSeasonsPayload(payload: String): List<EpisodeMappingEntry> {
+    internal fun parseTraktSeasonsPayload(payload: String): List<EpisodeMappingEntry> {
         val seasons = runCatching {
             json.decodeFromString<List<TraktSeasonDto>>(payload)
         }.getOrNull() ?: return emptyList()
 
         return seasons
             .asSequence()
-            .filter { (it.number ?: 0) >= 0 }
+            // Season 0 contains specials/OVAs; including them shifts every anime absolute index.
+            .filter { (it.number ?: 0) > 0 }
             .sortedBy { it.number }
             .flatMap { seasonDto ->
                 seasonDto.episodes.orEmpty().asSequence().mapNotNull { episodeDto ->
@@ -532,24 +554,53 @@ object TraktEpisodeMappingService {
 
     // ── Helpers ───────────────────────────────────────────────────────────
 
-    private fun resolveShowLookupId(contentId: String?, videoId: String?): String? {
+    private suspend fun resolveShowLookupId(contentId: String?, videoId: String?): String? {
         val contentIds = parseTraktContentIds(contentId)
-        if (contentIds.hasAnyId()) {
-            return when {
-                !contentIds.imdb.isNullOrBlank() -> contentIds.imdb
-                contentIds.trakt != null -> contentIds.trakt.toString()
-                !contentIds.slug.isNullOrBlank() -> contentIds.slug
-                else -> null
-            }
+        val directContentLookup = when {
+            !contentIds.imdb.isNullOrBlank() -> contentIds.imdb
+            contentIds.trakt != null -> contentIds.trakt.toString()
+            !contentIds.slug.isNullOrBlank() -> contentIds.slug
+            else -> null
+        }
+        if (directContentLookup != null) return directContentLookup
+
+        // Trakt's /shows/{id} endpoint needs a Trakt, IMDb, or slug identity.
+        // A TMDB ID must first be resolved through Trakt's external-ID search API.
+        contentIds.tmdb?.let { tmdbId ->
+            resolveTraktShowLookupIdFromTmdb(tmdbId)?.let { return it }
         }
 
         val videoIds = parseTraktContentIds(videoId)
-        return when {
+        val directVideoLookup = when {
             !videoIds.imdb.isNullOrBlank() -> videoIds.imdb
             videoIds.trakt != null -> videoIds.trakt.toString()
             !videoIds.slug.isNullOrBlank() -> videoIds.slug
             else -> null
         }
+        if (directVideoLookup != null) return directVideoLookup
+
+        return videoIds.tmdb?.let { resolveTraktShowLookupIdFromTmdb(it) }
+    }
+
+    private suspend fun resolveTraktShowLookupIdFromTmdb(tmdbId: Int): String? {
+        cacheMutex.withLock { tmdbShowLookupCache[tmdbId] }?.let { return it }
+        val headers = TraktAuthRepository.authorizedHeaders() ?: return null
+        val payload = try {
+            withTimeoutOrNull(4_000L) {
+                httpGetTextWithHeaders(
+                    url = "$BASE_URL/search/tmdb/$tmdbId?type=show",
+                    headers = headers,
+                )
+            }
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            log.w { "TMDB-to-Trakt anime lookup failed tmdb=$tmdbId: ${e.message}" }
+            null
+        } ?: return null
+
+        val lookupId = parseTraktShowLookupIdFromSearch(payload) ?: return null
+        cacheMutex.withLock { tmdbShowLookupCache[tmdbId] = lookupId }
+        return lookupId
     }
 
     private fun TraktExternalIds.hasAnyId(): Boolean =

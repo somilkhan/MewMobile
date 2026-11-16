@@ -29,10 +29,18 @@ internal fun pluginContentId(
 }
 
 /**
- * Plugin getStreams() contracts use a TMDB numeric id, not an IMDb id or display title.
- * Resolve external identities before crossing the plugin bridge; unresolved values are
- * intentionally omitted instead of triggering malformed /movie/{title} or /tv/tt... calls.
+ * Prefer a canonical TMDB numeric ID when it can be resolved. Keep the normalized source
+ * identity as a compatibility fallback, matching Nuvio Enhanced: some plugin repositories
+ * resolve IMDb IDs or titles themselves, and a disabled/missing TMDB key must not suppress
+ * every scraper before its own code gets a chance to run.
  */
+internal fun pluginTmdbIdOrSourceIdentity(
+    normalizedId: String,
+    resolvedTmdbId: String?,
+): String = resolvedTmdbId
+    ?.takeIf { it.toLongOrNull()?.let { id -> id > 0 } == true }
+    ?: normalizedId
+
 internal suspend fun resolvePluginTmdbId(
     videoId: String,
     mediaType: String,
@@ -44,15 +52,21 @@ internal suspend fun resolvePluginTmdbId(
     if (normalized.isBlank()) return null
     if (normalized.toLongOrNull()?.let { it > 0 } == true) return normalized
     if (normalized.startsWith("tt", ignoreCase = true)) {
-        return TmdbService.ensureTmdbId(normalized, mediaType)
-            ?.takeIf { it.toLongOrNull()?.let { id -> id > 0 } == true }
+        return pluginTmdbIdOrSourceIdentity(
+            normalizedId = normalized,
+            resolvedTmdbId = TmdbService.ensureTmdbId(normalized, mediaType),
+        )
     }
 
     val query = searchTitle?.trim()?.takeIf(String::isNotBlank) ?: normalized
     val results = TmdbService.search(query, limit = 12)
-    val selected = selectPluginTmdbSearchResult(results, query, mediaType) ?: return null
-    return selected.id.removePrefix("tmdb:")
-        .takeIf { it.toLongOrNull()?.let { id -> id > 0 } == true }
+    val selectedTmdbId = selectPluginTmdbSearchResult(results, query, mediaType)
+        ?.id
+        ?.removePrefix("tmdb:")
+    return pluginTmdbIdOrSourceIdentity(
+        normalizedId = normalized,
+        resolvedTmdbId = selectedTmdbId,
+    )
 }
 
 internal fun selectPluginTmdbSearchResult(
