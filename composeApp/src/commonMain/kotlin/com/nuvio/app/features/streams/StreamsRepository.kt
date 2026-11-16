@@ -1232,7 +1232,8 @@ object StreamsRepository {
 // providers, and an alphabetical cap silently skipped otherwise valid sources.
 // Keep network and DEX work bounded with a semaphore instead.
 private const val CLOUDSTREAM_STREAM_PROVIDER_CONCURRENCY = 8
-private const val PLUGIN_SCRAPER_CONCURRENCY = 8
+// Keep stream scheduling aligned with the four dedicated QuickJS workers.
+private const val PLUGIN_SCRAPER_CONCURRENCY = 4
 private const val STREAM_PROVIDER_TIMEOUT_MS = 30_000L
 // Nuvio plugin execution has its own 60s QuickJS deadline; keep the outer budget above it.
 private const val PLUGIN_STREAM_PROVIDER_TIMEOUT_MS = 65_000L
