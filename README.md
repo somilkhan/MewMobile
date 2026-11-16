@@ -56,16 +56,12 @@ Feature availability depends on the installed integration, build variant and pla
 
 ## Screenshots
 
-<!--
-Add genuine Mew screenshots when available:
-- docs/images/screenshots/home.png
-- docs/images/screenshots/details.png
-- docs/images/screenshots/player.png
-- docs/images/screenshots/settings.png
-
-Keep this section empty until real screenshots are supplied.
-Do not use mockups or screenshots from upstream.
--->
+<p align="center">
+  <img src="docs/Screenshot_2026-11-17-05-08-37-525_com.mew.mobile.jpg" width="24%" alt="Mew app screen 1">
+  <img src="docs/Screenshot_2026-11-17-05-11-37-861_com.mew.mobile.jpg" width="24%" alt="Mew app screen 2">
+  <img src="docs/Screenshot_2026-11-17-05-11-51-399_com.mew.mobile.jpg" width="24%" alt="Mew app screen 3">
+  <img src="docs/Screenshot_2026-11-17-05-12-15-850_com.mew.mobile.jpg" width="24%" alt="Mew app screen 4">
+</p>
 
 ## Download
 
