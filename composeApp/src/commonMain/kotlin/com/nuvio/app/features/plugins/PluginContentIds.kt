@@ -29,9 +29,10 @@ internal fun pluginContentId(
 }
 
 /**
- * Plugin getStreams() contracts use a TMDB numeric id, not an IMDb id or display title.
- * Resolve external identities before crossing the plugin bridge; unresolved values are
- * intentionally omitted instead of triggering malformed /movie/{title} or /tv/tt... calls.
+ * Prefer a canonical TMDB numeric ID when it can be resolved. Keep the normalized source
+ * identity as a compatibility fallback, matching Nuvio Enhanced: some plugin repositories
+ * resolve IMDb IDs or titles themselves, and a disabled/missing TMDB key must not suppress
+ * every scraper before its own code gets a chance to run.
  */
 internal suspend fun resolvePluginTmdbId(
     videoId: String,
@@ -46,13 +47,16 @@ internal suspend fun resolvePluginTmdbId(
     if (normalized.startsWith("tt", ignoreCase = true)) {
         return TmdbService.ensureTmdbId(normalized, mediaType)
             ?.takeIf { it.toLongOrNull()?.let { id -> id > 0 } == true }
+            ?: normalized
     }
 
     val query = searchTitle?.trim()?.takeIf(String::isNotBlank) ?: normalized
     val results = TmdbService.search(query, limit = 12)
-    val selected = selectPluginTmdbSearchResult(results, query, mediaType) ?: return null
+    val selected = selectPluginTmdbSearchResult(results, query, mediaType)
+        ?: return normalized
     return selected.id.removePrefix("tmdb:")
         .takeIf { it.toLongOrNull()?.let { id -> id > 0 } == true }
+        ?: normalized
 }
 
 internal fun selectPluginTmdbSearchResult(
