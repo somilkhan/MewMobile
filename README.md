@@ -39,6 +39,7 @@
 - [How it works](#how-it-works)
 - [Building from source](#building-from-source)
 - [Project structure](#project-structure)
+- [Release configuration](#release-configuration)
 - [Development principles](#development-principles)
 - [Contributing](#contributing)
 - [Current limitations](#current-limitations)
