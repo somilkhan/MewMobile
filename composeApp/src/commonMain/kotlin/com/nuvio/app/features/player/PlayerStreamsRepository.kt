@@ -571,7 +571,7 @@ object PlayerStreamsRepository {
                 val includeScraperNameInSubtitle = false
                 providerGroup.scrapers.forEach { scraper ->
                     launch {
-                        val scraperResult = withTimeoutOrNull(PLAYER_STREAM_PROVIDER_TIMEOUT_MS) {
+                        val scraperResult = withTimeoutOrNull(PLAYER_PLUGIN_STREAM_PROVIDER_TIMEOUT_MS) {
                             PluginRepository.executeScraper(
                                 scraper = scraper,
                                 tmdbId = canonicalPluginTmdbId,
@@ -787,7 +787,9 @@ object PlayerStreamsRepository {
 
 private const val PLAYER_CLOUDSTREAM_STREAM_PROVIDER_CONCURRENCY = 12
 private const val PLAYER_STREAM_PROVIDER_TIMEOUT_MS = 25_000L
-private const val PLAYER_STREAM_TOTAL_TIMEOUT_MS = 40_000L
+// Keep Nuvio plugin extraction alive through its 60s QuickJS runtime deadline.
+private const val PLAYER_PLUGIN_STREAM_PROVIDER_TIMEOUT_MS = 65_000L
+private const val PLAYER_STREAM_TOTAL_TIMEOUT_MS = 70_000L
 private const val PLAYER_DEBRID_AVAILABILITY_TIMEOUT_MS = 15_000L
 
 private data class PlayerInstalledStreamAddonTarget(
