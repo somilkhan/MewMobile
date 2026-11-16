@@ -2,11 +2,29 @@
 
 ## 0.5.1 - 2026-11-16
 
+### Added
+
+- Added automatic subtitle synchronization for embedded and sidecar subtitles, with improved subtitle timeline alignment.
+- Restored the Watch Party action in the player and the in-player playback-engine switch.
+- Added an optional Liquid Glass player layout while preserving Mew's existing player experience.
+
+### Improved
+
+- Improved Android playback stability, seeking, playback-state restoration, and player rotation handling.
+- Improved subtitle selection, rendering, and compatibility across playback engines.
+- Improved CloudStream add-on catalog handling, including multi-section provider results and Home catalog behavior.
+- Improved plugin runtime compatibility with safer JavaScript execution, timers, settings bridges, and binary HTTP responses.
+- Improved Trakt anime episode matching, including season-zero specials.
+
+### Fixed
+
+- Fixed playback regressions involving stale seek state, subtitle handling, surface recreation, and video rendering.
+- Fixed CloudStream catalog/section mapping and plugin scraper timeout handling.
+
 ### Release
 
-- Bump Mew to 0.5.1 (120) for the public release.
-- Keep the integrated upstream base at Nuvio 0.4.11; no upstream source migration is included in this version bump.
-- Build and publish the signed Android Full APKs through the verified Mew release workflow.
+- Mew 0.5.1 (120), based on the integrated Nuvio 0.4.11 codebase.
+- Existing Mew player UI remains the default; no broad player redesign is included.
 
 ## 0.5.0 - 2026-09-30
 
