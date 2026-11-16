@@ -249,6 +249,18 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
             p2pRebufferMessage = p2pRebufferMessage,
             p2pRebufferProgress = p2pRebufferProgress,
         )
+        if (!rememberIsInPictureInPicture()) {
+            IconButton(
+                onClick = { showPartyPanel = true },
+                modifier = Modifier.align(Alignment.TopEnd).padding(12.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Groups,
+                    contentDescription = stringResource(Res.string.party_title),
+                )
+            }
+        }
+        RenderPartyPanel()
         if (showSubtitleSyncByEar) {
             SubtitleSyncByEarCard(
                 visible = true,
@@ -502,18 +514,7 @@ private fun PlayerScreenRuntime.RenderPlayerControls(displayedPositionMs: Long, 
                 horizontalSafePadding = horizontalSafePadding,
                 modifier = Modifier.fillMaxSize(),
             )
-            Box(Modifier.fillMaxSize()) {
-                IconButton(
-                    onClick = { showPartyPanel = true },
-                    modifier = Modifier.align(Alignment.TopEnd).padding(12.dp),
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Groups,
-                        contentDescription = stringResource(Res.string.party_title),
-                    )
-                }
-                RenderPartyPanel()
-            }
+
         }
     }
 }
