@@ -717,7 +717,7 @@ object StreamsRepository {
                 val includeScraperNameInSubtitle = false
                 providerGroup.scrapers.forEach { scraper ->
                     launch {
-                        val scraperResult = withTimeoutOrNull(STREAM_PROVIDER_TIMEOUT_MS) {
+                        val scraperResult = withTimeoutOrNull(PLUGIN_STREAM_PROVIDER_TIMEOUT_MS) {
                             pluginScraperSemaphore.withPermit {
                                 PluginRepository.executeScraper(
                                 scraper = scraper,
@@ -1206,7 +1206,9 @@ object StreamsRepository {
 private const val CLOUDSTREAM_STREAM_PROVIDER_CONCURRENCY = 8
 private const val PLUGIN_SCRAPER_CONCURRENCY = 8
 private const val STREAM_PROVIDER_TIMEOUT_MS = 30_000L
-private const val STREAM_TOTAL_TIMEOUT_MS = 45_000L
+// Nuvio plugin execution has its own 60s QuickJS deadline; keep the outer budget above it.
+private const val PLUGIN_STREAM_PROVIDER_TIMEOUT_MS = 65_000L
+private const val STREAM_TOTAL_TIMEOUT_MS = 70_000L
 private const val DEBRID_AVAILABILITY_TIMEOUT_MS = 15_000L
 
 internal fun shouldReuseStreamRequest(
