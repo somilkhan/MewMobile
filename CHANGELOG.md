@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.1 - 2026-11-16
+
+### Release
+
+- Bump Mew to 0.5.1 (120) for the public release.
+- Keep the integrated upstream base at Nuvio 0.4.11; no upstream source migration is included in this version bump.
+- Build and publish the signed Android Full APKs through the verified Mew release workflow.
+
 ## 0.5.0 - 2026-09-30
 
 ### Added
