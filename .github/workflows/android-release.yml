@@ -178,7 +178,7 @@ jobs:
   release:
     name: ${{ github.event_name == 'push' && 'build' || inputs.mode }} Mew release
     needs: build-ios
-    if: ${{ (github.event_name != 'push' || contains(github.event.head_commit.message, '[release-build]')) && always() && (!env.INCLUDE_IOS != 'true' || env.RELEASE_MODE == 'dry-run' || env.RELEASE_MODE == 'attach-universal' || needs.build-ios.result == 'success') }}
+    if: ${{ (github.event_name != 'push' || contains(github.event.head_commit.message, '[release-build]')) && always() && (github.event_name == 'push' || !inputs.include_ios || inputs.mode == 'dry-run' || inputs.mode == 'attach-universal' || needs.build-ios.result == 'success') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
