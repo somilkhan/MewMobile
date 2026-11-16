@@ -34,6 +34,13 @@ internal fun pluginContentId(
  * resolve IMDb IDs or titles themselves, and a disabled/missing TMDB key must not suppress
  * every scraper before its own code gets a chance to run.
  */
+internal fun pluginTmdbIdOrSourceIdentity(
+    normalizedId: String,
+    resolvedTmdbId: String?,
+): String = resolvedTmdbId
+    ?.takeIf { it.toLongOrNull()?.let { id -> id > 0 } == true }
+    ?: normalizedId
+
 internal suspend fun resolvePluginTmdbId(
     videoId: String,
     mediaType: String,
@@ -45,18 +52,20 @@ internal suspend fun resolvePluginTmdbId(
     if (normalized.isBlank()) return null
     if (normalized.toLongOrNull()?.let { it > 0 } == true) return normalized
     if (normalized.startsWith("tt", ignoreCase = true)) {
-        return TmdbService.ensureTmdbId(normalized, mediaType)
-            ?.takeIf { it.toLongOrNull()?.let { id -> id > 0 } == true }
-            ?: normalized
+        return pluginTmdbIdOrSourceIdentity(
+            normalizedId = normalized,
+            resolvedTmdbId = TmdbService.ensureTmdbId(normalized, mediaType),
+        )
     }
 
     val query = searchTitle?.trim()?.takeIf(String::isNotBlank) ?: normalized
     val results = TmdbService.search(query, limit = 12)
     val selected = selectPluginTmdbSearchResult(results, query, mediaType)
         ?: return normalized
-    return selected.id.removePrefix("tmdb:")
-        .takeIf { it.toLongOrNull()?.let { id -> id > 0 } == true }
-        ?: normalized
+    return pluginTmdbIdOrSourceIdentity(
+        normalizedId = normalized,
+        resolvedTmdbId = selected?.id?.removePrefix("tmdb:"),
+    )
 }
 
 internal fun selectPluginTmdbSearchResult(
