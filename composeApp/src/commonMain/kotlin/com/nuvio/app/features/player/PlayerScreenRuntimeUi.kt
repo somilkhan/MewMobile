@@ -8,9 +8,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Groups
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
@@ -21,6 +22,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.dp
+import com.nuvio.app.core.ui.DialogButton
+import com.nuvio.app.core.ui.DialogButtonStyle
+import com.nuvio.app.core.ui.DialogButtons
+import com.nuvio.app.core.ui.DialogSurface
 import com.nuvio.app.core.ui.glass.LocalLiquidGlassBackdrop
 import com.nuvio.app.features.p2p.P2pStreamingState
 import com.nuvio.app.features.p2p.formatP2pMegabytes
@@ -261,13 +266,27 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
         StreamInfoOverlay(visible=showStreamInfo,provider=activeProviderName,streamTitle=activeStreamTitle,streamSubtitle=activeStreamSubtitle,addonId=activeProviderAddonId,filename=currentStreamFilename,infoHash=currentStreamInfoHash,audioTrack=audioTracks.firstOrNull { it.index == selectedAudioIndex } ?: audioTracks.firstOrNull { it.isSelected },subtitleTrack=subtitleTracks.firstOrNull { it.index == selectedSubtitleIndex } ?: subtitleTracks.firstOrNull { it.isSelected }.takeUnless { useCustomSubtitles },addonSubtitle=addonSubtitles.firstOrNull { it.selectionKey == selectedAddonSubtitleId },engine=playerController?.playbackEngine,streamType=activeStreamType,resolution=if(playbackSnapshot.videoWidth!=null&&playbackSnapshot.videoHeight!=null) "${playbackSnapshot.videoWidth} × ${playbackSnapshot.videoHeight}" else null,videoCodec=playbackSnapshot.videoCodec,videoFrameRate=playbackSnapshot.videoFrameRate,videoBitrate=playbackSnapshot.videoBitrate,audioCodec=playbackSnapshot.audioCodec,audioChannels=playbackSnapshot.audioChannels,audioSampleRate=playbackSnapshot.audioSampleRate,hdrFormat=playbackSnapshot.hdrFormat,onDismiss={showStreamInfo=false})
         val switchEngineTarget = playerController?.playbackEngine?.switchTarget
         if (switchEngineTarget != null && showSwitchEngineConfirm) {
-            AlertDialog(
+            DialogSurface(
                 onDismissRequest = { showSwitchEngineConfirm = false },
-                title = { Text(stringResource(Res.string.player_engine_switch_title, switchEngineTarget.label)) },
-                text = { Text(stringResource(Res.string.player_engine_switch_message)) },
-                confirmButton = { TextButton(onClick = { showSwitchEngineConfirm = false; switchPlaybackEngine() }) { Text(stringResource(Res.string.action_switch)) } },
-                dismissButton = { TextButton(onClick = { showSwitchEngineConfirm = false }) { Text(stringResource(Res.string.action_cancel)) } },
-            )
+                title = stringResource(Res.string.player_engine_switch_title, switchEngineTarget.label),
+                message = stringResource(Res.string.player_engine_switch_message),
+            ) {
+                DialogButtons {
+                    DialogButton(
+                        text = stringResource(Res.string.action_cancel),
+                        onClick = { showSwitchEngineConfirm = false },
+                        style = DialogButtonStyle.Secondary,
+                    )
+                    DialogButton(
+                        text = stringResource(Res.string.action_switch),
+                        onClick = {
+                            showSwitchEngineConfirm = false
+                            switchPlaybackEngine()
+                        },
+                        style = DialogButtonStyle.Primary,
+                    )
+                }
+            }
         }
     }
 }
@@ -484,7 +503,15 @@ private fun PlayerScreenRuntime.RenderPlayerControls(displayedPositionMs: Long, 
                 modifier = Modifier.fillMaxSize(),
             )
             Box(Modifier.fillMaxSize()) {
-                TextButton(onClick = { showPartyPanel = true }, modifier = Modifier.align(Alignment.TopEnd).padding(12.dp)) { Text(stringResource(Res.string.party_title)) }
+                IconButton(
+                    onClick = { showPartyPanel = true },
+                    modifier = Modifier.align(Alignment.TopEnd).padding(12.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Groups,
+                        contentDescription = stringResource(Res.string.party_title),
+                    )
+                }
                 RenderPartyPanel()
             }
         }
