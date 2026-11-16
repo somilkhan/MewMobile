@@ -714,7 +714,7 @@ object StreamsRepository {
             // independently; previously it ran before the completion timeout loop, so a
             // stalled TMDB request could leave every plugin group spinning forever.
             val canonicalPluginTmdbId = withTimeoutOrNull(PLUGIN_ID_RESOLUTION_TIMEOUT_MS) {
-                runCatching {
+                runCatchingUnlessCancelled {
                     resolvePluginTmdbId(
                         videoId = streamLookupId,
                         mediaType = type,
