@@ -4,7 +4,6 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -75,7 +74,6 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
@@ -295,7 +293,6 @@ import com.nuvio.app.features.watchprogress.nextUpDismissKey
 import com.nuvio.app.features.watchprogress.toContinueWatchingItem
 import com.nuvio.app.features.watching.application.WatchingActions
 import com.nuvio.app.features.watching.application.WatchingState
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.collectLatest
@@ -736,14 +733,7 @@ fun App(
         ) { currentGate ->
             when (currentGate) {
                 AppGateScreen.Loading.name -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(MaterialTheme.nuvio.colors.background),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        NuvioLoadingIndicator(color = MaterialTheme.nuvio.colors.accent)
-                    }
+                    AppLaunchOverlay(modifier = Modifier.fillMaxSize())
                 }
                 AppGateScreen.Auth.name -> {
                     AuthScreen(modifier = Modifier.fillMaxSize())
@@ -974,10 +964,7 @@ private fun MainAppContent(
     LaunchedEffect(enhancedSettingsUiState.statusBarVisible) {
         AppSystemUiController.setStatusBarVisible(enhancedSettingsUiState.statusBarVisible)
     }
-    var initialHomeReady by rememberSaveable(
-        ownsAppRuntime,
-        profileState.activeProfile?.profileIndex,
-    ) {
+    var initialHomeReady by rememberSaveable(ownsAppRuntime) {
         mutableStateOf(!ownsAppRuntime)
     }
     var offlineLaunchRouteHandled by rememberSaveable { mutableStateOf(false) }
@@ -1083,18 +1070,25 @@ private fun MainAppContent(
         }
     }
 
-    var profileSwitchLoading by remember { mutableStateOf(false) }
+    var pendingProfileIndex by remember { mutableStateOf<Int?>(null) }
+    val profileSwitchLoading = pendingProfileIndex != null
 
-    LaunchedEffect(profileState.activeProfile?.profileIndex) {
-        if (!ownsAppRuntime) return@LaunchedEffect
-        delay(5_000)
-        initialHomeReady = true
+    // A profile switch is complete when the repository publishes the selected profile.
+    // It must not replay the cold-start splash or wait for Home's first network catalog.
+    LaunchedEffect(profileState.activeProfile?.profileIndex, pendingProfileIndex) {
+        if (pendingProfileIndex != null &&
+            profileState.activeProfile?.profileIndex == pendingProfileIndex
+        ) {
+            pendingProfileIndex = null
+        }
     }
 
-    LaunchedEffect(profileSwitchLoading) {
-        if (!profileSwitchLoading) return@LaunchedEffect
-        delay(1_200)
-        profileSwitchLoading = false
+    // Let Compose draw the Mew-branded launch surface once, then reveal the app shell.
+    // Content discovery remains progressive inside Home; it is not a startup prerequisite.
+    LaunchedEffect(ownsAppRuntime) {
+        if (!ownsAppRuntime) return@LaunchedEffect
+        withFrameNanos { }
+        initialHomeReady = true
     }
 
     LaunchedEffect(
@@ -1114,27 +1108,9 @@ private fun MainAppContent(
             }
         }
     }
-    val launchOverlayState = remember(ownsAppRuntime) {
-        MutableTransitionState(
-            ownsAppRuntime && (
-                !initialHomeReady ||
-                    profileSwitchLoading
-                ),
-        )
-    }
-    launchOverlayState.targetState =
-        ownsAppRuntime && (
-            !initialHomeReady ||
-                profileSwitchLoading
-            )
-
-    LaunchedEffect(
-        launchOverlayState.targetState,
-        ownsAppRuntime,
-        onRootContentReady,
-    ) {
+    LaunchedEffect(initialHomeReady, ownsAppRuntime, onRootContentReady) {
         if (ownsAppRuntime) {
-            onRootContentReady?.invoke(!launchOverlayState.targetState)
+            onRootContentReady?.invoke(initialHomeReady)
         }
     }
 
@@ -2104,8 +2080,7 @@ private fun MainAppContent(
                             nativeProfileSwitcherVisible = false
                             activateTab(AppScreenTab.Home)
                             if (profile.profileIndex != profileState.activeProfile?.profileIndex) {
-                                initialHomeReady = false
-                                profileSwitchLoading = true
+                                pendingProfileIndex = profile.profileIndex
                                 NativeTabBridge.publishTabBarVisible(false)
                                 ProfileRepository.selectProfile(profile.profileIndex)
                                 SyncManager.pullAllForProfile(profile.profileIndex)
@@ -2180,9 +2155,7 @@ private fun MainAppContent(
                             LocalDensity provides Density(density.density, density.fontScale * tvUiScale),
                         ) {
                         Scaffold(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .alpha(if (launchOverlayState.targetState) 0f else 1f),
+                            modifier = Modifier.fillMaxSize(),
                             containerColor = Color.Transparent,
                             contentWindowInsets = WindowInsets(0),
                             bottomBar = {
@@ -2394,10 +2367,7 @@ private fun MainAppContent(
                                         onRequestedSettingsPageConsumed = {
                                             requestedSettingsPageName = null
                                         },
-                                        onInitialHomeContentRendered = {
-                                            initialHomeReady = true
-                                            profileSwitchLoading = false
-                                        },
+                                        onInitialHomeContentRendered = {},
                                     )
                                 }
 
@@ -4063,16 +4033,6 @@ private fun MainAppContent(
                     showExitConfirmation = false
                 },
             )
-
-            androidx.compose.animation.AnimatedVisibility(
-                visibleState = launchOverlayState,
-                enter = fadeIn(),
-                exit = fadeOut(androidx.compose.animation.core.tween(400)),
-            ) {
-                AppLaunchOverlay(
-                    modifier = Modifier.fillMaxSize(),
-                )
-            }
 
             NuvioFloatingPrompt(
                 visible = resumePromptItem != null,
