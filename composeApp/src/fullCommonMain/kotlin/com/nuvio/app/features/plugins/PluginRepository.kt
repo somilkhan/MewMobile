@@ -440,15 +440,21 @@ actual object PluginRepository {
         // fanning out to scrapers. Do not repeat TMDB network lookups for every plugin.
         if (tmdbId.isBlank()) return Result.success(emptyList())
 
-        return runCatching {
-            PluginRuntime.executePlugin(
-                code = scraper.code,
-                tmdbId = tmdbId,
-                mediaType = normalizePluginType(mediaType),
-                season = season,
-                episode = episode,
-                scraperId = scraper.id,
+        return try {
+            Result.success(
+                PluginRuntime.executePlugin(
+                    code = scraper.code,
+                    tmdbId = tmdbId,
+                    mediaType = normalizePluginType(mediaType),
+                    season = season,
+                    episode = episode,
+                    scraperId = scraper.id,
+                ),
             )
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Throwable) {
+            Result.failure(error)
         }
     }
 
