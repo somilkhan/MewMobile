@@ -287,6 +287,11 @@ object StreamsRepository {
         } else {
             emptyList()
         }
+        val pluginBatchCount = (pluginScrapers.size + PLUGIN_SCRAPER_CONCURRENCY - 1) / PLUGIN_SCRAPER_CONCURRENCY
+        val totalStreamTimeoutMs = maxOf(
+            STREAM_TOTAL_TIMEOUT_MS,
+            pluginBatchCount * PLUGIN_STREAM_PROVIDER_TIMEOUT_MS + 5_000L,
+        )
         val pluginProviderGroups = pluginScrapers.toPluginProviderGroups(
             repositories = pluginUiState.repositories,
             groupByRepository = pluginUiState.groupStreamsByRepository,
@@ -717,14 +722,14 @@ object StreamsRepository {
                 val includeScraperNameInSubtitle = false
                 providerGroup.scrapers.forEach { scraper ->
                     launch {
-                        val scraperResult = withTimeoutOrNull(PLUGIN_STREAM_PROVIDER_TIMEOUT_MS) {
-                            pluginScraperSemaphore.withPermit {
+                        val scraperResult = pluginScraperSemaphore.withPermit {
+                            withTimeoutOrNull(PLUGIN_STREAM_PROVIDER_TIMEOUT_MS) {
                                 PluginRepository.executeScraper(
-                                scraper = scraper,
-                                tmdbId = canonicalPluginTmdbId,
-                                mediaType = type,
-                                season = season,
-                                episode = episode,
+                                    scraper = scraper,
+                                    tmdbId = canonicalPluginTmdbId,
+                                    mediaType = type,
+                                    season = season,
+                                    episode = episode,
                                 )
                             }
                         }
@@ -780,7 +785,7 @@ object StreamsRepository {
             }
 
             var receivedTasks = 0
-            val allTasksCompleted = withTimeoutOrNull(STREAM_TOTAL_TIMEOUT_MS) {
+            val allTasksCompleted = withTimeoutOrNull(totalStreamTimeoutMs) {
                 while (receivedTasks < totalTasks) {
                     val completion = completions.receive()
                     receivedTasks++
