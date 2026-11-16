@@ -294,9 +294,9 @@ object TraktEpisodeMappingService {
         addonEpisodes: List<EpisodeMappingEntry>,
         traktEpisodes: List<EpisodeMappingEntry>,
     ): Boolean {
-        val addonPerSeason = addonEpisodes.groupBy { it.season }.mapValues { it.value.size }
-        val traktPerSeason = traktEpisodes.groupBy { it.season }.mapValues { it.value.size }
-        return addonPerSeason == traktPerSeason
+        val addonCoordinates = addonEpisodes.map { it.season to it.episode }.toSet()
+        val traktCoordinates = traktEpisodes.map { it.season to it.episode }.toSet()
+        return addonCoordinates == traktCoordinates
     }
 
     // ── Forward mapping: addon → Trakt ──────────────────────────────────
@@ -528,14 +528,15 @@ object TraktEpisodeMappingService {
         cacheMutex.withLock { traktEpisodesInFlight.remove(showLookupId) }
     }
 
-    private fun parseTraktSeasonsPayload(payload: String): List<EpisodeMappingEntry> {
+    internal fun parseTraktSeasonsPayload(payload: String): List<EpisodeMappingEntry> {
         val seasons = runCatching {
             json.decodeFromString<List<TraktSeasonDto>>(payload)
         }.getOrNull() ?: return emptyList()
 
         return seasons
             .asSequence()
-            .filter { (it.number ?: 0) >= 0 }
+            // Season 0 contains specials/OVAs; including them shifts every anime absolute index.
+            .filter { (it.number ?: 0) > 0 }
             .sortedBy { it.number }
             .flatMap { seasonDto ->
                 seasonDto.episodes.orEmpty().asSequence().mapNotNull { episodeDto ->
