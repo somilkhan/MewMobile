@@ -30,6 +30,8 @@ import com.nuvio.app.features.streams.StreamParser
 import com.nuvio.app.features.streams.StreamsUiState
 import com.nuvio.app.features.streams.StreamsEmptyStateReason
 import com.nuvio.app.features.streams.buildCloudStreamSearchRequest
+import com.nuvio.app.features.streams.CLOUDSTREAM_PROVIDER_STREAM_TIMEOUT_MS
+import com.nuvio.app.features.streams.CLOUDSTREAM_PROVIDER_STREAM_TIMEOUT_GRACE_MS
 import com.nuvio.app.features.streams.cloudStreamAddonId
 import com.nuvio.app.features.streams.cloudStreamProviderGroupsForRequest
 import com.nuvio.app.features.streams.cloudStreamSourcesToStreamItems
@@ -290,7 +292,7 @@ object PlayerStreamsRepository {
             RuntimeDiagnostics.updateStreams(groups = 1, loadingGroups = 1, providerTasks = 1)
             val job = scope.launch {
                 val result = runCatchingUnlessCancelled {
-                    withTimeoutOrNull(PLAYER_STREAM_PROVIDER_TIMEOUT_MS) {
+                    withTimeoutOrNull(CLOUDSTREAM_PROVIDER_STREAM_TIMEOUT_MS + CLOUDSTREAM_PROVIDER_STREAM_TIMEOUT_GRACE_MS) {
                         CloudStreamRepository.loadLinks(cloudStreamRoute.providerId, cloudStreamRoute.data)
                     } ?: error("$providerName timed out")
                 }.fold(
@@ -611,7 +613,7 @@ object PlayerStreamsRepository {
 
             cloudStreamProviderGroups.forEach { providerGroup ->
                 launch {
-                    val group = withTimeoutOrNull(PLAYER_STREAM_PROVIDER_TIMEOUT_MS) {
+                    val group = withTimeoutOrNull(CLOUDSTREAM_PROVIDER_STREAM_TIMEOUT_MS + CLOUDSTREAM_PROVIDER_STREAM_TIMEOUT_GRACE_MS) {
                         cloudStreamSemaphore.withPermit {
                             resolveCloudStreamProviderStreams(
                                 providerGroup = providerGroup,
@@ -787,7 +789,7 @@ object PlayerStreamsRepository {
 
 private const val PLAYER_CLOUDSTREAM_STREAM_PROVIDER_CONCURRENCY = 12
 private const val PLAYER_STREAM_PROVIDER_TIMEOUT_MS = 25_000L
-private const val PLAYER_STREAM_TOTAL_TIMEOUT_MS = 40_000L
+private const val PLAYER_STREAM_TOTAL_TIMEOUT_MS = 130_000L
 private const val PLAYER_DEBRID_AVAILABILITY_TIMEOUT_MS = 15_000L
 
 private data class PlayerInstalledStreamAddonTarget(
