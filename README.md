@@ -1,12 +1,5 @@
-<!--
-Mew repository artwork
-- Add the approved banner at: docs/images/mew-banner.png
-- Add the approved logo at: docs/images/mew-logo.png
-Keep this block as the artwork slot until the final assets are supplied.
--->
-
 <p align="center">
-  <!-- PROJECT LOGO SLOT: add docs/images/mew-logo.png when ready -->
+  <img src="docs/images/mew-logo.svg" alt="Mew ghost mascot logo" width="180" />
 </p>
 
 <h1 align="center">Mew</h1>
@@ -23,7 +16,9 @@ Keep this block as the artwork slot until the final assets are supplied.
   <a href="https://github.com/NuvioMedia/NuvioMobile">Upstream project</a>
 </p>
 
-<!-- PROJECT BANNER SLOT: add the approved banner here when available. -->
+<p align="center">
+  <img src="docs/images/mew-banner.svg" alt="Mew — Your media. Your experience." width="100%" />
+</p>
 
 ---
 
