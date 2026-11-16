@@ -274,7 +274,7 @@ private suspend fun executeTextRequest(
         val contentType = sanitizedHeaders.getHeaderIgnoreCase("Content-Type")
             ?: if (normalizedMethod == "POST") "application/x-www-form-urlencoded" else "application/json"
         // Preserve exact media type and avoid implicit charset rewriting used in signed APIs like MovieBox.
-        val requestBody = (bodyBytes ?: body.toByteArray(Charsets.UTF_8)).toRequestBody(contentType.toMediaType())
+        val requestBody = body.toByteArray(Charsets.UTF_8).toRequestBody(contentType.toMediaType())
         builder.method(normalizedMethod, requestBody)
     } else {
         builder.method(normalizedMethod, null)
