@@ -1,5 +1,5 @@
 <p align="center">
-  <!-- OFFICIAL LOGO SLOT: original approved 3D mascot artwork will be placed here -->
+  <img src="docs/mew-logo.png" width="220" alt="Mew mascot logo">
 </p>
 
 <h1 align="center">Mew</h1>
@@ -16,7 +16,9 @@
   <a href="https://github.com/NuvioMedia/NuvioMobile">Upstream project</a>
 </p>
 
-<!-- OFFICIAL BANNER SLOT: original approved 3D banner artwork will be placed here -->
+<p align="center">
+  <img src="docs/mew-banner.png" alt="Mew — Your media. Your experience." width="100%">
+</p>
 
 ---
 
