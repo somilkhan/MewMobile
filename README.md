@@ -156,6 +156,12 @@ Never commit signing keys, passwords, API secrets or private configuration files
 
 The Android release version is sourced from `iosApp/Configuration/Version.xcconfig`. Before preparing a release, review the [release workflow](.github/workflows/android-release.yml) and [Android release setup](RELEASES.md).
 
+## Release configuration
+
+Release automation lives in [`.github/workflows/android-release.yml`](.github/workflows/android-release.yml). It validates release metadata and signing, builds the configured Android APK variants, and publishes artifacts through GitHub Actions. The required credentials, signing safeguards and release checklist are documented in [RELEASES.md](RELEASES.md).
+
+For contributors, the workflow can be inspected without access to signing secrets; publishing a public release requires repository-owner approval and configured secrets.
+
 ## Project structure
 
 | Path | Purpose |
