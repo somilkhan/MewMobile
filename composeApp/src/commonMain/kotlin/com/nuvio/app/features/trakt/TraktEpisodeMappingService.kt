@@ -16,6 +16,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.contentOrNull
 import kotlin.time.TimeSource
 
 private const val BASE_URL = "https://api.trakt.tv"
