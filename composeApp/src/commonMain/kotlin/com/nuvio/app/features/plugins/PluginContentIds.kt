@@ -60,11 +60,12 @@ internal suspend fun resolvePluginTmdbId(
 
     val query = searchTitle?.trim()?.takeIf(String::isNotBlank) ?: normalized
     val results = TmdbService.search(query, limit = 12)
-    val selected = selectPluginTmdbSearchResult(results, query, mediaType)
-        ?: return normalized
+    val selectedTmdbId = selectPluginTmdbSearchResult(results, query, mediaType)
+        ?.id
+        ?.removePrefix("tmdb:")
     return pluginTmdbIdOrSourceIdentity(
         normalizedId = normalized,
-        resolvedTmdbId = selected?.id?.removePrefix("tmdb:"),
+        resolvedTmdbId = selectedTmdbId,
     )
 }
 
