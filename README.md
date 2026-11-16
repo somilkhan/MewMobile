@@ -20,6 +20,31 @@
   <img src="docs/mew-banner.png" alt="Mew — Your media. Your experience." width="100%">
 </p>
 
+<p align="center">
+  <a href="https://github.com/somilkhan/MewMobile/releases/latest"><img src="https://img.shields.io/github/v/release/somilkhan/MewMobile?display_name=tag&label=release" alt="Latest release"></a>
+  <a href="https://github.com/somilkhan/MewMobile/blob/enhanced/LICENSE"><img src="https://img.shields.io/github/license/somilkhan/MewMobile" alt="License"></a>
+  <a href="https://github.com/somilkhan/MewMobile/releases"><img src="https://img.shields.io/github/downloads/somilkhan/MewMobile/total?label=downloads" alt="GitHub downloads"></a>
+  <img src="https://img.shields.io/badge/platform-Android-3DDC84?logo=android&logoColor=white" alt="Android">
+</p>
+
+---
+
+## Contents
+
+- [About](#about)
+- [Highlights](#highlights)
+- [Screenshots](#screenshots)
+- [Download](#download)
+- [Getting started](#getting-started)
+- [How it works](#how-it-works)
+- [Building from source](#building-from-source)
+- [Project structure](#project-structure)
+- [Development principles](#development-principles)
+- [Contributing](#contributing)
+- [Current limitations](#current-limitations)
+- [Attribution and licensing](#attribution-and-licensing)
+- [Legal](#legal)
+
 ---
 
 ## About
@@ -90,23 +115,14 @@ Mew does not ship with a guaranteed provider catalogue. Content and source avail
 
 Mew keeps its app experience separate from the provider runtime:
 
-```text
-Mew app experience
-        |
-        v
-Mew application and orchestration
-        |
-        v
-CloudStream runtime
-        |
-        v
-User-installed repositories and providers
-        |
-        v
-Catalogues, search, details, episodes and sources
-        |
-        v
-Mew playback layer
+```mermaid
+flowchart TD
+    A["Mew app experience"] --> B["Mew application and orchestration"]
+    B --> C["CloudStream runtime"]
+    C --> D["User-installed repositories and providers"]
+    D --> E["Catalogues · Search · Details · Episodes · Sources"]
+    E --> F["Mew playback layer"]
+    G["Supported external manifest addons"] --> B
 ```
 
 CloudStream is the compatibility/runtime layer; it is not a catalogue bundled by Mew. External manifest-based addons are a separate integration path.
