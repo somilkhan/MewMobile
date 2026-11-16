@@ -32,105 +32,89 @@
 - [Building from source](#building-from-source)
 - [Project structure](#project-structure)
 - [Release configuration](#release-configuration)
-- [Development principles](#development-principles)
 - [Contributing](#contributing)
-- [Current limitations](#current-limitations)
+- [Limitations](#limitations)
 - [Attribution and licensing](#attribution-and-licensing)
-- [Legal](#legal)
 
 ---
 
 ## About
 
-Mew is an independent Android fork of [NuvioMobile Enhanced](https://github.com/AKRusso/NuvioMobile-Enhanced), which is itself based on [NuvioMobile](https://github.com/NuvioMedia/NuvioMobile). Mew has its own product identity and user experience, bringing together media discovery, user-managed extensions and playback while retaining compatibility with the CloudStream runtime.
-
-Mew is built around integrations that users choose to install. It does not bundle a central catalogue of streaming providers, and it does not host or distribute media.
+Mew is an independent Android fork of [NuvioMobile Enhanced](https://github.com/AKRusso/NuvioMobile-Enhanced), which is itself based on [NuvioMobile](https://github.com/NuvioMedia/NuvioMobile). Mew has its own product identity and app experience while retaining compatibility with the CloudStream runtime.
 
 ## Highlights
 
-- **Native CloudStream compatibility** — use compatible CloudStream repositories and providers through the integrated runtime.
-- **User-managed extensions** — add and manage repositories and providers instead of relying on a bundled provider list.
-- **External addon support** — connect supported manifest-based addons for catalogs, metadata, streams and subtitles.
-- **Flexible discovery** — browse Home, search, details and episode results supplied by installed integrations.
-- **Playback options** — multiple playback engines and configurable playback behavior.
-- **Subtitle controls** — subtitle selection and synchronization, including support for embedded and sidecar subtitles.
-- **Library and profiles** — keep supported library and profile features within the app.
-- **Optional metadata enrichment** — services such as TMDB can enrich presentation, but are not required for CloudStream provider content.
+- **CloudStream compatibility** — use compatible repositories and providers through the integrated runtime.
+- **User-managed integrations** — add the repositories, providers and supported addons you choose.
+- **Discovery** — browse catalogs, search, details and episode results supplied by installed integrations.
+- **Playback** — multiple playback engines and configurable playback behavior.
+- **Subtitles** — subtitle selection and synchronization, including embedded and sidecar subtitles.
+- **Library and profiles** — use supported library and profile features within the app.
+- **Optional metadata** — metadata services can enrich presentation but are not required for CloudStream provider content.
 
-Feature availability can depend on the installed integration, build variant and platform.
+Feature availability depends on the installed integration, build variant and platform.
 
 ## Screenshots
 
 <!--
-SCREENSHOT GALLERY SLOT
-Add real Mew screenshots here when supplied:
+Add genuine Mew screenshots when available:
 - docs/images/screenshots/home.png
 - docs/images/screenshots/details.png
 - docs/images/screenshots/player.png
 - docs/images/screenshots/settings.png
 
-Suggested order: Home, Details, Player, Settings.
-Do not replace these with app icons, mockups or screenshots from upstream.
+Keep this section empty until real screenshots are supplied.
+Do not use mockups or screenshots from upstream.
 -->
 
 ## Download
 
-The latest public Android release is **Mew 0.5.1 (120)**.
+Get the latest Android build from **[GitHub Releases](https://github.com/somilkhan/MewMobile/releases/latest)**.
 
-[Get Mew 0.5.1 from GitHub Releases](https://github.com/somilkhan/MewMobile/releases/tag/0.5.1)
+Release assets include device-specific APKs where available:
 
-Choose the APK that matches your device:
+- **arm64-v8a** — most modern Android phones and tablets
+- **armeabi-v7a** — compatible 32-bit ARM devices
+- **Universal** — broader compatibility, with a larger download
+- **x86 / x86_64** — Android devices using x86 processors
 
-| APK | Intended devices |
-| --- | --- |
-| [arm64-v8a](https://github.com/somilkhan/MewMobile/releases/download/0.5.1/androidApp-full-arm64-v8a-release.apk) | Most modern 64-bit Android phones and tablets |
-| [armeabi-v7a](https://github.com/somilkhan/MewMobile/releases/download/0.5.1/androidApp-full-armeabi-v7a-release.apk) | Compatible 32-bit ARM devices |
-| [Universal](https://github.com/somilkhan/MewMobile/releases/download/0.5.1/androidApp-full-universal-release.apk) | Broad compatibility; larger download |
-| [x86](https://github.com/somilkhan/MewMobile/releases/download/0.5.1/androidApp-full-x86-release.apk) | x86 Android devices |
-| [x86_64](https://github.com/somilkhan/MewMobile/releases/download/0.5.1/androidApp-full-x86_64-release.apk) | 64-bit x86 Android devices |
-
-For most current Android phones, choose **arm64-v8a**. If you are unsure which architecture your device uses, use the universal APK.
-
-Only install builds from sources you trust. Review the [release notes](https://github.com/somilkhan/MewMobile/releases/tag/0.5.1) before updating.
+For most current Android phones, choose **arm64-v8a**. If you are unsure, use the universal APK when it is included in the release.
 
 ## Getting started
 
-1. Install the Android APK for your device.
+1. Install the APK that matches your device.
 2. Open **Settings → Content & Discovery**.
-3. Add a CloudStream repository or another supported integration that you trust.
+3. Add a CloudStream repository or another supported integration you trust.
 4. Enable the providers or addons you want to use.
-5. Configure optional metadata services if you want metadata enrichment.
-6. Browse Home or Search and open a result supplied by your installed integrations.
+5. Browse Home or Search and open a result supplied by your integrations.
 
-Mew does not ship with a guaranteed provider catalogue. Content and source availability depend on the third-party integrations you choose to install and use.
+Mew does not include a guaranteed provider catalogue. Content and source availability depend on the third-party integrations you install.
 
 ## How it works
 
-Mew keeps its app experience separate from the provider runtime:
+Mew provides the app experience and connects it to the CloudStream runtime and supported external addons.
 
 ```mermaid
 flowchart TD
-    A["Mew app experience"] --> B["Mew application and orchestration"]
+    A["Mew app"] --> B["Application and orchestration"]
     B --> C["CloudStream runtime"]
     C --> D["User-installed repositories and providers"]
-    D --> E["Catalogues · Search · Details · Episodes · Sources"]
-    E --> F["Mew playback layer"]
-    G["Supported external manifest addons"] --> B
+    D --> E["Catalogs · Search · Details · Episodes · Sources"]
+    E --> F["Mew playback"]
+    G["Supported manifest addons"] --> B
 ```
 
-CloudStream is the compatibility/runtime layer; it is not a catalogue bundled by Mew. External manifest-based addons are a separate integration path.
-
-### Metadata is optional
-
-CloudStream providers can return content without TMDB. Metadata services can add artwork, descriptions and matching where configured, but they are not a prerequisite for provider content.
+CloudStream is the compatibility/runtime layer, not a catalogue bundled by Mew. Metadata enrichment is optional and depends on the services configured by the user.
 
 ## Building from source
 
 ### Requirements
 
-- A compatible JDK for the Gradle build.
-- Android SDK and the SDK components required by the project.
-- Git and the repository's Gradle wrapper.
+- JDK 17
+- Android SDK with API 37 (compile SDK)
+- Git and the included Gradle wrapper (Gradle 9.4.1)
+
+The app's minimum Android SDK is 24.
 
 ### Build a full Android debug APK
 
@@ -138,21 +122,13 @@ CloudStream providers can return content without TMDB. Metadata services can add
 ./gradlew :androidApp:assembleFullDebug -Pnuvio.android.distribution=full
 ```
 
-The repository retains some `nuvio.*` Gradle, property and package identifiers for compatibility. These internal identifiers do not change the public product name.
-
-### Release builds
-
-Public release builds are produced through the repository's GitHub Actions release workflow. Signing credentials and other private configuration must be supplied through the configured GitHub Actions secrets or local ignored configuration.
-
-Never commit signing keys, passwords, API secrets or private configuration files.
-
-The Android release version is sourced from `iosApp/Configuration/Version.xcconfig`. Before preparing a release, review the [release workflow](.github/workflows/android-release.yml) and [Android release setup](RELEASES.md).
+Some Gradle properties, package identifiers and compatibility paths retain `nuvio` naming. These internal identifiers do not change the public product name.
 
 ## Release configuration
 
-Release automation lives in [`.github/workflows/android-release.yml`](.github/workflows/android-release.yml). It validates release metadata and signing, builds the configured Android APK variants, and publishes artifacts through GitHub Actions. The required credentials, signing safeguards and release checklist are documented in [RELEASES.md](RELEASES.md).
+Public Android releases are built through [the GitHub Actions release workflow](.github/workflows/android-release.yml). Release signing material and private configuration must be supplied through the configured repository secrets or local ignored configuration.
 
-For contributors, the workflow can be inspected without access to signing secrets; publishing a public release requires repository-owner approval and configured secrets.
+See [RELEASES.md](RELEASES.md) for API setup, signing requirements and the release checklist. Never commit signing keys, passwords or API secrets. Publishing a public release requires repository-owner approval and configured secrets.
 
 ## Project structure
 
@@ -165,46 +141,24 @@ For contributors, the workflow can be inspected without access to signing secret
 | `composeApp/src/commonTest` | Shared tests |
 | `.github/workflows` | CI and release automation |
 
-## Development principles
-
-Mew development focuses on four areas:
-
-1. **Mew experience** — maintain the app's own identity and product/UI layer.
-2. **CloudStream compatibility** — integrate with the existing CloudStream runtime rather than creating a duplicate provider system.
-3. **Reliability** — improve playback, lifecycle behavior, loading and rendering without introducing regressions.
-4. **Upstream compatibility** — preserve required compatibility and attribution for inherited components.
-
-Contributions should avoid fake provider data, synthetic catalogues, hardcoded third-party sources or a parallel extension runtime.
-
 ## Contributing
 
-Contributions and issue reports are welcome. Before opening a pull request:
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. Keep changes focused, link reproducible bugs, and include relevant test results. UI fixes require before-and-after proof; cosmetic-only changes and unapproved feature work are not accepted.
 
-- Read [CONTRIBUTING.md](CONTRIBUTING.md).
-- Keep changes focused and explain the user-facing or technical reason.
-- Include relevant test results and reproduction steps for fixes.
-- Do not include credentials, private user data or copyrighted media.
-- Preserve existing Mew behavior unless a change is intentional and documented.
+- [Report a bug or request a feature](https://github.com/somilkhan/MewMobile/issues/new/choose)
+- [Browse existing issues](https://github.com/somilkhan/MewMobile/issues)
 
-## Current limitations
+## Limitations
 
-- Mew is currently published as an Android application; capabilities on other targets may differ and should not be assumed to match Android.
-- Content availability depends on third-party repositories, plugins and addons installed by the user.
-- Third-party integrations can change, become unavailable or fail independently of Mew.
-- Optional metadata enrichment may be unavailable without affecting the underlying CloudStream provider architecture.
+- Mew is currently published as an Android application; other targets may differ.
+- Third-party repositories, providers and addons can change or become unavailable independently of Mew.
 - Some internal compatibility identifiers retain Nuvio naming.
 
 ## Attribution and licensing
 
-Mew is an independent fork of [NuvioMobile](https://github.com/NuvioMedia/NuvioMobile). Upstream code and other third-party components remain subject to their respective licenses and attribution requirements.
+Mew is an independent fork of [NuvioMobile Enhanced](https://github.com/AKRusso/NuvioMobile-Enhanced), originally based on [NuvioMobile](https://github.com/NuvioMedia/NuvioMobile). Upstream code and third-party components remain subject to their respective licenses and attribution requirements.
 
-- Review the repository's [LICENSE](LICENSE).
-- Review applicable third-party notices and the in-app **Licenses & Attribution** section.
-- CloudStream compatibility code and the embedded runtime remain subject to their applicable upstream licenses.
-
-## Legal
-
-Mew is a client application. It does not host, provide or distribute media content. Users are responsible for the repositories, plugins, addons, services and content they choose to access, and must use them only where they have authorization.
+See the repository's [GPL-3.0 license](LICENSE), applicable third-party notices and the in-app **Licenses & Attribution** section. CloudStream compatibility code and the embedded runtime remain subject to their applicable upstream licenses.
 
 ---
 
