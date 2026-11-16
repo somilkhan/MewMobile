@@ -153,7 +153,7 @@ Public release builds are produced through the repository's GitHub Actions relea
 
 Never commit signing keys, passwords, API secrets or private configuration files.
 
-The Android version is maintained in `iosApp/Configuration/Version.xcconfig`. Check the release workflow and [RELEASES.md](RELEASES.md) before preparing a release.
+The Android release version is sourced from `iosApp/Configuration/Version.xcconfig`. Before preparing a release, review the [release workflow](.github/workflows/android-release.yml) and [Android release setup](RELEASES.md).
 
 ## Project structure
 
