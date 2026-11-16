@@ -20,6 +20,24 @@ import kotlin.time.TimeSource
 
 private const val BASE_URL = "https://api.trakt.tv"
 
+internal fun parseTraktShowLookupIdFromSearch(payload: String): String? = runCatching {
+    val results = kotlinx.serialization.json.Json.parseToJsonElement(payload) as? kotlinx.serialization.json.JsonArray
+        ?: return null
+    results.firstNotNullOfOrNull { result ->
+        val item = result as? kotlinx.serialization.json.JsonObject ?: return@firstNotNullOfOrNull null
+        if (item["type"]?.let { (it as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull }
+                ?.equals("show", ignoreCase = true) != true) return@firstNotNullOfOrNull null
+        val ids = item["show"] as? kotlinx.serialization.json.JsonObject
+            ?: return@firstNotNullOfOrNull null
+        val externalIds = ids["ids"] as? kotlinx.serialization.json.JsonObject
+            ?: return@firstNotNullOfOrNull null
+        (externalIds["slug"] as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull
+            ?: (externalIds["trakt"] as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull
+            ?: (externalIds["imdb"] as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull
+    }
+}.getOrNull()
+
+
 private val NON_ALPHANUMERIC = Regex("[^a-z0-9]+")
 private val COLLAPSED_SPACES = Regex("\\s+")
 private val titleMutex = Mutex()
@@ -266,6 +284,7 @@ object TraktEpisodeMappingService {
         reverseMappingCache.clear()
         addonEpisodesCache.clear()
         traktEpisodesCache.clear()
+        tmdbShowLookupCache.clear()
     }
 
     // ── Season structure comparison ───────────────────────────────────────
