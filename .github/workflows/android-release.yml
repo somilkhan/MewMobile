@@ -191,6 +191,7 @@ jobs:
       ANILIST_CLIENT_ID: ${{ secrets.ANILIST_CLIENT_ID }}
       MAL_CLIENT_ID: ${{ secrets.MAL_CLIENT_ID }}
       PREMIUMIZE_CLIENT_ID: ${{ secrets.PREMIUMIZE_CLIENT_ID }}
+      TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
 
     steps:
       - name: Check out full history
