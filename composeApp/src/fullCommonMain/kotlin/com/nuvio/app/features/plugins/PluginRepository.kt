@@ -436,20 +436,14 @@ actual object PluginRepository {
         season: Int?,
         episode: Int?,
     ): Result<List<PluginRuntimeResult>> {
-        // A missing identity must not reach plugin code as an empty /movie/ or /tv/ path.
+        // Stream repositories resolve the content identity once per request before
+        // fanning out to scrapers. Do not repeat TMDB network lookups for every plugin.
         if (tmdbId.isBlank()) return Result.success(emptyList())
-
-        val resolvedTmdbId = resolvePluginTmdbId(
-            videoId = tmdbId,
-            mediaType = mediaType,
-            season = season,
-            episode = episode,
-        ) ?: return Result.success(emptyList())
 
         return runCatching {
             PluginRuntime.executePlugin(
                 code = scraper.code,
-                tmdbId = resolvedTmdbId,
+                tmdbId = tmdbId,
                 mediaType = normalizePluginType(mediaType),
                 season = season,
                 episode = episode,
