@@ -365,6 +365,11 @@ object PlayerStreamsRepository {
         } else {
             emptyList()
         }
+        val pluginBatchCount = (pluginScrapers.size + PLAYER_PLUGIN_SCRAPER_CONCURRENCY - 1) / PLAYER_PLUGIN_SCRAPER_CONCURRENCY
+        val totalPluginStreamTimeoutMs = maxOf(
+            PLAYER_STREAM_TOTAL_TIMEOUT_MS,
+            pluginBatchCount * PLAYER_PLUGIN_STREAM_PROVIDER_TIMEOUT_MS + 5_000L,
+        )
         val pluginProviderGroups = pluginScrapers.toPluginProviderGroups(
             repositories = pluginUiState.repositories,
             groupByRepository = pluginUiState.groupStreamsByRepository,
@@ -454,6 +459,7 @@ object PlayerStreamsRepository {
             val completions = Channel<StreamLoadCompletion>(capacity = Channel.BUFFERED)
             val debridAvailabilityJobs = mutableListOf<Job>()
             val cloudStreamSemaphore = Semaphore(PLAYER_CLOUDSTREAM_STREAM_PROVIDER_CONCURRENCY)
+            val pluginScraperSemaphore = Semaphore(PLAYER_PLUGIN_SCRAPER_CONCURRENCY)
 
             fun publishCompletion(completion: StreamLoadCompletion) {
                 if (completions.trySend(completion).isFailure) {
@@ -593,14 +599,16 @@ object PlayerStreamsRepository {
                                 error = pluginIdentityError,
                             )
                         } else {
-                            val scraperResult = withTimeoutOrNull(PLAYER_PLUGIN_STREAM_PROVIDER_TIMEOUT_MS) {
-                                PluginRepository.executeScraper(
-                                    scraper = scraper,
-                                    tmdbId = canonicalPluginTmdbId.orEmpty(),
-                                    mediaType = type,
-                                    season = season,
-                                    episode = episode,
-                                )
+                            val scraperResult = pluginScraperSemaphore.withPermit {
+                                withTimeoutOrNull(PLAYER_PLUGIN_STREAM_PROVIDER_TIMEOUT_MS) {
+                                    PluginRepository.executeScraper(
+                                        scraper = scraper,
+                                        tmdbId = canonicalPluginTmdbId.orEmpty(),
+                                        mediaType = type,
+                                        season = season,
+                                        episode = episode,
+                                    )
+                                }
                             }
                             (scraperResult ?: Result.failure(Throwable("${scraper.name} timed out"))).fold(
                                 onSuccess = { results ->
@@ -653,7 +661,7 @@ object PlayerStreamsRepository {
             }
 
             var receivedTasks = 0
-            val allTasksCompleted = withTimeoutOrNull(PLAYER_STREAM_TOTAL_TIMEOUT_MS) {
+            val allTasksCompleted = withTimeoutOrNull(totalPluginStreamTimeoutMs) {
                 while (receivedTasks < totalTasks) {
                     val completion = completions.receive()
                     receivedTasks++
@@ -812,6 +820,8 @@ private const val PLAYER_CLOUDSTREAM_STREAM_PROVIDER_CONCURRENCY = 12
 private const val PLAYER_STREAM_PROVIDER_TIMEOUT_MS = 25_000L
 // Keep Nuvio plugin extraction alive through its 60s QuickJS runtime deadline.
 private const val PLAYER_PLUGIN_STREAM_PROVIDER_TIMEOUT_MS = 65_000L
+// Match the dedicated QuickJS worker pool to avoid timing out queued scraper jobs.
+private const val PLAYER_PLUGIN_SCRAPER_CONCURRENCY = 4
 private const val PLAYER_PLUGIN_ID_RESOLUTION_TIMEOUT_MS = 10_000L
 private const val PLAYER_STREAM_TOTAL_TIMEOUT_MS = 70_000L
 private const val PLAYER_DEBRID_AVAILABILITY_TIMEOUT_MS = 15_000L
