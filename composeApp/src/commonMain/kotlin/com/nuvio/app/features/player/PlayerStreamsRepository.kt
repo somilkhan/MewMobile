@@ -569,7 +569,7 @@ object PlayerStreamsRepository {
             // TMDB identity lookup as the main picker. Keep this network step inside
             // the lifecycle budget instead of leaving source/episode panels spinning.
             val canonicalPluginTmdbId = withTimeoutOrNull(PLAYER_PLUGIN_ID_RESOLUTION_TIMEOUT_MS) {
-                runCatching {
+                runCatchingUnlessCancelled {
                     resolvePluginTmdbId(
                         videoId = videoId,
                         mediaType = type,
