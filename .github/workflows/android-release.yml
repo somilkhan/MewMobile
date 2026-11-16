@@ -1,7 +1,7 @@
 name: Build Mew Release
 
 on:
-  # A commit carrying [release-build] on enhanced runs preflight + signed Android build only.
+  # A commit carrying [release-build] builds artifacts; [release-publish] builds and publishes the public release.
   push:
     branches:
       - enhanced
@@ -178,11 +178,11 @@ jobs:
   release:
     name: ${{ github.event_name == 'push' && 'build' || inputs.mode }} Mew release
     needs: build-ios
-    if: ${{ (github.event_name != 'push' || contains(github.event.head_commit.message, '[release-build]')) && always() && (github.event_name == 'push' || !inputs.include_ios || inputs.mode == 'dry-run' || inputs.mode == 'attach-universal' || needs.build-ios.result == 'success') }}
+    if: ${{ (github.event_name != 'push' || contains(github.event.head_commit.message, '[release-build]') || contains(github.event.head_commit.message, '[release-publish]')) && always() && (github.event_name == 'push' || !inputs.include_ios || inputs.mode == 'dry-run' || inputs.mode == 'attach-universal' || needs.build-ios.result == 'success') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
-      RELEASE_MODE: ${{ github.event_name == 'push' && 'build' || inputs.mode }}
+      RELEASE_MODE: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[release-publish]') && 'publish' || github.event_name == 'push' && 'build' || inputs.mode }}
       INCLUDE_IOS: ${{ github.event_name == 'push' && false || inputs.include_ios }}
       GH_TOKEN: ${{ github.token }}
       RELEASE_PROPERTIES_BASE64: ${{ secrets.MEW_LOCAL_PROPERTIES_BASE64 || secrets.NUVIO_LOCAL_PROPERTIES_BASE64 }}
@@ -235,7 +235,7 @@ jobs:
 
             unexpected_changes="$(
               git diff --name-only "${CURRENT_BUMP}..${RELEASE_COMMIT}" \
-                | grep -Ev '^(\.github/workflows/android-release\.yml|scripts/(generate-release-notes|release-metadata)\.sh)$' \
+                | grep -Ev '^(\.github/workflows/android-release\.yml|CHANGELOG\.md|scripts/(generate-release-notes|release-metadata)\.sh)$' \
                 || true
             )"
             if [[ -n "${unexpected_changes}" ]]; then
