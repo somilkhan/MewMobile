@@ -50,7 +50,7 @@
 
 ## About
 
-Mew is an independent Android fork of [NuvioMobile](https://github.com/NuvioMedia/NuvioMobile), developed with its own product identity and user experience. It brings together media discovery, user-managed extensions and playback while retaining compatibility with the CloudStream runtime.
+Mew is an independent Android fork of [NuvioMobile Enhanced](https://github.com/AKRusso/NuvioMobile-Enhanced), which is itself based on [NuvioMobile](https://github.com/NuvioMedia/NuvioMobile). Mew has its own product identity and user experience, bringing together media discovery, user-managed extensions and playback while retaining compatibility with the CloudStream runtime.
 
 Mew is built around integrations that users choose to install. It does not bundle a central catalogue of streaming providers, and it does not host or distribute media.
 
