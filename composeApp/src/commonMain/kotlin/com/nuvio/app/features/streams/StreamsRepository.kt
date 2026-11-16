@@ -12,8 +12,6 @@ import com.nuvio.app.features.cloudstream.CloudStreamRepository
 import com.nuvio.app.features.cloudstream.isCloudStreamDiscoveryAllowed
 import com.nuvio.app.features.cloudstream.parseCloudStreamRouteId
 import com.nuvio.app.features.cloudstream.toStreamItem
-import com.nuvio.app.features.streams.CLOUDSTREAM_PROVIDER_STREAM_TIMEOUT_MS
-import com.nuvio.app.features.streams.CLOUDSTREAM_PROVIDER_STREAM_TIMEOUT_GRACE_MS
 import com.nuvio.app.features.debrid.DirectDebridStreamPreparer
 import com.nuvio.app.features.debrid.DebridSettingsRepository
 import com.nuvio.app.features.debrid.DebridStreamPresentation
