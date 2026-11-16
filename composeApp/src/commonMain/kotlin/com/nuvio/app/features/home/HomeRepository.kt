@@ -45,9 +45,15 @@ import kotlin.math.absoluteValue
 import kotlin.random.Random
 
 /**
- * Home's single-provider filter is only applicable when CloudStream is the fallback
- * discovery source. With addon catalogs enabled, Home must include all runnable providers.
+ * CloudStream home shelves are a fallback discovery surface only. When at least one
+ * Stremio-style add-on catalog is enabled, its catalogs own Home; CloudStream remains
+ * available independently for stream extraction.
  */
+internal fun shouldShowCloudStreamHomeCatalogs(
+    hasAddonCatalogs: Boolean,
+    tmdbEnabled: Boolean,
+): Boolean = !hasAddonCatalogs && tmdbEnabled
+
 internal fun effectiveHomeCloudStreamProviderId(
     selectedProviderId: String?,
     hasAddonCatalogs: Boolean,
@@ -188,14 +194,15 @@ object HomeRepository {
         val cloudState = CloudStreamRepository.uiState.value
         val activeAddons = addons.enabledAddons()
         val hasAddonCatalogs = activeAddons.any { it.manifest != null }
-        // The provider picker is hidden while addon catalogs are available. Ignore its
-        // persisted single-provider filter in that mode so CloudStream and addon catalogs
-        // remain visible together instead of silently narrowing Home to one provider.
+        // CloudStream catalogs are a fallback only. Do not mix their home shelves with
+        // enabled add-on catalogs; CloudStream provider execution for stream extraction
+        // is handled independently by StreamsRepository.
+        val tmdbEnabled = isCloudStreamDiscoveryAllowed(TmdbSettingsRepository.snapshot().enabled)
         val selectedProviderId = effectiveHomeCloudStreamProviderId(
             selectedProviderId = _selectedCloudStreamProviderId.value,
             hasAddonCatalogs = hasAddonCatalogs,
         )
-        val cloudPlugins = if (isCloudStreamDiscoveryAllowed(TmdbSettingsRepository.snapshot().enabled)) {
+        val cloudPlugins = if (shouldShowCloudStreamHomeCatalogs(hasAddonCatalogs, tmdbEnabled)) {
             cloudState.plugins
                 .filter(CloudStreamPluginItem::isRunnable)
                 .filter { selectedProviderId == null || it.metadata.id.value == selectedProviderId }
