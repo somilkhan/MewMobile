@@ -761,7 +761,7 @@ object StreamsRepository {
 
             cloudStreamProviderTasks.forEach { providerTask ->
                 launch {
-                    val group = withTimeoutOrNull(CLOUDSTREAM_PROVIDER_STREAM_TIMEOUT_MS + CLOUDSTREAM_PROVIDER_STREAM_TIMEOUT_GRACE_MS) {
+                    val group = withTimeoutOrNull(STREAM_PROVIDER_TIMEOUT_MS) {
                         cloudStreamSemaphore.withPermit {
                             resolveCloudStreamProviderStreams(
                                 providerGroup = providerTask,
@@ -1206,7 +1206,7 @@ object StreamsRepository {
 private const val CLOUDSTREAM_STREAM_PROVIDER_CONCURRENCY = 8
 private const val PLUGIN_SCRAPER_CONCURRENCY = 8
 private const val STREAM_PROVIDER_TIMEOUT_MS = 30_000L
-private const val STREAM_TOTAL_TIMEOUT_MS = 130_000L
+private const val STREAM_TOTAL_TIMEOUT_MS = 45_000L
 private const val DEBRID_AVAILABILITY_TIMEOUT_MS = 15_000L
 
 internal fun shouldReuseStreamRequest(
