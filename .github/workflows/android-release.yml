@@ -1,6 +1,10 @@
 name: Build Mew Release
 
 on:
+  # A commit carrying [release-build] on enhanced runs preflight + signed Android build only.
+  push:
+    branches:
+      - enhanced
   workflow_dispatch:
     inputs:
       mode:
@@ -172,12 +176,14 @@ jobs:
           if-no-files-found: error
 
   release:
-    name: ${{ inputs.mode }} Mew release
+    name: ${{ github.event_name == 'push' && 'build' || inputs.mode }} Mew release
     needs: build-ios
-    if: ${{ always() && (!inputs.include_ios || inputs.mode == 'dry-run' || inputs.mode == 'attach-universal' || needs.build-ios.result == 'success') }}
+    if: ${{ (github.event_name != 'push' || contains(github.event.head_commit.message, '[release-build]')) && always() && (!env.INCLUDE_IOS != 'true' || env.RELEASE_MODE == 'dry-run' || env.RELEASE_MODE == 'attach-universal' || needs.build-ios.result == 'success') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
+      RELEASE_MODE: ${{ github.event_name == 'push' && 'build' || inputs.mode }}
+      INCLUDE_IOS: ${{ github.event_name == 'push' && false || inputs.include_ios }}
       GH_TOKEN: ${{ github.token }}
       RELEASE_PROPERTIES_BASE64: ${{ secrets.MEW_LOCAL_PROPERTIES_BASE64 || secrets.NUVIO_LOCAL_PROPERTIES_BASE64 }}
       RELEASE_KEYSTORE_BASE64: ${{ secrets.MEW_RELEASE_KEYSTORE_BASE64 }}
@@ -210,7 +216,7 @@ jobs:
           RELEASE_COMMIT: ${{ steps.release.outputs.release_commit }}
           RELEASE_BRANCH: ${{ github.ref_name }}
           RELEASE_REF_TYPE: ${{ github.ref_type }}
-          RELEASE_MODE: ${{ inputs.mode }}
+          RELEASE_MODE: ${{ env.RELEASE_MODE }}
         run: |
           if [[ "${RELEASE_REF_TYPE}" != "branch" ]]; then
             echo "Releases must be dispatched from a branch, not ${RELEASE_REF_TYPE}." >&2
@@ -269,7 +275,7 @@ jobs:
           CURRENT_BUMP: ${{ steps.release.outputs.current_bump }}
           RELEASE_VERSION: ${{ steps.release.outputs.version }}
           EXCLUDE_COMMITS: ${{ inputs.exclude_commits }}
-          INCLUDE_IOS: ${{ inputs.include_ios }}
+          INCLUDE_IOS: ${{ env.INCLUDE_IOS }}
         run: |
           ./scripts/generate-release-notes.sh \
             --from "${PREVIOUS_BUMP}" \
@@ -316,18 +322,18 @@ jobs:
           } >> "${GITHUB_STEP_SUMMARY}"
 
       - name: Set up Java
-        if: inputs.mode != 'dry-run'
+        if: env.RELEASE_MODE != 'dry-run'
         uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 17
 
       - name: Set up Gradle
-        if: inputs.mode != 'dry-run'
+        if: env.RELEASE_MODE != 'dry-run'
         uses: gradle/actions/setup-gradle@v6
 
       - name: Configure release properties
-        if: inputs.mode != 'dry-run'
+        if: env.RELEASE_MODE != 'dry-run'
         run: |
           keystore_path="${RUNNER_TEMP}/mew-release.jks"
           printf '%s' "${RELEASE_KEYSTORE_BASE64}" | base64 --decode > "${keystore_path}"
@@ -377,7 +383,7 @@ jobs:
           done
 
       - name: Constrain Gradle memory for hosted runner
-        if: inputs.mode != 'dry-run'
+        if: env.RELEASE_MODE != 'dry-run'
         run: |
           set -euo pipefail
           # This runner has 15 GiB RAM. Kotlin compilation OOMed at 2 GiB,
@@ -397,11 +403,11 @@ jobs:
           grep -E '^(org\.gradle\.jvmargs|org\.gradle\.workers\.max|kotlin\.daemon\.jvmargs|kotlin\.native\.jvmArgs)=' gradle.properties
 
       - name: Build full release APKs
-        if: inputs.mode != 'dry-run'
+        if: env.RELEASE_MODE != 'dry-run'
         run: ./gradlew :androidApp:assembleFullRelease --stacktrace --max-workers=2
 
       - name: Verify Android signing certificate
-        if: inputs.mode != 'dry-run'
+        if: env.RELEASE_MODE != 'dry-run'
         run: |
           sdk_root="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
           if [[ -z "${sdk_root}" ]]; then
@@ -474,7 +480,7 @@ jobs:
           done
 
       - name: Upload build artifacts
-        if: inputs.mode != 'dry-run'
+        if: env.RELEASE_MODE != 'dry-run'
         uses: actions/upload-artifact@v6
         with:
           name: mew-${{ steps.release.outputs.version }}-full-release
@@ -482,20 +488,20 @@ jobs:
           if-no-files-found: error
 
       - name: Download sideload IPA artifact
-        if: inputs.include_ios && (inputs.mode == 'draft' || inputs.mode == 'publish')
+        if: env.INCLUDE_IOS == 'true' && (env.RELEASE_MODE == 'draft' || env.RELEASE_MODE == 'publish')
         uses: actions/download-artifact@v7
         with:
           name: mew-${{ steps.release.outputs.version }}-ios-full-unsigned
           path: ios-release
 
       - name: Create GitHub release
-        if: inputs.mode == 'draft' || inputs.mode == 'publish'
+        if: env.RELEASE_MODE == 'draft' || env.RELEASE_MODE == 'publish'
         env:
-          RELEASE_MODE: ${{ inputs.mode }}
+          RELEASE_MODE: ${{ env.RELEASE_MODE }}
           RELEASE_TAG: ${{ steps.release.outputs.tag }}
           RELEASE_VERSION: ${{ steps.release.outputs.version }}
           RELEASE_BRANCH: ${{ github.ref_name }}
-          INCLUDE_IOS: ${{ inputs.include_ios }}
+          INCLUDE_IOS: ${{ env.INCLUDE_IOS }}
         run: |
           mapfile -t release_apks < <(find androidApp/build/outputs/apk/full/release -maxdepth 1 -type f -name '*.apk' -print | sort)
           if (( ${#release_apks[@]} == 0 )); then
@@ -523,7 +529,7 @@ jobs:
           gh release create "${release_args[@]}" "${release_apks[@]}" "${release_ipas[@]}"
 
       - name: Attach universal APK to existing release
-        if: inputs.mode == 'attach-universal'
+        if: env.RELEASE_MODE == 'attach-universal'
         env:
           RELEASE_TAG: ${{ steps.release.outputs.tag }}
         run: |
