@@ -60,6 +60,22 @@ class PluginContentIdsTest {
         assertNull(selectPluginTmdbSearchResult(listOf(preview("tmdb:10", "movie", "Title")), "Title", "series"))
     }
 
+
+    @Test
+    fun `plugin identity falls back to IMDb source id when TMDB lookup is unavailable`() {
+        assertEquals("tt2531336", pluginTmdbIdOrSourceIdentity("tt2531336", null))
+    }
+
+    @Test
+    fun `plugin identity falls back to title when TMDB search has no exact match`() {
+        assertEquals("Lupin", pluginTmdbIdOrSourceIdentity("Lupin", null))
+    }
+
+    @Test
+    fun `plugin identity prefers a valid resolved numeric TMDB id`() {
+        assertEquals("12345", pluginTmdbIdOrSourceIdentity("tt2531336", "12345"))
+    }
+
     private fun preview(id: String, type: String, name: String) = MetaPreview(
         id = id,
         type = type,
