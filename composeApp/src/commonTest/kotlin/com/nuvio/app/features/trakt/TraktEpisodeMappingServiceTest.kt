@@ -9,6 +9,28 @@ import kotlin.test.assertTrue
 class TraktEpisodeMappingServiceTest {
 
     @Test
+    fun `TMDB search resolves only show result to Trakt slug`() {
+        val payload = """
+            [
+              {"type":"movie","movie":{"ids":{"slug":"wrong-movie","trakt":10}}},
+              {"type":"show","show":{"ids":{"slug":"attack-on-titan","trakt":12345,"imdb":"tt2560140"}}}
+            ]
+        """.trimIndent()
+
+        assertEquals("attack-on-titan", parseTraktShowLookupIdFromSearch(payload))
+    }
+
+    @Test
+    fun `TMDB search returns null when no show identity exists`() {
+        assertNull(
+            parseTraktShowLookupIdFromSearch(
+                """[{"type":"movie","movie":{"ids":{"slug":"wrong-movie"}}}]""",
+            ),
+        )
+    }
+
+
+    @Test
     fun `same structure compares per-season episode counts`() {
         val addon = listOf(
             episode(1, 1),
