@@ -710,55 +710,78 @@ object StreamsRepository {
                 }
             }
 
-            val canonicalPluginTmdbId = resolvePluginTmdbId(
-                videoId = streamLookupId,
-                mediaType = type,
-                searchTitle = searchTitle,
-                season = season,
-                episode = episode,
-            ).orEmpty()
+            // TMDB identity resolution is a network operation too. It must be bounded
+            // independently; previously it ran before the completion timeout loop, so a
+            // stalled TMDB request could leave every plugin group spinning forever.
+            val canonicalPluginTmdbId = withTimeoutOrNull(PLUGIN_ID_RESOLUTION_TIMEOUT_MS) {
+                runCatching {
+                    resolvePluginTmdbId(
+                        videoId = streamLookupId,
+                        mediaType = type,
+                        searchTitle = searchTitle,
+                        season = season,
+                        episode = episode,
+                    )
+                }.getOrNull()
+            }
+            val pluginIdentityError = if (canonicalPluginTmdbId.isNullOrBlank()) {
+                "Could not resolve a TMDB ID for plugin lookup"
+            } else {
+                null
+            }
+            if (pluginIdentityError != null) {
+                log.w { "$pluginIdentityError (type=$type, id=$streamLookupId, title=$searchTitle)" }
+            }
 
             pluginProviderGroups.forEach { providerGroup ->
                 val includeScraperNameInSubtitle = false
                 providerGroup.scrapers.forEach { scraper ->
                     launch {
-                        val scraperResult = pluginScraperSemaphore.withPermit {
-                            withTimeoutOrNull(PLUGIN_STREAM_PROVIDER_TIMEOUT_MS) {
-                                PluginRepository.executeScraper(
-                                    scraper = scraper,
-                                    tmdbId = canonicalPluginTmdbId,
-                                    mediaType = type,
-                                    season = season,
-                                    episode = episode,
-                                )
-                            }
-                        }
-                        val completion = (scraperResult ?: Result.failure(Throwable("${scraper.name} timed out"))).fold(
-                            onSuccess = { results ->
-                                val filteredResults = results.filterNot { result ->
-                                    result.isExcludedByPluginQualityFilter(pluginUiState.excludedQualities)
+                        val completion = if (pluginIdentityError != null) {
+                            StreamLoadCompletion.PluginScraper(
+                                addonId = providerGroup.addonId,
+                                streams = emptyList(),
+                                error = pluginIdentityError,
+                            )
+                        } else {
+                            val scraperResult = pluginScraperSemaphore.withPermit {
+                                withTimeoutOrNull(PLUGIN_STREAM_PROVIDER_TIMEOUT_MS) {
+                                    PluginRepository.executeScraper(
+                                        scraper = scraper,
+                                        tmdbId = canonicalPluginTmdbId.orEmpty(),
+                                        mediaType = type,
+                                        season = season,
+                                        episode = episode,
+                                    )
                                 }
-                                StreamLoadCompletion.PluginScraper(
-                                    addonId = providerGroup.addonId,
-                                    streams = filteredResults.map { result ->
-                                        result.toStreamItem(
-                                            scraper = scraper,
-                                            addonName = providerGroup.addonName,
-                                            addonId = providerGroup.addonId,
-                                            includeScraperNameInSubtitle = includeScraperNameInSubtitle,
-                                        )
-                                    },
-                                    error = null,
-                                )
-                            },
-                            onFailure = { error ->
-                                StreamLoadCompletion.PluginScraper(
-                                    addonId = providerGroup.addonId,
-                                    streams = emptyList(),
-                                    error = error.message ?: getString(Res.string.streams_failed_to_load_scraper, scraper.name),
-                                )
-                            },
-                        )
+                            }
+                            (scraperResult ?: Result.failure(Throwable("${scraper.name} timed out"))).fold(
+                                onSuccess = { results ->
+                                    val filteredResults = results.filterNot { result ->
+                                        result.isExcludedByPluginQualityFilter(pluginUiState.excludedQualities)
+                                    }
+                                    StreamLoadCompletion.PluginScraper(
+                                        addonId = providerGroup.addonId,
+                                        streams = filteredResults.map { result ->
+                                            result.toStreamItem(
+                                                scraper = scraper,
+                                                addonName = providerGroup.addonName,
+                                                addonId = providerGroup.addonId,
+                                                includeScraperNameInSubtitle = includeScraperNameInSubtitle,
+                                            )
+                                        },
+                                        error = null,
+                                    )
+                                },
+                                onFailure = { error ->
+                                    StreamLoadCompletion.PluginScraper(
+                                        addonId = providerGroup.addonId,
+                                        streams = emptyList(),
+                                        error = error.message ?: getString(Res.string.streams_failed_to_load_scraper, scraper.name),
+                                    )
+                                },
+                            )
+                        }
                         publishCompletion(completion)
                     }
                 }
@@ -1213,6 +1236,7 @@ private const val PLUGIN_SCRAPER_CONCURRENCY = 8
 private const val STREAM_PROVIDER_TIMEOUT_MS = 30_000L
 // Nuvio plugin execution has its own 60s QuickJS deadline; keep the outer budget above it.
 private const val PLUGIN_STREAM_PROVIDER_TIMEOUT_MS = 65_000L
+private const val PLUGIN_ID_RESOLUTION_TIMEOUT_MS = 10_000L
 private const val STREAM_TOTAL_TIMEOUT_MS = 70_000L
 private const val DEBRID_AVAILABILITY_TIMEOUT_MS = 15_000L
 
