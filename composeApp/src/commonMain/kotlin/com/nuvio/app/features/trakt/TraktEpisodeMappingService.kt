@@ -43,6 +43,7 @@ object TraktEpisodeMappingService {
     private val reverseMappingCache = mutableMapOf<String, EpisodeMappingEntry>()
     private val addonEpisodesCache = mutableMapOf<String, List<EpisodeMappingEntry>>()
     private val traktEpisodesCache = mutableMapOf<String, List<EpisodeMappingEntry>>()
+    private val tmdbShowLookupCache = mutableMapOf<Int, String>()
     // In-flight dedup: prevents multiple concurrent coroutines from fetching
     // In-flight dedup: prevents multiple concurrent coroutines from fetching
     // the same show's addon episodes simultaneously.
@@ -532,24 +533,53 @@ object TraktEpisodeMappingService {
 
     // ── Helpers ───────────────────────────────────────────────────────────
 
-    private fun resolveShowLookupId(contentId: String?, videoId: String?): String? {
+    private suspend fun resolveShowLookupId(contentId: String?, videoId: String?): String? {
         val contentIds = parseTraktContentIds(contentId)
-        if (contentIds.hasAnyId()) {
-            return when {
-                !contentIds.imdb.isNullOrBlank() -> contentIds.imdb
-                contentIds.trakt != null -> contentIds.trakt.toString()
-                !contentIds.slug.isNullOrBlank() -> contentIds.slug
-                else -> null
-            }
+        val directContentLookup = when {
+            !contentIds.imdb.isNullOrBlank() -> contentIds.imdb
+            contentIds.trakt != null -> contentIds.trakt.toString()
+            !contentIds.slug.isNullOrBlank() -> contentIds.slug
+            else -> null
+        }
+        if (directContentLookup != null) return directContentLookup
+
+        // Trakt's /shows/{id} endpoint needs a Trakt, IMDb, or slug identity.
+        // A TMDB ID must first be resolved through Trakt's external-ID search API.
+        contentIds.tmdb?.let { tmdbId ->
+            resolveTraktShowLookupIdFromTmdb(tmdbId)?.let { return it }
         }
 
         val videoIds = parseTraktContentIds(videoId)
-        return when {
+        val directVideoLookup = when {
             !videoIds.imdb.isNullOrBlank() -> videoIds.imdb
             videoIds.trakt != null -> videoIds.trakt.toString()
             !videoIds.slug.isNullOrBlank() -> videoIds.slug
             else -> null
         }
+        if (directVideoLookup != null) return directVideoLookup
+
+        return videoIds.tmdb?.let { resolveTraktShowLookupIdFromTmdb(it) }
+    }
+
+    private suspend fun resolveTraktShowLookupIdFromTmdb(tmdbId: Int): String? {
+        cacheMutex.withLock { tmdbShowLookupCache[tmdbId] }?.let { return it }
+        val headers = TraktAuthRepository.authorizedHeaders() ?: return null
+        val payload = try {
+            withTimeoutOrNull(4_000L) {
+                httpGetTextWithHeaders(
+                    url = "$BASE_URL/search/tmdb/$tmdbId?type=show",
+                    headers = headers,
+                )
+            }
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            log.w { "TMDB-to-Trakt anime lookup failed tmdb=$tmdbId: ${e.message}" }
+            null
+        } ?: return null
+
+        val lookupId = parseTraktShowLookupIdFromSearch(payload) ?: return null
+        cacheMutex.withLock { tmdbShowLookupCache[tmdbId] = lookupId }
+        return lookupId
     }
 
     private fun TraktExternalIds.hasAnyId(): Boolean =
