@@ -9,14 +9,6 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/somilkhan/MewMobile/releases/tag/0.5.1">Latest release: 0.5.1</a>
-  ·
-  <a href="https://github.com/somilkhan/MewMobile/blob/enhanced/LICENSE">License</a>
-  ·
-  <a href="https://github.com/NuvioMedia/NuvioMobile">Upstream project</a>
-</p>
-
-<p align="center">
   <img src="docs/mew-banner.png" alt="Mew — Your media. Your experience." width="100%">
 </p>
 
