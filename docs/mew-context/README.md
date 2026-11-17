@@ -1,5 +1,27 @@
 # Upstream alignment status — 2026-11-17
 
+## Semantic audit batch 10 — settings backup, player episode panel and search routes
+
+### Settings config export/import
+
+- Upstream beta adds `SettingsConfigTransfer.kt` (1,127 lines) plus platform file bridges and settings-root integration. It exports/imports multiple settings domains, including player/subtitle settings, add-ons/plugins, debrid, P2P, home/details, custom posters and other app configuration; credential inclusion is an explicit export choice.
+- Mew does not have the same `SettingsConfigTransfer` implementation, but it already has a substantial parallel backup/sync contract: `ProfileSettingsSync.exportBackupJson()` / `importBackupJson()`, a versioned `MobileProfileSettingsBlob`, automatic per-profile cloud sync, and a Mew Nuvio Enhanced backup UI using `NuvioEnhancedBackupFileBridge`.
+- Classification: **SHARED PATTERN / DIFFERENT COVERAGE AND DATA CONTRACT**. Decision: **ALREADY IMPLEMENTED in part; NEEDS COVERAGE COMPARISON**. Do not add a second independent backup system. Compare exported sections, add-on/plugin handling, credential opt-in/redaction, schema versioning, migrations, profile scope, failure atomicity and import confirmation. Adapt only genuinely missing sections into Mew's existing backup/sync format. Never import upstream configuration wholesale or overwrite Mew-specific keys.
+- Security review required before any credential export/import changes. No backup format or settings code changed.
+
+### Player episode panel and settings search
+
+- Upstream and Mew both contain `PlayerEpisodesPanel.kt` with the same major entry points and episode/season panel structure, but Mew's file is longer and has fork-specific layout/styling behavior. Classification: **INTENTIONAL PARALLEL**. Preserve Mew's player panel; compare only isolated functional changes and do not replace the UI.
+- Mew `SettingsSearch.kt` includes a dedicated `Downloads` target and Mew-specific settings entries. Upstream's search/settings routing is organized differently. Classification: **INTENTIONAL PARALLEL / DIFFERENT ROUTING**. Preserve Mew's download route and settings navigation; adapt only missing upstream settings entries after confirming their actual Mew destination.
+- Mew `PlayerSettingsRepository.kt` already persists a large custom player configuration and subtitle style. Upstream's additional next-source fallback settings are part of the separate source-fallback candidate in batch 2; do not replace the settings repository.
+
+### Files inspected and limits
+
+- Upstream: `SettingsConfigTransfer.kt`, `SettingsRootPage.kt`, `PlayerEpisodesPanel.kt`, `PlayerSettingsRepository.kt`, `SettingsSearch.kt`.
+- Mew: `ProfileSettingsSync.kt`, `NuvioEnhancedBackupFileBridge.kt`, `NuvioEnhancedSettingsRepository.kt`, `NuvioEnhancedSettingsPage.kt`, `PlayerEpisodesPanel.kt`, `PlayerSettingsRepository.kt`, `SettingsSearch.kt`.
+- The complete upstream-vs-Mew backup section matrix is still open. No tests/build/CI were run.
+
+
 ## Semantic audit batch 9 — account wipe and external playback progress
 
 ### Unfinished download cleanup on account wipe
