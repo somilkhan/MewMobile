@@ -271,3 +271,12 @@ The comparison of Mew's actual implementations against upstream commit `48cbb901
 **Files inspected:** Mew `DownloadSourceResolver.kt`, `DownloadsRepository.kt`, `DownloadsModels.kt`, `DownloadsScreen.kt`, `EpisodeDownloadFlowSheet.kt`, Android/iOS `DownloadsPlatformDownloader`, Android/iOS `DownloadsStorage`, and Android/iOS `PlatformLocalAccountDataCleaner`; upstream `BatchDownloadCoordinator.kt`, `BatchDownloadQueuer.kt`, `DownloadQueuePolicy.kt`, `DownloadsStorageStats.kt`, `OfflineShowMetadata.kt`, and the platform downloader/network/storage changes in commit `48cbb901...`.
 
 **No app code changed.** Candidate integration order: (1) clarify account-wipe contract and fix profile-safe cleanup, (2) network policy + settings, (3) queue concurrency policy, (4) storage stats/UI. Keep platform transfer architecture unchanged until a separate background/resume audit is complete. Build/tests/device verification: **NOT RUN**.
+
+### Library vertical filters — upstream commit `2da28d707c77b0bb8d3030af8f360e67981a0994`
+
+- Upstream adds per-profile persistence for selected list/type, genre/year/watched filters with faceted counts, normalized type ordering, and responsive filter-chip layout.
+- Mew already has vertical library projection, type filtering, sorting, per-profile layout/sort settings, watched-state data, genres and release metadata on library items, plus separate downloaded-content filters. But the inspected Mew projection only filters by section/type; it has no genre/year/watched facets. Selected section/type are `rememberSaveable` screen state rather than fields in `LibraryDisplaySettingsUiState`.
+- Classification: **PARTIAL GAP / SHARED PATTERN, DIFFERENT SEMANTICS**. The data inputs and base projection exist; the new filters and per-profile persistence are not implemented.
+- Decision: **ADAPT** the filter logic into Mew's existing `LibraryVerticalProjection` and `LibraryDisplaySettingsRepository`; preserve Mew's local/remote source modes, provider order, watched-series semantics, downloads tab and existing screen design. Do not copy upstream `LibraryScreen` or `LibrarySavedContent` wholesale.
+- UI/UX review required: filter state reset/invalid-option behavior when source/list/type changes, faceted counts, empty states, horizontal vs vertical layout, compact widths, and profile switching. Add projection tests for genre/year/watched combinations and persistence round-trip before implementation.
+- No app code changed. Build/tests/device verification: **NOT RUN**.

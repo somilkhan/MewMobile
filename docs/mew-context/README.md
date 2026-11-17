@@ -928,3 +928,11 @@ Actual gaps found:
 - Mew's Android OkHttp and iOS NSURLSession data-task/range-resume downloaders are materially different from upstream's WorkManager/JobScheduler and background NSURLSession transfer architecture. Do not transplant these implementations without a dedicated lifecycle/resume/security audit.
 
 Decisions: **ALREADY IMPLEMENTED / INTENTIONAL PARALLEL** for core batch/offline metadata/grouped download behavior; **ADAPT** for queue limits, network policy and storage stats; **NEEDS INVESTIGATION** for account-wipe cleanup and platform background scheduling. No app code changed. Build/tests/device verification: **NOT RUN**.
+
+### Library filter feature audit — 2026-11-17
+
+Upstream commit `2da28d707c77b0bb8d3030af8f360e67981a0994` adds persistent selected list/type and genre, year, watched/unwatched filters with faceted counts.
+
+Mew's vertical library projection already handles section/type selection, sorting and deduplication; library items expose genre/release data and the screen already observes watched state. However, the current projection has no genre/year/watched filters, and selected list/type live in `rememberSaveable` screen state rather than `LibraryDisplaySettingsUiState` persisted per profile. Mew's downloaded-content filters are separate and should remain so.
+
+Decision: **ADAPT** the filter projection and per-profile persistence into Mew's existing library architecture. Preserve provider ordering, local vs remote tracking source behavior, Mew's watched-series semantics, downloaded-content filters and UI. Do not port upstream screen files wholesale. No code changed. Tests/build/device verification: **NOT RUN**.
