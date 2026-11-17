@@ -489,3 +489,40 @@ Decision: **NEEDS INVESTIGATION / ADAPT candidate**. Trace every Mew caller and 
 - Mew `upstream-sync...Main-dev`: diverged; Main-dev is 603 commits ahead and 2,238 behind by commit graph, with merge base `f9ad843b14cd3be7fa3ddb800b6961233e0e5b56`. These are history counts, not missing-feature counts or a merge plan.
 - The Mew branch source blobs listed above were fetched from the `Main-dev` ref. GitHub compare output did not expose a fresh Main-dev head SHA; do not use the historical head checkpoint for a write.
 - No app source, tests, workflow, release or branch promotion changed. Builds/tests/CI/device verification: **NOT RUN**.
+
+
+## Further upstream quality and feature triage — 2026-11-17
+
+### TorBox alternative-hash cache responses — upstream `1118dfbf87de7d9e68860446ea553d48d06adcba`
+
+Mew Main-dev already contains the upstream alias-resolution behavior in `features/debrid/LocalDebridService.kt` (blob `b4c39c6c402ce6d688c62260ae409c8a2536f16d`) and regression tests in `features/debrid/LocalDebridServiceTest.kt` (blob `8795235768f3ea482e80ff33aefc287b86d6f095`). It normalizes/deduplicates requested hashes, maps single alias responses to the requested hash, and retries only unresolved batch entries concurrently. Mew adds a stricter safety rule: if any unresolved retry fails, return `null` (availability unknown) rather than returning a partial map that could be interpreted as a cache miss.
+
+Decision: **ALREADY IMPLEMENTED — Mew behavior is stricter; preserve it.** Tests exist for exact match, single alias, missing batch retry and failed retry/unknown availability. Test execution was not performed.
+
+### Season batch downloads and storage management — upstream `48cbb901bf48a641a1270c2d10bbd4260e712e68`
+
+This is a broad cross-platform feature set, not one isolated UI patch: season batch selection/quality, stream prefill, queue overview, storage statistics, network policy, offline show metadata, transfer resume/cleanup, multi-profile behavior, downloaded-show grouping and library integration. Mew Main-dev already has a substantial download domain: `DownloadsRepository.kt` (blob `5e5dfd0b0f6ad3959da8106c83a9a6ce7b4a86eb`) and `DownloadsScreen.kt` (blob `33bf5d80e3c5bfbab7d677a86200a1afa801fa46`) include active/completed items, pending source searches, show grouping and episode display.
+
+Decision: **NEEDS INVESTIGATION — high priority feature/architecture audit.** Compare the full lifecycle and data contract before porting: queue admission/concurrency, source prefill, quality selection, cancellation, Wi-Fi/mobile-data guards, resume semantics, profile cleanup, offline metadata, storage accounting, platform worker behavior and UI states. Do not replace Mew's download repository or queue wholesale. Split this large upstream change into independently reviewable behavior groups.
+
+### Home recomposition and startup performance — upstream `e5272769a6709d43aaecc3d7bbe8d66d5a200702`
+
+Upstream adds Baseline Profile generation/artifacts, Compose stability configuration, mapped state helpers and Home/AppGate recomposition changes. Mew Main-dev `HomeScreen.kt` is a large Mew-specific composition with CloudStream, Cloud Library, profiles and provider-derived state; this is not a safe file replacement.
+
+Decision: **NEEDS INVESTIGATION — performance candidate.** Compare the individual state/recomposition changes and stability annotations against Mew's actual state holders and callers. Require benchmark/profile evidence before adding Baseline Profile build infrastructure or changing dependencies. Preserve Mew's cloud/provider state semantics.
+
+### Per-addon tracking event queues — upstream `8f5d9bcac3c2c0535b17b26cbdff392c10b8d767`
+
+Upstream moves from one serial event-delivery loop to a queue per addon, preserving order within each addon while preventing one slow/unreachable addon from delaying other addons. It also avoids library/watched before-after lookups when no enabled addon declares the library resource, and adds URL/chunking tests.
+
+Decision: **NEEDS INVESTIGATION.** The Mew Main-dev addon event dispatcher source path/callers were not conclusively located in this pass, so no equivalence or duplication claim is made. Locate the actual event owner and compare ordering guarantees, duplicate transport URLs, queue lifetime/bounds, timeout/cancellation, addon enable/disable behavior, event loss/backpressure and watched/library sync side effects before adapting.
+
+### End-of-movie recommendation source — upstream `07de5b27795d2fe236ca917dc5608a594947b9d0`
+
+Upstream resolves the configured More Like This source for movie end-card recommendations rather than always using the metadata object's default list.
+
+Decision: **NEEDS INVESTIGATION.** Trace Mew's recommendation source settings, player end-card state and metadata cache/fallback semantics. Verify whether the selected provider/source is already applied at playback end; a similar recommendation list is not proof of equivalent source selection.
+
+### Audit boundaries
+
+This pass inspected the above upstream changes and Mew Main-dev files cited in each section. It did not complete the full download lifecycle, Home recomposition, addon event or end-card recommendation audits. No app source or tests changed. Builds/tests/CI/device verification: **NOT RUN**.
