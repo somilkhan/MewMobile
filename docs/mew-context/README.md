@@ -868,3 +868,25 @@ Reference point: common ancestor `f9ad843b14cd3be7fa3ddb800b6961233e0e5b56`, tre
 **Regression coverage added:** `Int.MIN_VALUE` clamps to 1, `Int.MAX_VALUE` clamps to 5, and an in-range value is preserved. Tests, Gradle build, CI and device checks: **NOT RUN**.
 
 **Commit:** `2d5fc48d285b4ae42a2d341cb34cd28897685f6a`. `Main-dev` is at this SHA; `main` remains unchanged at `207ef8fa309b8061b73039b2d4e4bde4af65050e`.
+
+## 2026-11-17 — additional upstream feature-group decisions
+
+### Source fallback and shared search sessions
+
+Upstream commits `8fba6c71e95e4a6d94f0ccf1998e93ef50ce1aa6` and `ff7500fdd601e445982d6efb9177ec8cd14f7976` implement the base source-fallback system and next-episode continuation. Mew has no equivalent `PlayerSourceFallbackRun`, runtime fallback, or shared `StreamSearchSessions`. Mew's next-episode auto-play currently selects a stream and passes it to the player; a failed/stale debrid resolution refreshes the episode sources instead of trying another matching source.
+
+Mew's `PlayerStreamsRepository` and `StreamsRepository` share a provider-fetch pattern, but their state/lifecycle differ (player source/episode flows versus stream-screen request tokens, auto-play overlay, manual-selection reuse and binge-group behavior). Classification: **INTENTIONAL PARALLEL / SHARED PATTERN, DIFFERENT SEMANTICS**. Do not merge them as a superficial dedupe. Upstream's shared search session layer is a separate integration opportunity.
+
+Decision: **NEEDS INVESTIGATION as a grouped player feature**. The port needs settings/storage/UI, shared search-session lifecycle, source identity, retry limits/timeouts, engine-switch exclusivity, and correct handling of direct debrid, P2P, downloads, manual source selection, cancellation and next-episode transitions. No code changed. Device verification is required.
+
+### MDBList runtime bugfix
+
+Upstream `a65cd8b2e42d7170d47cace44e5ebd6f03a053eb` prevents a show runtime from being used as an episode duration in `MdbListProgressProjection`. Mew's tree contains metadata enrichment/settings but no MDBList watch-progress projection or sync engine. Decision: **SKIP this isolated fix**; investigate the larger missing sync feature separately.
+
+### Native navigation bar anchor for detail hero
+
+Upstream `f28929d3e3cc0d354de1dd921efc539bbf8a14cf` aligns the detail hero mute button with the native navigation-bar button using platform-specific UIKit frame/margin reads. Mew's hero uses Compose padding and Mew's iOS insets expose only the physical top inset; no matching native bar anchor exists. Decision: **SKIP** for the current Mew navigation model. No code changed.
+
+### Range checkpoint
+
+The `1.0.0...enhanced` compare contains 72 commits. Four changes are integrated into `Main-dev`; the rest are not yet fully audited. `Main-dev` is `2d5fc48d285b4ae42a2d341cb34cd28897685f6a`; `main` remains `207ef8fa309b8061b73039b2d4e4bde4af65050e`. Tests/build/CI/device verification: **NOT RUN**.

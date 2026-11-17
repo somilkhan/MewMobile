@@ -120,7 +120,7 @@ See [the detailed audit ledger](../mew-context/README.md) for evidence and file-
 
 For every batch report: upstream commits/tags, files inspected, Mew equivalents/callers, decisions, exact changed files, tests/build/CI and device status, unresolved risks and next batch. Mark anything not executed as NOT RUN. Never claim a feature is aligned merely because a filename or commit subject matches.
 
-Current status: **UPSTREAM-SYNC TREE ALIGNED; MAIN-DEV INTEGRATION AUDIT ONLY**. The five-file snapshot refresh changes only `upstream-sync`; no application code has been integrated into `Main-dev` or `main`.
+Initial status before selective integration: **UPSTREAM-SYNC TREE ALIGNED; MAIN-DEV INTEGRATION AUDIT ONLY**. This historical checkpoint predates the four documented Main-dev adaptations below.
 
 
 ## Full-history scale and current snapshot checkpoint
@@ -202,3 +202,35 @@ Next: continue auditing the remaining post-1.0.0 feature groups and older releas
 - Regression test covers minimum, maximum and valid values. Commit: `2d5fc48d285b4ae42a2d341cb34cd28897685f6a`.
 - Tests/build/CI/device verification: **NOT RUN**. The test is committed but has not been executed.
 - Latest `Main-dev`: `2d5fc48d285b4ae42a2d341cb34cd28897685f6a`; `main` remains `207ef8fa309b8061b73039b2d4e4bde4af65050e`.
+
+## Additional 1.0.0 → enhanced audit — 2026-11-17
+
+GitHub compare confirms `1.0.0...enhanced` contains **72 commits**. Four behavior changes have been adapted into `Main-dev` so far (episode artwork fallback, early catalog sync preservation, TorBox alternative-hash matching, subtitle outline-width normalization). This is not a complete audit of the 72 commits.
+
+### Player source fallback — group requires further investigation
+
+- Upstream base feature: `8fba6c71e95e4a6d94f0ccf1998e93ef50ce1aa6`; next-episode extension: `ff7500fdd601e445982d6efb9177ec8cd14f7976`.
+- Upstream adds shared `StreamSearchSessions`, a `PlayerSourceFallbackRun` state machine, runtime fallback, configurable max attempts/startup timeout, player settings/storage/UI, stream-search sharing, and next-episode fallback.
+- Mew currently has no `StreamSearchSessions`, `PlayerSourceFallbackRun`, or `PlayerScreenRuntimeSourceFallback`. Its `PlayerNextEpisodeAutoPlay` selects one stream and `switchToEpisodeStream` resolves it; failed/stale debrid resolution shows a toast and refreshes streams rather than trying the next matching source.
+- Mew's `PlayerStreamsRepository` and `StreamsRepository` have overlapping provider-fetch pipelines but distinct state and lifecycle: player source/episode flows versus stream-screen request tokens, auto-play overlay, manual-selection reuse and binge-group state. Classification: **INTENTIONAL PARALLEL / SHARED PATTERN, DIFFERENT SEMANTICS**; do not collapse the repositories as a quick dedupe.
+- Decision: **NEEDS INVESTIGATION as one feature group**, not a partial port of the final next-episode fix. Audit settings compatibility, player engine-switch-on-error exclusivity, debrid/P2P/download paths, request cancellation, search-session ownership, source identity and screen lifecycle. Add common regression coverage and verify on device before enabling. No code changed for this group.
+
+### MDBList episode runtime correction
+
+- Upstream commit: `a65cd8b2e42d7170d47cace44e5ebd6f03a053eb`; affected `MdbListProgressProjection.kt`.
+- Mew has `MdbListMetadataService` and settings only; its recursive source tree has no MDBList progress projection or MDBList watch-progress sync implementation.
+- Decision: **SKIP this isolated bugfix** because its target behavior does not exist in Mew. Audit the broader MDBList progress-sync feature separately before considering a port. No code changed.
+
+### Native navigation-bar hero anchor
+
+- Upstream commit: `f28929d3e3cc0d354de1dd921efc539bbf8a14cf`; introduces a native navigation-bar button anchor for hero mute-button placement, including UIKit frame/margin reads.
+- Mew's `DetailHero` uses Compose hero padding; its iOS `PlatformInsets` exposes physical top inset only and has no native navigation-bar anchor API. Mew's Android/iOS navigation composition is therefore not equivalent to upstream's native-bar integration.
+- Decision: **SKIP for current Mew navigation architecture**. Do not import UIKit anchoring code just to match filenames or padding. Revisit only if Mew adopts the same native navigation-bar button model. No code changed.
+
+### Latest branch state
+
+- Upstream `enhanced`: `b4e446451f32edbdf8b1bf288d1a7a8a2bf10e03`.
+- Mew `Main-dev`: `2d5fc48d285b4ae42a2d341cb34cd28897685f6a` (four selective adaptations).
+- Mew `main`: unchanged at `207ef8fa309b8061b73039b2d4e4bde4af65050e`.
+- Mew `upstream-sync`: this documentation branch; upstream application source snapshot remains unchanged.
+- Tests, Gradle builds, CI and device verification remain **NOT RUN** for this session.
