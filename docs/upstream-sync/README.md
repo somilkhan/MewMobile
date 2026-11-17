@@ -197,8 +197,7 @@ Next: continue auditing the remaining post-1.0.0 feature groups and older releas
 
 - Upstream commit: `b8bbd700fda41ad55cdb90de2d60e48d10f5d0db` adds the outline-width setting and clamps loaded/saved values to `subtitleOutlineWidthRange` (1–5).
 - Mew already exposes a 1–5 stepper, but `PlayerSettingsRepository.loadFromDisk()` restored persisted values without clamping and `setSubtitleStyle()` saved incoming values unchanged.
-- Decision: **TAKE the repository-boundary validation, ADAPT to Mew's existing 1–5 UI contract**. Added shared min/max constants and `normalizeSubtitleOutlineWidth`; use it on load, set/persist, and the existing stepper. No player redesign or default change.
-- Changed files on `Main-dev`: `SubtitleAudioModels.kt`, `PlayerSettingsRepository.kt`, `SubtitleStylePanel.kt`, and `SubtitleStyleStateTest.kt`.
+- Decision: **TAKE the repository-boundary validation, ADAPT to Mew's existing 1–5 UI contract**. Added shared min/max constants and `normalizeSubtitleOutlineWidth`; use it on load, set/persist, and the existing stepper. No player redesign or default change.- Changed files on `Main-dev`: `SubtitleAudioModels.kt`, `PlayerSettingsRepository.kt`, `SubtitleStylePanel.kt`, and `SubtitleStyleStateTest.kt`.
 - Regression test covers minimum, maximum and valid values. Commit: `2d5fc48d285b4ae42a2d341cb34cd28897685f6a`.
 - Tests/build/CI/device verification: **NOT RUN**. The test is committed but has not been executed.
 - Latest `Main-dev`: `2d5fc48d285b4ae42a2d341cb34cd28897685f6a`; `main` remains `207ef8fa309b8061b73039b2d4e4bde4af65050e`.
@@ -387,3 +386,23 @@ Upstream changes export from `UIDocumentPickerViewController(forExportingURLs:as
 Decision: **FALSE POSITIVE / DIFFERENT UX**. Preserve Mew's share-sheet export unless a separate bug is reproduced. No code changed.
 
 No tests/build/CI/device verification run for these audit-only decisions.
+
+## Post-snapshot upstream follow-up — 2026-11-17
+
+Compared the source snapshot base `4ded43d72a0e9e31879eaa72c76d35feb4f06720` with upstream `enhanced` at `b4e446451f32edbdf8b1bf288d1a7a8a2bf10e03`. GitHub reports five upstream-ahead commits and 31 commits on the opposite side of the divergent histories; the compare reports five changed paths. This is a semantic audit only, not a merge plan.
+
+| Upstream commit | Finding in Mew | Decision |
+|---|---|---|
+| `05e779a0c178` — bug-report install method and official-app baseline | Mew's bug template already asks for install method and supports Android release/preview/CI/source builds. It does not ask whether the same issue reproduces in the official Nuvio app. That question can help distinguish upstream-originated bugs from Mew-only regressions, but should be worded for Mew's support context. | **ADAPT** template question only; no app behavior change. |
+| `d703ca48e5ad` — iOS export picker mode | Mew's backup export uses a temporary file and `UIActivityViewController`, not the upstream document-picker export API. | **FALSE POSITIVE / DIFFERENT UX**; keep Mew share-sheet export. |
+| `0b9d93599f7d` — preserve catalog choices during early remote sync | Mew `HomeCatalogSettingsRepository.shouldPreservePreferenceAfterRemoteSync` already preserves local keys while `knownKeys` is empty, while still giving remote keys precedence. Verified in the inspected Main-dev source. | **ALREADY IMPLEMENTED**; no duplicate patch. |
+| `c5298633914d` — retain styled iOS subtitles across episode changes | Mew's inspected Main-dev `PlayerEngine.ios.kt` uses a different subtitle/bridge flow and does not contain the upstream `subtitleText` / `subtitleStyle` state pair. Locate the actual Mew styled-overlay state owner and compare source-change lifecycle before any change. | **NEEDS INVESTIGATION**; do not transplant the iOS-only state patch or touch Android/libmpv subtitles. |
+| `b4e446451f32` — episode artwork fallback after image load failure | Mew Main-dev `DetailSeriesContent.kt` already contains `rememberEpisodeImageState` and uses its URL for episode cards. This behavior was previously adapted in Main-dev. | **ALREADY IMPLEMENTED**; do not duplicate. |
+
+### Verification and branch safety
+
+- Upstream `enhanced` latest inspected commit: `b4e446451f32edbdf8b1bf288d1a7a8a2bf10e03`.
+- Mew `upstream-sync` was verified at documentation commit `0d35721389075a5e962120037180547f2f13c807` before this documentation update.
+- GitHub compare responses for `Main-dev` were inconsistent across adjacent reads (one response reported `69b4a960...`; another showed `a4b8ff258...` as its ancestor). Treat Main-dev's exact branch head as **UNRESOLVED** until a fresh ref read; do not write to it based on the stale checkpoint.
+- No app source, workflow, release, or branch promotion changed in this batch. Tests/build/CI/device verification: **NOT RUN**.
+- Next audit: locate the actual Main-dev iOS styled-subtitle overlay/state owner, then continue the remaining localization, provider compatibility, playback/subtitle and UI-regression batches. Also review the bug-template baseline question as a small documentation/support improvement.
