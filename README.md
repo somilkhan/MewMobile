@@ -107,7 +107,7 @@ CloudStream is the compatibility/runtime layer, not a catalogue bundled by Mew. 
 ### Requirements
 
 - JDK 17
-- Android SDK with API 37 (compile SDK)
+- Android SDK with API 37 (compile SDK) and API 36 (target SDK)
 - Git and the included Gradle wrapper (Gradle 9.4.1)
 
 The app's minimum Android SDK is 24.
