@@ -1,5 +1,30 @@
 # Upstream alignment status — 2026-11-17
 
+## Semantic audit batch 11 — watch-progress identity and subtitle setting bounds
+
+### Watch-progress identity
+
+- Mew `WatchProgressIdentity.kt` and upstream beta `WatchProgressIdentity.kt` have the **same blob SHA** (`c66d53d6cfdf458927cbda71e31393dd5fd57efb`). The stable logical progress-key algorithm, opaque server-key preservation, alias handling, deterministic freshness ordering and snapshot key reconciliation are already implemented identically in Mew.
+- Upstream's release-range change to `WatchProgressIdentityTest.kt` only changes the legacy completed-progress fixture from a 940 ms / 1,000 ms sample to a realistic 2,820,000 ms / 3,000,000 ms sample; the behavior is already covered in Mew's same test suite.
+- Classification: **ALREADY IMPLEMENTED**. Decision: **NO CODE PORT**. Keep the existing Mew implementation; optionally align the test fixture to realistic media durations during a later test-only batch.
+
+### Subtitle outline-width normalization
+
+- Upstream beta changes `PlayerSettingsRepository` to clamp stored and newly set subtitle outline width to `subtitleOutlineWidthRange`.
+- Mew's `SubtitleStylePanel.kt` limits user increment/decrement controls to 1–5, but `PlayerSettingsRepository.setSubtitleStyle()` persists the incoming `outlineWidth` without clamping and `loadFromDisk()` restores it without normalization. The existing `SubtitleStyleStateTest.kt` does not test out-of-range outline widths.
+- Classification: **SAME SETTING / MISSING REPOSITORY-BOUNDARY VALIDATION**. Decision: **TAKE behavior, ADAPT range** to Mew's existing 1–5 UI contract (do not blindly copy upstream's range). Clamp both load and set paths and add regression tests for minimum, maximum and corrupted/out-of-range persisted values. This is a small player-settings hardening candidate; no code changed.
+
+### Episode season label helper
+
+- Upstream `PlayerEpisodesPanel.kt` replaces inline special/season label construction with shared `seasonLabel(season)`. Mew's panel still constructs the label inline. Before extracting a helper, search all Mew season labels and confirm identical localization/pluralization semantics across details, download and player surfaces.
+- Classification: **POTENTIAL SHARED PATTERN / NEEDS DUPLICATE AUDIT**. No refactor proposed until call sites and wording are compared.
+
+### Files inspected and limits
+
+- Upstream/Mew `WatchProgressIdentity.kt`, `WatchProgressIdentityTest.kt`, `PlayerSettingsRepository.kt`, `PlayerEpisodesPanel.kt`; Mew `SubtitleStylePanel.kt` and `SubtitleStyleStateTest.kt`.
+- No watch-progress, subtitle or player source changed. Tests/build/CI were **NOT RUN**.
+
+
 ## Semantic audit batch 10 — settings backup, player episode panel and search routes
 
 ### Settings config export/import
