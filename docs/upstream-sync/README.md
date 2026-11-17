@@ -1061,3 +1061,35 @@ Compared upstream batch-download commit `48cbb901bf48a641a1270c2d10bbd4260e712e6
 - Mew `DownloadsBatchFlowTest.kt` (blob `0f0ec1bbc3121060e15fd1812f93a202de34c8d3`) currently covers quality parsing, logical episode keys and pending-search grouping; it does not test selection against completed downloads, queue admission, network changes or metadata migration.
 - Upstream has dedicated `DownloadQueuePolicyTest`, `EpisodeDownloadIndexTest`, Android transfer/lifecycle tests and platform-specific paths. Mew's test suite/build/CI/device verification was **NOT RUN** in this audit.
 - No application source changed. This entry refines the previous broad download audit: batch UI already exists in Mew; the highest-priority gaps are safe handling of already-downloaded episodes and bounded/network-aware queue admission.
+
+
+## Generic Stremio addon tracking events — privacy and caller audit — 2026-11-17
+
+Compared upstream feature commit `964ecfd8d98598cd2d315cedb584fe7ef59a76fd`, reconciliation fix `d89811ac6c75a3f80c0ab424ab01a37639401d54`, and per-addon queue follow-up `8f5d9bcac3c2c0535b17b26cbdff392c10b8d767` against Mew `Main-dev` `69b4a96072b506f60dcbe538c5f6b71db3a4a464`.
+
+### Mew capability and duplicate classification
+
+- Mew `AddonManifest` already parses and retains `resources`, resource types and ID prefixes (`AddonModels.kt` blob `2b909a765dc2b8133c97da766e05b2019db36cc4`; parser blob `48634dcc1c4bbb019dbca908f317ca313c49df16)). `AddonRepository` manages enabled/disabled and profile-synced addon manifests (blob `a47cb5019619b26c72d3e3a0626cbd91182e2639`).
+- No Mew `AddonEventDispatcher`/event delivery implementation or player/library event callsites were found in the inspected Mew addon, library, watched and player runtime files. Mew `LibraryRepository` (blob `990252c212dbf1754ea16b215fd9c3d5c7519651`) syncs local library membership with configured tracking providers/server; `WatchedRepository` (blob `be917a333e13767b7ac2d6b689313be786142112`) syncs watched state; player progress is handled through Mew's tracking/scrobble pipeline. These are **INTENTIONAL PARALLEL / DIFFERENT PROTOCOLS**, not equivalent generic Stremio addon event delivery.
+- Upstream sends player start/pause/stop plus current position/duration; library add/remove; watched/unwatched, including episode video IDs in chunks of 100. Delivery is fire-and-forget GET requests to addon transport URLs. Upstream `AddonEvents.kt` now uses a serial queue per transport and 10-second send timeout; `AddonEventsTest.kt` covers URL encoding, query preservation, ID chunking and resource detection.
+- Decision: **MISSING FEATURE; ADAPT ONLY WITH EXPLICIT PRIVACY APPROVAL**. No source changes. This feature transmits viewing activity and library/watched identifiers to third-party addon operators; it is not a harmless addon parser enhancement.
+
+### Consent gap to avoid when adapting upstream
+
+- Upstream commit `964ecfd` adds a checkbox before installing a newly entered tracking addon. However, current upstream `ManagedAddon` has no persisted consent field, server `AddonRow` stores only URL/name/enabled/sort order, and `AddonEventDispatcher.route` sends to every active addon whose manifest declares the resource.
+- Therefore the install-time checkbox does not establish durable per-addon consent for already-installed or server-synced tracking addons. On upgrade/sync, an existing active tracking addon can satisfy the dispatcher's active/resource checks without a locally persisted consent record. Treat this as an upstream privacy-design gap, not behavior to copy.
+- Mew adaptation must default existing and synced tracking addons to **no consent**, persist opt-in per addon (and define profile/device scope), check consent at dispatch time, and provide revocation/disable semantics. Consent text must name the data sent and that it leaves the app for the addon operator/service. Do not emit any event before consent.
+- The upstream follow-up queue uses unbounded event and per-addon channels. Preserve ordering/isolation but evaluate queue bounds, stale-event expiry, disable/removal cancellation and backpressure so an unreachable addon cannot accumulate unlimited pending activity.
+
+### Mew caller and side-effect constraints
+
+- Mew's user library mutations are `LibraryRepository.toggleSaved`, `toggleLocalSaved`, `save`, `remove`, and membership/list operations. Server pulls and profile changes are separate synchronization paths; only confirmed local user state transitions should emit events. Compare before/after membership to avoid duplicate events when an operation is a no-op.
+- Mew's explicit watched actions route through `WatchingActions` to `WatchedRepository.markWatched/unmarkWatched`. Playback completion has a distinct `markWatchedFromPlaybackCompletion` path and must not be treated as a manual watched action.
+- Important Mew-specific trap: `WatchedRepository.reconcileSeriesWatchedState` currently calls the public `markWatched(seriesWatchedItem)` / `unmarkWatched(seriesWatchedItem)` when it derives the whole-series marker from episode state. If public methods begin dispatching addon events, this would incorrectly tell addons that the user manually marked/unmarked the whole series. Upstream encountered this exact regression and fixed it in `d89811a` by routing reconciliation through internal mutation paths. Mew needs an explicit event-suppression/internal path before any implementation.
+- Player runtime must emit exactly one stop for the old target on episode/source changes and exit, avoid placeholder durations, resend current state after seek only when appropriate, and preserve Mew's external playback/tracking flows. No event should be generated by sync, playback-derived watched reconciliation, profile switching, or provider refresh.
+
+### Decision and verification boundary
+
+- **Decision: NEEDS PRODUCT APPROVAL / SECURITY REVIEW**, then ADAPT with durable per-addon consent and explicit user-action-only event boundaries. No implementation is authorized by this audit.
+- Mew source inspection covered addon manifest/repository/UI, library mutations, watched mark/unmark/reconciliation, WatchingActions, and player runtime effects/actions. It did not execute integration tests or capture network traffic.
+- Builds/tests/CI/device verification: **NOT RUN**. No app source changed.
