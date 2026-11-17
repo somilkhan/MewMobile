@@ -2033,3 +2033,12 @@ Verified source refs: Mew `Main-dev` `69b4a96072b506f60dcbe538c5f6b71db3a4a464`;
 - Repository-wide GitHub code searches for generic reset identifiers returned no indexed matches; this is not proof that reset flows do not exist.
 - A complete reset inventory remains open: settings reset, profile reset/delete, sign-out/account change cleanup, app-data reset, and per-feature clear actions must be traced through callers and platform storage.
 - No source changes, build/test/CI, simulator/emulator or physical-device checks were performed.
+
+
+### PIN removal cleanup detail
+
+A focused comparison of `clearPin` and `clearPinWithPassword` found an additional robustness gap:
+- Mew clears the remote PIN, calls `pullProfiles()`, then removes the local PIN cache. It has no biometric artifact to remove in its current implementation.
+- Upstream separates remote success from local cleanup, re-checks account identity before touching profile-indexed storage, performs cleanup in a non-cancellable IO section, and reports local cleanup failure without falsely reporting that the remote PIN removal failed. It also disables biometric credentials.
+- Mew's `runCatching` wrappers also catch `CancellationException` unless explicitly rethrown; upstream explicitly rethrows cancellation in these security-sensitive flows.
+- **Decision: ADAPT.** Make remote PIN removal authoritative, cleanup account-scoped local artifacts safely even during cancellation, and distinguish “PIN removed” from “local cleanup incomplete”. Keep the Mew PIN-only design unless biometric auth is separately approved.
