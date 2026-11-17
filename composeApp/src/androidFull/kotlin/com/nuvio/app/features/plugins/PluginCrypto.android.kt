@@ -136,10 +136,10 @@ internal fun pluginAesDecrypt(
 }
 
 internal fun pluginSign(algorithm: String, privateKey: ByteArray, data: ByteArray): ByteArray {
-    val (keyAlgo, sigAlgo) = when (algorithm.uppercase()) {
-        "RSASSA-PKCS1-V1_5-SHA256", "RSASSA-PKCS1-V1_5" -> "RSA" to "SHA256withRSA"
-        "ECDSA-SHA256", "ECDSA" -> "EC" to "SHA256withECDSA"
-        else -> "RSA" to "SHA256withRSA"
+    val (keyAlgo, sigAlgo) = when (algorithm.normalizedAlgorithmToken()) {
+        "RSASSAPKCS1V15SHA256", "RSASSAPKCS1V15" -> "RSA" to "SHA256withRSA"
+        "ECDSASHA256", "ECDSA" -> "EC" to "SHA256withECDSA"
+        else -> error("Unsupported signature algorithm: $algorithm")
     }
     val factory = KeyFactory.getInstance(keyAlgo)
     val privKey = factory.generatePrivate(PKCS8EncodedKeySpec(privateKey))
@@ -150,10 +150,10 @@ internal fun pluginSign(algorithm: String, privateKey: ByteArray, data: ByteArra
 }
 
 internal fun pluginVerify(algorithm: String, publicKey: ByteArray, signature: ByteArray, data: ByteArray): Boolean {
-    val (keyAlgo, sigAlgo) = when (algorithm.uppercase()) {
-        "RSASSA-PKCS1-V1_5-SHA256", "RSASSA-PKCS1-V1_5" -> "RSA" to "SHA256withRSA"
-        "ECDSA-SHA256", "ECDSA" -> "EC" to "SHA256withECDSA"
-        else -> "RSA" to "SHA256withRSA"
+    val (keyAlgo, sigAlgo) = when (algorithm.normalizedAlgorithmToken()) {
+        "RSASSAPKCS1V15SHA256", "RSASSAPKCS1V15" -> "RSA" to "SHA256withRSA"
+        "ECDSASHA256", "ECDSA" -> "EC" to "SHA256withECDSA"
+        else -> error("Unsupported signature algorithm: $algorithm")
     }
     val factory = KeyFactory.getInstance(keyAlgo)
     val pubKey = factory.generatePublic(X509EncodedKeySpec(publicKey))
@@ -211,10 +211,10 @@ private fun normalizeAesTransformation(mode: String): String {
     val noPadding = normalized.contains("NOPADDING")
     val padding = if (noPadding) "NoPadding" else "PKCS5Padding"
     return when {
-        normalized.contains("GCM") -> "AES/GCM/NoPadding"
-        normalized.contains("ECB") -> "AES/ECB/$padding"
-        normalized.contains("CBC") -> "AES/CBC/$padding"
-        else -> "AES/CBC/$padding"
+        normalized == "AESGCM" || normalized == "AESGCMNOPADDING" -> "AES/GCM/NoPadding"
+        normalized == "AESECB" || normalized == "AESECBPKCS5PADDING" || normalized == "AESECBNOPADDING" -> "AES/ECB/$padding"
+        normalized == "AESCBC" || normalized == "AESCBCPKCS5PADDING" || normalized == "AESCBCNOPADDING" -> "AES/CBC/$padding"
+        else -> error("Unsupported AES mode: $mode")
     }
 }
 
