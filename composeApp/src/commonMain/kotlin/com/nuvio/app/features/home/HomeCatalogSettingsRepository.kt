@@ -628,7 +628,7 @@ object HomeCatalogSettingsRepository {
             val remoteKeys = remotePreferences.keys
             val knownKeys = knownPreferenceKeys()
             val preservedPreferences = currentPreferences.filterKeys { key ->
-                key !in remoteKeys && (key in knownKeys || key.requiresExplicitSyncKey())
+                shouldPreservePreferenceAfterRemoteSync(key, remoteKeys, knownKeys)
             }
             preferences = preservedPreferences + remotePreferences
             normalizePreferences()
@@ -704,6 +704,13 @@ object HomeCatalogSettingsRepository {
                 "$addonId:$type:$catalogId"
             }
         }
+
+    internal fun shouldPreservePreferenceAfterRemoteSync(
+        key: String,
+        remoteKeys: Set<String>,
+        knownKeys: Set<String>,
+    ): Boolean = key !in remoteKeys &&
+        (knownKeys.isEmpty() || key in knownKeys || key.requiresExplicitSyncKey())
 
     private fun String.requiresExplicitSyncKey(): Boolean =
         !startsWith("collection_") && count { it == ':' } > 2
