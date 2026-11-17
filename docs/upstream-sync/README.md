@@ -1880,3 +1880,42 @@ A line-by-line follow-up narrows the earlier broad statement that Player Tools, 
 - Before any move, trace the root route, all callers, all UI state collectors, exact setter, persisted key, profile reset path, migration and feature announcement state.
 
 Verification: inspected exact Mew source on Main-dev at the SHAs recorded in this audit; searched current Playback, Appearance, Home and Meta settings pages for the exact properties. This narrows but does not complete the caller audit. No source changes, builds, tests or device checks.
+
+
+## Settings audit continuation — persistence and duplicate-control correction (2026-11-18)
+
+Verified against Mew `Main-dev` `69b4a96072b506f60dcbe538c5f6b71db3a4a464`, upstream `enhanced` `b4e446451f32edbdf8b1bf288d1a7a8a2bf10e03`, and `upstream-sync` `a09deaf20a09537dcd8bb6cb6dfb26858b6515b7`.
+
+### Confirmed duplicate visible control: Content Warnings
+
+The previous per-control correction said the parental-guide control's second visible location was not confirmed. That conclusion was incomplete.
+
+- `PlaybackSettingsPage.kt` renders a switch using `settings_playback_parental_guide`, `settings_playback_parental_guide_description`, `autoPlayPlayerSettings.showParentalGuide`, and `PlayerSettingsRepository.setShowParentalGuide`.
+- `NuvioEnhancedSettingsPage.kt` renders the same switch with the same title, description, state property and setter.
+- This is a **TRUE DUPLICATE / MULTIPLE EDITABLE ENTRY POINTS**. Both write the same canonical preference, so there is no separate-value conflict, but the user sees the same setting twice in different IA locations.
+- Decision: **ADAPT**. Keep one canonical control in Playback (content/playback behavior); in Enhanced, either remove the editable switch and provide a shortcut/deep link, or keep a clearly marked shortcut. Preserve the feature highlight/seen-state behavior independently if the feature announcement still needs it. Do not reset the preference.
+
+### Profile persistence and sync
+
+- `PlayerSettingsRepository.onProfileChanged()` reloads its state; `clearLocalState()` restores defaults. The Android and iOS player storage implementations use `ProfileScopedKey` for preference keys.
+- Player settings include a sync payload contract (`exportToSyncPayload` / `replaceFromSyncPayload`); the Android and iOS implementations list the same persisted keys for sync. The parental-guide key is included.
+- `NuvioEnhancedSettingsRepository` serializes a version-tolerant JSON payload (`ignoreUnknownKeys = true`, `encodeDefaults = true`) and normalizes mutually exclusive Cinematic Detail Header / Nuvio Read state, plus feature-seen defaults.
+- Android Enhanced storage uses SharedPreferences payload key `enhanced_settings_payload`; iOS uses NSUserDefaults with the same logical key. Both wrap it with `ProfileScopedKey`. Profile change resets in-memory state and reloads the active profile payload.
+- Enhanced feature IDs, `seenFeatureIds`, `discordWelcomeSeen`, and `featureHighlightsEnabled` are announcement/discovery state, not the same thing as the feature preferences themselves. Keep them separate during any settings IA move or reset flow.
+- No migration or key rename is proposed. Profile isolation, backup/import behavior and cross-platform payload parity still need a full field-by-field audit.
+
+### Confirmed label/copy defects
+
+- The root Appearance destination resource resolves to **“Layout”**, but its root description says “Home, streams, collections, and detail pages”; the destination also includes Theme and Display groups. This is a title/description/contents mismatch. **ADAPT**: define the canonical distinction between Appearance and Layout before renaming or splitting routes.
+- The setting label `settings_appearance_liquid_glass` is **“Liquid Glass”**, while its description explicitly says **“Use the native iPhone tab bar on iOS 26 and later.”** This is not the app-wide Liquid Glass effect; it is a native iOS tab-bar mode. **ADAPT** the label and IA to “Native iOS tab bar” (or equivalent), and keep the actual glass-effect controls separately named.
+- `AdvancedSettingsPage.kt` hardcodes English diagnostics strings (“Logs”, “View logs”, “Copy logs”, “Logs copied”, “Export started”, “Export logs”, “Runtime logs”). **ADAPT** to localized resources and verify locale fallback. This is a confirmed localization gap, not a missing diagnostics feature.
+
+### Settings dialog surface audit — new evidence
+
+- Shared `DialogSurface` wraps Material3 `BasicAlertDialog` and supplies the common dialog surface tokens (width, shape, background, border, padding and text hierarchy).
+- `PlaybackSettingsPage.kt` itself contains numerous direct `BasicAlertDialog` call sites (at least 18 in the inspected file), in addition to the separately identified direct-dialog components. A one-place glass/surface change to `DialogSurface` therefore cannot update all settings dialogs.
+- Decision: **NEEDS INVESTIGATION**. Inventory each dialog's purpose, sizing, actions, dismissal policy, scroll/focus behavior, platform-specific presentation and accessibility before consolidating. Security/PIN/consent dialogs and player/picker dialogs may require distinct visual variants; do not force all into one glass treatment.
+
+### Verification limits
+
+Read-only source inspection only. No source implementation changes, builds, tests, CI, simulator or device checks. Current branch refs were re-fetched before this documentation update. `Main-dev` and `main` remain untouched.
