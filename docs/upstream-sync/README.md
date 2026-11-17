@@ -703,3 +703,63 @@ Decision: **NEEDS INVESTIGATION — low risk, broad audit.** Compare resource ke
 ### Mew verification boundary
 
 Mew Main-dev was checked for episode artwork fallback, home catalog merge, iOS player subtitle state, native tab-bar appearance and hero mute anchoring. MDBList projection path and complete Simkl fallback call chain remain unlocated/unverified. No app source changed. Tests/build/CI/device verification: **NOT RUN**.
+
+
+## iOS parity audit — static source review (2026-11-17)
+
+Scope: compare upstream `enhanced` at `b4e446451f32edbdf8b1bf288d1a7a8a2bf10e03` with Mew `Main-dev` at `69b4a96072b506f60dcbe538c5f6b71db3a4a464`. Mew has no Apple device available for user-side testing, so this pass prioritizes source-level semantic review and marks simulator/device-only behavior explicitly. No iOS build or simulator run was performed.
+
+### iOS subtitle state after episode/source transition — upstream `c5298633914d967792c79351754ba47d54dfd242`
+
+- Upstream fix changes `subtitleText` from `remember(sourceUrl)` to stable `remember`, clears it explicitly in `LaunchedEffect(sourceUrl)`, and keeps `subtitleStyle` alive. This is specific to its Compose-rendered `StyledSubtitleOverlay` and subtitle-text callback.
+- Mew `composeApp/src/iosMain/kotlin/com/nuvio/app/features/player/PlayerEngine.ios.kt` (blob `288d8efa1115f395f934e6c9a3bbe64dab610819`) has no `subtitleText`, `subtitleStyle` Compose state, subtitle-text handler or `StyledSubtitleOverlay`. It applies style directly through `bridge.applySubtitleStyle(...)` and loads source changes through `bridge.loadFileWithAudio(...)`.
+- Decision: **INTENTIONAL PARALLEL / NEEDS INVESTIGATION**. Do not copy the overlay state patch. Trace whether the player runtime reapplies the persisted style after source load and whether mpv resets subtitle options on `loadFileWithAudio`; add a source-transition regression test at the bridge/state boundary if testable. Simulator/device visual confirmation remains required, but is not a blocker for static fixes.
+
+### iOS 26 tab-bar blur — upstream `c314dd48d622de249eebbea7e531e3f7b2e506d4`
+
+- Upstream's `removeBarBlur` configures both navigation and tab bar appearances, hides iOS 26 scroll-edge blur, and adds SwiftUI `toolbarBackground(.hidden, for: .tabBar)` to its SwiftUI `TabView` pages.
+- Mew `iosApp/iosApp/ContentView.swift` (blob `10b53e63a9d31f30c5a4ac0b0590af929a9380a9`) uses a custom `RootComposeViewController` with a manually embedded UIKit `UITabBar`, not the same SwiftUI `TabView`/tab-controller hierarchy. Mew's `applyNativeTabBarAppearance()` copies the current system appearance and changes icon/title tints; it does not explicitly clear the background effect.
+- Decision: **ADAPT candidate / NEEDS INVESTIGATION**. SwiftUI toolbar modifiers are inapplicable. Review Mew's Liquid Glass/native-tab preference and whether its custom UIKit bar actually produces the unwanted full-width blur on iOS 26. If so, adapt a transparent `UITabBarAppearance` in Mew's existing appearance path without changing the selected tab style or profile-avatar overlay. Do not blindly remove blur from every mode.
+
+### Detail hero native back-button anchor — upstream `f28929d3e3cc0d354de1dd921efc539bbf8a14cf`
+
+- Upstream reads the native `UINavigationBar` geometry through `LocalUIViewController` and uses it to align the hero mute button.
+- Mew's `RootComposeViewController` embeds the Compose `MainViewController` and manages a separate UIKit tab bar; Mew `DetailHero.kt` uses Compose status-bar insets and its own navigation chrome. No matching native navigation-bar anchor contract was found in Mew's iOS inset actual.
+- Decision: **SKIP this exact implementation** while Mew uses Compose navigation chrome. Revisit only if Mew adds a UIKit navigation bar around detail routes. Do not add an unused expect/actual API.
+
+### iOS download network policy — upstream batch-download commit `48cbb901bf48a641a1270c2d10bbd4260e712e68`
+
+- Upstream adds common `DownloadNetworkGuard` and queue policy plus iOS `NWPathMonitor`. The monitor initially reports unavailable, then allows the queue only when the path is satisfied and not expensive; device-level `allowMobileDataDownloads` defaults to false and is stored outside profile sync.
+- Mew has no matching common/iOS `DownloadNetworkGuard`, no `isDownloadNetworkAllowed` policy and no device-level mobile-data download setting in the inspected download repository/models. `DownloadsRepository` starts waiting items through its own `promoteWaitingDownload` queue without network gating. Mew's iOS downloader explicitly sets `allowsCellularAccess = true`, `allowsExpensiveNetworkAccess = true` and `allowsConstrainedNetworkAccess = true` on its default URLSession configuration.
+- Decision: **ADAPT — high-priority data-safety and parity gap**. Add a device-level opt-in and platform network monitor, then gate new queue admissions while preserving Mew's `DownloadQueueMode`, `DownloadStatus.Waiting`, persisted queue ordering and current transfer semantics. The shared expect/actual policy needs an Android implementation too; do not add an iOS-only switch that leaves common queue behavior inconsistent. Test unknown/no-network, Wi-Fi, cellular, explicit mobile-data opt-in, transitions while queued, and transitions while active.
+
+### iOS downloader lifecycle — intentional transport difference
+
+- Mew `DownloadsPlatformDownloader.ios.kt` (blob `1aa24cba6e141ec3acb39131805af89262087f7a`) uses `NSURLSessionDataDelegate`, streams bytes into a `.part` file, resumes with HTTP Range requests, and calls `DownloadsRepository.pauseActiveDownloads()` when the app backgrounds. It uses a default URLSession, not an NSURLSession background download task.
+- Upstream uses a background URLSession with `NSURLSessionDownloadTask`, stores resume data, and reapplies the cellular rule to resumed tasks. These have different callback, cancellation, partial-file, background execution and resume contracts.
+- Mew already excludes its downloads directory from iCloud/computer backups using `NSURLIsExcludedFromBackupKey` via `excludeFromBackupOnce`.
+- Decision: **INTENTIONAL PARALLEL** for the transport; **ADAPT / NEEDS INVESTIGATION** for background-transfer capability. Preserve Mew's range-resume and `.part` lifecycle unless a separately designed migration proves safe. Audit profile changes, cancellation, app termination, HTTP 200/206/416, signed headers, and background relaunch before considering background URLSession adoption. Backup exclusion is **ALREADY IMPLEMENTED**; do not duplicate it.
+
+### iOS storage statistics and download status surface
+
+- Upstream adds `DownloadsStorageStats.ios.kt` using `NSFileManager.attributesOfFileSystemForPath` to expose total/free storage, with a common storage-stats contract and UI bar.
+- Mew has no matching `DownloadsStorageStats` / `DownloadsStoragePlatform` source or storage indicator in the inspected `DownloadsScreen.kt`.
+- Decision: **ADAPT — low-risk feature gap**, after the common contract and Android actual are inspected. Treat filesystem-stat failures as unknown/zero without blocking downloads; avoid showing misleading capacity when the API fails.
+- Mew's iOS live-status payload already carries provider, stream title, artwork, speed and ETA in addition to progress; upstream's corresponding payload is simpler. Preserve Mew's richer status surface and its `Waiting` status semantics.
+
+### MDBList and Simkl correctness fixes — applicability refined
+
+- Upstream `a65cd8b2e42d7170d47cace44e5ebd6f03a053eb` fixes MDBList watch-progress projection so an episode cannot inherit a show's runtime. Mew's inspected `MdbListMetadataService.kt` only fetches/merges external ratings; Mew's `MetaDetailsRepository.kt` uses that ratings enrichment and no MDBList progress-projection path was found. Decision: **NOT APPLICABLE to current Mew behavior**; do not create a projection solely to port this guard. Revisit if MDBList watch-progress sync is introduced.
+- Upstream `b6ae11b8be1d2b6ff702ca8163143e06c5902810` falls back from empty Simkl related titles to Trakt/TMDB. Mew's inspected `MetaDetailsRepository.kt` has Trakt/TMDB related-title selection but no Simkl source path. Decision: **NOT APPLICABLE to current Mew behavior**; preserve existing Trakt/TMDB priority and revisit if Simkl recommendations are added.
+
+### iOS batch audit verification boundary
+
+Inspected upstream commit diffs and Mew Main-dev iOS player, insets, hero, native tab host, download repository/models, iOS downloader, iOS storage and account cleaner. This is a targeted source audit, not a complete iOS audit. The account-wipe call chain, subtitle style reapplication after source load, iOS native-tab visual mode, background-session feasibility, and storage-stat common/Android contracts remain open. No app source changed. iOS build, tests, CI, simulator and device verification: **NOT RUN**.
+
+### Latest verified refs for this audit entry
+
+- Mew `Main-dev`: `69b4a96072b506f60dcbe538c5f6b71db3a4a464`.
+- Mew `main`: `207ef8fa309b8061b73039b2d4e4bde4af65050e` (unchanged).
+- Mew `upstream-sync` before this documentation update: `8fd054a1a036c0a18d33f0304583796e429980cf`.
+- Upstream `enhanced`: `b4e446451f32edbdf8b1bf288d1a7a8a2bf10e03`.
+- App source changes: **0**. Documentation-only update on `upstream-sync`.
