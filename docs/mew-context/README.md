@@ -1,3 +1,87 @@
+# Upstream alignment status — 2026-11-17
+
+> **Primary mission:** keep Mew aligned with the releases and complete behavior of `luqmanfadlli/NuvioMobile-Enhanced`. This is not a feature-picking exercise. Audit the complete upstream release surface—application code, UI/UX, player, providers, networking, settings, profiles, persistence, platform source sets, dependencies, build configuration, tests and release workflows—while preserving Mew-specific behavior. The stable-beta release is the comparison baseline; the moving `enhanced` branch is a freshness reference, not an automatic integration target.
+
+## Latest upstream baseline
+
+- Latest published beta release: [`1.1.0-beta.1`](https://github.com/luqmanfadlli/NuvioMobile-Enhanced/releases/tag/1.1.0-beta.1), published `2026-11-16T12:13:03Z`, marked prerelease.
+- Exact tag commit: `eb32e0479932d28f5f6fa6afeb0e21c78ad02efd`.
+- Upstream beta source tree: `8778a465da5a01077118a5be985a4d42eac1b452` (2,339 blob paths; recursive tree not truncated).
+- Upstream `enhanced` branch: `b4e446451f32edbdf8b1bf288d1a7a8a2bf10e03`.
+- Upstream `stable-release` branch: `5b8c6dc2ad3cf83846ccbe3e05e96d409f5b2ab4`. This is a separate branch ref; do not substitute it for the explicitly published beta tag without checking its release policy.
+- The beta release notes contain 7 Nuvio Enhanced-specific items and 14 inherited NuvioMobile items. These are an index, not the complete audit: inspect the full tag tree and commits/diffs, including unmentioned dependency/build/config changes.
+
+## Verified Mew refs and source-tree comparison
+
+- Mew `upstream-sync`: `3ca5433681fcdf53763c31f5e995801800e99b8f`; tree `a57827fbb45db1c25ce054fa3c7858a8f61efa69`.
+- Mew `Main-dev`: `207ef8fa309b8061b73039b2d4e4bde4af65050e`.
+- Mew `main`: `207ef8fa309b8061b73039b2d4e4bde4af65050e` (same head as Main-dev; leave untouched).
+- Recursive tree comparison of beta tag vs `upstream-sync`: beta has 2,339 blobs; upstream-sync has 2,340. No upstream paths are missing and no upstream paths were removed. The only differing existing paths are:
+  - `iosApp/iosApp/ContentView.swift`: Mew retains its fork-specific iOS host/navigation/tab-bar presentation changes. Preserve these deliberately; review the full file diff before future syncs.
+  - `store-beta.json`: Mew adds the `1.1.0-beta.1` beta-store version entry and upstream release metadata.
+  - `docs/mew-context/README.md`: Mew-owned documentation overlay, not upstream application code.
+- Therefore the current `upstream-sync` source snapshot is already effectively aligned to the exact `1.1.0-beta.1` tag, with the two intentional Mew overlays above. This is a tree-level result, not a build/runtime validation.
+- Recursive tree comparison of beta tag vs `Main-dev`: Main-dev has 1,668 blobs; 706 same-path files have different blob contents, 1,133 beta paths are absent from Main-dev, and 462 Main-dev paths are absent from the beta tree. These counts include source, assets, vendored/native files and build/configuration files; they are not a feature count or a merge recommendation. Main-dev is substantially divergent and needs a structured path/behavior audit before integration.
+
+## Release 1.1.0-beta.1 audit ledger
+
+Release notes enumerate the following changes to trace through the tag's actual commits/files and compare semantically with Mew:
+
+**Nuvio Enhanced layer**
+- iOS navigation-controller extension import for bar anchor.
+- Remove duplicated Brazilian Portuguese strings.
+- MDBList: do not use show runtime as episode length.
+- Details hero mute button mirrored on back button.
+- Indonesian localization update.
+- iOS pushed-page top blurred-strip removal.
+- Download whole seasons and manage storage.
+
+**Inherited NuvioMobile layer**
+- Library remembers list/type and adds genre, year and watched filters.
+- Android gesture-navigation player bottom-controls positioning fix.
+- TorBox alternative-hash cache matching.
+- Seconds-unit spacing localization.
+- Subtitle outline width and styled-overlay/native-renderer matching.
+- High-fidelity Brazilian Portuguese localization.
+- Ukrainian localization.
+- Stremio player and library-tracking addon support.
+- Fallback from next episode's auto-selected source.
+- Keep iOS downloads out of iCloud/computer backups.
+- Hebrew localization update.
+- Mixed RTL/LTR text correction in Search and Watch Party.
+- Simplified Chinese localization.
+- Urdu episode-shuffle localization.
+
+**Audit rule:** every item above must be traced to implementation, callers, tests and platform scope; then search for renamed/equivalent Mew behavior. Also inspect every other beta-vs-Main-dev tree delta, including dependencies, Gradle/version catalog, manifests, native libraries, workflows, assets and release metadata. Do not assume release notes cover all meaningful changes.
+
+## Decisions and write boundaries
+
+- Classify each candidate: `TAKE`, `ADAPT`, `SKIP`, `ALREADY IMPLEMENTED`, or `BLOCKED`.
+- Duplicate classifications: `TRUE DUPLICATE`, `INTENTIONAL PARALLEL`, `SHARED PATTERN / DIFFERENT SEMANTICS`, `COMPATIBILITY SHIM`, or `FALSE POSITIVE`.
+- Compare behavior and contracts, not filenames: inputs/outputs, side effects, lifecycle, persistence/migrations, errors, callers, source sets, UI/navigation/accessibility and dependency/API impact.
+- Keep `upstream-sync` as the upstream reference snapshot plus clearly marked Mew documentation/overlays. `Main-dev` is the selective integration target. `main` remains untouched.
+- Audit first. Do not change application code, merge, cherry-pick, force-push, rewrite history, publish or promote without explicit approval. Any approved write must verify the target branch and exact current SHA immediately beforehand and read back the result.
+- Integrate in small logical batches only after the complete impact and regression review. Preserve Mew branding, CloudStream compatibility, player UI, provider behavior, profile/settings data and platform-specific work unless a reviewed change requires otherwise.
+
+## Current audit progress and verification
+
+- **Baseline identification: complete.** Latest published beta tag, exact commit and source tree are verified.
+- **Tree alignment: complete.** `upstream-sync` matches the beta source tree except for the documented iOS host and beta-store overlays plus this Mew-owned context file.
+- **Full semantic release audit: in progress; not yet complete.** Tree counts do not establish that every behavior, caller, dependency or test has been reviewed.
+- **Main-dev integration assessment: in progress.** The large tree divergence requires grouped comparison and duplicate/call-site review; no automatic merge is justified.
+- Remote GitHub source/tree inspection only. No local checkout, Gradle build, tests, CI run, emulator or device verification was performed for this baseline comparison. Tests are **NOT RUN**.
+- No application source was changed in this update. Only this context Markdown is being updated on `upstream-sync`.
+
+## Next execution order
+
+1. Trace every 1.1.0-beta.1 release-note item to exact commits/files and audit all changed files in the release range.
+2. Compare the complete beta source tree against Main-dev in logical groups: build/dependencies/manifests; common core/data; providers/addons; player/subtitles/downloads; UI/navigation; persistence/profiles/settings; Android/iOS actuals; assets/localization; CI/release.
+3. Search Mew for equivalent behavior under different names/routes and audit callers/source sets before assigning decisions.
+4. Record each group in this ledger with upstream path/commit, Mew equivalent, semantic delta, risk, decision, tests and verification status.
+5. Produce a prioritized integration plan for Main-dev. Do not implement until the user explicitly approves the proposed batch.
+
+---
+
 # Mew Context Maintenance
 
 This directory is the durable, repository-side record of Mew audit and integration context. It is intentionally separate from application source code.
