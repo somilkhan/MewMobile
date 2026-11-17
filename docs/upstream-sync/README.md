@@ -328,3 +328,13 @@ The comparison of Mew's actual implementations against upstream commit `48cbb901
 - Decision: **TAKE / ADAPT**. Added an optional `textStyle` parameter with the existing typography as its default, then applied content-aware direction only to Search and Watch Party text surfaces. Unmodified callers retain the previous default style.
 - Main-dev commit: `69b4a96072b506f60dcbe538c5f6b71db3a4a464`; files: `core/ui/Components.kt`, `features/search/SearchScreen.kt`, `features/party/PartyChatContent.kt`.
 - Verification: GitHub diff reviewed; combined status returned no status checks. Tests/build/device checks: **NOT RUN**. Mixed Arabic/Hebrew + Latin text and IME editing still need UI regression verification.
+
+### Release workflow / beta-channel comparison
+
+- Upstream commits `511ebd5f17`, `ac2021de3a`, `8ac35a18cd`, `647b561b01` and `b829dc2522` evolve a cross-platform stable/beta release workflow, separate beta sideload source, plain version tags, pre-release flags, and release notes split between fork and upstream commits.
+- Mew intentionally has a separate Android-first `android-release.yml` with optional unsigned iOS packaging, Mew signing secrets, `Version.xcconfig` version metadata, `CHANGELOG.md`, and Mew-specific release-note generation. Upstream's iOS store source, beta store JSON and workflow should **not** be copied wholesale.
+- **Release trigger mismatch:** the Mew workflow's `push.branches` contains `enhanced`, but the live repository branch list contains only `Main-dev`, `main` and `upstream-sync`. Automatic push builds therefore do not trigger on the active development branch.
+- **Release safety gap:** `Validate release state` checks that dispatch is from a branch and checks tags/version-bump state, but does not restrict `RELEASE_BRANCH` to an approved release branch. A manual `draft`/`publish` dispatch can target an unintended branch unless external repository protections prevent it.
+- Decision: **INTENTIONAL PARALLEL release architecture; NEEDS INVESTIGATION for Mew trigger/branch guard**. Do not alter workflows, publish, tag, or change repository settings in this audit. Before any release-workflow edit, explicitly settle whether release builds are allowed from `Main-dev` or only `main`, how beta versions/tags are represented, and whether Mew needs an upstream-vs-fork release-note split.
+- Live evidence: repository default branch is `main`; `android-release.yml` exists on both `main` and `Main-dev`; current branches are `Main-dev`, `main`, `upstream-sync`. Main-dev at audit: `69b4a96072b506f60dcbe538c5f6b71db3a4a464`; main: `207ef8fa309b8061b73039b2d4e4bde4af65050e`.
+- No workflow code changed; no release was created. Workflow execution/build/CI checks: **NOT RUN**.

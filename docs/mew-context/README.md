@@ -974,3 +974,13 @@ Adapted upstream commit `5964cdca71c0cc6c4892af88f76083b165c6e55c` into Mew's sh
 Changed `NuvioInputField` to accept an optional `TextStyle` while retaining its existing typography as the default. Search input/recent searches and Watch Party sender names, message bubbles and composer now use `TextDirection.Content`. Existing callers that omit the new argument retain prior behavior.
 
 Commit: `69b4a96072b506f60dcbe538c5f6b71db3a4a464`. GitHub diff reviewed; no status checks were reported. Tests/build/device checks: **NOT RUN**; mixed-script IME editing needs UI verification. `main` remains unchanged.
+
+## 2026-11-17 — release workflow safety audit
+
+Upstream stable/beta release changes were compared with Mew's Android-first `android-release.yml`. Mew has a distinct release process (Mew signing secrets, optional unsigned iOS packaging, `Version.xcconfig`, changelog, custom release notes), so upstream's mobile release workflow and store-source automation are not direct ports.
+
+Two issues need a separately approved release-workflow task:
+1. Mew's push trigger still targets `enhanced`, but the live branch list is only `Main-dev`, `main`, `upstream-sync`.
+2. Manual draft/publish validation checks branch ref type but does not enforce an approved branch allowlist.
+
+Do not change workflow triggers/guards or publish until release branch policy is explicitly settled. Current default branch: `main`; `Main-dev`: `69b4a96072b506f60dcbe538c5f6b71db3a4a464`; `main`: `207ef8fa309b8061b73039b2d4e4bde4af65050e`. No release created; workflow/build/CI tests: **NOT RUN**.
