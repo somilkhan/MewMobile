@@ -1996,3 +1996,40 @@ Verified refs before documentation update: Mew `Main-dev` `69b4a96072b506f60dcbe
 - Inspect iOS share completion/cancellation callback handling and temporary-file lifetime.
 - Inspect parser limits, malformed/oversized input feedback, and whether import can partially mutate state before failure.
 - No source changes, build/test/CI, simulator/emulator or physical-device checks were performed.
+
+
+## Profile deletion, lock cleanup, and profile-switch audit (2026-11-18)
+
+Verified source refs: Mew `Main-dev` `69b4a96072b506f60dcbe538c5f6b71db3a4a464`; upstream `enhanced` `b4e446451f32edbdf8b1bf288d1a7a8a2bf10e03`. Prior `upstream-sync` head `51822a06e2d98fa259ca3ba5b29c82893db53ab6`; document blob before this update `87740e2658ee4089e6fe547178e008f58a732d75`.
+
+### Profile deletion parity gap
+
+**Mew — `ProfileRepository.deleteProfile`**
+- Anonymous deletion removes the profile's cached PIN payload, updates the in-memory profile list/active profile, and persists.
+- Authenticated deletion calls `sync_delete_profile_data` and then `pullProfiles()`; no explicit device-local cleanup is visible in this method.
+- The Mew profile editor exposes PIN setup/removal and delete confirmation. No biometric-auth UI or `ProfileBiometricAuth` implementation appears in the inspected Mew common/android/iOS profile source sets.
+
+**Upstream — same repository and editor**
+- Both anonymous and authenticated deletion explicitly remove the profile's local PIN cache, disable profile biometric credentials, remove per-profile server state, and remove subtitle-device preferences.
+- Authenticated deletion performs local cleanup after remote deletion succeeds and before refreshing profiles; cleanup failures are logged separately rather than silently changing remote deletion outcome.
+- Upstream editor also provides biometric enable/disable for the primary profile, gated by PIN verification, with explicit failure feedback.
+- Upstream `ensureLoaded(userId)` clears stale-account PIN payloads and disables biometric credentials associated with the previous account when the cached profile snapshot belongs to a different user. Mew's corresponding path resets in-memory profile state but does not show the same local credential cleanup.
+
+**Classification / decision**
+- This is not a cosmetic UI difference. It concerns device-local security artifacts and profile-scoped data cleanup. **Classification: SHARED PATTERN / DIFFERENT SEMANTICS. Decision: ADAPT after auditing Mew's actual profile-scoped storage inventory.**
+- Audit every Mew profile-indexed store before adding deletion cleanup; identify which keys are local-only, remotely synchronized, shared-device preferences, or intentionally retained. Avoid deleting global state or another profile's data.
+- Evaluate biometric auth as a distinct opt-in feature, not an automatic port. Preserve PIN fallback and platform capability/error behavior.
+- Inspect Mew's `clearPin` path separately against upstream's cleanup guarantees; do not infer parity from the matching API name.
+
+### Profile switching
+
+- Both implementations perform broad profile-change invalidation across watched state, tracking, library, watch progress, addons/plugins, player/settings, home, metadata, search, collections, downloads, and notifications.
+- Upstream additionally switches custom poster settings, pinned stream sources, shuffle settings, batch-download coordinator state, server repository state, and profile settings sync. Mew includes several Mew-specific repositories (Enhanced settings, AI assistant, external download folder, Live TV) that upstream does not have.
+- **Classification: INTENTIONAL PARALLEL with selective missing invalidations.** Do not replace either switch pipeline wholesale. Verify each Mew profile-scoped repository and add only missing invalidation where semantics match.
+- Profile editor delete confirmation exists in both. Upstream marks the modal destructive explicitly; Mew uses the same status-modal component without the explicit destructive flag. Review the shared component's visual/action semantics before changing it.
+
+### Reset/defaults audit status
+
+- Repository-wide GitHub code searches for generic reset identifiers returned no indexed matches; this is not proof that reset flows do not exist.
+- A complete reset inventory remains open: settings reset, profile reset/delete, sign-out/account change cleanup, app-data reset, and per-feature clear actions must be traced through callers and platform storage.
+- No source changes, build/test/CI, simulator/emulator or physical-device checks were performed.
