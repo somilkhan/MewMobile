@@ -168,3 +168,14 @@ Latest verified state (supersedes older branch-head checkpoints above):
 - `Main-dev` only was changed. `main` and `upstream-sync` application source remain untouched.
 
 Next: continue auditing the remaining post-1.0.0 feature groups and older release checkpoints. Do not treat this one adaptation as completion of the full upstream audit.
+
+### Second adaptation: early catalog sync
+
+- Upstream commit: `0b9d93599f7d7603e7814a99a70aa64d7c48e086` — preserve local catalog choices when sync arrives before catalogs load.
+- Mew equivalent: `HomeCatalogSettingsRepository.applyFromRemote`. Mew already has additional hero settings, pinned collections and a richer normalization path; these are retained.
+- Confirmed gap: `knownPreferenceKeys()` can be empty before `syncCatalogs` / `syncCollections` populate definitions. Mew's previous filter then dropped ordinary local preference keys before the definitions were ready.
+- Decision: **ADAPT** the upstream empty-known-key guard through a small testable predicate. Remote payload keys still win; once definitions exist, known keys and explicit sync keys are retained while unrelated legacy keys are filtered.
+- Changed files on `Main-dev`: `composeApp/src/commonMain/kotlin/com/nuvio/app/features/home/HomeCatalogSettingsRepository.kt`; new `composeApp/src/commonTest/kotlin/com/nuvio/app/features/home/HomeCatalogRemotePreferenceMergeTest.kt`.
+- Commit: `db07c08cea6073ca8119df14eb1e41fcc58572f1`.
+- Regression tests added for early sync, remote-key precedence, and normal known/explicit/legacy-key filtering. Tests/build/CI/device verification: **NOT RUN**; the tests have not been executed.
+- Latest `Main-dev`: `db07c08cea6073ca8119df14eb1e41fcc58572f1`. `main` remains `207ef8fa309b8061b73039b2d4e4bde4af65050e`. `upstream-sync` remains the upstream source snapshot plus docs.

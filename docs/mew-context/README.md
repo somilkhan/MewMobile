@@ -818,3 +818,17 @@ Reference point: common ancestor `f9ad843b14cd3be7fa3ddb800b6961233e0e5b56`, tre
 **Verification:** GitHub diff and new branch head read back. Gradle build/tests, CI and device testing: **NOT RUN**. Runtime image-failure fallback: **NOT VERIFIED**. Repository-wide duplicate search was incomplete, so do not claim a complete global duplicate audit.
 
 **Branch safety:** `Main-dev` now points to `813510f128e58aefa0b5daa4757f18502c733fa6`; `main` remains `207ef8fa309b8061b73039b2d4e4bde4af65050e`; `upstream-sync` remains the upstream source snapshot plus Mew documentation.
+
+## 2026-11-17 — early catalog sync preference preservation
+
+**Upstream source:** commit `0b9d93599f7d7603e7814a99a70aa64d7c48e086`, changing `HomeCatalogSettingsRepository.applyFromRemote` so an empty known-key set does not cause local catalog choices to be discarded.
+
+**Mew comparison:** same repository and method on `Main-dev`. Mew additionally syncs hero auto-scroll and underline settings, preserves hero-source state, and enforces pinned collections after normalization. These behaviors remain intact. Mew's definitions and collection definitions start empty and are populated later by `syncCatalogs` / `syncCollections`, so an early remote sync can encounter an empty `knownPreferenceKeys()`.
+
+**Decision:** `ADAPT`. Extracted the key-preservation predicate as an internal test seam and added the upstream empty-known-key condition. Remote keys still replace matching local keys. Once known keys are available, existing known-key and explicit-sync-key behavior remains; unrelated legacy keys are still filtered.
+
+**Changed files:** `composeApp/src/commonMain/kotlin/com/nuvio/app/features/home/HomeCatalogSettingsRepository.kt`; `composeApp/src/commonTest/kotlin/com/nuvio/app/features/home/HomeCatalogRemotePreferenceMergeTest.kt`.
+
+**Regression coverage added:** empty known keys preserve local choices; remote payload keys take precedence; known keys and explicit sync keys survive while unrelated legacy keys do not. Tests, Gradle build, CI and device checks: **NOT RUN**. The added tests validate the predicate, not the full repository lifecycle.
+
+**Commit:** `db07c08cea6073ca8119df14eb1e41fcc58572f1`. `Main-dev` is now at this SHA; `main` remains unchanged at `207ef8fa309b8061b73039b2d4e4bde4af65050e`.
