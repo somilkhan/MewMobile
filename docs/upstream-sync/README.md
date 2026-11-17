@@ -777,3 +777,34 @@ This follow-up closes part of the earlier account-wipe investigation:
 Decision: **ADAPT — HIGH PRIORITY account-wipe/data-isolation regression.** Port the common in-memory cancellation and a profile-wide storage cleanup, including pending source-search records and partial files. Preserve completed offline media only if that is the intended product policy; before adopting upstream's keep-completed behavior, review Mew's completed item payload for retained source URLs/headers and account-bound metadata. Do not simply delete the entire downloads directory or clear all profile payloads without deciding whether completed local media should remain. Add tests for active-handle cancellation, all-profile unfinished record removal, pending-search removal, completed-download retention policy and partial-file cleanup on Android/iOS.
 
 Verification boundary: static call-chain/source inspection only. No account-wipe runtime test, iOS simulator, Android device, build or CI run. This finding supersedes the earlier note that the account-wipe call chain was wholly open; the missing cleanup call is confirmed, while the completed-download retention policy remains open.
+
+
+## Complete iOS path inventory for 1.0.0 → enhanced — 2026-11-17
+
+GitHub compare reports 72 upstream commits and 160 changed paths in this range. **14 changed paths are iOS-specific** (10 `iosMain`, 4 iOS app/config/Swift). This inventory records the iOS-side decision for every changed path; common-code download and UI changes are covered in the earlier sections.
+
+| Upstream path | Mew finding / decision |
+|---|---|
+| `core/storage/PlatformLocalAccountDataCleaner.ios.kt` | **ADAPT — HIGH PRIORITY**. Mew's account wipe omits download-state cancellation and unfinished-record/partial-file cleanup; see the deeper account-wipe audit above. |
+| `core/ui/PlatformInsets.ios.kt` | Upstream adds a UIKit navigation-bar anchor. **SKIP exact port** while Mew uses Compose navigation chrome and a separate UIKit tab bar. |
+| `features/downloads/DownloadNetworkGuard.ios.kt` | **ADAPT — HIGH PRIORITY** with common queue policy and device-level opt-in; no Mew equivalent. |
+| `features/downloads/DownloadsLiveStatusPlatform.ios.kt` | **ALREADY IMPLEMENTED / Mew richer**: Mew already publishes provider, stream title, artwork, speed and ETA; keep Mew's `Waiting` state contract. |
+| `features/downloads/DownloadsPlatformDownloader.ios.kt` | **INTENTIONAL PARALLEL** transport: Mew uses data delegate + `.part` + Range resume; upstream uses background download tasks + resume data. Audit lifecycle before any migration. |
+| `features/downloads/DownloadsSettingsStorage.ios.kt` | **ADAPT candidate** only as part of the device-level download settings/network-policy feature; Mew has no matching platform settings store/repository. |
+| `features/downloads/DownloadsStorage.ios.kt` | **ADAPT — HIGH PRIORITY** unfinished-download cleanup; Mew stores profile-scoped payloads but has no cleanup API. |
+| `features/downloads/DownloadsStorageStats.ios.kt` | **ADAPT candidate**: Mew has no storage-stat actual or storage indicator. |
+| `features/player/PlayerEngine.ios.kt` | **INTENTIONAL PARALLEL**: upstream's overlay subtitle state-lifetime fix does not map to Mew's direct mpv bridge style path. Reapply-style-after-load still needs verification. |
+| `features/settings/SettingsConfigFileLauncher.ios.kt` | **NOT APPLICABLE currently**: Mew has no matching common settings-config transfer contract or iOS document-picker actual. Revisit if settings backup/import is introduced. |
+| `iosApp/Configuration/Version.xcconfig` | **SKIP**: upstream release version/build moves from 1.0.0/157 to 1.1.0-beta.1/158; Mew intentionally owns version 0.5.1/120. |
+| `iosApp/iosApp/ContentView.swift` | **ADAPT candidate / NEEDS INVESTIGATION**: Mew has a custom UIKit `UITabBar`, not upstream's SwiftUI tab hierarchy. Check iOS 26 blur without breaking Mew's Liquid Glass/native-tab preference. |
+| `iosApp/iosApp/Info.plist` | Upstream adds `uk` and `zh` to its existing `CFBundleLocalizations`. Mew has no `CFBundleLocalizations` key. **NEEDS INVESTIGATION**: compare actual Mew Compose resource locales and Xcode known regions before adding a complete Mew-owned locale list. |
+| `iosApp/iosApp/Player/MPVPlayerBridge.swift` | Upstream changes styled overlay cue text from `sub-text` to `sub-text/ass` with fallback. Mew's bridge has no `styled` overlay / `sub-text/ass` path and uses native mpv subtitle rendering. **INTENTIONAL PARALLEL**; do not copy the one-line change without adopting the overlay contract. |
+
+### Additional iOS source comparison notes
+
+- Upstream `SettingsConfigFileLauncher.ios.kt` changes the document-picker export initializer from `forExportingURLs/asCopy` to `uRL/inMode: ExportToService`. This is not a standalone bug fix to port because Mew currently lacks the settings-config export/import feature itself.
+- The upstream `MPVPlayerBridge.swift` change is a subtitle overlay cue-source correction, not proof of a general MetalLayer fix. The commit subject must not substitute for reading the actual patch.
+- Mew's `Info.plist` retains Mew-specific display name, URL schemes and alternate icons. Do not replace it with upstream's plist. Only the supported-localization declaration needs a separate Mew resource audit.
+- Mew's iOS downloader already excludes its media directory from backup. Its richer live-status payload is a Mew advantage and must not be lost during integration.
+
+This inventory is based on the complete 160-path compare response (14 iOS-specific paths) and direct source reads for the Mew equivalents that exist. It does not claim every common-code caller or every iOS runtime path has been audited.
