@@ -294,3 +294,21 @@ The comparison of Mew's actual implementations against upstream commit `48cbb901
 - `c5e74dde1b7a7085d6e8684d5780f83faae68b38` changes upstream's UIKit `RootComposeViewController` navigation-bar appearance and iOS 26 scroll-edge effects. Mew's `iosApp/iosApp/ContentView.swift` has a different root/tab-controller lifecycle; the inspected Mew controller does not have the matching pushed `UINavigationController` navigation-bar/scroll-edge setup. **SKIP for now**; only revisit if Mew reproduces the same frosted strip on its actual iOS navigation stack.
 - `d374bdf022f63ead318387c6f9ffebcdb8113497` changes upstream's `playerTimelineBottomInsets` from Android `safeContent` to `safeDrawing`. Mew's `PlayerLayout.kt` does not contain that helper or the same bottom-inset calculation; the only matching `safeContent` use found is horizontal safe padding. **FALSE POSITIVE / NOT APPLICABLE** to this Mew implementation. Do not import an unused helper or alter player layout without a reproduced device issue.
 - No code changed for either item.
+
+### CMP merge follow-up: TorBox alias matching, RTL and home sync
+
+- Upstream commit `1118dfbf87...` and the CMP merge's `LocalDebridService.kt` change address TorBox alternative-hash responses that return a canonical hash rather than the requested alias.
+- Mew `LocalDebridService` already normalizes hashes, retries only unresolved batch entries, maps single aliases directly, and returns `null` if a retry fails so availability remains **UNKNOWN** rather than a false cache miss. `LocalDebridServiceTest` covers exact hits, single aliases, selective retries and failed-retry unknown state.
+- Decision: **ALREADY IMPLEMENTED**, with stricter unknown-state handling than upstream's shown helper. No port.
+
+- Upstream `5964cdca71...` fixes mixed RTL/LTR text in Search and Watch Party by exposing a text style on the shared input and setting `TextDirection.Content`.
+- Mew's shared `NuvioInputField` does not expose a text-style parameter; Search and party message/recent-search text use default direction. Decision: **ADAPT** into Mew's shared input and relevant text surfaces, with Arabic/Latin URL and message regression tests. No code changed.
+
+- Upstream `0b9d93599f...` preserves local catalog choices when remote sync arrives before catalog definitions load. Mew's `HomeCatalogSettingsRepository.shouldPreservePreferenceAfterRemoteSync` already has the same `knownKeys.isEmpty()` safeguard. Decision: **ALREADY IMPLEMENTED**; no port.
+
+### Current checkpoint
+
+- Upstream `enhanced`: `b4e446451f32edbdf8b1bf288d1a7a8a2bf10e03`.
+- Mew `Main-dev`: `a4b8ff258439f91140da2f92c60bec868fc6cec0` (includes iOS download backup exclusion).
+- Mew `main`: `207ef8fa309b8061b73039b2d4e4bde4af65050e`, unchanged.
+- `upstream-sync`: documentation-only updates; app source snapshot remains the aligned upstream tree.

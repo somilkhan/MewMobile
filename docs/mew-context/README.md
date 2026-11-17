@@ -950,3 +950,11 @@ GitHub diff verified. iOS compilation and device verification: **NOT RUN**. Main
 Upstream `c5e74dde1b7a7085d6e8684d5780f83faae68b38` modifies its UIKit pushed-page navigation-bar appearance and iOS 26 scroll-edge blur. Mew's iOS root controller has a different tab/navigation lifecycle and no matching upstream navigation-bar/scroll-edge integration in the inspected file. Decision: **SKIP unless reproduced on Mew's navigation stack**.
 
 Upstream `d374bdf022f63ead318387c6f9ffebcdb8113497` adjusts the bottom inset helper `playerTimelineBottomInsets`; Mew does not have that helper or equivalent calculation in `PlayerLayout.kt`. The existing `safeContent` call is for horizontal safe padding. Classification: **FALSE POSITIVE / NOT APPLICABLE**. No player layout change.
+
+## 2026-11-17 — CMP follow-up decisions
+
+- TorBox alternative-hash handling is already present in Mew `LocalDebridService`; its tests cover exact matches, single alias mapping, selective retries, and preserving unknown availability when retry fails. Decision: **ALREADY IMPLEMENTED**.
+- Mixed RTL/LTR Search and Watch Party handling is not present in Mew's shared input/chat text components. Decision: **ADAPT** optional input text styling and `TextDirection.Content` with mixed Arabic/Latin regression tests.
+- The home-catalog remote-sync race safeguard is already present in Mew's `shouldPreservePreferenceAfterRemoteSync`. Decision: **ALREADY IMPLEMENTED**.
+
+Current refs: upstream `enhanced` = `b4e446451f32edbdf8b1bf288d1a7a8a2bf10e03`; Mew `Main-dev` = `a4b8ff258439f91140da2f92c60bec868fc6cec0`; Mew `main` = `207ef8fa309b8061b73039b2d4e4bde4af65050e`. No app code changed in this audit. Tests/build/CI/device verification: **NOT RUN**.
