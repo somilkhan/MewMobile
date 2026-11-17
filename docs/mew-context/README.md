@@ -138,3 +138,12 @@ Never describe a partial audit as exhaustive. State API limits, missing local ch
 - This was a selective path/blob inspection using GitHub remote files. No local checkout/worktree, Gradle tasks, runtime, emulator/device, full call graph or complete test suite was available/verified.
 - No application code, branch ref, merge, cherry-pick, PR, build, test, or release was changed/run.
 - Continue with storage expect/actual implementations and all feature entry-point/caller searches before proposing any integration batch. No integration write without explicit approval.
+
+
+### Storage and profile-lifecycle follow-up
+
+- Upstream server repository is profile-aware: it tracks `loadedProfileId`, clears its in-memory token map on profile load/change, and exposes `onProfileChanged()`, `clearLocalState()`, and `removeProfile(profileId)`. Profile removal deletes credential references and that profile's connection/sync records; connection completion checks a generation/profile guard before persisting. This is a useful lifecycle design to preserve if the feature is adapted.
+- Android `ServerStorage.android.kt` stores encrypted values in private SharedPreferences using AES-GCM with an Android Keystore key and key/key-alias AAD. iOS `ServerStorage.ios.kt` uses Keychain generic-password items scoped to a service; newly added items use `AfterFirstUnlockThisDeviceOnly`. This is materially different from ordinary profile preference storage. Before integration, audit key invalidation/recovery, logout/profile deletion, error propagation and whether tokens enter any sync/export path.
+- Custom poster pattern and enabled-screen preferences use `ProfileScopedKey.of(...)` on both Android SharedPreferences and iOS NSUserDefaults. This confirms profile-scoped persistence for these settings; it does not establish that image cache entries are profile-scoped or that URL targets are safe.
+- Resolver inspection shows placeholder parsing/caching and RPDB-family fallback behavior. URL scheme/authority validation, redirect policy and final image-request enforcement were not established by this resolver-only inspection; inspect the image loader/interceptor and every poster call site before taking it.
+- Classification: server credentials = **INTENTIONAL PLATFORM PARALLEL** (Android Keystore AES-GCM vs iOS Keychain); custom poster storage = **INTENTIONAL PLATFORM PARALLEL** (SharedPreferences vs NSUserDefaults), both sharing profile-scoped semantics. Do not consolidate platform actuals into common storage.
