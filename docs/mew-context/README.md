@@ -1068,3 +1068,7 @@ Upstream enhanced has an experimental native iOS PiP pipeline (frame capture/par
 
 ## Add-on event delivery parity — 2026-11-17
 Upstream has player + library addon event dispatch with per-transport ordered queues, timeout isolation, 100-ID chunks and no-op lookup avoidance when no addon declares library resource. Mew has manifest resource/type/id-prefix metadata but no dispatcher or event hooks in the inspected player/library/watched paths. **MISSING FEATURE — ADAPT, high priority.** Audit all mutation paths and preserve Mew profile generations, tracking-source semantics, server-ID exclusions and CloudStream behavior. Review unbounded queue risk and stale profile delivery before implementing. No source changes/tests/build/CI. See upstream-sync ledger.
+
+
+## iOS settings backup export audit — 2026-11-17
+Mew already has settings backup/import via `ProfileSettingsSync` and `NuvioEnhancedBackupFileBridge` on Android/iOS. Upstream commit `d703ca48` aligns iOS export with the import document-picker family; Mew instead exports via `UIActivityViewController` while importing via `UIDocumentPickerModeImport`. **SAME FEATURE / DIFFERENT UX AND COMPLETION SEMANTICS — ADAPT candidate**, not missing feature. Review share-sheet completion/cancel handling and temporary-file cleanup before choosing a picker migration. No source changes; iOS build/simulator/device and backup round-trip tests NOT RUN. Full evidence in `docs/upstream-sync/README.md`.
