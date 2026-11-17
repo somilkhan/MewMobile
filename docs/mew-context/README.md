@@ -1045,3 +1045,8 @@ Mew's `RootComposeViewController` uses a standalone full-width `UITabBar()`, not
 ## Download network guard duplicate classification
 
 Mew `NetworkStatusRepository` is an HTTP reachability probe (public endpoint + app server checks), not an OS path monitor; it cannot identify Wi-Fi/cellular/expensive/constrained transport. Classification: **SHARED PATTERN / DIFFERENT SEMANTICS**, not a duplicate. Preserve it and add a separate platform path-cost signal for download admission/pause policy. Details in upstream-sync ledger. No source changes.
+
+
+## Home addon state projection — caller audit refinement
+
+Mew's full enabled-addon list is not only for display: it feeds metadata-provider readiness, catalog refresh signatures, HomeCatalogSettingsRepository.syncCatalogs, and HomeRepository.refresh, with additional refresh callbacks reading current state. Therefore the upstream compact signal must not replace Mew's source-of-truth/catalog side-effect inputs. Decision: ADAPT the recomposition boundary only, after identifying every field used by Mew's catalog signature/sync; keep CloudStream registry revision and profile/visibility triggers. No code change yet. Details in the upstream-sync ledger.
