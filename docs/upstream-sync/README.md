@@ -1135,3 +1135,23 @@ Upstream feature: `2da28d707c77` — remember list/type, add genre/year/watched 
 Mew `LibraryDisplaySettingsTest.kt` (blob `79c4e076239c07acab5c8a02789d6fab1284a6c0`) currently covers sorting, vertical section/type projection and display-settings serialization; no genre/year/watched/facet tests exist. Add tests for genre+year intersection, reciprocal facet counts, year extraction from single years/ranges/malformed values, watched/unwatched including fully-watched series, source with no genres, type counts/order, invalidated selections after source/list changes, and legacy profile payload migration. Also verify Trakt/Simkl/local behavior and that the horizontal layout/download filters are unchanged.
 
 No source changes. Builds/tests/CI/device verification: **NOT RUN**.
+
+
+## Home recomposition and Continue Watching publication — 2026-11-17
+
+Upstream performance merge: `e5272769a6709d43aaecc3d7bbe8d66d5a200702` (Android cold-start/home performance).
+
+### New concrete Mew comparison: progressive Next Up publication
+
+- Mew `HomeScreen.kt` at `Main-dev` blob `eddaf8634ff85c00db51b7ab6b5617de32e68846` resolves Continue Watching Next Up candidates in bounded batches using a semaphore and a per-batch channel. It publishes `nextUpItemsBySeries` / `processedNextUpContentIds` after each candidate result; the deferred-candidate pass also saves snapshots on each changed/conclusive result and yields between items.
+- Upstream changes this to drain currently available results and coalesce state publication using a monotonic-time interval, reducing repeated Compose state emissions while keeping progressive results.
+- Classification: **SHARED PATTERN / DIFFERENT BATCH AND CACHE CONTRACTS**. Decision: **ADAPT** publication coalescing only. Preserve Mew's primary-vs-deferred candidate ordering, cache generation, retained retry IDs, fallback aliases, per-profile snapshots, cancellation and maximum item count. Do not replace Mew's whole resolver loop with upstream's loop. Add deterministic tests for result ordering, cancellation, final flush, conclusive/transient results and snapshot persistence; use an injectable clock/interval for throttling tests.
+
+### Existing addon state and hero metadata constraints reaffirmed
+
+- Mew Home currently collects the complete `AddonRepository.uiState` in `HomeScreen` and derives enabled addons, meta-provider keys and manifest readiness from the full list. Upstream introduces `collectMappedAsState` and compact `HomeAddonSignals` to reduce unrelated recompositions.
+- Earlier caller audit remains controlling: Mew's full addon list also feeds metadata readiness, catalog refresh signatures, `HomeCatalogSettingsRepository.syncCatalogs`, `HomeRepository.refresh`, and CloudStream registry participation. Decision remains **ADAPT the observation/recomposition boundary only**, preserving the complete source-of-truth list and every catalog/resource/transport/profile/visibility dependency.
+- Upstream's `HomeHeroMetaLoadEffect` separates metadata loading side effects from hero-state collection. Mew hero metadata lifecycle still requires a dedicated caller/lifecycle audit before changing; do not remove current settings or hero-state dependencies based only on the upstream split.
+- Baseline profile module and Compose stability configuration remain **ADAPT after measurement**, as already recorded: inspect Mew variants, app IDs, selectors, CI and compiler metrics first; do not copy generated profiles or blanket-mark mutable Kotlin collections stable.
+
+No source changes. Builds, benchmarks, tests, CI and device verification: **NOT RUN**.
