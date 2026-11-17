@@ -854,3 +854,17 @@ Reference point: common ancestor `f9ad843b14cd3be7fa3ddb800b6961233e0e5b56`, tre
 **Remaining risk:** fallback retries are concurrent and not capped. TorBox documents POST batch checks as supporting large batches, but this does not establish a per-account rate limit for concurrent single-hash retries. Reassess if real batch sizes or provider throttling show a problem.
 
 **Commit:** `dd4b6ce5d0ff26527e7b3ad482ec77a3235d6bde`. `Main-dev` is at this SHA; `main` remains unchanged at `207ef8fa309b8061b73039b2d4e4bde4af65050e`.
+
+## 2026-11-17 — subtitle outline-width normalization
+
+**Upstream source:** `b8bbd700fda41ad55cdb90de2d60e48d10f5d0db` adds subtitle outline-width control and repository-boundary clamping to upstream's 1–5 range.
+
+**Mew comparison:** Mew already presents outline width in a 1–5 stepper, but `PlayerSettingsRepository.loadFromDisk()` restored persisted width without normalization and `setSubtitleStyle()` accepted/persisted out-of-range values. This could occur through corrupted or imported settings even though normal UI increments/decrements are bounded.
+
+**Decision:** take the validation behavior and adapt it to Mew's existing 1–5 contract. Added shared min/max constants and `normalizeSubtitleOutlineWidth`; apply it to storage load, incoming style updates and the existing stepper. Default remains 1. No subtitle renderer, playback engine or visual design changed.
+
+**Changed files:** `composeApp/src/commonMain/kotlin/com/nuvio/app/features/player/SubtitleAudioModels.kt`, `PlayerSettingsRepository.kt`, `SubtitleStylePanel.kt`; `composeApp/src/commonTest/kotlin/com/nuvio/app/features/player/SubtitleStyleStateTest.kt`.
+
+**Regression coverage added:** `Int.MIN_VALUE` clamps to 1, `Int.MAX_VALUE` clamps to 5, and an in-range value is preserved. Tests, Gradle build, CI and device checks: **NOT RUN**.
+
+**Commit:** `2d5fc48d285b4ae42a2d341cb34cd28897685f6a`. `Main-dev` is at this SHA; `main` remains unchanged at `207ef8fa309b8061b73039b2d4e4bde4af65050e`.

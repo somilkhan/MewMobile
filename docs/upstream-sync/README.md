@@ -192,3 +192,13 @@ Next: continue auditing the remaining post-1.0.0 feature groups and older releas
 - Regression tests added for exact matches/no extra request, single alias mapping, batch retries of missing hashes only, and retry failure remaining unknown. Tests/build/CI/device verification: **NOT RUN**.
 - Remaining risk: retries for a batch containing alias responses are concurrent and not explicitly capped. Review real stream-batch sizes and provider rate-limit behavior before changing that policy.
 - Latest `Main-dev`: `dd4b6ce5d0ff26527e7b3ad482ec77a3235d6bde`. `main` remains `207ef8fa309b8061b73039b2d4e4bde4af65050e`. `upstream-sync` remains the upstream source snapshot plus Mew docs.
+
+### Fourth adaptation: subtitle outline-width normalization
+
+- Upstream commit: `b8bbd700fda41ad55cdb90de2d60e48d10f5d0db` adds the outline-width setting and clamps loaded/saved values to `subtitleOutlineWidthRange` (1–5).
+- Mew already exposes a 1–5 stepper, but `PlayerSettingsRepository.loadFromDisk()` restored persisted values without clamping and `setSubtitleStyle()` saved incoming values unchanged.
+- Decision: **TAKE the repository-boundary validation, ADAPT to Mew's existing 1–5 UI contract**. Added shared min/max constants and `normalizeSubtitleOutlineWidth`; use it on load, set/persist, and the existing stepper. No player redesign or default change.
+- Changed files on `Main-dev`: `SubtitleAudioModels.kt`, `PlayerSettingsRepository.kt`, `SubtitleStylePanel.kt`, and `SubtitleStyleStateTest.kt`.
+- Regression test covers minimum, maximum and valid values. Commit: `2d5fc48d285b4ae42a2d341cb34cd28897685f6a`.
+- Tests/build/CI/device verification: **NOT RUN**. The test is committed but has not been executed.
+- Latest `Main-dev`: `2d5fc48d285b4ae42a2d341cb34cd28897685f6a`; `main` remains `207ef8fa309b8061b73039b2d4e4bde4af65050e`.
