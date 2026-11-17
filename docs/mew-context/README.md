@@ -1025,3 +1025,8 @@ Confirmed on Mew Main-dev `69b4a96072b506f60dcbe538c5f6b71db3a4a464`: common `Lo
 ## Full iOS path inventory — 2026-11-17
 
 The `1.0.0...enhanced` comparison contains 72 commits / 160 changed paths, including 14 iOS-specific paths. Decisions are recorded in `docs/upstream-sync/README.md` under **Complete iOS path inventory for 1.0.0 → enhanced**. Highest priority: download account-wipe cleanup and Wi-Fi-aware network gating. Mew's iOS download transport and player subtitle rendering are intentional architectural parallels; don't replace them wholesale. Mew's live-status payload and backup exclusion are already stronger/present. Version metadata is Mew-owned; settings-config document picker is not applicable until Mew adds config transfer; locale declarations need a Mew resource audit. All iOS findings are static source review only; iOS build/simulator/device verification NOT RUN.
+
+
+## Localization parity finding — 2026-11-17
+
+Static key/duplicate audit of default, French, pt-BR, Indonesian `id` and legacy `in` resources is documented in `docs/upstream-sync/README.md` under **Localization parity audit**. Mew duplicate resource names: 0 in all five files. Coverage: French 71% vs upstream 80%; pt-BR 53% vs 93%; Indonesian 53% vs 100%. Upstream has translations for 203 / 812 / 745 keys currently missing from Mew's French / pt-BR / Indonesian files respectively, but upstream-only features and Nuvio wording must be excluded or adapted. Mew `id` and `in` key sets are identical (legacy alias / intentional parallel). Upstream duplicate pt-BR cleanup is already unnecessary in Mew. Decision: **ADAPT**, medium priority; no translation files changed. Build/resource validation not run.
