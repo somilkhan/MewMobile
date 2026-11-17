@@ -1805,3 +1805,47 @@ This map is a proposal for testing against all settings, not a committed design.
 - Record unsupported platform values explicitly; don't show dead toggles or silently reset cross-platform preferences.
 
 Verification: current Main-dev source and repository inspection; selected settings models/repositories only. Full settings-repository inventory, all consumers, translations, migration keys and UI-state persistence still pending. No source changes, builds, tests or device checks.
+
+
+## Mew Enhanced settings hub — overlapping controls and canonical ownership (2026-11-18)
+
+Inspected `NuvioEnhancedSettingsPage.kt` (~90.8 KB) and `NuvioEnhancedSettingsRepository.kt` against the ordinary settings pages and their repositories.
+
+### Confirmed overlap / duplicate exposure
+
+The Mew Enhanced hub contains sections for Nuvio Experience, Premium Labs, App Experience, Player Tools, Hero Experience, Detail Presentation, Release Radar, Details Experience, Network, Backup/Import, Downloads, Discovery and Diagnostics. This is a much broader surface than a small independent feature-settings page.
+
+Several controls are backed by the same canonical repository as ordinary settings, so the Enhanced hub is also an alternate control surface:
+
+- **Player Tools** exposes parental guide, subtitle sync, player clock, random next episode and Android memory-safe buffer, all represented in `PlayerSettingsRepository` and the ordinary Playback settings domain. It also exposes player status overlay and subtitle/audio selector styles.
+- **Hero Experience** exposes hero display mode/artwork source, poster-art and streaming-showcase modes, preview/sound, metadata/rating/overview, hero refresh haptics, auto-scroll and motion preview. These overlap the normal Home/Homescreen and appearance/layout domains.
+- **Detail Presentation / Details Experience** exposes cinematic detail header/content mode, episode-card layout, trailer playback/sound and episode ratings, overlapping the MetaScreen settings domain.
+- **Downloads** in the hub exposes external-folder selection/removal; this is not automatically equivalent to full download policy preferences such as mobile data, concurrency, preferred resolution or default location.
+- **Diagnostics** in the hub coexists with the separate Advanced diagnostics/log page.
+
+### Classification
+
+- Same persisted player preference reachable from Playback and Enhanced: **SHARED PATTERN / SAME SETTING, MULTIPLE ENTRY POINTS**. Not necessarily a storage duplicate, but risks duplicate controls, inconsistent descriptions and discoverability.
+- Same home/detail preference reachable from Layout-related pages and Enhanced hub: **SHARED PATTERN / SAME SETTING, MULTIPLE ENTRY POINTS**.
+- Mew Enhanced-only experiments (smart shelves, release digest, quiet home, library health, background prefetch, source pinning, hero variants, etc.): **INTENTIONAL PARALLEL / MEW-SPECIFIC FEATURE HUB**, not candidates for deletion.
+- Enhanced external-folder setting vs general download policies: **FALSE POSITIVE if treated as equivalent**; keep semantics separate pending exact behavior comparison.
+- Enhanced Diagnostics vs Advanced logs: **POTENTIAL DUPLICATE DESTINATION**, inspect whether both expose same logs or distinct data before consolidation.
+
+### IA recommendation
+
+Use a canonical-owner model:
+
+1. Every preference gets one primary location based on what it changes (Appearance, Layout, Playback, Sources/Services, Downloads, System).
+2. The Enhanced hub should either contain only Mew-specific experimental features, or retain clearly marked shortcuts/curated labs while linking to the canonical setting. It must not quietly maintain a second independent control or divergent description.
+3. If a setting remains intentionally reachable from two pages, both entries must bind to the same repository property/setter, use the same localized title/description/value, and be documented as a shortcut.
+4. Keep feature announcement/seen-state metadata separate from preference persistence. Do not delete feature flags or reset profile preferences during IA cleanup.
+5. Group experimental features by effect and maturity: stable Mew enhancements vs Labs/experimental; add concise risk/availability notes and explicit reset/default behavior.
+
+### Settings text audit priority
+
+- Highest: controls with ambiguous names ("Liquid Glass", "Enhanced", "Smart Resume", "Background Stream Prefetch", "Quiet Home", "Library Health", "Release Radar") need descriptions that state exact effect and scope.
+- Player controls: distinguish playback behavior, stream-source selection, UI appearance and decoder compatibility; explain Android/iOS-only controls and restart requirements.
+- Home/detail controls: explain whether each option changes layout, metadata, artwork, network requests, video preview, sound or haptics.
+- Security/network/backup: state what leaves device, what credentials are included, what server/provider is contacted and how restore conflicts are handled.
+
+Verification: selected repository/state and UI inspection only. Same repository-backed setting overlap is confirmed at domain level; every individual callback/key and visible string pair still needs line-by-line comparison. No source edits, builds, tests or device checks.
