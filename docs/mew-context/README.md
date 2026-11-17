@@ -1,5 +1,16 @@
 # Upstream alignment status — 2026-11-17
 
+## Semantic audit batch 8 — Android download transport and network policy
+
+- Upstream beta's Android download transport uses `AndroidDownloadScheduler` with WorkManager below API 34 and JobScheduler on API 34+, persisted transfer records, network constraints, retry/backoff and queue re-advance. `DownloadNetworkGuard` tracks unmetered transport state and the `allowMobileDataDownloads` setting controls whether jobs require `UNMETERED` or merely `CONNECTED`.
+- Mew does **not** have upstream's `AndroidDownloadScheduler`, `DownloadNetworkGuard` or `DownloadsStorageStats` platform architecture. Mew uses `DownloadsForegroundService` + its own `DownloadsPlatformDownloader.android.kt` (535 lines), streaming/resume logic, partial files, retry policy, external-folder copy, foreground notification and wake-lock lifecycle. It also has a separate WorkManager worker for retrying pending provider source searches; that worker is not the download-transfer scheduler.
+- Classification: **INTENTIONAL PARALLEL** for transfer execution and background lifecycle. Decision: **SKIP** replacing Mew's foreground-service/downloader with upstream WorkManager/JobScheduler code. The transport, persistence, pause/resume, notification, external-folder and process-restoration contracts differ.
+- Network preference: Mew's inspected download paths do not expose an equivalent mobile-data opt-in setting or upstream `DownloadNetworkGuard`; Mew transfer requests can start through its current foreground service. Decision: **ADAPT candidate** for a user-controlled mobile-data policy, but design it around Mew's existing transfer lifecycle. Verify network callback behavior, pausing/resuming active streams, pending source-search network use, metered Wi-Fi/hotspot semantics, Android API levels and user-visible state before changing anything.
+- Storage reporting: upstream adds `DownloadsStorageStats` and a device-storage bar; Mew supports a custom external download folder but has no matching storage-stat abstraction in the inspected paths. **ADAPT candidate** only if it can report private and user-selected document-tree storage accurately without misleading totals.
+- Upstream iOS backup exclusion and iOS download platform work are not Android ports. Keep them in the cross-platform audit ledger, but do not change Mew's Android transfer implementation to match them.
+- No downloader, service, scheduler, network policy or settings code changed. Android network/Doze/foreground behavior was inspected remotely only; device verification and tests are **NOT RUN**.
+
+
 ## Semantic audit batch 7 — Android player gesture-navigation insets
 
 - Upstream merge commit `4128f63efcaabd42086f0fd26271556012e5c83a` fixes player timeline controls being pushed too far up under Android gesture navigation.
