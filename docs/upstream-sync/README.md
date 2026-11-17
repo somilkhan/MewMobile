@@ -1849,3 +1849,34 @@ Use a canonical-owner model:
 - Security/network/backup: state what leaves device, what credentials are included, what server/provider is contacted and how restore conflicts are handled.
 
 Verification: selected repository/state and UI inspection only. Same repository-backed setting overlap is confirmed at domain level; every individual callback/key and visible string pair still needs line-by-line comparison. No source edits, builds, tests or device checks.
+
+
+## Correction: Enhanced hub overlap requires per-control classification (2026-11-18)
+
+A line-by-line follow-up narrows the earlier broad statement that Player Tools, Hero Experience and Detail Experience are duplicates of ordinary settings pages.
+
+### Confirmed shared backing repository, but not duplicate visible control
+
+- Subtitle sync menu, player clock end-time and random-next-episode are read from and written to `PlayerSettingsRepository` in `NuvioEnhancedSettingsPage.kt`. A scan of `PlaybackSettingsPage.kt` found none of these setting properties/callbacks. They are **not currently confirmed duplicate controls** in the ordinary Playback page. Their correct canonical destination can still be Playback, but the existing Enhanced hub may be their only visible control.
+- Android memory-safe buffer is also bound to `PlayerSettingsRepository` in the Enhanced hub; the playback page file receives decoder-related settings as parameters, but the property itself was not found in its source. Need trace the caller and any separate Android advanced controls before classifying.
+- Subtitle/audio selector style values use `NuvioEnhancedSettingsRepository`, not `PlayerSettingsRepository`; these are selector UI presentation preferences, not the preferred subtitle/audio language or subtitle renderer settings. **SHARED PATTERN / DIFFERENT SEMANTICS**, not a duplicate.
+- Hero display mode, artwork source, poster-art hero and streaming-showcase hero use `NuvioEnhancedSettingsRepository`. `HomeCatalogSettingsRepository` separately controls catalog visibility/order and hero-source eligibility, plus home auto-scroll/motion. These settings affect related home surfaces but are **different persisted settings and different behavior**, not duplicates.
+- Hero auto-scroll/motion values in `HomeCatalogSettingsRepository` are not the same as hero display/artwork mode in the Enhanced repository. Avoid merging them.
+- Trailer playback/sound and episode ratings in Enhanced use `MetaScreenSettingsRepository`. The ordinary MetaScreen settings page file contains no direct property/callback matches in the scanned source; the Appearance page links to the Meta Screen page. This is **shared detail-screen ownership, but duplicate UI is not confirmed**.
+- Cinematic detail header / Nuvio Read state is stored in `NuvioEnhancedSettingsRepository` and has mutually exclusive normalization (`nuvioReadEnabled` is disabled when cinematic header is enabled). It is not interchangeable with `MetaScreenSettingsRepository.cinematicBackground` / background mode. **SHARED PATTERN / DIFFERENT SEMANTICS**.
+- Enhanced parental guide writes `PlayerSettingsRepository.setShowParentalGuide`; it is a playback behavior preference. Verify whether the normal Playback page exposes the same setter elsewhere before moving it.
+
+### Diagnostics are two different data sources
+
+- Enhanced Diagnostics uses `CrashDiagnostics` for diagnostics copy and crash context.
+- Advanced > Logs uses `RuntimeDiagnostics.snapshotText()` and includes recent runtime/CloudStream logs; its export writes `mew-diagnostics.txt`.
+- These are **SHARED PATTERN / DIFFERENT SEMANTICS**, not proven duplicate controls. A future System > Diagnostics page may unify the presentation while preserving separate data sections and exports. Do not merge or discard either diagnostic source.
+
+### Corrected decision
+
+- Previous broad wording "same preference reachable from Playback and Enhanced" was too strong. For the listed Enhanced Player Tools controls, current source evidence confirms shared PlayerSettings repository ownership but does **not** confirm a second visible Playback control.
+- Previous broad wording "Hero/Detail controls duplicated in Layout" was also too strong. Current source evidence confirms domain relation and repository ownership, but no second visible control for those exact keys was found in the inspected canonical pages.
+- Treat the Enhanced hub as a possible **secondary feature index**. Proposed redesign: keep Mew-specific feature discovery/highlights in Enhanced, but have each setting either (a) live in one canonical page with a deep link from Enhanced, or (b) remain exclusively in Enhanced if it is truly a Labs/feature-specific control. Do not maintain two independently editable copies.
+- Before any move, trace the root route, all callers, all UI state collectors, exact setter, persisted key, profile reset path, migration and feature announcement state.
+
+Verification: inspected exact Mew source on Main-dev at the SHAs recorded in this audit; searched current Playback, Appearance, Home and Meta settings pages for the exact properties. This narrows but does not complete the caller audit. No source changes, builds, tests or device checks.
