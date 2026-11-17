@@ -34,7 +34,7 @@ fun envOrLocalProperty(key: String): String? =
 
 val legacyUpdateCompatSigning = envOrLocalProperty("NUVIO_LEGACY_UPDATE_COMPAT_SIGNING")
     ?.toBooleanStrictOrNull()
-    ?: true
+    ?: false
 val legacyUpdateCompatKeystore = file("${System.getProperty("user.home")}/.android/debug.keystore")
 val debugStoreFile = envOrLocalProperty("MEW_DEBUG_KEYSTORE_FILE")?.let(::file)
 val debugStorePassword = envOrLocalProperty("MEW_DEBUG_KEYSTORE_PASSWORD")
@@ -54,6 +54,19 @@ val requestedTaskNames = gradle.startParameter.taskNames.map { it.substringAfter
 val buildsReleaseApks = requestedTaskNames.any {
     it.startsWith("assemble", ignoreCase = true) && it.endsWith("Release", ignoreCase = true)
 }
+val hasReleaseSigningConfig = releaseKeystore?.exists() == true &&
+    releaseStorePassword != null && releaseKeyAlias != null && releaseKeyPassword != null
+val hasLegacyUpdateSigningConfig = legacyUpdateCompatSigning && legacyUpdateCompatKeystore.exists()
+
+if (buildsReleaseApks && !hasReleaseSigningConfig && !hasLegacyUpdateSigningConfig) {
+    error(
+        "Release APK signing is not configured. Set NUVIO_RELEASE_STORE_FILE, " +
+            "NUVIO_RELEASE_STORE_PASSWORD, NUVIO_RELEASE_KEY_ALIAS, and " +
+            "NUVIO_RELEASE_KEY_PASSWORD in local.properties or the environment. " +
+            "For legacy update-compatibility builds only, explicitly set " +
+            "NUVIO_LEGACY_UPDATE_COMPAT_SIGNING=true."
+    )
+}
 
 android {
     namespace = "com.nuvio.android"
@@ -71,18 +84,19 @@ android {
         }
 
         create("release") {
-            if (legacyUpdateCompatSigning && legacyUpdateCompatKeystore.exists()) {
-                // Build 97 shipped with the Android debug certificate. Keep this signing
-                // certificate for package-update compatibility until a planned migration.
-                storeFile = legacyUpdateCompatKeystore
-                storePassword = "android"
-                keyAlias = "androiddebugkey"
-                keyPassword = "android"
-            } else if (releaseKeystore != null && releaseStorePassword != null && releaseKeyAlias != null && releaseKeyPassword != null) {
+            if (releaseKeystore != null && releaseKeystore.exists() &&
+                releaseStorePassword != null && releaseKeyAlias != null && releaseKeyPassword != null
+            ) {
                 storeFile = releaseKeystore
                 storePassword = releaseStorePassword
                 keyAlias = releaseKeyAlias
                 keyPassword = releaseKeyPassword
+            } else if (legacyUpdateCompatSigning && legacyUpdateCompatKeystore.exists()) {
+                // Explicit opt-in only: Build 97 shipped with the Android debug certificate.
+                storeFile = legacyUpdateCompatKeystore
+                storePassword = "android"
+                keyAlias = "androiddebugkey"
+                keyPassword = "android"
             }
         }
     }
