@@ -1,6 +1,9 @@
 package com.nuvio.app.features.debrid
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.longOrNull
 
@@ -26,6 +29,21 @@ internal object LocalDebridService {
     }
 
     private suspend fun checkTorboxCached(
+        apiKey: String,
+        hashes: List<String>,
+    ): Map<String, LocalDebridCachedItem>? {
+        val normalizedHashes = hashes
+            .map { it.trim().lowercase() }
+            .filter { it.isNotBlank() }
+            .distinct()
+        if (normalizedHashes.isEmpty()) return emptyMap()
+        val cached = requestTorboxCached(apiKey, normalizedHashes) ?: return null
+        return resolveTorboxAliasMatches(cached, normalizedHashes) { hash ->
+            requestTorboxCached(apiKey, listOf(hash))
+        }
+    }
+
+    private suspend fun requestTorboxCached(
         apiKey: String,
         hashes: List<String>,
     ): Map<String, LocalDebridCachedItem>? =
@@ -79,4 +97,44 @@ internal object LocalDebridService {
 private fun kotlinx.serialization.json.JsonElement?.asLongOrNull(): Long? {
     val primitive = this as? JsonPrimitive ?: return null
     return primitive.longOrNull ?: primitive.content.toLongOrNull()
+}
+
+/**
+ * TorBox may return a canonical hash for a request made with an alternative hash.
+ * Retry only unresolved batch entries so alias hits are mapped to the requested hash.
+ * A failed retry returns null so callers keep availability UNKNOWN instead of NOT_CACHED.
+ */
+internal suspend fun resolveTorboxAliasMatches(
+    cached: Map<String, LocalDebridCachedItem>,
+    requestedHashes: List<String>,
+    fetchCached: suspend (String) -> Map<String, LocalDebridCachedItem>? = { null },
+): Map<String, LocalDebridCachedItem>? {
+    if (cached.keys.all { it in requestedHashes }) return cached
+    if (requestedHashes.size == 1) {
+        val item = cached.values.firstOrNull() ?: return cached
+        return mapOf(requestedHashes.single() to item)
+    }
+    val resolved = cached.toMutableMap()
+    val retries = coroutineScope {
+        requestedHashes
+            .filter { it !in resolved }
+            .map { hash ->
+                async {
+                    val response = try {
+                        fetchCached(hash)
+                    } catch (error: CancellationException) {
+                        throw error
+                    } catch (_: Exception) {
+                        null
+                    }
+                    hash to response
+                }
+            }
+            .awaitAll()
+    }
+    if (retries.any { (_, response) -> response == null }) return null
+    retries.forEach { (hash, response) ->
+        response?.values?.firstOrNull()?.let { resolved[hash] = it }
+    }
+    return resolved
 }
