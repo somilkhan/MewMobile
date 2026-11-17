@@ -1060,3 +1060,7 @@ Older-history batch compared upstream metadata/iOS fixes against Mew `Main-dev`:
 ## iOS MPV rendering audit — 2026-11-17
 
 New upstream parity candidates: Mew's iOS MPV bridge uses `nativeScale` only (upstream uses max(screen.scale, nativeScale)); Mew's MetalLayer lacks preferred drawable-size protection; its foreground handler restores video/playback but does not explicitly relayout the drawable. Upstream RPU-aware Dolby Vision PiP is a missing feature; Mew's inspected iOS player has no PiP frame pipeline. All are audit-only; playback code unchanged; iOS build/simulator/device tests NOT RUN. See `docs/upstream-sync/README.md` for commits/files and risks.
+
+
+## iOS PiP parity — 2026-11-17
+Upstream enhanced has an experimental native iOS PiP pipeline (frame capture/parking, rendering suspension, subtitle composition and Dolby Vision RPU conversion). Mew has Android PiP only; its iOS MPV bridge/MetalLayer has no matching frame sink/controller. **ADAPT / NEEDS ARCHITECTURE INVESTIGATION**, not a drop-in port. Define Mew's iOS PiP contract and verify MPVKit frame ownership before baseline SDR PiP, then subtitle/HDR support. Preserve Android PiP. No source changes; iOS build/simulator/device checks NOT RUN. Full audit in `docs/upstream-sync/README.md`.
