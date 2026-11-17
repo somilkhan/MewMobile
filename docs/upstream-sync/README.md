@@ -1386,3 +1386,23 @@ Recommended Mew design:
 ### Verification boundary
 
 Read-only audit only. No application source, tests, Gradle files, workflows or branch refs were changed. Builds/tests/CI/device benchmarks: **NOT RUN**. Main-dev and upstream enhanced were not modified. upstream-sync documentation update is limited to this audit entry.
+### Startup candidate safety audit — repository storage and side effects (2026-11-18)
+
+Inspected the common repositories and Android/iOS storage actuals for Player settings, P2P settings, Downloads and Nuvio Enhanced settings.
+
+- PlayerSettingsRepository.ensureLoaded() synchronously calls loadFromDisk() once. The loader performs many individual PlayerSettingsStorage reads and publishes one consolidated state. Android actual uses SharedPreferences; iOS actual uses NSUserDefaults. Both are synchronous key-value stores. Candidate for an asynchronous restore only after confirming Kotlin/Native threading constraints and ensuring setters/profile changes cannot race or be overwritten by a late load. Keep platform actuals and persisted keys unchanged.
+- P2pSettingsRepository.ensureLoaded() is a small, pure profile-scoped key-value restore (five values, enum normalization, StateFlow publish). Android uses SharedPreferences and iOS uses NSUserDefaults. It does not start the P2P engine. Classification: SAFE PRELOAD CANDIDATE, low expected cost; include only after active profile identity is fixed, and retain lazy fallback for settings screens.
+- NuvioEnhancedSettingsRepository.ensureLoaded() reads one profile-scoped JSON payload, normalizes legacy/feature IDs and publishes state. It is idempotent but has no synchronization around hasLoaded and is called from multiple MainAppContent remember blocks. Classification: POTENTIAL REDUNDANT INVOCATION / SHARED SETTINGS OWNER, not duplicate implementation. Consolidate collection and initialization at one owner; make load concurrency-safe before introducing parallel preloading.
+- DownloadsRepository.ensureLoaded() is not a pure restore. loadFromDisk() decodes the persisted queue, normalizes interrupted Downloading items to Paused, resolves completed file URIs, filters missing files, notifies platform live status, may promote a waiting item, and may persist normalized state. Promotion can start a real transfer. Classification: LIFECYCLE-ACTIVE RESTORE; do not run as generic startup preload before profile/queue policy is ready. Preserve interrupted-download recovery and avoid accidental transfer starts before the app has established the selected profile and network policy.
+- DownloadsStorage payload is profile-scoped on both Android SharedPreferences and iOS NSUserDefaults. The persisted queue may be sizable; measure payload size/decode cost before deciding whether to split metadata/progress or move decode off-main. Do not change serialization or cleanup semantics as part of a performance-only port.
+- P2pSettingsStorage is also profile-scoped on both platforms. The engine implementation remains platform-specific (Android and iOS full/store source sets); settings restoration must not initialize or start that engine.
+
+Refined preload tiers:
+1. Before Compose: only essential platform setup and cached profile data already handled through the IO path.
+2. Immediately after the active profile is known: P2P/player/Nuvio settings and other pure local state, concurrently where storage APIs and repository synchronization permit.
+3. After profile activation: local Library/Watched restoration separated from provider activation; restore Home snapshot and render cached sections.
+4. Lifecycle-owned/background: Downloads queue recovery, addon/provider observers, remote sync, stream/provider preparation and P2P engine work.
+
+Decision: **ADAPT** the startup coordinator with explicit task tiers and per-repository restore/activate contracts. Do not treat all ensureLoaded() calls as equivalent. No source changes; P2P settings are a low-risk candidate, Player/Nuvio settings require concurrency guards, Downloads must remain lifecycle-gated.
+
+Verification boundary: source inspection only. No timing benchmark, build, tests, CI or device verification. No app source changes.
