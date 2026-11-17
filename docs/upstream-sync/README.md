@@ -1548,3 +1548,51 @@ This pass expanded beyond screen-name matching and searched the recursive source
 - Single-primary-renderer PiP experiment: **SKIP pending native PiP architecture**.
 
 Verification boundary: recursive tree and source inspection at the verified SHAs above. No source changes, screenshots, accessibility validation, build, tests, CI, simulator or device checks. This is a newly expanded UI audit, not a claim that all UI/UX surfaces have been exhausted. Next pass should inventory every upstream-only UI feature and settings page, then inspect each caller and platform actual, including Android TV/remote focus, iPad/macOS window sizing, iOS native bar lifecycle, and all Liquid Glass effect presets/feature gates.
+
+
+## Appearance, settings surfaces, dialogs and sheets — expanded comparison (2026-11-18)
+
+Comparison target: Mew `Main-dev` at `69b4a96072b506f60dcbe538c5f6b71db3a4a464` versus upstream `enhanced` at `b4e446451f32edbdf8b1bf288d1a7a8a2bf10e03`. The `upstream-sync` branch is a source snapshot, not Mew's active UI implementation; comparing it to itself would hide Mew-specific gaps. Rechecked all three branch SHAs and the audit document blob immediately before this update.
+
+### Screenshot-derived behavior contract
+
+The supplied upstream Appearance screenshots show two independent glass controls and a conditional configuration group:
+
+- **Glass UI (Experimental):** turns cards, sheets and dialogs into frosted-glass surfaces over the app background. Enabling it reveals **Background** and **Glass style** choices (the screenshot shows Default background and Vivid style).
+- **Liquid glass effects:** independently controls live glass on the navigation bar, sheets, player controls and cinematic screens. The screenshot explicitly describes different behavior when Glass UI is enabled: live effects default off and Glass UI uses lighter static glass; with Glass UI disabled, turning live effects off leaves solid surfaces.
+- **AMOLED Black** is a separate display preference and must not be coupled to either glass setting.
+- The second screenshot demonstrates that Glass UI can be enabled while live Liquid Glass effects remain enabled; the settings must not collapse these into one boolean.
+
+This is a concrete behavior contract from the supplied screenshots, not a claim that every screen already follows it.
+
+### Main-dev versus upstream source findings
+
+- Mew `AppearanceSettingsPage.kt` already exposes Mew's Liquid Glass-related controls (native tab-bar support, auto-hide-on-scroll, navigation-bar style) and its own richer appearance settings. Upstream `AppearanceSettingsPage.kt` adds the app-background settings entry and an availability-gated Liquid Glass effects control. Mew does not currently expose the upstream app-wide Glass UI/background/preset configuration through this page.
+- Upstream adds `core/ui/background/AppBackground.kt`, `AppBackgroundSettings.kt`, Android/iOS platform implementations and `features/settings/AppBackgroundSettingsSection.kt`. The app-background host composes the selected image behind the app, computes blurred artwork slices and glass styling, adjusts surface tokens/typography for image backgrounds, and tracks when Glass UI is active. Mew's `Main-dev` tree has no matching app-background package or settings section. Mew's profile background/mesh artwork is not equivalent: it is profile-scoped artwork, not the app-wide background and glass configuration shown in the screenshots.
+- Upstream `DialogSurface` adds `.appGlassBackdrop(tokens.shapes.dialog)`; Mew's matching `DialogSurface` has no equivalent app-background glass modifier. Therefore the shared dialog primitive itself does not currently inherit the screenshot's frosted-dialog behavior in Mew.
+- Upstream `NuvioModalBottomSheet` adds a shared glass-surface pipeline: app-background glass backdrop, live Liquid Glass/backdrop capture when supported, and fallback surface treatment. Mew's matching `BottomSheet.kt` is substantially smaller and retains its native-sheet/platform branch, but lacks the upstream app-glass and live-backdrop composition. Do not replace Mew's native iOS sheet path blindly; adapt the visual surface layer around the existing platform behavior.
+- Upstream `NavigationBarSettingsSheet.kt` exists only on the upstream side of this comparison. Mew already has related navigation settings and a preview, but this is not evidence of full parity for the live glass material controls, effect tuning and draft/commit behavior. Treat as a settings UX gap to investigate, not as a request to copy the entire sheet.
+- Shared `SettingsComponents.kt`, `SettingsRootPage.kt`, and `SettingsScreen.kt` differ substantially. Mew has fork-specific profile card/watch-party navigation, TV layout/focus handling, and Mew settings organization. Upstream has its own glass-aware settings group treatment, screen-active lifecycle gates and additional pages. Classification: **INTENTIONAL PARALLEL / SHARED PATTERN, DIFFERENT SEMANTICS**. Preserve Mew navigation, profile and TV behavior while selectively aligning visual primitives and lifecycle correctness.
+
+### Decisions
+
+| Area | Classification | Decision |
+|---|---|---|
+| Glass UI master switch + background + preset | UPSTREAM-ONLY FEATURE | **ADAPT** into Mew Appearance after repository/storage/profile scope and image-source safety review |
+| Independent live Liquid Glass effects switch | SHARED PATTERN / DIFFERENT SEMANTICS | **ADAPT** exact dependency/default behavior; keep Mew native-tab and auto-hide controls |
+| Dialog glass surface | SHARED COMPONENT / VISUAL GAP | **ADAPT** at shared `DialogSurface` level so all callers receive consistent behavior; audit exceptions and contrast |
+| Bottom-sheet glass surface | SHARED COMPONENT / PLATFORM DIFFERENCE | **ADAPT** surface composition without replacing Mew native iOS/Android dismissal and lifecycle behavior |
+| App-wide background image/picker/URL | UPSTREAM-ONLY FEATURE | **INVESTIGATE** local/remote source validation, cache bounds, offline fallback, profile scope, privacy and performance |
+| Navigation glass tuning sheet | PARTIAL IMPLEMENTATION | **INVESTIGATE** Mew's existing preview/settings callers and persistence before deciding which controls are missing |
+| Mew settings root/profile/TV structure | INTENTIONAL PARALLEL | **KEEP** Mew-specific behavior; align shared row/group styling only where semantics match |
+
+### Required follow-up audit before any implementation
+
+1. Trace every `DialogSurface`, `NuvioModalBottomSheet`, custom dialog and custom sheet caller; classify which should inherit Glass UI and which need solid/opaque surfaces (PIN, destructive confirmation, auth, player, downloads, provider selection).
+2. Trace settings repository/storage and profile synchronization for AMOLED, live glass, Glass UI, background source and preset. Establish defaults, migration behavior and cross-device sync policy; never assume a screenshot's toggle default is the persisted default on every platform.
+3. Compare all Appearance subpages, settings groups/rows, previews, sheets, pickers and confirmation dialogs for typography, spacing, grouping, separators, touch targets, focus, accessibility semantics, scrolling and dismissal.
+4. Inspect Android/iOS actuals and OS capability gates for blur/render effects, static backdrop fallback, image picker, URL loading, and native sheet behavior. Include low-memory, reduced-motion, high-contrast and unsupported-device fallbacks.
+5. Validate background image URL policy (scheme/host/redirect/size limits), decode dimensions, cache eviction, profile switching, offline behavior and sensitive local-photo handling before accepting the feature.
+6. Build a complete dialog/sheet inventory rather than assuming shared primitives cover every custom overlay.
+
+Verification boundary: source/tree inspection only. No code changes, builds, tests, screenshots, accessibility checks, simulator runs or device verification. This batch identifies concrete UI parity gaps; it does not authorize or perform a redesign.
