@@ -1,5 +1,27 @@
 # Upstream alignment status — 2026-11-17
 
+## Post-beta upstream `enhanced` delta — separate from the beta baseline
+
+- Latest published release remains `1.1.0-beta.1` (`eb32e0479932d28f5f6fa6afeb0e21c78ad02efd`). Current upstream `enhanced` HEAD is `b4e446451f32edbdf8b1bf288d1a7a8a2bf10e03`, 8 commits ahead of the beta tag.
+- Tree comparison: both trees contain 2,339 blob paths; no paths were added/removed, and 7 existing paths have changed blobs. This is the post-beta development delta, not a new published beta release.
+- Mew `upstream-sync` currently includes two of these seven post-beta paths and their blobs match upstream `enhanced` HEAD exactly: `iosApp/iosApp/ContentView.swift` (floating tab-bar blur removal) and `store-beta.json` (beta IPA store metadata). The other five post-beta paths are not yet present in Mew `upstream-sync`.
+
+### Post-beta decisions
+
+| Upstream change | Mew comparison | Decision |
+|---|---|---|
+| `05e779a0c17861e185c09901e8be4a5f0f86ced5` — bug report template adds official-app comparison and sideload install options | Mew template already asks install method but lacks official Nuvio comparison. | **ADAPT**: add the official-app comparison question and Android-relevant install options; omit iOS-only sideload choices. |
+| `b4e446451f32edbdf8b1bf288d1a7a8a2bf10e03` — episode artwork fallback after image load failure | Mew `DetailSeriesContent.kt` falls back only when thumbnail is null; no `onError` fallback state exists. | **ADAPT** both horizontal and list episode cards; preserve Mew card styling, ratings, download affordances and focus behavior. Add image-failure tests if practical. |
+| `0b9d93599f7d7603e7814a99a70aa64d7c48e086` — preserve local catalog preferences when remote known-key set is empty | Mew `HomeCatalogSettingsRepository.kt` has `knownKeys` filtering but lacks the `knownKeys.isEmpty()` preservation guard. | **TAKE candidate** with regression tests for empty/known/unknown key sets and remote merge behavior. |
+| `c5298633914d967792c79351754ba47d54dfd242` — reset iOS subtitle state via `LaunchedEffect(sourceUrl)` | iOS player actual only. | **SKIP for Android target**; keep in cross-platform notes if Mew's iOS source remains supported. |
+| `d703ca48e5ade22ceaf424451ffba05efa94e670` — use matching iOS document-picker export API | iOS settings file launcher only. | **SKIP for Android target**; revisit only for an iOS build failure/compatibility need. |
+| `c314dd48d622de249eebbea7e531e3f7b2e506d4` / merge `f4b7e55e31c2778827095dbdb246193e8675016f` — remove blur behind floating iOS tab bar | Already present in Mew `upstream-sync` with the exact upstream enhanced blob. | **ALREADY PRESENT in upstream-sync**; not a Mew-only change. |
+| `803194b575dab025ed7c233507716438ad02880a` — publish beta store metadata | Already present in Mew `upstream-sync` with the exact upstream enhanced blob; iOS IPA metadata, not Android app release config. | **ALREADY PRESENT in upstream-sync**; do not treat as Mew Android release metadata. |
+
+- These post-beta changes must stay separate from the stable-beta ledger until a newer beta tag/release is published, unless the user explicitly chooses to track `enhanced` HEAD. The two already-present paths are recorded as snapshot drift, not evidence that all post-beta work has been integrated.
+- No application source changed during this post-beta comparison. Full semantic review of the two common-code candidates is still needed before any integration proposal.
+
+
 ## Semantic audit batch 11 — watch-progress identity and subtitle setting bounds
 
 ### Watch-progress identity
@@ -282,11 +304,11 @@
 - Mew `upstream-sync`: `3ca5433681fcdf53763c31f5e995801800e99b8f`; tree `a57827fbb45db1c25ce054fa3c7858a8f61efa69`.
 - Mew `Main-dev`: `207ef8fa309b8061b73039b2d4e4bde4af65050e`.
 - Mew `main`: `207ef8fa309b8061b73039b2d4e4bde4af65050e` (same head as Main-dev; leave untouched).
-- Recursive tree comparison of beta tag vs `upstream-sync`: beta has 2,339 blobs; upstream-sync has 2,340. No upstream paths are missing and no upstream paths were removed. The only differing existing paths are:
-  - `iosApp/iosApp/ContentView.swift`: Mew retains its fork-specific iOS host/navigation/tab-bar presentation changes. Preserve these deliberately; review the full file diff before future syncs.
-  - `store-beta.json`: Mew adds the `1.1.0-beta.1` beta-store version entry and upstream release metadata.
-  - `docs/mew-context/README.md`: Mew-owned documentation overlay, not upstream application code.
-- Therefore the current `upstream-sync` source snapshot is already effectively aligned to the exact `1.1.0-beta.1` tag, with the two intentional Mew overlays above. This is a tree-level result, not a build/runtime validation.
+- Recursive tree comparison of beta tag vs Mew `upstream-sync`: beta has 2,339 blobs; Mew has 2,340 including its context document. All 2,339 upstream paths are present; no upstream paths are removed. The two differing source/metadata paths are:
+  - `iosApp/iosApp/ContentView.swift`: Mew's blob exactly matches upstream `enhanced` HEAD, including the post-beta removal of the blurred band behind the floating tab bar.
+  - `store-beta.json`: Mew's blob exactly matches upstream `enhanced` HEAD, including the published `1.1.0-beta.1` AltStore/SideStore entry.
+  - `docs/mew-context/README.md`: Mew-owned documentation overlay.
+- **Correction to the earlier audit note:** those two paths are not verified Mew-specific overlays. Their exact blob SHAs match upstream `enhanced` HEAD. The current `upstream-sync` tree is a mixed snapshot: it includes the beta tag source plus these two post-beta upstream paths, but does not include the other five post-beta `enhanced` changes listed below. This is a tree-level result, not a build/runtime validation.
 - Recursive tree comparison of beta tag vs `Main-dev`: Main-dev has 1,668 blobs; 706 same-path files have different blob contents, 1,133 beta paths are absent from Main-dev, and 462 Main-dev paths are absent from the beta tree. These counts include source, assets, vendored/native files and build/configuration files; they are not a feature count or a merge recommendation. Main-dev is substantially divergent and needs a structured path/behavior audit before integration.
 
 ## Release 1.1.0-beta.1 audit ledger
