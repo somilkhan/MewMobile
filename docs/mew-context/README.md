@@ -1,5 +1,28 @@
 # Upstream alignment status — 2026-11-17
 
+## Semantic audit batch 6 — localization and mixed RTL/LTR behavior
+
+### Locale coverage delta
+
+- The beta tag contains `values-uk` and `values-zh` resource directories added in this release range, plus updated Urdu, Indonesian, Hebrew and Brazilian Portuguese strings. The full beta tree also contains Bengali and Croatian resources that are absent from Mew Main-dev.
+- Mew's current common locale-resource directories are missing upstream's `values-bn`, `values-hr`, `values-uk`, `values-ur` and `values-zh`. Mew does already have Indonesian, Hebrew and Brazilian Portuguese resources, but their blobs differ from upstream; compare string keys and Mew-specific strings before replacing/merging translations.
+- Mew `AppLanguage.kt` does not offer Bengali, Croatian, Ukrainian, Urdu or Chinese. Upstream registers those languages and includes RTL detection for Arabic, Hebrew and Urdu.
+- **Confirmed Android locale configuration mismatch:** Mew's `androidApp/src/main/AndroidManifest.xml` references `@xml/locale_config`. Mew's `AppLanguage.kt` and translation resources include Arabic, Hebrew and Russian, but `composeApp/src/androidMain/res/xml/locale_config.xml` omits `ar`, `he` and `ru`. Android per-app language settings therefore do not advertise all of Mew's existing app-language choices. The config also needs to be updated alongside any new language additions.
+- Classification: **MISSING UPSTREAM LOCALES + EXISTING CONFIG MISMATCH**. Decision: **ADAPT candidate** for Ukrainian/Chinese/Urdu first (current release changes), then Bengali/Croatian from the full beta baseline. Merge translation keys rather than overwriting Mew resource files; add enum entries, Android locale config and appropriate platform localization metadata together. Preserve Mew-specific translations/branding.
+
+### Mixed RTL/LTR text
+
+- Upstream release range includes the mixed RTL/LTR correction for Search and Watch Party and adds tests covering input direction, cursor/selection behavior, Latin tokens inside Arabic/Hebrew text, names and paragraph direction.
+- Mew has different `SearchScreen.kt` and `PartyChatContent.kt` blobs and a player-only subtitle RTL fix, but the exact equivalent behavior in Search/chat has not yet been traced. Mew `AppLanguage.kt` also lacks upstream's explicit `isRightToLeft()` helper.
+- Classification: **NEEDS INVESTIGATION**. Compare the upstream implementation/merge commit with Mew's input components, text styles, paragraph direction, selection/IME behavior, message sender names, accessibility and layout direction. Do not apply a global LTR/RTL modifier that breaks mixed-script input.
+- Upstream's RTL test file is Android host-test coverage; Mew has no equivalent mixed-direction Search/Watch Party test in the inspected paths. Add regression tests before adapting. Tests were not run: **NOT RUN**.
+
+### Files inspected and limits
+
+- Upstream/Mew: `AppLanguage.kt`, Android `locale_config.xml`, Android main manifest locale-config reference, recursive common resource locale directories, plus paths for Search and Watch Party.
+- Translation files were compared by directory/blob inventory only; the full translation-key diff and mixed-direction UI call-site audit remain open. No app source changed and no tests/build/device checks were run.
+
+
 ## Semantic audit batch 5 — release/build workflows and branch triggers
 
 ### Upstream release pipeline vs Mew release pipeline
