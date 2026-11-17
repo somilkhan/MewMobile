@@ -1,5 +1,30 @@
 # Upstream alignment status — 2026-11-17
 
+## Semantic audit batch 5 — release/build workflows and branch triggers
+
+### Upstream release pipeline vs Mew release pipeline
+
+- Upstream beta adds a stable/beta release-channel selector, prerelease publication, beta sideload-store source handling, upstream-aware release notes and release-tag metadata. Its workflow uses Nuvio-owned release properties/secrets, Nuvio artifact naming and upstream repository contributor/source URLs.
+- Mew has a separate `.github/workflows/android-release.yml` with Mew signing secrets, Mew artifact/release identity, and optional unsigned iOS packaging; `mew-cloudstream-build.yml` runs Android host tests and compilation and separately gates debug APK packaging. `RELEASES.md` documents Mew signing and update compatibility.
+- Classification: **INTENTIONAL PARALLEL**. Decision: **SKIP** wholesale upstream workflow/script/store integration. Preserve Mew application ID, signing certificate, Mew release tags/artifacts, CloudStream CI and stable public-release behavior. Port only generally useful validation ideas after a separate workflow review; never copy upstream signing secrets or release destinations.
+
+### Confirmed branch-trigger mismatch in Mew CI
+
+- Current GitHub branch refs: `Main-dev` = `207ef8fa309b8061b73039b2d4e4bde4af65050e`; `main` = `207ef8fa309b8061b73039b2d4e4bde4af65050e`; `upstream-sync` = `2629c12694a08cb58f2216380810f40a5066c51e`. No `enhanced` branch is present.
+- On the current `Main-dev` workflow files:
+  - `.github/workflows/android-release.yml` push trigger targets only `enhanced`.
+  - `.github/workflows/mew-cloudstream-build.yml` push and pull-request triggers target only `enhanced`.
+  - The other inspected workflow files are manual, issue-event or generic PR checks and do not supply the missing Main-dev build/test trigger.
+- This conflicts with the approved branch model where `Main-dev` is the active development/integration target. Pushes and PRs targeting `Main-dev` will not match those two branch filters. This is a **confirmed workflow configuration mismatch**; actual workflow-run history was not checked in this pass.
+- Decision: **BLOCKED / NEEDS APPROVAL TO FIX**. Propose updating the branch filters to the approved active branch model (and preserving manual release controls), but do not change CI configuration without explicit approval. Before editing, inspect all workflow triggers, required-check expectations and current branch protection/rules.
+
+### Release-range build/dependency review
+
+- The 157 paths changed between upstream `1.0.0` and `1.1.0-beta.1` include release workflows, store metadata and app sources/tests, but no Gradle build scripts or version-catalog files in that specific release range.
+- This does not mean the full beta-vs-Main-dev build configuration is equivalent: the broader tree comparison still contains many Main-dev-only and upstream-only paths. Complete build, manifest, native-library and source-set comparison remains open.
+- No workflow, Gradle, signing, release or app source files were changed. No CI run/build/test was executed during this audit.
+
+
 ## Semantic audit batch 4 — library filters, detail hero, MDBList
 
 ### Library filters and persistence
