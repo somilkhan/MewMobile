@@ -36,6 +36,7 @@ import androidx.compose.material.icons.rounded.AccessTime
 import androidx.compose.material.icons.rounded.Build
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Flag
+import androidx.compose.material.icons.rounded.Groups
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Forward10
 import androidx.compose.material.icons.rounded.Forward5
@@ -128,6 +129,7 @@ internal fun PlayerControlsShell(
     onVideoSettingsClick: (() -> Unit)? = null,
     onStreamInfoClick: (() -> Unit)? = null,
     onOrientationToggleClick: (() -> Unit)? = null,
+    onPartyClick: (() -> Unit)? = null,
     isPortraitPlayback: Boolean = false,
     onSourcesClick: (() -> Unit)? = null,
     onEpisodesClick: (() -> Unit)? = null,
@@ -217,6 +219,7 @@ internal fun PlayerControlsShell(
                     onLockToggle = onLockToggle,
                     onVideoSettingsClick = onVideoSettingsClick,
                     onOrientationToggleClick = onOrientationToggleClick,
+                    onPartyClick = onPartyClick,
                     isPortraitPlayback = isPortraitPlayback,
                     randomNextEpisodeMode = randomNextEpisodeMode,
                     onRandomNextEpisodeModeToggle = onRandomNextEpisodeModeToggle,
@@ -528,6 +531,7 @@ private fun PlayerHeader(
     onLockToggle: () -> Unit,
     onVideoSettingsClick: (() -> Unit)?,
     onOrientationToggleClick: (() -> Unit)?,
+    onPartyClick: (() -> Unit)?,
     isPortraitPlayback: Boolean,
     randomNextEpisodeMode: Boolean,
     onRandomNextEpisodeModeToggle: (() -> Unit)?,
@@ -636,6 +640,15 @@ private fun PlayerHeader(
                                 buttonSize = metrics.headerIconSize + 16.dp,
                                 iconSize = metrics.headerIconSize,
                                 onClick = onOrientationToggleClick,
+                            )
+                        }
+                        if (onPartyClick != null) {
+                            PlayerHeaderIconButton(
+                                icon = Icons.Rounded.Groups,
+                                contentDescription = stringResource(Res.string.party_title),
+                                buttonSize = metrics.headerIconSize + 16.dp,
+                                iconSize = metrics.headerIconSize,
+                                onClick = onPartyClick,
                             )
                         }
                         if (onSubmitIntroClick != null) {

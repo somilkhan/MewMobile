@@ -9,9 +9,6 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Groups
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
@@ -249,17 +246,6 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
             p2pRebufferMessage = p2pRebufferMessage,
             p2pRebufferProgress = p2pRebufferProgress,
         )
-        if (!rememberIsInPictureInPicture()) {
-            IconButton(
-                onClick = { showPartyPanel = true },
-                modifier = Modifier.align(Alignment.TopEnd).padding(12.dp),
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Groups,
-                    contentDescription = stringResource(Res.string.party_title),
-                )
-            }
-        }
         RenderPartyPanel()
         if (showSubtitleSyncByEar) {
             SubtitleSyncByEarCard(
@@ -437,6 +423,7 @@ private fun PlayerScreenRuntime.RenderPlayerControls(displayedPositionMs: Long, 
                 onOrientationToggleClick = if (orientationToggleSupported) {
                     { PlayerOrientationPreference.toggle() }
                 } else null,
+                onPartyClick = { showPartyPanel = true },
                 isPortraitPlayback = portraitPlayback,
                 onSourcesClick = if (activeVideoId != null) { { openSourcesPanel() } } else null,
                 onEpisodesClick = if (isSeries) { { openEpisodesPanel() } } else null,
