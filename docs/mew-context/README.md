@@ -1050,3 +1050,8 @@ Mew `NetworkStatusRepository` is an HTTP reachability probe (public endpoint + a
 ## Home addon state projection — caller audit refinement
 
 Mew's full enabled-addon list is not only for display: it feeds metadata-provider readiness, catalog refresh signatures, HomeCatalogSettingsRepository.syncCatalogs, and HomeRepository.refresh, with additional refresh callbacks reading current state. Therefore the upstream compact signal must not replace Mew's source-of-truth/catalog side-effect inputs. Decision: ADAPT the recomposition boundary only, after identifying every field used by Mew's catalog signature/sync; keep CloudStream registry revision and profile/visibility triggers. No code change yet. Details in the upstream-sync ledger.
+
+
+## Upstream audit continuation — 2026-11-17
+
+Older-history batch compared upstream metadata/iOS fixes against Mew `Main-dev`: iOS subtitle state patch is not applicable to Mew's native mpv bridge (separate bridge reapply audit remains); Simkl related-title fallback is not applicable because Mew uses Trakt/TMDB for More Like This; MDBList episode-runtime projection is absent from Mew's metadata-only MDBList module; detail hero native-bar anchor is an ADAPT candidate but requires pushed-navigation/RTL coordinate audit. Ledger details in `docs/upstream-sync/README.md`. No source changes, tests/build/CI/device checks NOT RUN. Refs before docs: Main-dev `69b4a96072b506f60dcbe538c5f6b71db3a4a464`, main `207ef8fa309b8061b73039b2d4e4bde4af65050e`, upstream enhanced `b4e446451f32edbdf8b1bf288d1a7a8a2bf10e03`.
