@@ -188,3 +188,22 @@ Never describe a partial audit as exhaustive. State API limits, missing local ch
 - GitHub remote source/tree inspection only. No local checkout/worktree, Gradle build, tests, CI run, emulator or device verification was available or performed. The tests listed above are present in source but **NOT RUN**.
 - No application source, branch ref, merge, cherry-pick, PR or release was changed. Only this context Markdown is being updated.
 - Next: audit the MediaBrowser HTTP client/redirect configuration and all custom-poster consumer call sites; then prepare a small integration plan with profile/account cleanup and regression tests. No code integration without explicit approval.
+
+
+### Verified call-site map and MediaBrowser redirect follow-up
+
+- All six custom-poster screen toggles have concrete consumers in the inspected upstream source:
+  - `HOME`: `HomeRepository.kt` (SHA `243e57e5ebcec79496af759b939d826d688c8867`) applies/reapplies the Home pattern.
+  - `CONTINUE_WATCHING`: `HomeScreen.kt` (SHA `13c4b20a6dab55559628ba3366f4a7836c2ec2ae`).
+  - `COLLECTIONS`: `FolderDetailRepository.kt` (SHA `f5e17b4e2842262206399d96f96cb2c908cb3974`).
+  - `LIBRARY`: `LibraryScreen.kt` (SHA `95bbf5986101594a5aebfc3a4d320b7fda1961b0`).
+  - `SEARCH`: `SearchRepository.kt` (SHA `182e630896fc10353127c97ee3b27f8dec671f25`).
+  - `DETAILS`: `MetaDetailsRepository.kt` (SHA `9112378db6933cc69f0adc9ca42c5a0a84f947c0`), `TmdbEntityBrowseScreen.kt` (SHA `b527f9dc01ab8f4be918c6027feea6a56640f475`) and `PersonDetailScreen.kt` (SHA `79fa2f62a8f158f09a4278e0c4d5bba6ec2d0f87`).
+- Therefore the six settings toggles are not dead controls; earlier checks of only the screen composables were insufficient because several transformations live in repositories. Keep this classification as **FALSE POSITIVE** for suspected unused toggles.
+
+### MediaBrowser HTTP redirect behavior — partially verified
+- Emby and Jellyfin providers default to `createApiHttpClient()`. Android and iOS actual clients both set `followRedirects = false`; Android's OkHttp engine also sets `followRedirects(false)` and `followSslRedirects(false)`. The shared Android base client only adds `NuvioDns`.
+- `MediaBrowserProvider.publicInfo()` handles a 3xx response manually and retries the public-info request with `token = null`. Authenticated API requests do not automatically follow redirects through these clients. This reduces the risk of forwarding the authorization header to a redirect target.
+- `normalizeServerAddress()` accepts HTTP and HTTPS and defaults an address without a scheme to `http://`. This may be needed for LAN servers, but credentials and playback requests can consequently use cleartext HTTP if the user supplies/accepts it. Do not silently disable HTTP; require a separate compatibility/security decision and consider clear warning/confirmation.
+- Playback URLs can contain the server token in an `api_key` query parameter. Audit player URL logging, diagnostics, history/cache and external-player handoff before integration.
+- Still unverified: `httpRequestRaw` transport/redirect policy used by `ServerDiscoveryService`; backend RPC/RLS/retention for cloud-synced server tokens; and final custom-poster request/redirect restrictions. The prior NEEDS INVESTIGATION decision for Media Servers remains unchanged.
