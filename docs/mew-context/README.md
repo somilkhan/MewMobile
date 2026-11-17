@@ -1,5 +1,41 @@
 # Upstream alignment status — 2026-11-17
 
+## Semantic audit batch 1 — downloads and season batch flow
+
+**Scope compared:** upstream beta `1.1.0-beta.1` against Mew `Main-dev`; common download repository/screen, upstream batch planner/dialog/queuer/settings, Mew episode source resolver/sheet/pending-source model, details entry point, and available download tests.
+
+### Confirmed Mew behavior — do not overwrite
+
+- Mew already has a substantial independent download/source-selection workflow:
+  - `DownloadSourceResolver.kt` resolves sources across Mew Addons and CloudStream providers, supports direct-debrid resolution, preferred quality and Auto Select, and can persist provider/quality identity for a temporarily unavailable source.
+  - `EpisodeDownloadFlowSheet.kt` is opened from `MetaDetailsScreen.kt` and supports manual source selection and automatic multi-episode source resolution.
+  - `PendingEpisodeDownload` and `PendingSourceChoiceSheet.kt` retain source-search work without persisting signed URLs or request headers; Android has background worker/notification entry points.
+  - `DownloadsRepository.kt` supports `AllAtOnce` / `OneAtATime`, a `Waiting` queue state, source-search persistence, local details snapshots and profile reload.
+- This is not a filename match or a simple port target. Mew's CloudStream/provider lookup, pending source retry and choice UI are Mew-specific behavior that must remain intact.
+
+### Upstream beta behavior
+
+- Upstream adds `BatchDownloadCoordinator`, `BatchDownloadDialog` and `BatchDownloadQueuer`: select released episodes across seasons, plan sources by season, allow per-episode source override, then resolve direct/debrid streams and enqueue the chosen set.
+- Upstream's download scheduler adds global/per-show concurrency limits, queued-item promotion, network/mobile-data policy, foreground re-advance and platform network guards.
+- Upstream adds device-storage reporting, season-grouped/offline downloaded-show metadata, and broader download-management UI/settings.
+- Upstream's `DownloadsRepository` and Mew's repository have different queue states and lifecycle strategies. Upstream uses `Queued` plus policy-driven promotion; Mew uses `Waiting` and the persisted per-batch `DownloadQueueMode`. Do not transplant queue code without reconciling status migration, pause/resume, background transfer restoration, profile changes, network changes and ordering.
+
+### Semantic classifications and decisions
+
+- Mew episode source resolution vs upstream batch planner: **SHARED PATTERN / DIFFERENT SEMANTICS**. **ADAPT candidate**, not wholesale TAKE. Mew already handles multi-episode selection/source discovery, but upstream's per-season planning, source override and selected-episode presentation may offer behavior to compare. Trace all action entry points and preserve Mew's provider/pending-search semantics.
+- Mew `DownloadsRepository` vs upstream `DownloadsRepository`: **INTENTIONAL PARALLEL / DIFFERENT QUEUE CONTRACTS**. **SKIP** direct replacement. Consider individual scheduler ideas only after explicit design and migration review.
+- Offline metadata: Mew stores a `DownloadDetailsSnapshot` per download and exposes `findOfflineMetaDetails`; upstream uses `OfflineMetadataRepository` and merges show/episode metadata. **SHARED PATTERN / DIFFERENT DATA MODEL**. Do not add a second offline metadata store without proving a missing case.
+- Network policy/settings: upstream has user-configurable mobile-data and concurrency controls; Mew's batch queue mode is not equivalent. **NEEDS INVESTIGATION**; check Mew's existing download preferences, Android foreground service, iOS downloader, and profile-scoped persistence before proposing any addition.
+- Download settings UI: upstream exposes preferred resolution, concurrency, mobile-data, download-button and storage-location settings. Mew's source-selection sheet stores preferred quality/Auto Select/queue mode. **SHARED PATTERN / DIFFERENT SEMANTICS**; avoid duplicate controls and preserve existing Mew settings UX.
+
+### Tests and gaps
+
+- Mew `DownloadsBatchFlowTest.kt` currently contains quality-key, logical-content-key and pending-search grouping tests. It does not demonstrate end-to-end batch planning, source override, queue scheduling or profile/network lifecycle.
+- Upstream adds `DownloadQueuePolicyTest`, `EpisodeDownloadIndexTest`, and `StreamSourcePrefillSelectorTest` in the release range. Their existence does not prove Mew compatibility.
+- Source tests in both repositories were inspected by path only; no Gradle tests/build/CI were run. **NOT RUN**.
+- Follow-up before any integration proposal: compare Android/iOS downloader actuals, Mew foreground-service and WorkManager behavior, profile cleanup, offline metadata lifecycle, storage-location handling and all download action routes. Add regression tests for any adapted queue/source-planning behavior.
+
+
 ## Release-range comparison — 1.0.0 to 1.1.0-beta.1
 
 - Compared upstream tag `1.0.0` (`6c2ad7937171965608d05005080b96ca19345379`) to `1.1.0-beta.1` (`eb32e0479932d28f5f6fa6afeb0e21c78ad02efd`).
