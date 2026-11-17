@@ -1744,3 +1744,64 @@ Compared the current `Main-dev` and upstream `enhanced` trees across commonMain,
 5. Inspect Android/iOS file picker lifecycle, URI permissions, cancellation and persistence; test only after any implementation is separately approved.
 
 Verification: recursive tree and selected source inspection on GitHub. No application code changes, builds, tests, screenshots, simulator or device checks. No assumption that a missing page file proves the underlying feature is missing.
+
+
+## Settings ownership map — root destinations and persisted-state domains (2026-11-18)
+
+### Current root destinations and likely ownership
+
+Observed directly in `SettingsRootPage.kt`:
+
+- **Account:** Profile switch, Account, Tracking.
+- **Mew Enhanced:** Nuvio Enhanced settings and Telegram/community link.
+- **General:** Appearance, Content Discovery, Downloads, Playback, Watch Party, Integrations, Notifications.
+- **About:** Supporters/Contributors, Privacy Policy, Licenses, optional update/debug entries.
+- **Advanced:** Advanced/diagnostics.
+
+This is a root destination inventory, not a final proposed IA.
+
+### Misplaced or ambiguous destinations to resolve
+
+- **Tracking** currently sits under Account and uses an Account category in `SettingsModels.kt`, but its page is a third-party service connection/sync surface (Trakt/Simkl/anime tracking). Candidate move to **Services / Integrations**; preserve profile ownership and account-specific authentication. Confirm if any account/profile summary depends on this location.
+- **Downloads** is a first-class General root row, while the upstream has a dedicated download preferences page and Mew's queue/recovery is a separate lifecycle feature. Candidate **Playback & Downloads** or **Storage & Downloads** grouping. Do not merge queue controls with storage/location policy without checking their different lifecycle semantics.
+- **Watch Party** is a root General row but is a distinct feature/service, not a general appearance or app preference. Candidate **Services / Social**. Check account/session setup, room hosting, network and playback requirements.
+- **Content Discovery** owns Addons, Plugins and CloudStream child pages. These are provider/catalog/source configuration, not merely visual discovery preferences. Candidate **Sources & Catalogs** or **Services**, with separate content-display preferences under Layout.
+- **Integrations** owns AI Assistant, TMDB enrichment, MDBList ratings and Debrid. This mixes metadata enrichment, AI, ratings and stream-source/debrid configuration. Candidate split into **Services** (Debrid/provider connections) and **Personalization/Metadata** (TMDB/MDBList/AI) only if the root becomes easier to scan; avoid excessive top-level groups.
+- **Nuvio Enhanced** is a Mew-specific group with profile-scoped feature flags/settings and its own backup. Preserve as an identifiable Mew feature area, but audit whether individual settings belong in canonical Appearance/Playback/Services destinations or remain in one advanced feature hub. Do not hide its unique toggles during reorganization.
+- **Notifications** has its own root page; likely System/Notifications. Verify notification channels and platform permission behavior before copy/layout changes.
+- **Advanced** contains diagnostics/log export. Consider System > Diagnostics rather than a catch-all Advanced bucket; preserve debug-only gating and data export behavior.
+- **Privacy Policy** currently lives in About. A separate **Privacy** group would be justified only if there are actual controls for analytics, telemetry, data retention or permissions—not just a policy link.
+
+### Persisted-state domains found in selected repositories
+
+- `ThemeSettingsRepository`: selected theme, custom theme colors, AMOLED mode, native iOS tab-bar enable/auto-hide, app language, navigation-bar style. The two `liquidGlassNativeTabBar` values are specifically iOS navigation controls, not general glass-effect settings.
+- `PlayerSettingsRepository`: a broad profile of player UI, gestures, external player, preferred audio/subtitle languages and style, subtitle startup mode, stream reuse, Android decoder/MPV options, stream auto-play and source selection, intro/anime skip, next-episode behavior, subtitle renderer, iOS video/HDR/colorspace/audio output and image adjustments. Platform-specific values should be hidden or explained when unsupported; don't flatten every advanced codec knob into beginner-level controls.
+- `HomeCatalogSettingsRepository`: home hero behavior, catalog visibility/order/title, collections, pinned ordering, provider selection and per-catalog hero-source toggles. This belongs under **Layout > Home**, not generic Appearance.
+- `MetaScreenSettingsRepository`: detail-screen section visibility/order/tab grouping, background mode, cinematic background, hero trailer/sound, random episode, episode card style, blur unwatched, ratings/download/anime actions. This belongs under **Layout > Details**.
+- `CollectionMobileSettingsRepository`: collection/folder GIF overrides; candidate **Layout > Collections**.
+- `StreamBadgeSettingsRepository`: stream badge rules, file-size badge, addon logo and placement. Candidate **Playback > Stream list** or **Layout > Streams** depending whether it changes source information or just presentation. Keep rule engine and badge presentation as separate ownership concepts.
+- Additional repositories exist for AI, Anime Tracking, Debrid, MDBList, Sentry, TMDB and Trakt; full field-by-field inventory remains pending.
+
+### Recommended destination map (provisional)
+
+| Destination | Mew settings/domains |
+|---|---|
+| You & Profiles | Account, profiles, profile-specific preferences |
+| Appearance | Theme, custom colors, AMOLED, app-wide glass/background, icon, language |
+| Layout | Home/catalogs, Collections, Continue Watching, Posters, Streams presentation, Details |
+| Playback | Player controls, audio/subtitles, decoder, stream selection/autoplay, skip/next episode, player-specific glass |
+| Sources & Services | Addons, Plugins, CloudStream, Debrid, Trakt/Simkl/anime tracking, media server investigation, Watch Party |
+| Personalization | TMDB, MDBList, AI Assistant (only if a separate grouping improves discoverability) |
+| System | Downloads/storage, Notifications, Diagnostics, advanced options |
+| About | Support, privacy policy, licenses, update information |
+
+This map is a proposal for testing against all settings, not a committed design. Keep Mew Enhanced features accessible and avoid duplicating the same persisted setting in two places.
+
+### Duplicate/overlap audit rules for next pass
+
+- Similar options can affect different layers: e.g. player glass vs app-wide glass; native iOS tab bar vs Liquid Glass surface; stream badges vs stream selection. Do not merge them based on naming.
+- Check whether each setting has one canonical persisted key, one owner repository, one UI control (or intentional shortcut), and a clear platform capability gate.
+- Compare default value, profile scope, migration/legacy key, setter side effects and consumers before moving a control.
+- Record unsupported platform values explicitly; don't show dead toggles or silently reset cross-platform preferences.
+
+Verification: current Main-dev source and repository inspection; selected settings models/repositories only. Full settings-repository inventory, all consumers, translations, migration keys and UI-state persistence still pending. No source changes, builds, tests or device checks.
