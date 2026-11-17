@@ -1076,3 +1076,7 @@ Mew already has settings backup/import via `ProfileSettingsSync` and `NuvioEnhan
 
 ## Release-note attribution audit — 2026-11-17
 Upstream commit `647b561b` separates fork and upstream changes in release notes. Mew's release workflow currently lists only the previous-to-current version-bump range and does not fetch/attribute upstream history. **NEEDS INVESTIGATION / ADAPT candidate**: first map the exact upstream baseline selectively integrated into each Mew release; do not list all current upstream commits as if integrated. Preserve Mew's custom Android/iOS release, signing and version guards. No source changes; dry-run/build/CI/release NOT RUN. Details in `docs/upstream-sync/README.md`.
+
+
+## Library calendar and episode ratings audit — 2026-11-17
+Mew already has a profile-scoped six-hour release-radar metadata cache; upstream has a centralized persisted calendar event cache with month paging, addon-signature invalidation, failed-series retry and refresh preservation. **SAME FEATURE / DIFFERENT CACHE ARCHITECTURE — ADAPT**. Separately, upstream adds OMDb episode-rating enrichment; Mew only displays addon-provided ratings and has a boolean visibility setting. **MISSING ENRICHMENT FEATURE — ADAPT optional**, subject to ID mapping, profile/cache lifecycle and API-key security review. No source changes; builds/tests/CI/device checks NOT RUN. Full evidence in `docs/upstream-sync/README.md`.
