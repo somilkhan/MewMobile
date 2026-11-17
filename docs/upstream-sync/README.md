@@ -879,3 +879,14 @@ Compared upstream commit `e5272769a6709d43aaecc3d7bbe8d66d5a200702` with Mew Mai
 - **NEEDS INVESTIGATION:** hero metadata effect/state separation and Mew-specific no-source error-state interactions.
 - **INTENTIONAL PARALLEL:** Mew SVG/Coil wordmark rendering; Mew's additional CloudStream/Cloud Library/profile home behavior.
 - App source changes: **0**. No builds, benchmarks, UI tests, CI or device/simulator runs were performed in this audit batch.
+
+
+### iOS 26 native Liquid Glass tab-bar blur — static hierarchy review update
+
+The earlier candidate is now narrowed by direct Mew source inspection:
+
+- Mew `RootComposeViewController` creates a standalone `UITabBar()` (not a `UITabBarController`), pins it full-width to the view's leading/trailing/bottom anchors, and shows it only on iPhone/iOS 26+ when both `NuvioLiquidGlassNativeTabBarEnabled` and `NuvioNativeTabBarVisible` are true.
+- `applyNativeTabBarAppearance()` copies `tabBar.standardAppearance`, changes icon/title colors for stacked/inline/compact layouts, then assigns the same appearance to `standardAppearance` and `scrollEdgeAppearance`. It does not clear `backgroundEffect`, `backgroundColor` or `shadowColor`.
+- Upstream commit `c314dd48d622de249eebbea7e531e3f7b2e506d4` configures a transparent tab-bar appearance, clears effect/background/shadow, applies it to the bar and the tab's root `UITabBarItem`, and hides iOS 26 bottom scroll-edge effects. Its SwiftUI `toolbarBackground` modifiers and `UITabBarController` traversal do not map to Mew's standalone UIKit bar.
+
+Decision: **ADAPT — targeted iOS 26 UI candidate, not yet implemented**. If Mew's Liquid Glass mode shows the same full-width blurred band, apply the transparent appearance inside Mew's existing `applyNativeTabBarAppearance()` only while the Liquid Glass native bar is enabled; keep the current tint/title configuration and profile-avatar overlay. Do not alter the non-Liquid-Glass mode or hide the system floating pill. The exact UIKit property interactions and visual result require an iOS 26 simulator/device check; with no Apple device available, mark **DEVICE VERIFICATION REQUIRED** and seek macOS CI/simulator coverage. No UI source changed in this pass.
