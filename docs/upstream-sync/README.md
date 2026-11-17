@@ -763,3 +763,17 @@ Inspected upstream commit diffs and Mew Main-dev iOS player, insets, hero, nativ
 - Mew `upstream-sync` before this documentation update: `8fd054a1a036c0a18d33f0304583796e429980cf`.
 - Upstream `enhanced`: `b4e446451f32edbdf8b1bf288d1a7a8a2bf10e03`.
 - App source changes: **0**. Documentation-only update on `upstream-sync`.
+
+
+### iOS download account-wipe parity — deeper caller audit (2026-11-17)
+
+This follow-up closes part of the earlier account-wipe investigation:
+
+- Upstream commit `48cbb901bf48a641a1270c2d10bbd4260e712e68` adds `DownloadsRepository.clearLocalState()` to the common account wipe and `DownloadsStorage.clearUnfinishedDownloads()` to the iOS platform cleaner. The iOS storage implementation iterates all profile-scoped download payloads, removes each unfinished item's `.part` file through `DownloadsPlatformDownloader.removePartialFile`, and rewrites the payload with completed items only. The common clear cancels active handles and resets in-memory download state without writing to the now-reset active profile.
+- Mew Main-dev `LocalAccountDataCleaner.wipe()` does **not** call `DownloadsRepository.clearLocalState()`; its common imports/call list contain no download cleanup. Mew `PlatformLocalAccountDataCleaner.ios.kt` does not clear download payloads or partial files. Its key lists omit `downloads_payload`; Mew `DownloadsStorage.ios.kt` stores profile-scoped `downloads_payload` and has no `clearUnfinishedDownloads` operation.
+- Mew's Android platform account cleaner also does not clear the downloads SharedPreferences; the common account wipe omission therefore affects both platforms, not only iOS.
+- Mew's iOS downloader already exposes `removePartialFile(destinationFileName)`, so the platform has the primitive needed to delete unfinished `.part` files. The common repository `clearLocalState()` already cancels active handles and resets in-memory state, but no account-wipe caller invokes it.
+
+Decision: **ADAPT — HIGH PRIORITY account-wipe/data-isolation regression.** Port the common in-memory cancellation and a profile-wide storage cleanup, including pending source-search records and partial files. Preserve completed offline media only if that is the intended product policy; before adopting upstream's keep-completed behavior, review Mew's completed item payload for retained source URLs/headers and account-bound metadata. Do not simply delete the entire downloads directory or clear all profile payloads without deciding whether completed local media should remain. Add tests for active-handle cancellation, all-profile unfinished record removal, pending-search removal, completed-download retention policy and partial-file cleanup on Android/iOS.
+
+Verification boundary: static call-chain/source inspection only. No account-wipe runtime test, iOS simulator, Android device, build or CI run. This finding supersedes the earlier note that the account-wipe call chain was wholly open; the missing cleanup call is confirmed, while the completed-download retention policy remains open.
