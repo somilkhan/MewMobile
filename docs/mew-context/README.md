@@ -301,7 +301,7 @@
 
 ## Verified Mew refs and source-tree comparison
 
-- Mew `upstream-sync`: `ef71d1ef57faf923a806dfc30e2574af7e95c0d1`; tree `30c8a5e9cc83c4f00fcf25f78504d797037e3568` (latest docs-only commit; source tree is the audited mixed snapshot described above).
+- Mew `upstream-sync` source snapshot base: upstream commit `f4b7e55e31c2778827095dbdb246193e8675016f`; later branch commits in this audit update only `docs/mew-context/README.md`. Verify the live branch head before every write.
 - Mew `Main-dev`: `207ef8fa309b8061b73039b2d4e4bde4af65050e`.
 - Mew `main`: `207ef8fa309b8061b73039b2d4e4bde4af65050e` (same head as Main-dev; leave untouched).
 - Recursive tree comparison of beta tag vs Mew `upstream-sync`: beta has 2,339 blobs; Mew has 2,340 including its context document. All 2,339 upstream paths are present; no upstream paths are removed. The two differing source/metadata paths are:
