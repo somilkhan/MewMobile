@@ -1,5 +1,19 @@
 # Upstream alignment status — 2026-11-17
 
+## Semantic audit batch 7 — Android player gesture-navigation insets
+
+- Upstream merge commit `4128f63efcaabd42086f0fd26271556012e5c83a` fixes player timeline controls being pushed too far up under Android gesture navigation.
+- Upstream `PlayerLayout.kt` adds `playerTimelineBottomInsets(metrics)`: iOS keeps `safeContent`; Android uses bottom-only `safeDrawing` plus the player slider offset. Upstream `PlayerControls.kt` applies that inset to the timeline/progress-control containers.
+- Mew `PlayerLayout.kt` has no `playerTimelineBottomInsets` helper. Mew `PlayerControls.kt` applies `metrics.sliderBottomOffset` directly and does not apply bottom window insets to those controls. This is a real implementation delta in a regression-sensitive area.
+- Classification: **MISSING UPSTREAM ANDROID INSET FIX / SHARED PLAYER CONTROL SURFACE**. Decision: **ADAPT candidate**, but only after verifying Mew's edge-to-edge configuration, gesture-vs-three-button navigation, immersive/fullscreen transitions, portrait/landscape, TV layout and current bottom-padding contract. Apply only the inset behavior; do not import unrelated upstream player layout or visual changes.
+- Mew's player controls/layout are heavily customized and the user has previously approved the current player appearance. No visual change has been made. A real Android emulator/device check is required before calling this fixed. Tests/device verification: **NOT RUN**.
+
+### Files inspected
+
+- Upstream/Mew `PlayerLayout.kt` and `PlayerControls.kt`; upstream Android/iOS inset branch in `playerTimelineBottomInsets`.
+- This audit did not change player code or alter Mew's player UI.
+
+
 ## Semantic audit batch 6 — localization and mixed RTL/LTR behavior
 
 ### Locale coverage delta
