@@ -45,6 +45,7 @@ internal fun DonationSupportCard(
     val tokens = MaterialTheme.nuvio
     val uriHandler = LocalUriHandler.current
     val donateUrl = remember { "https://www.thankyouverymuch.co/zehen" }
+    val upiUrl = remember { "upi://pay?pa=sahilrain1001@ybl&pn=Zen&cu=INR" }
     val accentColors = memberBrandWordmarkColors(MaterialTheme.appTheme)
     val backgroundBrush = remember(accentColors) {
         Brush.linearGradient(
@@ -108,6 +109,13 @@ internal fun DonationSupportCard(
                         Icon(Icons.Rounded.Favorite, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Support on TYVM")
+                    }
+                    OutlinedButton(
+                        onClick = { uriHandler.openUri(upiUrl) },
+                        enabled = upiUrl.isNotBlank(),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Support via UPI")
                     }
                     onViewSupporters?.let { action ->
                         OutlinedButton(
