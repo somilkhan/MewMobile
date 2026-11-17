@@ -179,3 +179,16 @@ Next: continue auditing the remaining post-1.0.0 feature groups and older releas
 - Commit: `db07c08cea6073ca8119df14eb1e41fcc58572f1`.
 - Regression tests added for early sync, remote-key precedence, and normal known/explicit/legacy-key filtering. Tests/build/CI/device verification: **NOT RUN**; the tests have not been executed.
 - Latest `Main-dev`: `db07c08cea6073ca8119df14eb1e41fcc58572f1`. `main` remains `207ef8fa309b8061b73039b2d4e4bde4af65050e`. `upstream-sync` remains the upstream source snapshot plus docs.
+
+### Third adaptation: TorBox alternative-hash cache matching
+
+- Upstream commit: `1118dfbf87de7d9e68860446ea553d48d06adcba`.
+- Mew had the same cache lookup path but treated TorBox's canonical-hash response key as a miss when the requested hash was an alternative hash. `LocalDebridAvailabilityService` consumes the returned map using the original lowercased stream hash, so the mismatch could mark a cached stream `NOT_CACHED`.
+- TorBox's documented batch endpoint is POST `/v1/api/torrents/checkcached`; Mew already uses the object format and Bearer auth. No endpoint, credential, transport or dependency changes were made. Reference: https://api-docs.torbox.app/
+- Decision: **ADAPT** the upstream resolver and tests. Normalize/deduplicate requested hashes, preserve exact matches, map a single alias answer directly, and retry only unresolved hashes in a batch.
+- Mew-specific safety improvement: if any per-hash retry fails, return an unavailable result so the caller keeps cache state **UNKNOWN** rather than incorrectly reporting **NOT_CACHED**. Cancellation continues to propagate.
+- Changed files on `Main-dev`: `composeApp/src/commonMain/kotlin/com/nuvio/app/features/debrid/LocalDebridService.kt`; new `composeApp/src/commonTest/kotlin/com/nuvio/app/features/debrid/LocalDebridServiceTest.kt`.
+- Commit: `dd4b6ce5d0ff26527e7b3ad482ec77a3235d6bde`.
+- Regression tests added for exact matches/no extra request, single alias mapping, batch retries of missing hashes only, and retry failure remaining unknown. Tests/build/CI/device verification: **NOT RUN**.
+- Remaining risk: retries for a batch containing alias responses are concurrent and not explicitly capped. Review real stream-batch sizes and provider rate-limit behavior before changing that policy.
+- Latest `Main-dev`: `dd4b6ce5d0ff26527e7b3ad482ec77a3235d6bde`. `main` remains `207ef8fa309b8061b73039b2d4e4bde4af65050e`. `upstream-sync` remains the upstream source snapshot plus Mew docs.

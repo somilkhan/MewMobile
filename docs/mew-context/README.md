@@ -832,3 +832,25 @@ Reference point: common ancestor `f9ad843b14cd3be7fa3ddb800b6961233e0e5b56`, tre
 **Regression coverage added:** empty known keys preserve local choices; remote payload keys take precedence; known keys and explicit sync keys survive while unrelated legacy keys do not. Tests, Gradle build, CI and device checks: **NOT RUN**. The added tests validate the predicate, not the full repository lifecycle.
 
 **Commit:** `db07c08cea6073ca8119df14eb1e41fcc58572f1`. `Main-dev` is now at this SHA; `main` remains unchanged at `207ef8fa309b8061b73039b2d4e4bde4af65050e`.
+
+## 2026-11-17 — TorBox alternative-hash cache matching
+
+**Upstream source:** `luqmanfadlli/NuvioMobile-Enhanced` commit `1118dfbf87de7d9e68860446ea553d48d06adcba`. It adds alias resolution in `LocalDebridService.kt` and tests exact, single-alias and batch behavior.
+
+**Mew comparison:** Mew's `LocalDebridService.kt` used the same TorBox `checkcached?format=object` endpoint and lowercased returned map keys, but did not normalize the request list in the service or map canonical alias keys back to requested hashes. `LocalDebridAvailabilityService.annotateCachedAvailability` looks up each stream by its requested lowercased hash, so alias responses could be misclassified as `NOT_CACHED`. The service's `isCached` path has the same key-membership dependency.
+
+**API/transport review:** Mew's existing TorBox client already POSTs the batch to `/v1/api/torrents/checkcached?format=object` with Bearer auth and normalizes request hashes. The adaptation reuses that client for single-hash retries; no credential, URL, transport, redirect or TLS behavior changed. TorBox API reference: https://api-docs.torbox.app/
+
+**Decision:** `ADAPT`. Normalize/deduplicate requested hashes in `checkTorboxCached`, separate request decoding into `requestTorboxCached`, map single alias answers to the requested key, and retry only unresolved hashes after a batch contains a canonical key not present in the requested list. Existing Premiumize behavior is unchanged.
+
+**Mew-specific failure safety:** Upstream's helper treats a failed per-hash retry like an absent cache entry. Mew's caller maps absent entries to `NOT_CACHED`, so this could create a false negative during a transient retry failure. Mew's resolver returns null if any retry fails; `LocalDebridAvailabilityService` then retains `UNKNOWN` status. `CancellationException` is rethrown.
+
+**Duplicate audit:** no equivalent alias resolver or service-level regression tests existed in Mew's inspected debrid source/test paths. `LocalDebridAvailabilityService` is the shared caller for batch and single-hash availability. No duplicate implementation was added.
+
+**Changed files:** `composeApp/src/commonMain/kotlin/com/nuvio/app/features/debrid/LocalDebridService.kt`; `composeApp/src/commonTest/kotlin/com/nuvio/app/features/debrid/LocalDebridServiceTest.kt`.
+
+**Tests added:** exact matches do not retry; single alias maps to requested hash; only missing batch hashes are retried; failed retry returns null so caller can retain UNKNOWN. Gradle tests/build, CI and device checks: **NOT RUN**.
+
+**Remaining risk:** fallback retries are concurrent and not capped. TorBox documents POST batch checks as supporting large batches, but this does not establish a per-account rate limit for concurrent single-hash retries. Reassess if real batch sizes or provider throttling show a problem.
+
+**Commit:** `dd4b6ce5d0ff26527e7b3ad482ec77a3235d6bde`. `Main-dev` is at this SHA; `main` remains unchanged at `207ef8fa309b8061b73039b2d4e4bde4af65050e`.
