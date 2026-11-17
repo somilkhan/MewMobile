@@ -599,3 +599,40 @@ A deeper Main-dev read refines the earlier gap assessment:
 Refined decision: **ADAPT — keep the existing Mew identity helper and ordered selector contract; add only the missing bounded retry state/runner and episode-switch propagation.** Candidate iteration must preserve Mew's current-provider-first and preferred-binge-group behavior, exact target episode matching, selected addon/plugin and regex constraints, and P2P/debrid eligibility. Exclude manual/user-picked streams, external playback and engine-switch paths; reset tried-source state on episode changes; prevent duplicate identities and cap attempts. The upstream runtime startup-timeout/error fallback is a separate, broader integration and needs its own review of Mew's playback error callbacks before porting.
 
 No source code changed. Tests/build/CI/device verification: **NOT RUN**.
+
+
+## Home performance and movie end-card source — further triage (2026-11-17)
+
+### Home recomposition / startup — upstream `e5272769a6709d43aaecc3d7bbe8d66d5a200702`
+
+Upstream combines several changes with different risk/benefit:
+- `collectMappedAsState` maps state flows and applies `distinctUntilChanged`, so consumers subscribe to a smaller derived value rather than the full repository state.
+- `HomeScreen` derives compact `HomeAddonSignals` (metadata-provider key/readiness, active-addon state and manifest error) instead of collecting the entire `AddonsUiState`. It also separates hero metadata loading from the composable state calculation.
+- `MainAppContent` maps metadata settings to the one navigation flag it needs; `AppGate` preloads the brand wordmark.
+- Android adds a Baseline Profile/benchmark module, generated profiles, stability configuration and supporting Gradle dependencies.
+
+Mew Main-dev evidence:
+- `features/home/HomeScreen.kt` (blob `eddaf8634ff85c00db51b7ab6b5617de32e68846`) currently collects the full `AddonRepository.uiState` with `collectAsStateWithLifecycle`, then derives enabled addons and manifests using `remember`. The full state is used for offline refresh, manual refresh, retry, provider readiness and home catalog refresh. This is a plausible recomposition optimization candidate.
+- Mew's Home screen is substantially more fork-specific: it also collects CloudStream plugin state, Cloud Library, profile-scoped watch progress, tracking sources, smart shelves, server/library state and additional Mew-specific home sections. Do not replace it with upstream's file.
+- Upstream's hero loading split is not a direct same-path port: Mew's inspected HomeScreen does not expose the same `rememberHomeHeroState` / `HomeHeroMetaLoadEffect` flow.
+- Mew's inspected `gradle/libs.versions.toml` contains no Baseline Profile or benchmark plugin/version entries. No performance profile or benchmark evidence was collected for Mew in this audit.
+
+Decision:
+- **ADAPT candidate:** derive a compact, immutable Mew home-addon signal state with distinct equality, while preserving CloudStream/Cloud Library and all existing refresh/provider semantics. First inspect every consumer and add tests for signal equality/readiness transitions.
+- **NEEDS INVESTIGATION:** hero loading/state ownership and metadata-settings collection across Mew's actual navigation root. The upstream wordmark preload is low-risk in principle but must be checked against Mew's actual branding/resource lifecycle.
+- **NEEDS INVESTIGATION / evidence required:** Baseline Profile and stability configuration. Do not add a benchmark module or dependencies solely because upstream has them; first establish Mew's current build variants, supported Android min SDK, benchmark journey reliability and measurable startup/scroll benefit.
+
+### Movie end-card recommendation source — upstream `07de5b27795d2fe236ca917dc5608a594947b9d0`
+
+Upstream adds `MetaDetailsRepository.withPreferredMoreLikeThis` and re-resolves the configured recommendation source when movie playback metadata is bound. The end-card candidate list prefers this freshly selected list over the metadata object's original `moreLikeThis` value. This addresses stale/default recommendations when the preferred source differs from the metadata's initial source.
+
+Mew Main-dev evidence:
+- `features/details/MetaDetailsRepository.kt` already has `applyMoreLikeThisSource`, which consults current Trakt authentication, tracking settings and TMDB settings during metadata enrichment. It can choose Trakt-related items or retain/clear TMDB recommendations based on the current configuration.
+- `MetaDetails` already carries `moreLikeThisSource` and `moreLikeThis`.
+- The Mew player end-card candidate/effect owner was not conclusively located in this pass, so it is not proven that the player re-applies the currently selected source at playback end or that settings changes during playback are reflected.
+
+Decision: **NEEDS INVESTIGATION — likely partial parity.** Trace the Mew movie end-card composable/state owner, when its metadata snapshot is captured, and whether settings/auth changes invalidate or refresh the recommendation list. If the player can retain stale recommendations after source settings change, adapt a lightweight current-source resolver with cancellation and fallback behavior. Do not duplicate metadata enrichment if the player already consumes a freshly enriched snapshot.
+
+### Verification boundary
+
+Inspected the upstream commit diffs and Mew Main-dev HomeScreen, MetaDetailsRepository, MetaDetails model, PlayerScreenRuntime state/effects and Gradle version catalog. No benchmark, build, test, CI or device run was performed. No app source changed.
