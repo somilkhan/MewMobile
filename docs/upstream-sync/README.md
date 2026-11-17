@@ -280,3 +280,11 @@ The comparison of Mew's actual implementations against upstream commit `48cbb901
 - Decision: **ADAPT** the filter logic into Mew's existing `LibraryVerticalProjection` and `LibraryDisplaySettingsRepository`; preserve Mew's local/remote source modes, provider order, watched-series semantics, downloads tab and existing screen design. Do not copy upstream `LibraryScreen` or `LibrarySavedContent` wholesale.
 - UI/UX review required: filter state reset/invalid-option behavior when source/list/type changes, faceted counts, empty states, horizontal vs vertical layout, compact widths, and profile switching. Add projection tests for genre/year/watched combinations and persistence round-trip before implementation.
 - No app code changed. Build/tests/device verification: **NOT RUN**.
+
+### iOS download backup exclusion — adapted
+
+- Upstream commit: `718b526a67654fa94a18da39aabdd7d4aa21af44`.
+- Mew stores default iOS downloads in `Documents/nuvio_downloads`, which was included in iCloud/computer backups. No existing backup-exclusion attribute was found.
+- Decision: **TAKE / ADAPT**. Set `NSURLIsExcludedFromBackupKey` on Mew's downloads directory once it is created. This also covers existing files in that directory. User-selected external folders are not modified.
+- Main-dev commit: `a4b8ff258439f91140da2f92c60bec868fc6cec0`; file: `composeApp/src/iosMain/kotlin/com/nuvio/app/features/downloads/DownloadsPlatformDownloader.ios.kt`.
+- Verification: GitHub commit diff confirms only the iOS downloader changed and the default downloads folder receives the attribute. iOS compile/device verification: **NOT RUN**.

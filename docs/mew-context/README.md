@@ -936,3 +936,11 @@ Upstream commit `2da28d707c77b0bb8d3030af8f360e67981a0994` adds persistent selec
 Mew's vertical library projection already handles section/type selection, sorting and deduplication; library items expose genre/release data and the screen already observes watched state. However, the current projection has no genre/year/watched filters, and selected list/type live in `rememberSaveable` screen state rather than `LibraryDisplaySettingsUiState` persisted per profile. Mew's downloaded-content filters are separate and should remain so.
 
 Decision: **ADAPT** the filter projection and per-profile persistence into Mew's existing library architecture. Preserve provider ordering, local vs remote tracking source behavior, Mew's watched-series semantics, downloaded-content filters and UI. Do not port upstream screen files wholesale. No code changed. Tests/build/device verification: **NOT RUN**.
+
+### iOS download backup exclusion — 2026-11-17
+
+Upstream commit `718b526a67654fa94a18da39aabdd7d4aa21af44` excludes the default downloads directory from iCloud and computer backups. Mew's default iOS path is also `Documents/nuvio_downloads` and previously lacked the exclusion attribute.
+
+**Adapted on Main-dev:** commit `a4b8ff258439f91140da2f92c60bec868fc6cec0` adds `NSURLIsExcludedFromBackupKey` on the default downloads directory, once created. Existing files in that directory inherit the folder setting; user-selected external folders are unchanged.
+
+GitHub diff verified. iOS compilation and device verification: **NOT RUN**. Main remains unchanged at `207ef8fa309b8061b73039b2d4e4bde4af65050e`.
