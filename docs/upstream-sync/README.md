@@ -537,3 +537,50 @@ A deeper read of Mew Main-dev `DownloadsModels.kt` (blob `df85a084657201d056c9f0
 - The upstream `BatchDownloadCoordinator.kt`, `BatchDownloadDialog.kt`, `DeviceStorageBar.kt`, `DownloadQueuePolicy.kt` and `OfflineShowMetadata.kt` have no same-path Mew equivalents on Main-dev. Mew's `DetailSeriesContent.kt` has per-episode download lookup/badges, but no season batch selection/source-plan dialog was found in the inspected file.
 
 Refined decision: **ADAPT — UI/orchestration gap; architecture is partially implemented already.** Do not port upstream storage models or queue primitives wholesale. Build any batch-season flow on Mew's existing per-episode enqueue and pending-source-search contracts, and compare storage/network/profile cleanup separately. The earlier entry's broad **NEEDS INVESTIGATION** remains for the full cross-platform lifecycle; this refinement only establishes the missing batch UI/coordinator versus existing Mew primitives.
+
+
+## Addon tracking events and download lifecycle — further comparison (2026-11-17)
+
+### Addon player/library event delivery — upstream `8f5d9bcac3c2c0535b17b26cbdff392c10b8d767`
+
+Upstream adds `AddonEventDispatcher` in `features/addons/AddonEvents.kt`. It routes player and library events to active manifests that declare the resource, deduplicates recipients by transport URL, preserves delivery order per transport using a dedicated queue, and lets slow addons fail independently under a 10-second timeout. Library video IDs are filtered, deduplicated and chunked in groups of 100. It also avoids before/after watched/library membership reads when no active addon declares the library resource.
+
+Mew Main-dev evidence:
+- `features/addons/AddonModels.kt` defines `AddonManifest.resources`, resource types/id prefixes and `ManagedAddon.isActive`; the domain can express the same manifest capability.
+- `features/addons/AddonRepository.kt` owns profile-scoped addon installation, enabled state, manifest refresh and lifecycle. It is not an event-delivery queue.
+- The inspected `features/library/LibraryRepository.kt` uses Mew's local library and tracking-provider membership model; its save/remove operations persist, publish and push to the configured server. No addon event dispatch was present in the inspected call paths.
+- The inspected `features/watched/WatchedRepository.kt` persists watched state and syncs with tracking providers; its mark/unmark paths did not dispatch addon library events.
+- There is no same-path `features/addons/AddonEvents.kt` implementation on Main-dev. Code-search results were empty, which is not a complete proof that no equivalent exists elsewhere.
+
+Decision: **ADAPT — feature gap, subject to full caller audit.** Add delivery through Mew's active manifest/resource contract, retaining profile-generation safety and tracking-provider semantics. Before implementation, inspect every library/watched mutation entry point (including playback completion, bulk season actions, profile changes and server-backed membership changes), define which mutations should emit, and test URL encoding, 100-ID chunking, duplicate transport URLs, per-addon ordering, timeout isolation, addon disable/removal and cancellation. Avoid blocking local persistence on network delivery. Do not copy upstream's dispatcher wholesale until Mew's lifecycle/queue ownership is settled.
+
+### Season batch downloads, queue policy and offline metadata — upstream `48cbb901bf48a641a1270c2d10bbd4260e712e68`
+
+The upstream change is a coordinated download subsystem, not just a dialog:
+- `BatchDownloadCoordinator.kt` builds a season/episode plan, excludes already downloaded/in-progress episodes, loads candidate streams with a shared semaphore (two concurrent source lookups) and a 30-second lookup timeout, and supports per-episode source override.
+- `BatchDownloadDialog.kt` provides season chips, select-all/select-unwatched/deselect controls, episode readiness states, quality/size display and source override.
+- `DownloadQueuePolicy.kt` enforces total-download, per-show and concurrent-show limits plus current network policy, then starts the oldest eligible queued item.
+- `DownloadNetworkGuard` exposes transport state; Android uses `ConnectivityManager.NetworkCallback`, iOS uses `NWPathMonitor`. The setting to allow mobile data is device-level, not profile-synced.
+- `OfflineShowMetadata.kt` stores bounded offline title/episode/cast metadata separately from frequently changing transfer progress.
+- Platform download changes add queued status, network-aware scheduling, storage stats, unfinished-transfer cleanup, and platform-specific resume behavior. Android and iOS deliberately differ: Android range transfers can retain partial bytes; iOS resume data retains the cellular rule under which the transfer started.
+
+Mew Main-dev evidence:
+- `DownloadsModels.kt` has `DownloadQueueMode.AllAtOnce/OneAtATime`, persisted pending source searches, per-item details snapshots and offline metadata reconstruction. These are real existing contracts and must be preserved.
+- `DownloadsRepository.enqueueFromStream` admits all-at-once downloads immediately, or starts a one-at-a-time item only when no transfer is active. `promoteWaitingDownload` starts the oldest waiting item after completion/failure. This is a basic serial queue, not upstream's bounded multi-dimensional admission policy.
+- Mew's per-item `DownloadDetailsSnapshot` and `toOfflineMetaDetails` provide offline reconstruction, but the inspected model/repository do not establish upstream's separately persisted, merged, bounded per-show metadata store.
+- Mew's inspected download screen already covers active/completed items, pending source searches, retry/pause/resume/cancel and grouped completed episodes. It is not equivalent to upstream's season planning/source selection flow.
+- The upstream files `BatchDownloadCoordinator.kt`, `DownloadQueuePolicy.kt`, `DownloadNetworkGuard.kt`, `OfflineShowMetadata.kt` and `BatchDownloadDialog.kt` have no same-path Mew Main-dev equivalents. Attempts to fetch those exact Mew paths returned 404.
+- Mew's existing downloader is platform-specific and has its own foreground/task lifecycle. Upstream's Android WorkManager/JobScheduler and iOS background URLSession changes must not be transplanted as a shared transport replacement.
+
+Decision: **ADAPT — high-priority feature and policy gap; preserve Mew's download transport and persisted models.** A safe port should be split into:
+1. Season planning/dialog and source prefill, reusing Mew's `enqueueFromStream` and pending-source-search flow.
+2. Bounded queue admission, after deciding whether to retain the existing one-at-a-time option and how to represent queued state without breaking stored payload compatibility.
+3. Device-level network policy with Android/iOS transport monitoring and explicit unknown/offline behavior.
+4. Offline metadata store only if Mew's per-item snapshots prove insufficient for downloaded-show navigation and metadata updates.
+5. Storage statistics and transfer cleanup, separately reviewed against Mew's chosen download directory, SAF/document URI support, partial files, profile isolation and platform lifecycle.
+
+Do not implement this group as one wholesale port. Add policy/selector tests first; test migration of existing persisted download statuses and verify transfer cancellation/resume separately. UI review must cover the details-page entry point, season selection, no-source/partial-ready states, queue overview, storage display, mobile-data warning, accessibility and TV/large-screen behavior.
+
+### Verification boundary
+
+This comparison inspected upstream commit diffs and the named upstream/Mew source files on the refs recorded in this ledger. It did not complete all library/watched mutation callers, all downloader platform lifecycle paths, or the full batch-download UI review. No app source/tests/workflows changed in this batch. Builds/tests/CI/device verification: **NOT RUN**.
