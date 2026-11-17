@@ -915,3 +915,16 @@ Classification: **ALREADY IMPLEMENTED / INTENTIONAL PARALLEL** for the core batc
 Potential gaps: the inspected Mew download tree has no dedicated `DownloadNetworkGuard` or `DownloadsStoragePlatform` / device-storage-statistics abstraction. Mew's storage contract currently persists the download payload, external-folder URI and episode-download settings. The upstream batch also changes network policy, platform transfer scheduling, resume behavior, and multi-profile cleanup.
 
 Decision: **SKIP duplicate batch behavior; NEEDS INVESTIGATION for storage/network lifecycle gaps**. Compare actual Android/iOS scheduling and cleanup semantics before any platform integration. No code changed.
+
+### Downloads batch/storage audit — detailed result
+
+For upstream commit `48cbb901bf48a641a1270c2d10bbd4260e712e68`, Mew already has its own batch download flow, auto source selection, provider/quality matching, pending-source retry, grouped show downloads and offline detail reconstruction. Its data model stores a `DownloadDetailsSnapshot` per download instead of upstream's separate offline metadata store. These are equivalent user-facing capabilities with different persistence/lifecycle semantics; do not duplicate or wholesale replace them.
+
+Actual gaps found:
+- Mew supports only `AllAtOnce` / `OneAtATime`; upstream adds configurable global/per-show/concurrent-show admission limits.
+- Mew has no download-specific Wi-Fi/metered-network guard or mobile-data setting.
+- Mew has no device storage statistics/bar; external-folder destinations require careful capacity semantics.
+- Android account wipe omits the `nuvio_downloads` preferences file. iOS account wipe omits the downloads profile-scoped keys. Mew downloads are profile-scoped, so ordinary profile switching must not erase another profile's data; account wipe cleanup must be handled separately and deliberately.
+- Mew's Android OkHttp and iOS NSURLSession data-task/range-resume downloaders are materially different from upstream's WorkManager/JobScheduler and background NSURLSession transfer architecture. Do not transplant these implementations without a dedicated lifecycle/resume/security audit.
+
+Decisions: **ALREADY IMPLEMENTED / INTENTIONAL PARALLEL** for core batch/offline metadata/grouped download behavior; **ADAPT** for queue limits, network policy and storage stats; **NEEDS INVESTIGATION** for account-wipe cleanup and platform background scheduling. No app code changed. Build/tests/device verification: **NOT RUN**.
