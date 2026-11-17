@@ -457,3 +457,35 @@ Audit both directions: upstream improvements that Mew lacks, and Mew improvement
 Prioritize by user impact and risk: correctness/data safety/security; playback, subtitles and provider reliability; core navigation and high-traffic UI; performance and lifecycle; feature completeness; visual polish and lower-impact cleanup. Architecture improvements should be evaluated for measurable reliability/maintenance benefit and migration cost, not novelty.
 
 No integration is automatic. First complete the semantic and UI/UX review, record the decision, then implement the smallest coherent change in the approved Mew development branch. Add regression tests where practical, inspect the final diff, and report exact verification. Preserve Mew-specific behavior unless a reviewed change explicitly improves it without unacceptable regressions.
+
+
+## Player source fallback + stream-loading architecture audit — 2026-11-17
+
+### Next-episode source fallback — upstream merge `ec726ddfd87392df0062fe03ac8cae24a2bff00a`
+
+Upstream's next-episode auto-play previously resolved only the initially auto-selected stream. If a debrid result was expired, no longer cached or failed to resolve, it showed the failure and refreshed the stream list without trying the next eligible auto-selection candidate. The upstream fix introduces a reusable `resolveWithSourceFallback` runner, tracks source identity keys and attempts, passes the tried-source state into the episode switch, and restarts the fallback state for the new episode.
+
+Mew Main-dev evidence:
+- `PlayerNextEpisodeAutoPlay.kt` blob `f8019dc32d54db9d0052f4c0ec5b92a929d3c8cf`: resolves the selected stream once; on a failed debrid resolution it reports the error and forces a refresh. It does not pass tried-source metadata to the episode switch.
+- `PlayerScreenRuntimeState.kt` blob `d9d236b1f76f271cc82cc0cd6583f4a5fbed95c6`: no equivalent fallback identity/attempt/job state.
+- `PlayerSettingsRepository.kt` blob `3526a8a18e0d34e77c8ae9dfae1592ecdd73b216`: Mew has `streamAutoPlayNextEpisodeFallbackEnabled`, but not upstream's distinct `streamAutoPlayFallbackOnFailure` / max-source controls. Mew's existing next-episode fallback setting controls binge-group/provider selection; it is not equivalent to retrying another source after a debrid resolve failure.
+- Upstream adds `PlayerSourceFallbackRunTest` and `PlayerSourceFallbackTest`. Coverage includes source identity de-duplication, attempt limits, disabled/manual/user-picked exclusions, engine-switch exclusion, no fallback after playback starts, and state reset across episode switches.
+
+Decision: **ADAPT — high priority reliability fix**. Port the behavior contract, not the files wholesale. Mew's candidate selection must include its CloudStream, addon/plugin and server/P2P sources correctly; preserve Mew's existing binge-group preference, playback-engine switching, resume position, manual selection and download paths. Carry tried-source metadata only for an auto-selected stream, exclude duplicate torrent/info-hash identities, stop after the configured bound, and surface only the final failure. Add focused host tests for Mew's source identity and episode-switch lifecycle before enabling the behavior. No source code changed in this audit.
+
+### Stream-source loader extraction — upstream architecture comparison
+
+Upstream separates source discovery/target resolution and provider execution into `StreamSourceLoader.kt` (blob `440f67bef2e016db8c19d323e52964a406936fb7`), with `StreamsRepository.kt` at blob `2a96a0fa30033e8ca2d6519d27c3344fadd11a5b`. Mew's `StreamsRepository.kt` is blob `18dd4ddb2c4aa90128bd9a179ed487a4a507d331` and is substantially larger because it also owns Mew CloudStream discovery/route handling, P2P/server sources, diagnostics, request-generation protection and additional stream presentation/selection behavior.
+
+Upstream's loader uses structured concurrency (`supervisorScope`), indexed result collection, a timeout and cancellation of unfinished source tasks. This is a useful separation pattern, but file size alone does not prove better architecture and the upstream loader is not a drop-in replacement for Mew's richer source graph.
+
+Decision: **NEEDS INVESTIGATION / ADAPT candidate**. Trace every Mew caller and source type; compare cancellation, request-generation guards, cache behavior, ordering, timeouts, late-result handling, CloudStream routing, P2P/server behavior and error presentation. If extraction improves ownership/testability, split Mew's existing logic behind a Mew-aware loader without duplicating providers or changing source ordering/compatibility. No source code changed.
+
+### Fresh range and branch evidence
+
+- Upstream `1.0.0...enhanced`: 72 commits, 160 changed paths.
+- Upstream `1.1.0-beta.1...enhanced`: 8 commits, 7 changed paths.
+- Mew `upstream-sync` documentation head before this entry: `8c392a80c565c80884b7c10152344ba20e9e4fdd`.
+- Mew `upstream-sync...Main-dev`: diverged; Main-dev is 603 commits ahead and 2,238 behind by commit graph, with merge base `f9ad843b14cd3be7fa3ddb800b6961233e0e5b56`. These are history counts, not missing-feature counts or a merge plan.
+- The Mew branch source blobs listed above were fetched from the `Main-dev` ref. GitHub compare output did not expose a fresh Main-dev head SHA; do not use the historical head checkpoint for a write.
+- No app source, tests, workflow, release or branch promotion changed. Builds/tests/CI/device verification: **NOT RUN**.
