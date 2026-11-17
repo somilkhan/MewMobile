@@ -1072,3 +1072,7 @@ Upstream has player + library addon event dispatch with per-transport ordered qu
 
 ## iOS settings backup export audit — 2026-11-17
 Mew already has settings backup/import via `ProfileSettingsSync` and `NuvioEnhancedBackupFileBridge` on Android/iOS. Upstream commit `d703ca48` aligns iOS export with the import document-picker family; Mew instead exports via `UIActivityViewController` while importing via `UIDocumentPickerModeImport`. **SAME FEATURE / DIFFERENT UX AND COMPLETION SEMANTICS — ADAPT candidate**, not missing feature. Review share-sheet completion/cancel handling and temporary-file cleanup before choosing a picker migration. No source changes; iOS build/simulator/device and backup round-trip tests NOT RUN. Full evidence in `docs/upstream-sync/README.md`.
+
+
+## Release-note attribution audit — 2026-11-17
+Upstream commit `647b561b` separates fork and upstream changes in release notes. Mew's release workflow currently lists only the previous-to-current version-bump range and does not fetch/attribute upstream history. **NEEDS INVESTIGATION / ADAPT candidate**: first map the exact upstream baseline selectively integrated into each Mew release; do not list all current upstream commits as if integrated. Preserve Mew's custom Android/iOS release, signing and version guards. No source changes; dry-run/build/CI/release NOT RUN. Details in `docs/upstream-sync/README.md`.
