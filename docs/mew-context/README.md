@@ -1,5 +1,27 @@
 # Upstream alignment status — 2026-11-17
 
+## Semantic audit batch 2 — next-episode source fallback and subtitle rendering
+
+### Next-episode source selection
+
+- Mew `PlayerNextEpisodeAutoPlay.kt` already has Mew-specific selection semantics: current-provider-first candidate selection, binge-group restriction/preference, manual-mode auto-selection behavior, offline short-circuiting, downloaded-episode preference and a `prepareOnly` preload path. `PlayerScreenRuntimeSourceActions.kt` owns the prepared-stream launch and episode transition.
+- Upstream beta retains the general auto-play flow but adds `PlayerSourceFallbackRun.kt` and changes the selected-stream callback to carry tried-source state. The new helper retries subsequent auto-selected candidates when a source fails to resolve/play, bounded by the configured number, and keeps only the final failure for user-facing reporting. The release range also adds dedicated source-fallback tests.
+- Classification: **SHARED PATTERN / DIFFERENT SEMANTICS**. Decision: **ADAPT candidate / NEEDS FAILURE-PATH INVESTIGATION**. Mew's current-provider-first and preloading behavior must not be lost. Before adapting, trace the exact point where a selected next-episode stream fails, distinguish auto-selected from user-selected/torrent/download/P2P sources, deduplicate attempted sources, verify cancellation and episode-switch reset, and preserve Mew's debrid/provider error handling. No player UI changes are implied.
+
+### Subtitle styling and styled overlay
+
+- Upstream beta adds `StyledSubtitleCues.kt` and expands `StyledSubtitle.kt`: parse mpv ASS text into annotated cue blocks, preserve bold/italic/underline, file colors and all nine alignment positions, and render a Compose overlay using the user's font/outline style. It also adds subtitle outline-width controls and aligns the overlay with native ExoPlayer/mpv rendering.
+- Mew does not have upstream's `StyledSubtitle.kt` / `StyledSubtitleCues.kt` paths. Mew already has a substantial but different subtitle subsystem: `SubtitleStylePanel.kt` (font size/family/import, outline and sync controls), `EnhancedSubtitleModal.kt`, `PlayerSubtitleCueParser.kt` (SRT/WebVTT/ASS/TTML parsing for cue/sync workflows), subtitle selection/repository code, Android subtitle utilities, sidecar subtitle handling and RTL fixes.
+- Classification: **SHARED PATTERN / DIFFERENT SEMANTICS**. Decision: **NEEDS INVESTIGATION**; do not paste the upstream overlay into Mew. Trace Mew's actual ExoPlayer and libmpv render paths, custom-font handoff, ASS styling, cue updates, external/sidecar subtitles, RTL, PiP, TV and accessibility. A second overlay could double-render or conflict with Mew's native renderer.
+- Mew's existing `PlayerNextEpisodeAutoPlayPolicyTest`, subtitle parser/style/selection tests and Android host tests are related coverage, not substitutes for upstream's new fallback/cue tests. Tests/builds were not run: **NOT RUN**.
+
+### Files inspected in this batch
+
+- Upstream: `PlayerNextEpisodeAutoPlay.kt`, `PlayerSourceFallbackRun.kt`, `StyledSubtitle.kt`, `StyledSubtitleCues.kt`, Android `SubtitleCuePresenter.kt`, and related release-range tests.
+- Mew Main-dev: `PlayerNextEpisodeAutoPlay.kt`, `PlayerScreenRuntimeSourceActions.kt`, `SubtitleStylePanel.kt`, `EnhancedSubtitleModal.kt`, `PlayerSubtitleCueParser.kt`, `PlayerSubtitleUtils.kt`, plus the player/subtitle source-set path inventory.
+- No app source changed. This is a remote source audit only; runtime rendering, emulator/device behavior and Gradle tests remain unverified.
+
+
 ## Semantic audit batch 1 — downloads and season batch flow
 
 **Scope compared:** upstream beta `1.1.0-beta.1` against Mew `Main-dev`; common download repository/screen, upstream batch planner/dialog/queuer/settings, Mew episode source resolver/sheet/pending-source model, details entry point, and available download tests.
