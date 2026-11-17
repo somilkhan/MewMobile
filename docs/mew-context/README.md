@@ -112,7 +112,9 @@ Never describe a partial audit as exhaustive. State API limits, missing local ch
 
 ## Continued semantic audit — feature overlap and server boundaries (2026-11-17)
 
-### Fresh refs used for this audit
+### Historical refs used for the initial audit segment
+
+These refs describe the earlier inspection state; the latest verified refs and follow-up findings are recorded at the end of this document.
 - Mew `Main-dev`: `207ef8fa309b8061b73039b2d4e4bde4af65050e`.
 - Mew `upstream-sync`: `1028f9a2c4ce7b6a73026eb241941a957ce2d5fb` (includes this repository-side context document commit).
 - Mother upstream `enhanced`: `b4e446451f32edbdf8b1bf288d1a7a8a2bf10e03`.
@@ -241,3 +243,81 @@ Never describe a partial audit as exhaustive. State API limits, missing local ch
   - `ServerPlayback` also tracks active sessions by playback URL and reports playback lifecycle events.
 - The upstream `StreamSourceLoader.kt` contains a third `resolveTargets/fetchAddonGroup/loadStreams` path with overlapping addon/plugin/server target resolution. No caller was identified in the inspected `StreamsRepository`, `StreamsScreen`, `PlayerStreamsRepository`, `PlayerScreenContent`, `PlayerScreenRuntimeUi`, `PlayerScreenRuntimeSourceActions`, `StreamSearchSessions`, `StreamAutoPlaySelector` or `SeriesPlaybackResolver`; no corresponding test file was found. Classification: **NEEDS INVESTIGATION / POSSIBLE ORPHAN**, not a confirmed duplicate. Do not port or refactor it until repo-wide references and history are checked.
 - Decision: **ADAPT** the server-source/provider/playback behavior into Mew's existing two flows. Do not replace Mew's stream repositories, do not introduce `StreamSourceLoader` by assumption, and keep the player UI/engine unchanged unless a verified server-playback requirement proves otherwise. Add regression coverage for CloudStream + addon + plugin + server coexistence in both flows.
+
+
+### Follow-up audit — upstream freshness, profile cleanup and platform contracts (2026-11-17)
+
+#### Current verified refs and upstream snapshot comparison
+- Mew `Main-dev`: `207ef8fa309b8061b73039b2d4e4bde4af65050e` (tree `db06d0a44367f7881460317f0d7a7233ed6bc115`).
+- Mew `main`: same SHA as `Main-dev`; neither branch was changed.
+- Mew `upstream-sync`: `80b263bc983c75b41153509b434c34bb43eba5fb` (tree `72c33f51c9fd82e8ef5378d8868f3d851a00d8c3`).
+- Mother upstream `enhanced`: `b4e446451f32edbdf8b1bf288d1a7a8a2bf10e03` (tree `519923a50e2b8c3f226bcafa4e46c6160b8095d3`).
+- The app-code snapshot on `upstream-sync` is based on upstream commit `f4b7e55e31c2778827095dbdb246193e8675016f` (2026-11-17 01:19 UTC); subsequent Mew commits on that branch in this audit were docs-only.
+- Comparing that source tree with current mother-upstream: 2,339 source blobs on each side; 2,334 identical and exactly 5 changed. `upstream-sync` additionally contains the Mew-owned `docs/mew-context/README.md`. The five changed paths are listed below. This is a freshness delta, not permission to overwrite the branch.
+
+#### Five upstream changes newer than the current upstream-sync snapshot
+
+1. **Bug report template** — upstream commit `05e779a0c17861e185c09901e8be4a5f0f86ced5`, `.github/ISSUE_TEMPLATE/bug_report.yml`.
+   - Adds iOS sideloading choices and asks whether the official app has the same bug.
+   - Mew's current template still lists Android/iOS store and TestFlight options. Decision: **ADAPT** only the useful upstream-comparison question and Android-relevant install methods; do not copy iOS-only choices into an Android-only report flow.
+
+2. **Episode artwork fallback** — upstream commit `b4e446451f32edbdf8b1bf288d1a7a8a2bf10e03`, `DetailSeriesContent.kt`.
+   - Upstream adds `rememberEpisodeImageState(thumbnail, fallbackImage)` and switches to series artwork after the episode thumbnail fails, in both episode-card layouts.
+   - Main-dev `DetailSeriesContent.kt` (`e4c7a22a8e561bfcb4d33a3ef647e25a5e666783`) still uses `video.thumbnail ?: fallbackImage` in both layouts and has no equivalent image-error state.
+   - Decision: **ADAPT** the fallback behavior into both Mew layouts without changing their design. Add a regression test for primary success, primary failure/fallback success, no fallback and fallback failure.
+
+3. **Home catalog sync race** — upstream commit `0b9d93599f7d7603e7814a99a70aa64d7c48e086`, `HomeCatalogSettingsRepository.kt`.
+   - Upstream preserves local preferences when `knownKeys.isEmpty()`, covering remote sync arriving before catalog definitions load.
+   - Main-dev (`6ca42fffc3348c62b337310cbf3ee1d949cc407d`) still uses `key !in remoteKeys && (key in knownKeys || key.requiresExplicitSyncKey())`; it lacks the empty-known-keys guard.
+   - Decision: **ADAPT** the guard after adding a repository-level test for remote sync before definitions load. Preserve Mew's snapshot store, normalization and sync behavior.
+
+4. **iOS subtitle state reset** — upstream commit `c5298633914d967792c79351754ba47d54dfd242`, `PlayerEngine.ios.kt`.
+   - Upstream changes `remember(sourceUrl)` to an unkeyed state plus `LaunchedEffect(sourceUrl)` reset so styled subtitles survive episode switching correctly.
+   - Main-dev's iOS engine (`288d8efa1115f395f934e6c9a3bbe64dab610819`) does not contain the same `subtitleText` state.
+   - Decision: **SKIP** as a direct port; revisit only if Mew adopts the same iOS subtitle overlay architecture.
+
+5. **iOS settings export picker** — upstream commit `d703ca48e5ade22ceaf424451ffba05efa94e670`, `SettingsConfigFileLauncher.ios.kt`.
+   - Upstream switches to the export-to-service picker initializer.
+   - The exact iOS launcher path is absent from Main-dev (GitHub Contents API 404).
+   - Decision: **SKIP** for the current Android fork; do not create an iOS implementation solely to match upstream.
+
+#### Confirmed profile-cleanup blockers in upstream feature candidates
+
+**Custom poster URLs**
+- `CustomPosterUrlStorage` stores `custom_poster_url_pattern_<profileId>` and `custom_poster_enabled_screens_<profileId>` using `ProfileScopedKey`.
+- `ProfileRepository.selectProfile()` reloads the repository, but both anonymous and authenticated `deleteProfile()` paths only remove server and subtitle-device profile data; they do not remove custom-poster keys.
+- `CustomPosterUrlRepository` has `clearLocalState()` but no per-profile removal method. Upstream `LocalAccountDataCleaner` does not call it.
+- Android account wipe does not include the `nuvio_custom_poster_url` SharedPreferences file. iOS account wipe does not include either custom-poster key in its profile-scoped key list.
+- Result: profile-index reuse can inherit a deleted profile's custom-poster settings; account wipe can leave both persisted settings and in-memory repository state. This is a confirmed cleanup gap.
+- Decision: **ADAPT / BLOCKER BEFORE INTEGRATION**. Add per-profile removal and call it in both profile-deletion paths; clear repository state on account wipe; add Android and iOS storage keys to account-wipe cleanup; test profile-index reuse and sign-out/account wipe.
+
+**Episode shuffle**
+- `EpisodeShuffleStorage` persists `episode_shuffle_<profileId>`. Profile switching reloads state; account wipe clears repository state and the Android/iOS platform cleaners include the `episode_shuffle` storage.
+- Neither `EpisodeShuffleRepository` nor `ProfileRepository.deleteProfile()` removes the deleted profile's shuffle key.
+- Result: deleting a profile and reusing its index can restore the previous profile's shuffle availability and per-show choices.
+- Decision: **ADAPT / BLOCKER BEFORE INTEGRATION**. Add `removeProfile(profileId)` to the storage contract and both platform actuals; invoke it in anonymous and authenticated deletion paths; test index reuse.
+
+#### HTTP platform contract audit — Main-dev
+- Common contract `AddonPlatform.kt` (`27507ac7723d9a6209917e86d1fe0fba738685f3`) exposes `followRedirects`, `maxResponseBodyBytes` and optional `bodyBytes`.
+- Android actual (`44272e80eca597427cc9d91594a904d51665b349`) streams raw response data through `readAtMostBytes` and applies redirect flags, but builds request payloads from the text `body` and ignores `bodyBytes`.
+- iOS actual (`cd61266920ed871e29b5629564750d6134c7c0a0`) materializes the full raw response as `ByteArray` before truncating it, ignores `followRedirects`, and ignores `bodyBytes`. Its `httpGetBytesWithHeaders` path also materializes the full response before checking the configured size limit.
+- Verified caller: Main-dev `TraktLibraryRepository.kt` (`1bdd28d4b7fa1f1ba954f5473cfc4098af89b82a`) uses string request bodies and `followRedirects = true`; no `bodyBytes` use was found in that file. GitHub code search returned no usable global call-site results, so the absence of other callers is **NOT VERIFIED**.
+- Upstream Android's raw request implementation supports `bodyBytes ?: body`; upstream iOS has the same full-buffering and ignored-flag limitations as Mew iOS. Do not blindly copy one platform actual into the other.
+- Decision: **ADAPT / NEEDS CALLER AUDIT**. Fix iOS streaming bounds and redirect parity; decide whether the binary request-body parameter is still required, then implement it consistently on both platforms. Add platform tests for oversized bodies, redirect enabled/disabled, cancellation and byte-body requests.
+
+#### Custom poster URL request boundary
+- The settings page saves the supplied pattern after trimming; no URL validation is performed there. The resolver substitutes IDs and returns the resulting URL without enforcing an HTTP(S) scheme or allowed host.
+- The Coil image-loader registers `CustomPosterFallbackInterceptor`; poster requests carry the original-art fallback through `memoryCacheKeyExtras`. This fallback handles load errors but is not URL validation.
+- Decision: **ADAPT / SECURITY REVIEW** before integration. Validate the final resolved URL at the image-request boundary, define HTTP/HTTPS and local-network policy, and test redirects/fallback behavior. The pattern is user-configured; this audit does not establish an exploitable remote attack.
+
+#### Media-server discovery security boundary
+- `ServerDiscoveryPolicy` rejects an HTTPS discovery request that finishes on HTTP, but `normalizeBackendUrl()` independently accepts both HTTP and HTTPS for the `backend_url` supplied inside the discovery document.
+- Therefore an HTTPS discovery response can still configure an HTTP backend endpoint. Authentication and subsequent API traffic may then use cleartext unless the user is explicitly warned/required to opt in.
+- `MediaServerSync` serializes server tokens in the `token` field and sends them through Supabase RPCs `sync_push_media_servers` / `sync_pull_media_servers`. No corresponding SQL/RPC definitions or RLS policy are present in the inspected repository tree, so cloud-side token authorization, encryption and retention remain **UNVERIFIED**.
+- Decision: **NEEDS INVESTIGATION / SECURITY BLOCKER**. Inspect backend RPC/RLS separately; define explicit HTTP opt-in while preserving legitimate LAN-server compatibility; trace token-bearing playback URLs through logs, persistence and external-player handoff.
+
+#### Verification and remaining work
+- GitHub remote source/tree inspection only. A local clone attempt failed because the environment could not resolve `github.com`; no local working tree was created.
+- No Gradle build, unit/instrumentation tests, CI run, emulator or device verification was performed. Source tests cited in this document are **NOT RUN**.
+- No application source, `Main-dev`, or `main` was changed. This update changes only this audit Markdown on `upstream-sync`.
+- Next: complete the remaining security/caller trace for server discovery, custom-poster image requests and token-bearing playback URLs; then consolidate a small `Main-dev` integration matrix. Do not port application code until explicitly approved.
