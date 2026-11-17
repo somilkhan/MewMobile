@@ -1093,3 +1093,12 @@ Compared upstream feature commit `964ecfd8d98598cd2d315cedb584fe7ef59a76fd`, rec
 - **Decision: NEEDS PRODUCT APPROVAL / SECURITY REVIEW**, then ADAPT with durable per-addon consent and explicit user-action-only event boundaries. No implementation is authorized by this audit.
 - Mew source inspection covered addon manifest/repository/UI, library mutations, watched mark/unmark/reconciliation, WatchingActions, and player runtime effects/actions. It did not execute integration tests or capture network traffic.
 - Builds/tests/CI/device verification: **NOT RUN**. No app source changed.
+
+
+## Movie end-card recommendations — upstream `07de5b27795d2fe236ca917dc5608a594947b9d0` — 2026-11-17
+
+- Upstream adds `MetaDetailsRepository.withPreferredMoreLikeThis`, resolves the configured source for the movie end-card when the player metadata was loaded/cached under a different source, and feeds the result into `playerMoreLikeThis` while recommendations are enabled. Candidate filtering continues to exclude the current title and watched items.
+- Mew `MetaDetailsRepository.kt` (blob `dcfcd22b2b86bfb3e06062d2c0303321ed56f449`) already has `applyMoreLikeThisSource` in the metadata enrichment path and records the selected source on `MetaDetails`; its detail-screen metadata source selection is therefore an existing capability.
+- Mew's inspected player runtime files `PlayerScreen.kt`, `PlayerScreenContent.kt`, `PlayerScreenRuntimeEffects.kt`, `PlayerScreenRuntimeState.kt` and `PlayerScreenRuntimeUi.kt` do not contain the upstream movie-recommendation/end-card state, setting or candidate surface. There is no player end-card recommendation UI to which the upstream source-refresh helper can be directly ported.
+- Classification: **SHARED PATTERN / DIFFERENT PRODUCT SURFACE**. Mew has source-aware More Like This metadata on detail pages; upstream adds a player-only end-card experience. Decision: **ADAPT only as a separate player UX feature**, after inspecting the Mew player end/next-episode UI, dismissal lifecycle, playback end timing, offline mode, recommendation setting, watched filtering and source fallback. Do not add a repository helper alone or duplicate the existing detail-page source selection.
+- No source changes. Player UI tests, builds, CI and device verification: **NOT RUN**.
