@@ -1016,3 +1016,48 @@ Mew files inspected: `iosApp/iosApp/Player/MPVPlayerBridge.swift` (blob `d253222
 - Upstream settings add enable toggle, max additional sources (bounded range), and startup timeout; Android and iOS storage use ProfileScopedKey and include values in settings sync/backup. Mew has profile-scoped PlayerSettings storage and a separate existing next-episode fallback toggle, but lacks these source-failure settings and UI. Do not conflate the existing next-episode group/provider fallback setting with this distinct source-failure fallback. Add migration-safe defaults and profile-isolation/sync coverage if integrated.
 - Error pipeline integration point: upstream handles expired-link refresh, source fallback, engine failover, then final error/cache cleanup. Mew currently handles expired-link refresh, engine failover, then final error. Integrate source fallback between expired-link refresh and engine failover, respecting Android engine-switch precedence and iOS behavior. Upstream UI disables conflicting options with explanatory text.
 - Classification: **MISSING FEATURE / SHARED IDENTITY INFRASTRUCTURE**. Decision: **ADAPT, high priority**. No source changes; no builds/tests/CI/device checks run. Inspected refs: Main-dev 69b4a96072b506f60dcbe538c5f6b71db3a4a464, upstream enhanced b4e446451f32edbdf8b1bf288d1a7a8a2bf10e03.
+
+
+## Download subsystem audit refinement — 2026-11-17
+
+Compared upstream batch-download commit `48cbb901bf48a641a1270c2d10bbd4260e712e68` against Mew `Main-dev` `69b4a96072b506f60dcbe538c5f6b71db3a4a464`. Upstream reference: `enhanced` `b4e446451f32edbdf8b1bf288d1a7a8a2bf10e03`.
+
+### Batch selection and source resolution — existing Mew implementation; not a missing feature
+
+- Mew has `EpisodeDownloadFlowSheet.kt` (blob `1b1c4c2a002a55657f59749edf1a5d279fa9697e`) wired from `MetaDetailsScreen.kt` (blob `39b63480b23da44bb55c122841fc1e56c8f50bba`). It supports movie/episode downloads, episode selection grouped by season, select-season, manual provider/quality selection, auto-select, progress, and queue-mode preference.
+- `DownloadSourceResolver.kt` (blob `6bc5a45415fb18e9537aa8f7b97130ae9b6e1282`) contains `EpisodeDownloadCoordinator`. Auto-selection resolves each episode independently with up to 3 concurrent episode selections and up to 4 concurrent providers; source/provider requests have bounded timeouts. Manual selection applies one selected provider/quality to the selected episodes, matching each episode independently and persisting pending source searches when unavailable.
+- Upstream `BatchDownloadCoordinator.kt` (blob `bef810f53d3d0dd088f1be92c5216fc186c03af0`) and `BatchDownloadDialog.kt` (blob `f3a52b77a9f7201a5d5b3c3c92e4ca511f2ccbfe`) use a different planner/UI: season-by-season source steps, per-episode stream candidates, manual per-episode override, and explicit already-downloaded/in-progress states.
+- Classification: **INTENTIONAL PARALLEL / SHARED PATTERN, DIFFERENT UX AND PLANNING MODEL**. Decision: **ADAPT selectively**, not wholesale port. Mew's current flow is real batch functionality; preserve its custom sheet, progressive source results, auto-select and pending-search contracts. Evaluate per-episode manual override and a planner/status layer as targeted improvements.
+
+### Important existing-download replacement risk
+
+- Mew's episode picker derives candidates from available metadata episodes and does not read current download state. It does not mark/exclude already-downloaded or in-progress episodes.
+- `DownloadsRepository.enqueueFromStream` (blob `5e5dfd0b0f6ad3959da8106c83a9a6ce7b4a86eb`) replaces an existing item with the same logical episode key; replacement cancels the old handle and removes the old local/partial file. Thus selecting an already-downloaded episode in the batch flow can replace/delete the existing downloaded file.
+- Upstream's `isBatchEpisodeDownloaded` / `isBatchEpisodeUnavailable` planner helpers explicitly identify completed and in-progress items before queueing.
+- Decision: **ADAPT — high priority safety/UX fix**. Feed current download state into planning, exclude completed/in-progress episodes by default, and expose an explicit re-download/replace action with confirmation. Add regression tests proving a completed file is not deleted by ordinary season selection and that explicit replacement remains possible.
+
+### Queue admission and network policy — meaningful gap
+
+- Mew `DownloadsModels.kt` (blob `df85a084657201d056c9f009015b427c5a26989a`) persists `DownloadStatus.Waiting` and offers `AllAtOnce` or `OneAtATime`. The repository starts every `AllAtOnce` item immediately; `OneAtATime` promotes the oldest waiting item only after no transfer is active. There are no total/per-show/concurrent-show admission limits.
+- Upstream `DownloadQueuePolicy.kt` (blob `a255832eabb3f5ee79b2d043e83a4b10ac11c53f`) enforces maximum total transfers, episodes per show and concurrent shows, and starts the oldest eligible queued item.
+- Mew has no download network-guard implementation in its source tree. Android uses the app's direct OkHttp downloader; iOS `DownloadsPlatformDownloader.ios.kt` (blob `1aa24cba6e141ec3acb39131805af89262087f7a`) configures URLSession with cellular, expensive and constrained access enabled. Upstream `DownloadNetworkGuard` (blob `3edc99dbdee124797179b3b1407c743afe0f1d98`) uses Android connectivity callbacks and iOS `NWPathMonitor`, with an explicit device-level opt-in for mobile data.
+- Decision: **ADAPT — high priority**, retaining Mew's existing queue modes and platform downloaders. Add bounded admission and an explicit device-level mobile-data preference; unknown network state should not silently authorize metered downloads. Define active-transfer pause/resume behavior when transport changes. Keep device policy out of profile sync.
+- Migration warning: Mew serializes `DownloadStatus` as an enum and `DownloadsCodec.decode` falls back to an empty payload on decode failure. Do not blindly add upstream's `Queued` enum value or copy its payload shape; design a backward-compatible status/payload migration and rollback behavior first.
+
+### Offline metadata and storage visibility
+
+- Mew stores a `DownloadDetailsSnapshot` on each `DownloadItem` and reconstructs offline details from the available per-item snapshots. This is an existing offline-details capability, but repeating show-level metadata across episode items can increase persisted payload size.
+- Upstream `OfflineShowMetadata.kt` (blob `9146fd69234a2cff66fbdc6a9a34443bfd8bee79`) stores bounded, merged metadata once per show, separately from frequently updated download progress, and reconstructs details using stored metadata plus downloaded episodes.
+- Classification: **SHARED PATTERN / DIFFERENT DATA MODEL**. Decision: **ADAPT if storage profiling supports it**; migrate from existing snapshots with a legacy fallback and preserve offline deep-link/basic-metadata behavior. Do not discard existing snapshots during migration.
+- Upstream adds `DownloadsStorageStats` and `DeviceStorageBar` (blobs `42bbfa11793b4d7802da4bf7a56d2c89e334fd60` and `bddc3e8b2dad181b625e7563a3c25a079b15e474`). No equivalent storage-stat component was found in the Mew download source tree. Decision: **ADAPT — lower priority**, accounting for Mew's external-folder destination where device app-container free space is not the selected destination's free space.
+
+### Platform lifecycle — intentional parallel, do not replace wholesale
+
+- Mew Android uses its own coroutine/OkHttp downloader, foreground-service/live-status integration and resumable `.part` range requests. Mew iOS uses its own URLSession data-task delegate, partial-file range resume and app-background pause hook.
+- Upstream's Android WorkManager/JobScheduler transfer scheduling and iOS transfer/resume-data handling have different lifecycle and persistence contracts. Classification: **INTENTIONAL PARALLEL / PLATFORM-SPECIFIC TRANSPORT**. Preserve Mew transports; adapt only isolated queue/network policy after platform lifecycle and cancellation tests. No transport replacement approved.
+
+### Verification and boundary
+
+- Mew `DownloadsBatchFlowTest.kt` (blob `0f0ec1bbc3121060e15fd1812f93a202de34c8d3`) currently covers quality parsing, logical episode keys and pending-search grouping; it does not test selection against completed downloads, queue admission, network changes or metadata migration.
+- Upstream has dedicated `DownloadQueuePolicyTest`, `EpisodeDownloadIndexTest`, Android transfer/lifecycle tests and platform-specific paths. Mew's test suite/build/CI/device verification was **NOT RUN** in this audit.
+- No application source changed. This entry refines the previous broad download audit: batch UI already exists in Mew; the highest-priority gaps are safe handling of already-downloaded episodes and bounded/network-aware queue admission.
