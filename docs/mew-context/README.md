@@ -108,3 +108,33 @@ Keep reports concise and factual:
 - **Risks / next step:** unresolved items and the smallest next action.
 
 Never describe a partial audit as exhaustive. State API limits, missing local checkout, unavailable device tests, or uninspected call sites.
+
+
+## Continued semantic audit — feature overlap and server boundaries (2026-11-17)
+
+### Fresh refs used for this audit
+- Mew `Main-dev`: `207ef8fa309b8061b73039b2d4e4bde4af65050e`.
+- Mew `upstream-sync`: `1028f9a2c4ce7b6a73026eb241941a957ce2d5fb` (includes this repository-side context document commit).
+- Mother upstream `enhanced`: `b4e446451f32edbdf8b1bf288d1a7a8a2bf10e03`.
+- These refs were re-fetched during this audit. No application source or branch ref was changed.
+
+### Episode shuffle
+- `upstream-sync` contains `features/shuffle/EpisodeShuffleSheet.kt` (SHA `201ed9e9aaa34004d910184b93325ad3923f1dc1`) and `EpisodeShuffleRepository.kt` (SHA `0b527a0425dbabd7f367b613d378ea97977cc753`).
+- The inspected `Main-dev` paths for the shuffle sheet/repository are absent (GitHub Contents API returned 404 for those exact paths). This supports the earlier finding that shuffle is a new feature in the inspected tree, not proof that every possible differently named equivalent is absent.
+- Decision remains **TAKE candidate**, not approved for integration. Before implementation, trace every upstream entry point and playback handoff; verify watched/unwatched selection, repeat history, empty/failed selection, profile switch/removal, lifecycle cancellation and UI dismissal/state restoration. Port relevant unit/UI tests with the feature.
+
+### Custom posters versus Mew poster customization
+- `upstream-sync` has `core/poster/CustomPosterUrlResolver.kt` (SHA `050dd51359869fb3d67728ad480001ee357fbfe7`) and expect/actual storage contract `CustomPosterUrlStorage.kt` (SHA `943689412dd69307c91792af35413f6d30fc528e`).
+- Exact custom-poster resolver/storage paths are absent from `Main-dev`. However, `Main-dev` does have `features/settings/PosterCustomizationSettingsPage.kt` (SHA `4c67989986c1a889608f2da6e745034b6b9174ae`); the similarly named upstream-sync settings page is a different blob (SHA `0d1b16a5894f8b8658d46c701450d5f591e8edae`). These are related poster-domain settings, not proof of equivalent URL-template behavior.
+- Classification: **SHARED PATTERN / DIFFERENT SEMANTICS**. Decision remains **ADAPT candidate**. Preserve Mew card appearance/layout controls. Before porting, trace all image consumers and storage actuals; validate schemes/hosts/redirects, placeholder escaping, cache keys, fallbacks, per-screen enablement and profile isolation.
+
+### External media servers versus Nuvio backend configuration
+- `upstream-sync` contains a separate `features/servers/ServerRepository.kt` (SHA `6e770e38514831e35092a840aff84145a7e08f7e`), `ServerStorage.kt` expect contract (SHA `bde79fe01d16fbd1d5ec5bf6644f57a8d5a25231`), `mediabrowser/MediaBrowserProvider.kt` (SHA `0765cbd53fdaa6c2cd8e046c3dcce92de5cede23`) and `core/network/ServerDiscovery.kt` (SHA `fdcb8d283ce41fb21c0ce3ae2717be36fc249d32`).
+- Those exact feature paths are absent from `Main-dev`. Main-dev's `core/network/ServerConfiguration.kt` (SHA `c658108f1708961bb8d25bec21624e9ba540eee0`) configures the Nuvio backend URL/publishable key/capabilities; it is not the same feature as user-managed Jellyfin/Emby servers.
+- Classification: **SHARED PATTERN / DIFFERENT SEMANTICS** (both concern server configuration, but different server roles and contracts). Decision remains **NEEDS INVESTIGATION** as a phased feature, not a drop-in replacement.
+- Before any integration, inspect Android/iOS storage actuals, credential/token protection and deletion, redirects/TLS, server discovery, catalog mapping, playback/transcoding, watch-state sync, profile switching/removal and all settings/navigation callers. Keep external server credentials separate from Nuvio backend configuration and ordinary profile settings sync.
+
+### Verification limits and next step
+- This was a selective path/blob inspection using GitHub remote files. No local checkout/worktree, Gradle tasks, runtime, emulator/device, full call graph or complete test suite was available/verified.
+- No application code, branch ref, merge, cherry-pick, PR, build, test, or release was changed/run.
+- Continue with storage expect/actual implementations and all feature entry-point/caller searches before proposing any integration batch. No integration write without explicit approval.
