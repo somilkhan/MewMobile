@@ -1276,3 +1276,32 @@ No application source changes. Tests/builds/CI/device verification: **NOT RUN**.
 - Classification: **MISSING FAILURE-RECOVERY BEHAVIOR / SHARED NEXT-EPISODE FLOW**. Decision: **ADAPT** after designing the candidate ordering against Mew's selector. Resolve only auto-selected candidates; preserve manual selection, downloaded/P2P/external/server sources, current-provider and binge-group preferences, direct-debrid cache/UNKNOWN semantics, cancellation, request tokens, and a strict bounded attempt count. Tests must cover expired/not-cached/error outcomes, fallback disabled, candidate identity collisions, repeated provider streams, cancellation, manual selection and episode transition. Do not retry authentication/configuration errors as if they were stale media links.
 
 No application source changes. Tests/builds/CI/device verification: **NOT RUN**.
+
+
+## Localization, RTL and iOS subtitle direction — 2026-11-18
+
+### Locale coverage
+
+- Mew `Main-dev` currently has Compose resource locales: ar, bg, cs, de, el, es, fr, he, hr, hu, id, in, it, ja, nb, nl, pl, pt, pt-rBR, ro, ru, sk, tr and vi.
+- Upstream `enhanced` additionally ships bn (Bengali), ta (Tamil), uk (Ukrainian), ur (Urdu) and zh (Chinese). Mew already has Arabic and Hebrew resources; the missing locales are a translation-coverage gap, not proof of broken RTL handling.
+- Decision: **ADAPT / TRANSLATION BACKLOG**. Before importing resource files, compare key coverage, formatting placeholders, plurals, new Mew-only settings and terminology. Do not copy upstream strings wholesale or mark untranslated English as complete localization.
+
+### Android subtitle RTL
+
+- Mew already has `androidMain/.../PlayerSubtitleRtlFix.kt`, with Arabic line wrapping and legacy Hebrew punctuation correction. The upstream Android implementation has the same core behavior; differences inspected are mainly annotations/formatting.
+- Classification: **ALREADY IMPLEMENTED / SHARED ALGORITHM**. Decision: **SKIP code port**. Keep Mew's implementation; add focused tests for Arabic spans/line boundaries, Hebrew punctuation and timed-cue preservation because Mew's current tree has no dedicated RTL-fix test file.
+
+### iOS external Hebrew subtitle correction
+
+- Upstream adds `iosApp/iosApp/Player/MPVSubtitleRtlFix.swift`, which detects legacy-ordered Hebrew SRT/VTT lines using a conservative minimum-line and leading-vs-trailing punctuation threshold, then swaps punctuation runs while preserving tagged subtitle structure.
+- Mew has no equivalent Swift RTL helper in its iOS source tree. Its native MPV bridge handles external subtitle loading directly; no RTL transform was found in the inspected Mew bridge.
+- The upstream bridge inspected also did not contain a direct `MPVSubtitleRtlFix.fix` call, and the iOS playback test inspected did not cover Hebrew. Therefore the helper's production call-site/wiring is **NOT CONFIRMED** by this audit.
+- Decision: **NEEDS INVESTIGATION**, not yet TAKE. Trace the upstream helper's actual caller and test wiring, then compare with Mew's external subtitle download/sidecar lifecycle. If wired and behavior is sound, adapt only for legacy-ordered Hebrew external files; preserve correctly authored subtitles and avoid touching embedded tracks or ASS content. Add Swift unit tests for detection threshold, punctuation/bracket swapping, tagged SRT/VTT lines, CRLF and no-op behavior.
+
+### Floating navigation RTL
+
+- Mew `FloatingNavigationBar.kt` already reads `LocalLayoutDirection`, maps logical indices to mirrored visual positions with `visualNavIndex` / `logicalNavIndex`, and mirrors the motion/selection geometry.
+- Upstream adds `FloatingNavigationBarRtlTest` covering visual index mirroring and glass behavior. Mew's tree has no dedicated floating-navigation RTL test.
+- Classification: **ALREADY IMPLEMENTED / TEST-COVERAGE GAP**. Decision: **SKIP implementation port**; adapt the upstream test intent to Mew's own navigation behavior, including selection position, tap-to-destination mapping, swipe/drag and motion cancellation under RTL.
+
+No application source changes. Localization validation, tests/builds/CI, iOS simulator and device verification: **NOT RUN**.
