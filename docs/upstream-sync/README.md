@@ -1155,3 +1155,39 @@ Upstream performance merge: `e5272769a6709d43aaecc3d7bbe8d66d5a200702` (Android 
 - Baseline profile module and Compose stability configuration remain **ADAPT after measurement**, as already recorded: inspect Mew variants, app IDs, selectors, CI and compiler metrics first; do not copy generated profiles or blanket-mark mutable Kotlin collections stable.
 
 No source changes. Builds, benchmarks, tests, CI and device verification: **NOT RUN**.
+
+
+## iOS parity audit — player rendering, subtitles, navigation — 2026-11-17
+
+### MPV drawable backing scale
+
+- Upstream commit: `839cdcde3c5cb5124f2efb6ad5e3ff32b7549d6f` (`fix(ios): render mpv at the screen's backing scale`), path `iosApp/iosApp/Player/MPVPlayerBridge.swift`.
+- Mew `Main-dev` has the same file and equivalent Metal drawable sizing in `MPVPlayerViewController`. Both initialization and `layoutMetalLayer()` currently use `screen.nativeScale` only; upstream centralizes `renderScale()` as `max(screen.scale, screen.nativeScale)` and uses it for both `contentsScale` and drawable dimensions.
+- Classification: **SHARED PATTERN / SAME RENDERING CONTRACT**. Decision: **ADAPT** the small scale normalization, preserving Mew's simulator OpenGL path, deferred layout passes, externally managed view size, and drawable resize behavior. Verify external-display/window screen selection and no regression to Mew's custom surface sizing.
+- Source-only candidate; no iOS device/simulator verification performed.
+
+### Styled subtitle state across episode changes
+
+- Upstream commit: `c5298633914d967792c79351754ba47d54dfd242` changes `subtitleText` from source-keyed Compose state to retained state with an explicit `LaunchedEffect(sourceUrl)` clear.
+- Mew's `PlayerEngine.ios.kt` does not contain this overlay state. Its iOS player routes subtitle styling and track operations through the native MPV bridge; the inspected Swift bridge has no matching `subtitleText` / `updateStyledSubtitle` overlay state.
+- Classification: **INTENTIONAL PARALLEL / DIFFERENT SUBTITLE PIPELINE**. Decision: **SKIP direct code port**. Keep checking subtitle style persistence, source transitions and external subtitle behavior against Mew's MPV implementation; do not add a second overlay state machine.
+
+### iOS floating tab-bar blur
+
+- Upstream commit: `c314dd48d622de249eebbea7e531e3f7b2e506d4` clears UIKit tab-bar and tab-item appearances and hides iOS 26 bottom scroll-edge blur while preserving the floating pill.
+- Mew's `iosApp/iosApp/ContentView.swift` uses a custom UIKit tab-bar appearance and profile-avatar overlay/animation. It does not currently contain the upstream `removeBarBlur` / transparent-tab-background / bottom-edge-effect handling.
+- Classification: **SHARED PATTERN / DIFFERENT NAVIGATION IMPLEMENTATION**. Decision: **NEEDS INVESTIGATION / ADAPT CANDIDATE**. Inspect the actual Mew tab presentation modes, safe-area/background layering and iOS 26 behavior before applying transparency; preserve Mew's native tab colors, profile-avatar animation and touch overlay.
+
+### iOS settings export picker
+
+- Upstream commit: `d703ca48e5ade22ceaf424451ffba05efa94e670` changes export to `UIDocumentPickerViewController(url:inMode: .exportToService)`, matching the import picker family.
+- The upstream path `composeApp/src/iosMain/kotlin/com/nuvio/app/features/settings/SettingsConfigFileLauncher.ios.kt` is not present at that path in Mew `Main-dev`. Mew's corresponding settings backup/export caller and iOS picker contract have not yet been located.
+- Decision: **NEEDS INVESTIGATION**. Do not port the isolated constructor change until Mew's actual import/export implementation and completion/copy semantics are identified.
+
+### Dolby Vision Picture-in-Picture
+
+- Upstream commits `327123ae84ebb3fed9b45cf3df24cc677ae6d795` and related PiP pipeline changes add RPU metadata forwarding and a Metal conversion path for Dolby Vision PiP frames.
+- The inspected Mew iOS MPV bridge contains no PiP controller, RPU metadata forwarding, or `video-params/colormatrix` observer. This is not yet an app-wide absence finding; other iOS files/callers still need inventory.
+- Decision: **NEEDS INVESTIGATION** as a platform capability gap. Do not transplant the converter independently of a verified Mew PiP frame lifecycle, MPVKit API and HDR fallback contract.
+
+No application source changes. iOS build, tests, CI, simulator and device verification: **NOT RUN**.
