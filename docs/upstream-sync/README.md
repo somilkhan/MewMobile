@@ -1444,3 +1444,40 @@ Compared Mew and upstream iOS Compose player effects, Kotlin player bridge, Swif
 - External-player launchers are intentionally platform-specific and not equivalent to native MPV/PiP. Mew's Infuse, VLC, Outplayer and VidHub URL-scheme support should remain separate from any native PiP work.
 
 Verification boundary: source-level comparison only. GitHub code-search indexing returned no useful matches, so conclusions are limited to the inspected iOS source paths and recursive trees. No iOS build, simulator/device playback, PiP, call-interruption, HDR, subtitle or navigation restoration tests were run. No application source changes.
+
+## UI/UX parity audit — navigation, home, search, details and library — 2026-11-18
+
+Compared the current Mew `Main-dev` UI implementations against upstream `enhanced` at the verified refs above. This is source-level review, not screenshot/device validation.
+
+### Navigation and tab lifecycle
+
+- `core/ui/FloatingNavigationBar.kt` is identical between the inspected branches (686 lines). Mew already contains the same JellyMotion selection, RTL visual-index mapping, liquid-glass selection surface, label animation, glow and scroll-bounce behavior. Classification: **ALREADY IMPLEMENTED**. Do not port a duplicate navigation bar.
+- `RootTabHost.kt` is semantically identical in the inspected implementation: visited-tab retention, SaveableStateHolder, child LifecycleOwner capped at RESUMED/CREATED, focus clearing, inactive pointer consumption and semantics suppression. Classification: **ALREADY IMPLEMENTED**.
+- Upstream's `SettingsScreen.kt` additionally gates page rendering and back handling on `screenActive` / `isSelectedTab`, and uses `ScreenActivityEffect` for requested-page effects. Mew has tab lifecycle owners through RootTabHost but its inspected SettingsScreen call sites use ordinary LaunchedEffect and root-action policy. This is a **SHARED PATTERN / DIFFERENT SCREEN-LIFECYCLE WIRING** candidate: audit all settings entry points and nested pages before adapting; avoid suppressing deep-link/requested-page handling when a tab is inactive.
+
+### Home hero and search
+
+- Mew's `HomeHeroSection` is a substantial fork-specific implementation with selectable hero display modes, poster-art and streaming-showcase variants, rating/metadata controls, trailer enrichment and user-configurable presentation. Upstream's current hero adds distinct native-tab/vertical-bar anchoring, artwork sizing behavior for portrait/landscape/tablet, and trailer lifecycle/position handling. Classification: **INTENTIONAL PARALLEL / DIFFERENT PRODUCT UX**. Preserve Mew's hero modes and settings; selectively evaluate upstream's responsive sizing and native navigation anchoring on iOS/iPad/Android tablets. Do not replace the file.
+- Mew's `SearchScreen.kt` keeps the search field visible in a sticky header and renders discover content beneath it. Upstream uses a collapsible search field with an explicit search action, focus-driven recent-search visibility, a separate discover-filter row, native-tab auto-hide, and refresh behavior that retries addon manifest failures before refreshing discovery. These are meaningful UX and failure-state differences, not duplicate code. Decision: **INVESTIGATE / ADAPT selectively**. Test keyboard/focus, back dismissal, scroll position, discover filter persistence, addon failure/retry, accessibility labels and native-tab overlap before choosing whether Mew should adopt the collapsible interaction. Preserve Mew's existing query/discover behavior unless parity is explicitly chosen.
+- Mew's `HomeScreen.kt` is longer and contains additional CloudStream provider selection, profile-aware continue-watching enrichment/cache behavior and Mew-specific home sections. Upstream's screen uses a different lifecycle helper and scroll-stop behavior. Classification: **INTENTIONAL PARALLEL / DIFFERENT DATA AND LIFECYCLE SEMANTICS**. Compare the screen-active effects and stale-scroll handling separately; do not transplant HomeScreen wholesale.
+
+### Details and library presentation
+
+- Upstream `MetaDetailsScreen.kt` adds an episode-poster zoom anchor/backdrop-source transition and explicitly stops the hero trailer before navigation/play actions. Mew has its own action sheets, trailer popup, request/error/offline handling and hero scroll/header behavior, but the inspected code does not contain the same episode zoom-anchor transition. Decision: **ADAPT candidate** for the visual transition only after checking Mew's poster components, shared-element/zoom primitives, dialog dismissal, navigation back and TV/tablet interactions. Trailer-stop calls are a separate lifecycle correctness candidate; verify every Mew navigation/play action path before porting.
+- Upstream `DetailHero.kt` accounts for the native navigation bar's physical anchor/inset; Mew uses status-bar insets and custom hero chrome placement. This overlaps the earlier hero mute-alignment finding. Decision: **ADAPT platform-aware anchoring** only where a native tab bar is actually present; keep Mew's custom UIKit/profile-avatar layout and avoid applying the upstream offset on Android or non-native navigation layouts.
+- Upstream `LibraryScreen.kt` has explicit genre/year/watched filters, provider-order fallback, downloaded-mode section projection and active-screen scroll/network effects. Mew's version has additional release-calendar/radar enrichment, download filters and custom vertical projection but its inspected vertical projection does not expose the upstream genre/year/watched filter state. Classification: **SHARED PATTERN / DIFFERENT SEMANTICS** with a confirmed UI capability gap for genre/year/watched filtering (also recorded in the Library batch). Decision: **ADAPT** filters into Mew's existing projection and display settings rather than replacing its release calendar, cloud/download modes or sorting. Preserve saved filter state and provider ordering.
+- Upstream's `TabletDetailHero.kt` is an additional responsive detail presentation path absent from Mew's inspected tree. This is **NEEDS INVESTIGATION**, not automatically a missing feature: verify Mew's tablet breakpoint and existing `DetailHero`/series layout before deciding whether a separate tablet composition is warranted.
+
+### Duplicate audit classification
+
+- FloatingNavigationBar: **ALREADY IMPLEMENTED** (same implementation).
+- RootTabHost: **ALREADY IMPLEMENTED** (same lifecycle/state retention behavior).
+- Home hero: **INTENTIONAL PARALLEL** (Mew adds independent hero modes/settings).
+- HomeScreen: **INTENTIONAL PARALLEL** (Mew-specific CloudStream/profile-aware behavior).
+- SearchScreen: **SHARED PATTERN / DIFFERENT UX** (collapsible vs persistent search).
+- Details: **SHARED PATTERN / DIFFERENT INTERACTION** (episode zoom and trailer teardown).
+- Library: **SHARED PATTERN / DIFFERENT SEMANTICS** (Mew release calendar/download/cloud features; upstream genre/year/watched filters).
+
+### Verification boundary and next work
+
+Read-only source inspection on GitHub. Inspected paired commonMain files: `RootTabHost.kt`, `FloatingNavigationBar.kt`, `HomeScreen.kt`, `HomeHeroSection.kt`, `SearchScreen.kt`, `MetaDetailsScreen.kt`, `DetailHero.kt`, `LibraryScreen.kt`, plus settings screen call sites and the recursive source trees. No source files changed. No screenshot comparison, accessibility run, Gradle build, tests, CI, emulator or device verification. Next UI/UX pass: inspect poster/card components and action sheets/dialogs, TV and tablet layout branches, settings page hierarchy, keyboard/back behavior, and platform-native tab-bar integration; then reconcile all candidates against Mew's existing components and tests.
