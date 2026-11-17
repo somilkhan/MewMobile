@@ -1501,3 +1501,50 @@ Compared Mew and upstream common UI components for continue-watching actions, ep
 - Download and anime-tracking actions: Mew-specific additions; preserve.
 
 Verification boundary: read-only source inspection of the paired components and shared bottom-sheet primitive. No interaction tests, accessibility tests, screenshots, build, CI or device verification. No source changes.
+
+
+## Expanded UI/UX and experimental-feature audit — glass, backdrops, transitions, native iOS — 2026-11-18
+
+This pass expanded beyond screen-name matching and searched the recursive source trees for glass, backdrop, blur, transitions, tablet/TV, native-tab, and experimental feature implementations.
+
+### Liquid Glass core and customization
+
+- Mew already has the core `core/ui/glass/LiquidGlass.kt`, `LiquidGlassEffectSettings.kt`, and `LiquidGlassNavigationSurfaces.kt`. The settings model and navigation-surface file were byte-identical at the inspected refs; Mew is not missing Liquid Glass wholesale.
+- Mew's `LiquidGlass.kt` is 365 lines vs upstream's 426. The inspected upstream adds `staticFromBackdrop` handling in `ambientLiquidGlass` and a `StaticBackdropGlassElement/Node` that paints a captured `NuvioBackdrop` when live liquid-glass support is unavailable. Mew's ambient helper falls back to its configured solid/brush fallback only. Classification: **SHARED PATTERN / DIFFERENT PLATFORM FALLBACK**. Decision: **ADAPT candidate**; first check Mew's Android/iOS/desktop support gates and whether a static artwork backdrop is available on unsupported OS versions. Preserve Mew's current fallback colors and ensure no stale/incorrect backdrop capture.
+- Mew and upstream `PlayerLiquidGlass.kt` share the same video-frame backdrop architecture; Mew's file is 173 lines vs upstream's 167, with Mew-side additions rather than a missing implementation. Classification: **ALREADY IMPLEMENTED / Mew extension**. Platform actuals and player capture lifecycle still need a separate platform-by-platform audit.
+- The shared effect-settings model is byte-identical, including corner radius, blur, refraction, chromatic aberration, depth, tint opacity and opt-in effects for tab icons/floating bar. Do not re-port the model.
+
+### Upstream-only app glass experience
+
+- Upstream adds `core/ui/background/AppBackground.kt`, `AppBackgroundSettings.kt`, platform storage/picker actuals, and `features/settings/AppBackgroundSettingsSection.kt`. This provides configurable app-wide local-photo or URL artwork backgrounds, a glass enable switch, and Dark/Balanced/Vivid presets. Mew has profile backgrounds, `ProfileMeshBackground`, and Liquid Glass navigation surfaces, but no equivalent app-wide background configuration/repository/setting in the inspected source tree. Classification: **UPSTREAM-ONLY FEATURE / NEEDS PRODUCT AND PRIVACY REVIEW**. Decision: **INVESTIGATE**; evaluate image persistence, URL loading/SSRF-safe image policy, profile scoping, cache limits, offline behavior, licensing and performance before adoption. Do not conflate profile avatar/background customization with app-wide glass wallpaper.
+- Upstream `NavigationBarSettingsSheet.kt` exposes live preview, nav-bar style/position, icon color, glow and two independently adjustable glass effect profiles (floating bar and selection lens), with draft subscriptions scoped to the sheet and synchronous persistence on dismissal. Mew has the same underlying glass settings data model and navigation surfaces, but the inspected Mew source tree does not contain this upstream settings sheet path. Classification: **PARTIAL IMPLEMENTATION / SETTINGS UX PARITY GAP**. Decision: **INVESTIGATE** actual Mew settings entry points and persistence before porting controls; ensure unsupported devices do not expose nonfunctional refraction sliders and retain existing Mew navigation styles.
+
+### Artwork-aware backdrops and focus crop
+
+- Upstream adds `ArtworkBackdrop.kt` (320px decode, crossfade and backdrop-control color adaptation) and `BackdropFocus.kt` (saliency profile used to bias wide-art crop toward salient content), with Android/iOS actuals and common tests. Mew has `DynamicArtworkBackground`, `ProfileMeshBackground`, and `BackdropPaletteImage`, but no same-named artwork-backdrop/focus modules in the inspected tree. Classification: **NEEDS SEMANTIC COMPARISON**; likely complementary rather than duplicate. Decision: **INVESTIGATE / ADAPT** after tracing Mew hero, detail, profile and glass backdrop callers. Potential benefits: reduce repeated image decode, improve text/control contrast over art, and prevent faces/titles being cropped off-center. Preserve Mew's current dominant-color and profile background behavior.
+- Upstream has a focused `ArtworkBackdropTest` and `BackdropFocusTest`; Mew's equivalent tests were not found in the inspected tree. Tests are part of the candidate, not optional decoration.
+
+### Navigation and poster transitions
+
+- Upstream adds `NativeTabBarScrollEffect.kt`, `NativeTabBridge` platform actuals, and `iosApp/NuvioGlassTabBar.swift` (336 lines). Swift tab bar supports off/static/auto-hide/morphed modes, measured selection geometry, native glass rendering, and scroll-responsive behavior. Mew has `NativeTabBridge` and `FloatingNavigationBar`, but no `NuvioGlassTabBar.swift` or matching native-tab scroll-effect file. Classification: **UPSTREAM-ONLY PLATFORM IMPLEMENTATION**. Decision: **ADAPT candidate for iOS 26+ only**, with OS availability guards and Compose fallback; inspect Mew's current UIKit tab bar/profile-avatar bridge and navigation/back semantics before any replacement. Do not remove Mew's Android floating bar or assume native Swift glass is available on older iOS.
+- Upstream adds `PosterOpenMotion.kt` and `PosterNavigationMotion/Transition.kt`, with motion tests, to create a shared-element-like poster-to-detail opening transition. Mew has `PosterZoomActionOverlay` and `CastSharedTransition`, but no same-named poster navigation motion module. Classification: **NEEDS INVESTIGATION** (possible partial overlap). Decision: **ADAPT candidate** only after comparing current poster zoom overlay, navigation route ownership, interrupted transition handling, and restoration when back navigation returns.
+- Upstream adds `TabletDetailHero.kt` (486 lines) as a tablet-specific detail hero path. Mew has TV layout profile and streams tablet layout, but no matching detail tablet hero in the inspected tree. Classification: **POTENTIAL RESPONSIVE UI GAP**. Decision: **INVESTIGATE** Mew detail breakpoint/layout first; porting requires keyboard/focus, split-screen, landscape, and large-window validation.
+
+### Experimental player feature
+
+- Upstream includes `IosExperimentalPictureInPictureSettings` common and iOS actual storage, persisting a profile-scoped opt-in for a single-primary-renderer PiP path. Android reports availability false. This is distinct from the upstream native PiP controller already audited; it is an experimental renderer mode, not a general PiP enable switch. Mew's inspected tree has no matching setting/storage files. Classification: **UPSTREAM-ONLY EXPERIMENT**. Decision: **SKIP for now / NEEDS INVESTIGATION** until Mew's own PiP renderer exists and the single-renderer tradeoffs are documented; never expose a dead experimental toggle.
+
+### Duplicate and integration summary
+
+- LiquidGlass settings model and navigation surfaces: **ALREADY IMPLEMENTED**.
+- LiquidGlass unsupported-platform static backdrop fallback: **ADAPT candidate**.
+- App-wide glass wallpaper/presets: **UPSTREAM-ONLY / INVESTIGATE**.
+- Navigation glass live-preview/tuning settings: **PARTIAL IMPLEMENTATION / INVESTIGATE**.
+- Player video-frame glass: **ALREADY IMPLEMENTED / Mew extension**.
+- Artwork backdrop and saliency crop: **NEEDS SEMANTIC COMPARISON / ADAPT candidate**.
+- Native iOS glass tab bar and scroll behavior: **UPSTREAM-ONLY / ADAPT candidate**.
+- Poster-open motion: **NEEDS INVESTIGATION**.
+- Tablet detail hero: **POTENTIAL RESPONSIVE UI GAP**.
+- Single-primary-renderer PiP experiment: **SKIP pending native PiP architecture**.
+
+Verification boundary: recursive tree and source inspection at the verified SHAs above. No source changes, screenshots, accessibility validation, build, tests, CI, simulator or device checks. This is a newly expanded UI audit, not a claim that all UI/UX surfaces have been exhausted. Next pass should inventory every upstream-only UI feature and settings page, then inspect each caller and platform actual, including Android TV/remote focus, iPad/macOS window sizing, iOS native bar lifecycle, and all Liquid Glass effect presets/feature gates.
