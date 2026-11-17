@@ -903,3 +903,15 @@ Mew's `AddonManifest` already carries manifest resource declarations. Mew's libr
 Classification: **MISSING FEATURE / NEEDS INVESTIGATION**. It shares tracking data sources with existing Trakt/Simkl functionality, but has a different destination, protocol and consent boundary. It sends viewing activity, playback positions and library changes to third-party addon developers/services.
 
 No code changed. Do not implement without explicit approval for the feature scope. Any port must preserve mandatory install consent, per-addon ordered delivery, event chunking, and strict suppression of events caused by cloud sync, playback completion, derived series reconciliation or profile switching. Required tests include consent, URL encoding, queue ordering/isolation, 100-ID chunking, and lifecycle correctness for start/pause/stop/seek.
+
+## 2026-11-17 — batch downloads and storage-management audit
+
+Upstream commit `48cbb901bf48a641a1270c2d10bbd4260e712e68` adds season batch downloads, source prefill, queue policies, storage statistics, metered-network guards, offline metadata and platform cleanup/transfer changes.
+
+Mew already has `EpisodeDownloadFlowSheet`, `EpisodeDownloadCoordinator`, automatic per-episode source and quality selection, bounded provider/episode concurrency, pending source searches, `AllAtOnce` / `OneAtATime` queue modes, grouped downloaded-show episodes, offline detail snapshots and external-folder selection. Mew's batch flow has its own tests and a different pending-source lifecycle.
+
+Classification: **ALREADY IMPLEMENTED / INTENTIONAL PARALLEL** for the core batch-download feature. Do not copy the upstream batch coordinator or replace Mew's repository.
+
+Potential gaps: the inspected Mew download tree has no dedicated `DownloadNetworkGuard` or `DownloadsStoragePlatform` / device-storage-statistics abstraction. Mew's storage contract currently persists the download payload, external-folder URI and episode-download settings. The upstream batch also changes network policy, platform transfer scheduling, resume behavior, and multi-profile cleanup.
+
+Decision: **SKIP duplicate batch behavior; NEEDS INVESTIGATION for storage/network lifecycle gaps**. Compare actual Android/iOS scheduling and cleanup semantics before any platform integration. No code changed.
