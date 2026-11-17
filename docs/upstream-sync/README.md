@@ -365,3 +365,25 @@ Decision: **TAKE / ADAPT**, as a bounded vertical-grid filter feature. Implement
 ### Branch checkpoint
 
 At this audit: `Main-dev` = `69b4a96072b506f60dcbe538c5f6b71db3a4a464`; `main` = `207ef8fa309b8061b73039b2d4e4bde4af65050e`; upstream `enhanced` = `b4e446451f32edbdf8b1bf288d1a7a8a2bf10e03`. The `1.0.0...enhanced` range still contains 72 commits; this is a feature-group audit, not a completed review of every commit. Tests/build/CI/device verification: **NOT RUN** in this pass.
+
+## iOS UI / subtitle / backup picker follow-up audit — 2026-11-17
+
+### Floating tab-bar blur — upstream `c314dd48d622`
+
+Mew's `iosApp/iosApp/ContentView.swift` owns a custom native tab bar and applies tint/title styling by copying its existing `UITabBarAppearance`. It does not currently clear the tab-bar background effect or hide iOS 26 bottom scroll-edge effects. Upstream's UIKit fix targets a different root controller/tab-bar composition and its own floating pill. Mew's actual visual result has not been reproduced/verified on device.
+
+Decision: **NEEDS INVESTIGATION**, not a blind UIKit port. Verify iOS 26 Static/Auto-hide tab modes and Mew's custom tab appearance first; preserve its icon/title styling and tab interaction.
+
+### Styled subtitle retention after next episode — upstream `c5298633914d`
+
+Upstream changes its iOS player-local subtitle text state from `remember(sourceUrl)` to a stable remembered state reset by `LaunchedEffect(sourceUrl)`, retaining the style state across source/episode recomposition. Mew's `PlayerEngine.ios.kt` does not contain that `subtitleText` / `subtitleStyle` state pair; it routes subtitle selection through a different player/bridge implementation. The inspected Mew file therefore is not a safe patch target.
+
+Decision: **NEEDS INVESTIGATION** in Mew's actual iOS styled-subtitle overlay/bridge lifecycle. No code changed; do not modify Android/libmpv subtitle behavior based on this iOS-specific patch.
+
+### iOS backup export picker — upstream `d703ca48e5ad`
+
+Upstream changes export from `UIDocumentPickerViewController(forExportingURLs:asCopy:)` to `UIDocumentPickerModeExportToService`. Mew's backup bridge does not use either picker for export: it writes a temporary JSON file and presents `UIActivityViewController`; import uses `UIDocumentPickerModeImport`.
+
+Decision: **FALSE POSITIVE / DIFFERENT UX**. Preserve Mew's share-sheet export unless a separate bug is reproduced. No code changed.
+
+No tests/build/CI/device verification run for these audit-only decisions.

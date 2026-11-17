@@ -992,3 +992,11 @@ Upstream Library commit `2da28d707c77b0bb8d3030af8f360e67981a0994`: Mew already 
 Upstream mixed RTL/LTR commit `5964cdca71c0` is already substantially implemented by Mew commit `69b4a96072b506f60dcbe538c5f6b71db3a4a464`. Mew applies content-direction text styling to Search and Watch Party; upstream adds focused host regression tests. Decision: **ALREADY IMPLEMENTED** runtime behavior; test coverage remains an adaptation opportunity.
 
 Branches: `Main-dev` `69b4a96072b506f60dcbe538c5f6b71db3a4a464`; `main` unchanged at `207ef8fa309b8061b73039b2d4e4bde4af65050e`. Tests/build/CI/device checks: **NOT RUN**.
+
+## 2026-11-17 — iOS UI / subtitle / backup picker follow-up
+
+- Upstream `c314dd48d622` clears the floating tab-bar blur. Mew has a custom native tab bar with copied/tinted appearance; no device reproduction of the same bottom blur. **NEEDS INVESTIGATION**, not a blind port.
+- Upstream `c5298633914d` retains iOS subtitle state across source changes. Mew's iOS engine file does not have the corresponding subtitle text/style state pair and uses a different bridge path. **NEEDS INVESTIGATION** in Mew's actual styled subtitle overlay.
+- Upstream `d703ca48e5ad` changes document-picker export. Mew exports backups using a temporary file + `UIActivityViewController` share sheet, so this is **FALSE POSITIVE / DIFFERENT UX**.
+
+No app code changed. iOS device checks and tests: **NOT RUN**.
