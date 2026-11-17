@@ -726,3 +726,40 @@ These refs describe the earlier inspection state; the latest verified refs and f
 - Media-server playback query tokens are required by the provider protocol; current inspected app logging/persistence paths have redaction or exclusion safeguards, but external handoff remains open.
 - No backend SQL/RPC/RLS definitions were found in this repository, so cloud-synced server-token authorization, encryption and retention remain **UNVERIFIED**.
 - No application source changes or runtime tests were made during this follow-up.
+
+## Full upstream backlog — first functional comparison wave
+
+Scope: upstream stable tag `1.0.0` → `enhanced` HEAD (`b4e446451f32edbdf8b1bf288d1a7a8a2bf10e03`): **72 commits / 160 changed paths**. This is a broad post-stable release range, not 2,000 individual feature ports. The range includes 91 common Kotlin paths, 12 Android main paths, 10 iOS main paths, 17 resource paths, 17 test paths and release/CI/docs metadata. Every category remains in scope.
+
+### Batch A — feature parity candidates
+
+| Upstream feature/change | Main-dev evidence | Classification / decision |
+|---|---|---|
+| TorBox alternative-hash cache matching (`1118dfbf87de7d9e68860446ea553d48d06adcba`) | Mew `LocalDebridService.kt` (83 lines) returns TorBox results keyed by returned hash and has no alias-resolution fallback. Upstream adds normalized request hashes, canonical/alias resolution and selective single-hash retries; it adds focused tests. | **MISSING BEHAVIOR — ADAPT, HIGH PRIORITY.** Port the alias resolution into Mew's existing service and tests. Preserve cancellation propagation, avoid redundant requests, and verify batch/single hash semantics. |
+| Season batch downloads + storage management (`48cbb901bf48a641a1270c2d10bbd4260e712e68`) | Mew `DownloadsRepository.kt` supports individual enqueue, queue modes and pending source searches. It has no matching upstream-style season selection/source-planning coordinator or batch dialog. `DownloadsBatchFlowTest.kt` tests quality keys and pending-source grouping; it is not a season batch downloader. | **FEATURE GAP — ADAPT, LARGE FEATURE.** Build on Mew's existing enqueue/queue/service lifecycle; do not import upstream scheduler or replace Mew foreground downloads. Preserve profile cancellation, source lookup limits, completed-download detection and per-episode metadata. |
+| Library remembered filters: genre/year/watched + selected section/type (`2da28d707c77b0bb8d3030af8f360e67981a0994`) | Mew `LibraryDisplaySettings.kt` persists layout and sort settings. `LibrarySavedContent.kt` currently offers list/type/sort controls; `LibraryScreen.kt` already has Mew-specific downloads and release-calendar surfaces, but no matching saved-library genre/year/watched filter state or projection. | **FEATURE GAP — ADAPT.** Add filters to Mew's existing saved-library UI and persistence, not by replacing its screen. Define behavior across local, Trakt/Simkl and profile changes; add projection/persistence tests. |
+| Stremio player/library tracking addons, consent and event queue (`964ecfd8...`, related event commits) | Mew `AddonRepository.kt` handles installed addon manifests and `stremio://` URL normalization, but the inspected tree has no upstream-equivalent `AddonEvents` dispatcher or `TrackingAddonConsentDialog`. Mew's CloudStream compatibility and existing tracking providers are separate systems. | **NEEDS INVESTIGATION → ADAPT candidate.** Treat as a distinct addon capability, not a duplicate of CloudStream extensions. Review manifest resource support, event URL construction, install flow, consent persistence, event ordering/retries, profile scope and privacy before implementation. |
+| Playback error → next source fallback (`ff7500fd...`) | Mew `PlayerNextEpisodeAutoPlay.kt` selects a source for the *next episode*. Mew `PlayerScreenRuntimeEffects.kt` has `tryRefreshCredentialedSourceAfterError`, which refreshes the current credentialed source; inspected code does not show upstream's general failed-source cycling across installed addons. | **SHARED PATTERN / DIFFERENT SEMANTICS — ADAPT candidate.** Do not confuse next-episode selection or same-source credential refresh with current-playback source fallback. Audit error routing, stream loading completion, source identity, engine-switch behavior, retry caps and Mew player UI before porting. |
+| Android gesture-navigation timeline inset (`4128f63e...`) | Mew `PlayerLayout.kt` lacks upstream `playerTimelineBottomInsets`; Mew controls apply slider offset without the equivalent bottom safe-drawing inset. | **ADAPT candidate.** Already documented in semantic audit batch 7; test edge-to-edge, fullscreen, three-button navigation, landscape and TV before integration. |
+| Episode artwork fallback after image failure (`b4e44645...`) | Mew detail cards fall back when thumbnail is absent, but inspected code has no image-load error fallback state. | **ADAPT candidate.** Both card layouts; preserve Mew card design, rating and download affordances. |
+| Empty known-key catalog sync guard (`0b9d9359...`) | Mew repository lacks the upstream empty-key preservation guard. | **TAKE candidate** with sync race regression tests. |
+
+### Batch B — intentional differences and already-present work
+
+- **TorBox cloud-library DTO mapping:** Mew and upstream `TorboxCloudLibraryProviderApi.kt` have the exact same blob SHA `463832f2e61e0dd59f7cfccda56a483113563bd0`; its tests also match exactly. This is already implemented. The alternative-hash fix is in the separate `LocalDebridService.kt` and is not covered by that equality.
+- **Library screen:** Mew's library is a deliberate parallel implementation with its own downloads view, cloud-library surface and release calendar. Upstream genre/year/watched filters are a behavior gap, not a reason to replace Mew's 2,584-line screen with upstream's 3,612-line screen.
+- **Downloads:** Mew's foreground service, resumable transfer, queue and pending-source worker remain an intentional parallel architecture. Upstream season batch planning can be adapted above Mew's queue; the upstream WorkManager/JobScheduler transfer backend must not replace Mew's.
+- **Player:** Mew's next-episode autoplay, credential refresh, external-player handoff and player presentation have different contracts. Compare behavior at the call sites; do not classify similarly named fallback paths as equivalent.
+- **Watch progress identity:** previously verified exact blob equality with upstream; no port required.
+- **iOS-only changes:** iOS subtitle reset, document picker and backup exclusion are not Android ports. Keep them in the cross-platform audit ledger and assess separately if Mew's iOS target is still in scope.
+- **Localization:** locale additions and translation corrections are a separate batch. Check resource key coverage, generated resources, RTL/BiDi rendering, locale configuration and Mew-specific strings before copying locale files.
+
+### Next functional batches
+
+1. Finish Batch A call-site and dependency audit, including source-fallback error entry points, addon install flow and library profile persistence.
+2. Audit all remaining changed paths in the 72-commit release range, especially subtitle cue rendering, downloads storage/network policy, CI/release metadata and iOS-specific behavior.
+3. Expand beyond the 72-commit range: compare the older stable-beta/release history and current feature branches by feature area. The 72-commit range is the first manageable wave, not the full upstream history.
+4. Only after the semantic inventory, prepare small approved integration groups for `Main-dev`. No code has been ported in this audit.
+
+Tests/build/device verification for this comparison wave: **NOT RUN**. Findings are based on remote source/tree inspection only.
+
