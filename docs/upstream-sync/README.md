@@ -1919,3 +1919,47 @@ The previous per-control correction said the parental-guide control's second vis
 ### Verification limits
 
 Read-only source inspection only. No source implementation changes, builds, tests, CI, simulator or device checks. Current branch refs were re-fetched before this documentation update. `Main-dev` and `main` remain untouched.
+
+
+## Backup/import parity and native presentation audit (2026-11-18)
+
+Source refs rechecked before documentation update: Mew `Main-dev` `69b4a96072b506f60dcbe538c5f6b71db3a4a464`; upstream `enhanced` `b4e446451f32edbdf8b1bf288d1a7a8a2bf10e03`; current `upstream-sync` `1ddb4f5364f802ddc0cb0311aaa5353f5f99c5b3`.
+
+### Backup/import is not equivalent to upstream Settings Config Transfer
+
+**Mew current behavior**
+- Enhanced settings offers file export, file import, copy JSON, and paste JSON.
+- The payload comes from `ProfileSettingsSync.exportBackupJson()`, which serializes `MobileProfileSettingsBlob` — the profile settings sync schema — rather than a dedicated versioned backup format.
+- Exported sections include theme, poster/card styles, player, stream badges, Debrid, TMDB, MDBList, details, collections, Continue Watching preferences, Trakt, notifications, Enhanced settings and AI Assistant.
+- Export explicitly strips profile credentials from Player, Debrid, TMDB, MDBList and AI Assistant using `withoutProfileCredentials`. Import preserves the current local credentials for those features via `preservingLocalProfileCredentials`.
+- Import decodes the blob and applies it through `applyRemoteBlob`; there is no explicit user confirmation step for file import in the inspected path. The manual paste dialog accepts raw text and invokes the same import.
+- No dedicated backup format/version/app-version/export timestamp or explicit sensitive-data opt-in was found in this Mew backup path.
+
+**Upstream behavior**
+- `SettingsConfigTransfer` uses a dedicated `nuvio_settings_config` format with version, app version, export timestamp, and `includes_sensitive_data` metadata.
+- Export supports explicit opt-in for credentials. Sensitive sections such as Live TV/addons/plugins are conditionally included.
+- Import validates format/version, asks for confirmation (with distinct copy when sensitive data is included), applies sections individually, and reports full/partial/failure outcomes.
+- Upstream covers additional domains absent from the inspected Mew profile blob, including subtitle auto-sync, custom posters, OMDb, library display, downloads/general settings, P2P, Discord RPC, Live TV, addons and plugins.
+- Upstream import deliberately preserves local dismissed Continue Watching keys rather than restoring those transient dismissals.
+
+**Classification: SHARED PATTERN / DIFFERENT SEMANTICS; significant parity gap. Decision: ADAPT, not wholesale replace.**
+- Mew's profile sync blob is designed for profile cloud sync and credential preservation. It should not silently be treated as a complete portable configuration backup.
+- Create a dedicated Mew backup schema/version and explicit sensitive-data policy only after defining exactly which profile settings, app-global settings, credentials, addons/plugins, provider state and transient state should transfer.
+- Preserve Mew's profile-scoped keys, local credential safety, Mew-only settings and current sync behavior. Add confirmation, schema validation, partial-import reporting and migrations where appropriate.
+- Audit whether current Mew backup is incomplete by product intent or by omission before porting upstream's additional sections. Do not import credentials by default.
+
+### Native sheet/dialog behavior
+
+- Mew's shared `NuvioModalBottomSheet` selects the iOS native UIKit page sheet when native sheets are enabled and the glass UI is inactive; otherwise it uses the Compose Material3 modal sheet path.
+- iOS native path uses `UIModalPresentationPageSheet`, medium + large detents for non-full-height sheets, large-only for full-height, configurable grabber, and disables automatic scroll-to-expand. It retains the presentation delegate and invokes the current dismiss callback.
+- Android native sheet actual in the inspected source is a no-op; the shared wrapper falls through to Material3 modal sheet on Android. Therefore “native sheet on both platforms” is not established by the shared API name. Keep Android Material sheet behavior unless a concrete Android native presentation is intentionally designed.
+- Mew `DialogSurface` uses app glass backdrop + dialog tokens; direct `AlertDialog`/ `BasicAlertDialog` components bypass it. PIN entry is a security-sensitive opaque Material surface; P2P consent has its own soft/animated surface and scrollable consent body. These are intentional presentation variants, not candidates for blind unification.
+- Backup import currently uses standard Material `AlertDialog` for paste; upstream uses `DialogSurface` for the import confirmation. The larger gap is confirmation/format semantics, not simply dialog styling.
+
+### Dialog audit status
+
+Inventory is still incomplete. Next inspect the remaining direct dialog call sites, each picker mode, platform dismiss/back/outside behavior, focus restoration, keyboard handling, screen-reader labels, TV/tablet width and scroll constraints. Do not declare a global dialog redesign complete until each call site is classified by intent and risk.
+
+### Verification limits
+
+Read-only source inspection. No source code changes, build/test/CI, iOS simulator, Android emulator or physical-device validation. Main-dev and main remain untouched.
