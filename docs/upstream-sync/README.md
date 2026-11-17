@@ -2077,3 +2077,41 @@ This means Mew can retain account-scoped local caches/settings after a remote se
 ### Verification limits
 
 Read-only GitHub source inspection. No source changes, build/test/CI, simulator/emulator or physical-device checks. Mew `Main-dev` and `main` remain untouched.
+
+
+## Download account-wipe and settings-reset audit correction (2026-11-18)
+
+Verified refs: Mew `Main-dev` `69b4a96072b506f60dcbe538c5f6b71db3a4a464`; upstream `enhanced` `b4e446451f32edbdf8b1bf288d1a7a8a2bf10e03`; `upstream-sync` before this update `cb7932bdb469b054efd0f7de4b3bd0c5e59491aa`. Prior doc blob: `a296b5bdd9c1ee05c043259b7b9b30cc0c6b368e`.
+
+### Correction: download repository cleanup exists
+
+The earlier account-cleanup comparison missed Mew's `DownloadsRepository.clearLocalState()`. It cancels registered active task handles, clears the in-memory UI state, resets the loaded flag and notifies the live-status platform. This is a real Mew implementation and must be preserved.
+
+However, the account cleaner does not currently call it. The previous claim that Mew has no download in-memory cleanup was incorrect; the precise gap is **wiring the existing cleanup into account invalidation**, plus persistent/platform cleanup.
+
+### Confirmed account data retention in download persistence
+
+- Android stores download payload, external-folder URI and episode-download settings in SharedPreferences file `nuvio_downloads`, with profile-scoped keys. The Android `PlatformLocalAccountDataCleaner.preferenceNames` list does not include `nuvio_downloads`.
+- iOS stores the same three values in profile-scoped NSUserDefaults keys. Its account cleaner's `profileScopedBaseKeys` list does not include `downloads_payload`, `external_folder_uri` or `episode_download_settings`.
+- Therefore both platform cleaners leave download metadata/settings behind on account wipe, including profile-indexed download queue records and selected external-folder URI. A later account reusing the same profile index can encounter stale metadata/settings.
+- Android media files live under `filesDir/downloads`; the platform account cleaner does not remove this directory or its `.part` files.
+- iOS media files live under `Documents/nuvio_downloads` and are explicitly excluded from device backups. The platform account cleaner does not remove this directory either.
+- `DownloadsRepository.clearLocalState()` cancels in-memory handles but does not itself erase persisted payload, completed media or partial files. Normal per-download cancellation removes the item file and its `.part`; account wipe has no equivalent bulk lifecycle in the inspected path.
+
+**Classification:** SHARED PATTERN / DIFFERENT SEMANTICS. **Decision: ADAPT, high priority.** Integrate existing `DownloadsRepository.clearLocalState()` into account cleanup, then define a safe account-wipe contract for profile-scoped queue metadata, external-folder permission/URI, active transfers, partial files and completed downloads. Do not delete user media silently until product intent is explicit; distinguish “forget account queue” from “delete downloaded media”. Ensure pending-source worker jobs cannot repopulate state after wipe. Do not introduce upstream WorkManager/JobScheduler architecture into Mew's foreground/coroutine downloader.
+
+### Server and shuffle follow-up
+
+The Mew tree at the verified Main-dev SHA has no upstream-equivalent `features/servers/ServerRepository` or `features/shuffle/EpisodeShuffleRepository` files. The server configuration files in Mew's `core/network` are not evidence of the same Jellyfin/Emby account state; upstream's media-server repository and shuffle state are upstream-only features in this comparison. Classify as **FALSE POSITIVE for direct missing-cleanup calls** until Mew introduces equivalent features. Do not add placeholder cleanup APIs.
+
+### Settings reset/defaults — current evidence
+
+- Mew's Settings root has no visible global “Reset all settings” route/action in the inspected implementation.
+- Repositories expose `clearLocalState()` primarily for account wipe/profile lifecycle, not as a user-facing restore-defaults operation. For example, `ThemeSettingsRepository.clearLocalState()` resets in-memory values and native-tab bridge state; it is not itself a persisted user reset flow.
+- Advanced settings does expose a targeted “clear Continue Watching cache” action. Debrid repository also has a narrower `resetStreamTemplates` operation; this is not a global settings reset.
+- Exact GitHub code searches for “Reset to defaults”, “Restore defaults”, and “Reset settings” returned no indexed results. Search indexing is incomplete, so absence of other per-feature reset actions is **not proven**.
+- **Decision: NEEDS INVESTIGATION** for a full settings reset inventory. Trace per-page actions and repository/storage reset APIs, then decide whether users need per-section restore defaults, profile-only reset, or app-wide reset. Any future reset must clearly distinguish profile-scoped preferences, global UI preferences, credentials, feature-announcement state, downloaded files and account data.
+
+### Verification limits
+
+Read-only GitHub source inspection. No app source changes, builds, tests, CI, simulator/emulator or device checks. `Main-dev` and `main` remain untouched.
