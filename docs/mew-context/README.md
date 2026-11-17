@@ -321,3 +321,36 @@ These refs describe the earlier inspection state; the latest verified refs and f
 - No Gradle build, unit/instrumentation tests, CI run, emulator or device verification was performed. Source tests cited in this document are **NOT RUN**.
 - No application source, `Main-dev`, or `main` was changed. This update changes only this audit Markdown on `upstream-sync`.
 - Next: complete the remaining security/caller trace for server discovery, custom-poster image requests and token-bearing playback URLs; then consolidate a small `Main-dev` integration matrix. Do not port application code until explicitly approved.
+
+
+### Server boundary follow-up — trust UI and token handling (2026-11-17)
+
+#### Custom backend HTTP warning and UI reachability
+- `ServerConfiguration.isSecure` is derived from whether `backendUrl` starts with HTTPS. `ServerDiscoveryPolicy.normalizeBackendUrl()` accepts both HTTP and HTTPS, so a valid HTTPS discovery document can still advertise an HTTP backend endpoint.
+- Upstream contains a `ServerTrustDialog` that explicitly warns:
+  - private-network HTTP is unencrypted and may be readable by other devices on the network;
+  - public-host HTTP may expose credentials and synced data in transit;
+  - the server operator can receive account credentials and synced data.
+  The dialog requires an explicit “I trust this server” confirmation.
+- Important limitation: a call-site for `ServerConnectionSheet`, `ServerTrustDialog` or `ServerConnectionController` was not found in the inspected `App.kt`, `SettingsScreen.kt`, `SettingsRootPage.kt` or `AccountSettingsPage.kt`. GitHub code search returned no usable matches. The warning component exists, but whether the custom-backend flow is reachable from the shipped UI is **NOT VERIFIED**.
+- Build policy: custom server connections are enabled in upstream `androidFull` and `iosFull`, but disabled in `androidPlaystore` and `iosAppStore`.
+- Decision remains **NEEDS INVESTIGATION / POSSIBLE ORPHAN**. Do not rely on the warning as an effective mitigation until its caller and shipped build variant are verified. If the flow is integrated, preserve the explicit trust review and make sure the displayed URL is the actual backend URL.
+
+#### External media-server token exposure — mitigations observed
+- Emby/Jellyfin API requests send the token in the MediaBrowser authorization header. API clients disable automatic redirects; the public-info redirect retry is made without a token.
+- Direct-play and external-subtitle delivery URLs append the provider-required `api_key` query parameter. The token-bearing URL is therefore a real data flow, not just a theoretical concern.
+- Observed mitigations:
+  - `InAppLogger.redactUrl()` removes query strings, fragments and URL user-info before logging.
+  - player runtime logging uses that redactor for stream/playback URLs;
+  - server sources are excluded from `lastSourceUrl`, avoiding persistence in the normal last-source field;
+  - Sentry's Android HTTP breadcrumb interceptor strips query and fragment;
+  - `ServerPlayback` logs labels, event types and positions rather than the playback URL;
+  - `MediaBrowserClient` maps transport failures to generic server errors rather than exposing the request URL.
+- Still unverified: external-player handoff for server streams, third-party crash/HTTP instrumentation outside the inspected paths, and whether all future diagnostics preserve query redaction.
+- Decision: **ADAPT WITH SECURITY GUARDS** if ported. Keep tokens out of logs, diagnostics, persisted history and external-player handoff unless that handoff is explicitly designed and disclosed. Add tests for URL redaction and server-source persistence exclusion.
+
+#### Updated security disposition
+- HTTP custom-backend support is not silently accepted by the discovery policy, but the backend URL can be HTTP; a trust-warning component exists, while its call-site remains unverified.
+- Media-server playback query tokens are required by the provider protocol; current inspected app logging/persistence paths have redaction or exclusion safeguards, but external handoff remains open.
+- No backend SQL/RPC/RLS definitions were found in this repository, so cloud-synced server-token authorization, encryption and retention remain **UNVERIFIED**.
+- No application source changes or runtime tests were made during this follow-up.
