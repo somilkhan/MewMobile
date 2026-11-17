@@ -921,3 +921,15 @@ Compared Mew `upstream-sync` at `ea7dc36d6b83689459516b0a19bec59e95b939ce` with 
 - `b4e4464` fall back to series artwork when an episode thumbnail fails — **ALREADY IMPLEMENTED**. Mew has `rememberEpisodeImageState` and error callbacks in horizontal and list episode cards.
 
 No source changes required for this delta. No tests, builds, CI or device/simulator verification were run. This is a source-presence/behavior comparison, not runtime verification.
+
+
+## 2026-11-17 — older-history metadata and iOS detail UX audit
+
+Compared upstream fixes against current Mew `Main-dev` source and callers:
+
+- Upstream `c5298633914d967792c79351754ba47d54dfd242` keeps Compose subtitle text/style state alive across episode changes, clearing only the text on source change. Mew's iOS `PlayerEngine.ios.kt` has no equivalent Compose subtitle text/style state pair: it delegates subtitle rendering and style application to the native mpv bridge (`loadFileWithAudio`, `applySubtitleStyle`). **SKIP exact patch / INTENTIONAL PARALLEL**. Keep a separate bridge-level regression audit for style reapplication after `loadFileWithAudio`; do not add unused Compose state.
+- Upstream `b6ae11b8be1d2b6ff702ca8163143e06c5902810` falls back from empty Simkl related titles to Trakt/TMDB. Mew's `MetaDetailsRepository.applyMoreLikeThisSource` selects authenticated Trakt or configured TMDB; no Simkl related-title source is wired into this flow. **NOT APPLICABLE as a bug-fix port**. Simkl recommendations would be a separate feature requiring product/source-setting and API audit.
+- Upstream `a65cd8b2e42d7170d47cace44e5ebd6f03a053eb` fixes MDBList watch-progress projection so episodes do not inherit show runtime. Mew's inspected `features/mdblist` module contains metadata service/settings only; no equivalent MDBList progress projection was found. **NOT APPLICABLE to current Mew integration**; don't create a parallel projection solely to copy this fix. Revisit if MDBList playback-progress sync is introduced.
+- Upstream `f28929d3e3cc0d354de1dd921efc539bbf8a14cf` adds native navigation-bar button-anchor geometry for detail hero mute-button alignment. Mew `DetailHero.kt` uses status-bar top inset plus fixed trailing padding and has no anchor contract in the common screen. Mew iOS root uses a standalone `UITabBar` with its own root controller, not upstream's UINavigationController integration. **ADAPT candidate / NEEDS INVESTIGATION**: trace pushed detail navigation controller ownership, safe-area/RTL coordinate conversion and native/custom navigation modes before designing a platform anchor. Preserve current hero behavior when no native bar is present. No source change.
+
+No source changes in this batch. Tests/build/CI/simulator/device verification: **NOT RUN**. Current refs at audit time: Mew `Main-dev` `69b4a96072b506f60dcbe538c5f6b71db3a4a464`; `main` `207ef8fa309b8061b73039b2d4e4bde4af65050e`; `upstream-sync` before this ledger update `b527df783859f750667417012cf1916bd50ad333`; upstream `enhanced` `b4e446451f32edbdf8b1bf288d1a7a8a2bf10e03`.
