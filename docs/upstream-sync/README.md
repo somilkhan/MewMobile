@@ -908,3 +908,16 @@ Further caller tracing shows why the upstream HomeAddonSignals cannot replace Me
 - Replacing Mew's full state with the upstream projection would risk suppressing a catalog refresh when an addon catalog/resource/transport changes but the projected signal remains equal.
 
 Decision refinement: ADAPT the collection/recomposition boundary, not the source-of-truth data contract. Keep current AddonRepository as the source of truth. Before implementing, identify the exact fields used by buildHomeCatalogRefreshSignature and HomeCatalogSettingsRepository.syncCatalogs; split narrow UI-only signals from a catalog-refresh signature that changes for every relevant catalog/resource mutation. Trigger side effects from a distinct key and read current repository values at execution time. Preserve CloudStream registry revision and all profile/visibility dependencies. No code change until that field/caller audit and tests are complete.
+
+
+### Upstream delta audit — 2026-11-17 (five commits after common ancestor)
+
+Compared Mew `upstream-sync` at `ea7dc36d6b83689459516b0a19bec59e95b939ce` with upstream `enhanced` at `b4e446451f32edbdf8b1bf288d1a7a8a2bf10e03`. The merge base is `f4b7e55e31c2778827095dbdb246193e8675016f`. GitHub comparison reports five upstream-only commits; the 69 opposite-side count is Mew-only history, not 69 pending upstream commits.
+
+- `c529863` iOS styled subtitle state across episode changes — **ALREADY IMPLEMENTED**. Mew keeps `subtitleText` in composition state and clears it through `LaunchedEffect(sourceUrl)`.
+- `0b9d935` preserve local catalog choices when remote sync arrives before catalog definitions load — **ALREADY IMPLEMENTED**. Mew preserves unknown local keys while `knownKeys` is empty.
+- `d703ca4` use the export-to-service document picker on iOS — **ALREADY IMPLEMENTED**. Mew uses `UIDocumentPickerModeExportToService`.
+- `05e779a` improve bug-report install-method and official-app diagnostics — **ALREADY IMPLEMENTED**. Mew's issue template contains the sideloading choices and official-app comparison question.
+- `b4e4464` fall back to series artwork when an episode thumbnail fails — **ALREADY IMPLEMENTED**. Mew has `rememberEpisodeImageState` and error callbacks in horizontal and list episode cards.
+
+No source changes required for this delta. No tests, builds, CI or device/simulator verification were run. This is a source-presence/behavior comparison, not runtime verification.
