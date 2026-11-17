@@ -1035,3 +1035,8 @@ Static key/duplicate audit of default, French, pt-BR, Indonesian `id` and legacy
 ## Home performance audit handoff — 2026-11-17
 
 See `docs/upstream-sync/README.md` section **Home performance and loading UX audit**. Findings: Mew collects the full AddonRepository state; upstream uses compact mapped/distinct signals. **ADAPT** but preserve Mew CloudStream/Cloud Library/profile semantics. Upstream's retryable manifest error card is a candidate requiring Mew-specific no-source/offline UI review. Hero metadata side-effect separation needs Mew owner/caller tracing. Android Baseline Profile/benchmark module is absent in inspected Mew build files; adapt only after build variant/test journey/performance audit. Mew's Coil-rendered Mew SVG wordmark is an intentional parallel; don't replace with upstream painter. No app source changed; build/benchmark/CI/device tests NOT RUN.
+
+
+## iOS 26 tab-bar blur — refined source finding
+
+Mew's `RootComposeViewController` uses a standalone full-width `UITabBar()`, not `UITabBarController`; it appears only on iPhone/iOS 26+ when the Liquid Glass and native-tab preferences are both enabled. Its existing appearance copies the standard appearance and updates icon/title tints but does not clear background effect/color/shadow. Upstream commit `c314dd48d622de249eebbea7e531e3f7b2e506d4` clears these on a tab controller and its item. Decision: **ADAPT candidate**, implement only inside Mew's existing appearance function and only for Liquid Glass mode if the same blurred band is confirmed; preserve avatar overlay and floating pill. Simulator/device visual check required; NOT RUN. Details in upstream-sync ledger.
