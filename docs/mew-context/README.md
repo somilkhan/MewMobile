@@ -1040,3 +1040,8 @@ See `docs/upstream-sync/README.md` section **Home performance and loading UX aud
 ## iOS 26 tab-bar blur — refined source finding
 
 Mew's `RootComposeViewController` uses a standalone full-width `UITabBar()`, not `UITabBarController`; it appears only on iPhone/iOS 26+ when the Liquid Glass and native-tab preferences are both enabled. Its existing appearance copies the standard appearance and updates icon/title tints but does not clear background effect/color/shadow. Upstream commit `c314dd48d622de249eebbea7e531e3f7b2e506d4` clears these on a tab controller and its item. Decision: **ADAPT candidate**, implement only inside Mew's existing appearance function and only for Liquid Glass mode if the same blurred band is confirmed; preserve avatar overlay and floating pill. Simulator/device visual check required; NOT RUN. Details in upstream-sync ledger.
+
+
+## Download network guard duplicate classification
+
+Mew `NetworkStatusRepository` is an HTTP reachability probe (public endpoint + app server checks), not an OS path monitor; it cannot identify Wi-Fi/cellular/expensive/constrained transport. Classification: **SHARED PATTERN / DIFFERENT SEMANTICS**, not a duplicate. Preserve it and add a separate platform path-cost signal for download admission/pause policy. Details in upstream-sync ledger. No source changes.
