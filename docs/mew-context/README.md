@@ -222,3 +222,22 @@ Never describe a partial audit as exhaustive. State API limits, missing local ch
 - Main-dev `ProfileRepository.kt` (SHA `750e1b49e32df98effd5c4bd6a7be2e94a86f2ee`) also allocates the lowest free profile index in `1..MAX_PROFILES`. Its current `deleteProfile()` path removes the profile and PIN cache but has no generic per-feature storage cleanup hook in the inspected section.
 - This is an existing architectural constraint, not a reason to copy incomplete cleanup from upstream. Any newly ported profile-indexed store (shuffle/custom posters/server data) must explicitly remove its index on deletion and reset in-memory state when the active profile changes. Keep this scoped to the feature integration; do not silently refactor unrelated Mew profile stores.
 - Main-dev account wipe currently clears its known repositories and platform storage through `LocalAccountDataCleaner`; it has no custom-poster/shuffle/server feature to clean yet. New storage keys must be added to both platform wipe implementations as part of their respective feature ports.
+
+
+### Stream-fetch duplicate audit and Mew adaptation boundary
+
+- Upstream has two separately consumed stream flows:
+  - `StreamsRepository` feeds the dedicated stream-selection screen. It owns request tokens, loading placeholders, downloaded/embedded groups, empty states and auto-play decisions.
+  - `PlayerStreamsRepository` explicitly documents that it owns separate state for the in-player source and episode panels so it does not interfere with the main `StreamsRepository`. It also has separate cancellation, filters, pause-search-on-playback and cleanup behavior.
+- Both upstream flows call `ServerStreams.sources(...)` and merge server sources alongside addon/plugin sources. This shared behavior is **INTENTIONAL PARALLEL** at the repository/UI-state level, not a reason to collapse the two flows.
+- Main-dev has the same two separate entry points, but both contain substantial Mew CloudStream-specific behavior:
+  - `features/streams/StreamsRepository.kt` SHA `18dd4ddb2c4aa90128bd9a179ed487a4a507d331` includes CloudStream route parsing, registry revision/cache keys, provider groups, direct-route resolution and bounded provider concurrency.
+  - `features/player/PlayerStreamsRepository.kt` SHA `b5d26cd370bb531a6ebf5f5d5b83e886acd85bec` has separate player-panel state and CloudStream route/provider resolution with its own concurrency.
+- Main-dev has no `ServerStreams`, `ServerPlayback` or `PlayerScreenRuntimeServerTracks.kt` equivalent at the inspected paths. Server integration must be adapted into both Mew flows without dropping CloudStream route handling, plugin pause semantics, concurrency, filters, request generations or the separate UI states.
+- Upstream player integration is in the player runtime rather than the engine:
+  - `PlayerScreenRuntimeSourceActions.prepareServerForPlayer()` calls `ServerPlayback.prepare()` for streams requiring server preparation.
+  - `PlayerScreenRuntimeServerTracks.kt` supplies server audio/subtitle track state, switching/restart and session stop.
+  - `PlayerScreenRuntimePlaybackActions.kt` deliberately excludes server-source URLs from `lastSourceUrl`, reducing persistence of token-bearing playback URLs.
+  - `ServerPlayback` also tracks active sessions by playback URL and reports playback lifecycle events.
+- The upstream `StreamSourceLoader.kt` contains a third `resolveTargets/fetchAddonGroup/loadStreams` path with overlapping addon/plugin/server target resolution. No caller was identified in the inspected `StreamsRepository`, `StreamsScreen`, `PlayerStreamsRepository`, `PlayerScreenContent`, `PlayerScreenRuntimeUi`, `PlayerScreenRuntimeSourceActions`, `StreamSearchSessions`, `StreamAutoPlaySelector` or `SeriesPlaybackResolver`; no corresponding test file was found. Classification: **NEEDS INVESTIGATION / POSSIBLE ORPHAN**, not a confirmed duplicate. Do not port or refactor it until repo-wide references and history are checked.
+- Decision: **ADAPT** the server-source/provider/playback behavior into Mew's existing two flows. Do not replace Mew's stream repositories, do not introduce `StreamSourceLoader` by assumption, and keep the player UI/engine unchanged unless a verified server-playback requirement proves otherwise. Add regression coverage for CloudStream + addon + plugin + server coexistence in both flows.
