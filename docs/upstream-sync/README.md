@@ -247,8 +247,7 @@ GitHub compare confirms `1.0.0...enhanced` contains **72 commits**. Four behavio
 
 - Upstream commit: `48cbb901bf48a641a1270c2d10bbd4260e712e68` (large cross-platform feature batch).
 - Mew already has a season/episode batch flow: `EpisodeDownloadFlowSheet`, `EpisodeDownloadCoordinator`, automatic per-episode source/quality selection, bounded provider/episode concurrency, pending source searches, queue modes (`AllAtOnce` / `OneAtATime`), grouped completed-show episodes, offline metadata snapshots and external-folder selection.
-- Classification for the core batch-download behavior: **ALREADY IMPLEMENTED / INTENTIONAL PARALLEL**. Do not port the upstream coordinator or download queue wholesale; that would duplicate Mew's existing implementation and risk its pending-source workflow.
-- Remaining differences need a separate audit: upstream adds device storage statistics/bar, metered-network/Wi-Fi policy and live network guards, plus additional platform transfer/cleanup behavior. Mew's inspected download tree has no matching `DownloadNetworkGuard` or `DownloadsStoragePlatform` abstraction; its storage contract currently persists the download payload, external folder URI and episode-download settings.
+- Classification for the core batch-download behavior: **ALREADY IMPLEMENTED / INTENTIONAL PARALLEL**. Do not port the upstream coordinator or download queue wholesale; that would duplicate Mew's existing implementation and risk its pending-source workflow.- Remaining differences need a separate audit: upstream adds device storage statistics/bar, metered-network/Wi-Fi policy and live network guards, plus additional platform transfer/cleanup behavior. Mew's inspected download tree has no matching `DownloadNetworkGuard` or `DownloadsStoragePlatform` abstraction; its storage contract currently persists the download payload, external folder URI and episode-download settings.
 - Decision: **SKIP duplicate batch behavior; NEEDS INVESTIGATION for storage/network lifecycle gaps**. Compare Android/iOS downloader scheduling, multi-profile cleanup, resume-data behavior, and mobile-data preferences before porting any platform code. No code changed.
 
 #### Downloads batch / storage audit — refined decisions
@@ -406,3 +405,55 @@ Compared the source snapshot base `4ded43d72a0e9e31879eaa72c76d35feb4f06720` wit
 - GitHub compare responses for `Main-dev` were inconsistent across adjacent reads (one response reported `69b4a960...`; another showed `a4b8ff258...` as its ancestor). Treat Main-dev's exact branch head as **UNRESOLVED** until a fresh ref read; do not write to it based on the stale checkpoint.
 - No app source, workflow, release, or branch promotion changed in this batch. Tests/build/CI/device verification: **NOT RUN**.
 - Next audit: locate the actual Main-dev iOS styled-subtitle overlay/state owner, then continue the remaining localization, provider compatibility, playback/subtitle and UI-regression batches. Also review the bug-template baseline question as a small documentation/support improvement.
+
+## Expanded alignment mandate — product, architecture, quality and UI/UX parity
+
+The objective is **full maturity alignment**, not merely importing missing features. Audit upstream improvements even when Mew already has a feature with the same name. An existing Mew implementation is not automatically equivalent, safer, more complete or better architected.
+
+For every meaningful upstream change, inspect the behavior and compare it with Mew across these dimensions:
+
+1. **Bug fixes and reliability:** identify the original failure, affected callers/platforms, root cause, edge cases and regression coverage. Check whether Mew has the same bug, a related variant, or already has a stronger fix. Port the underlying fix where relevant, not just the changed lines.
+2. **Architecture and engineering maturity:** compare boundaries, ownership, state machines, data flow, concurrency, cancellation, lifecycle, error handling, caching, persistence, migrations, testability, observability and dependency choices. Look for simpler, safer, more maintainable or more scalable upstream designs. Do not preserve a weaker Mew design solely because it is already present; equally, do not replace a sound Mew design merely because upstream renamed or reorganized it.
+3. **New and improved features:** audit capability, completeness, settings, defaults, profile behavior, platform parity, accessibility, offline behavior and failure states. A feature may exist in Mew but still have meaningful upstream improvements worth adapting.
+4. **UI/UX and visual quality:** compare actual screens and user flows, not only composable names. Inspect hierarchy, spacing, typography, icons, motion, transitions, navigation/back behavior, gestures, sheets/dialogs, loading/empty/error states, responsive layouts, TV/remote behavior, keyboard/focus, accessibility and state restoration. Identify upstream designs that are clearer, more consistent, more polished or easier to use. Also identify where Mew's design is intentionally better and must remain.
+5. **Performance and resource use:** compare startup, recomposition, scrolling, image loading, memory, network requests, database work, background execution, battery and large-library behavior where evidence exists.
+6. **Security, privacy and compatibility:** inspect auth/token handling, TLS, redirects, storage, backup, permissions, account/profile isolation, provider contracts, data loss risks and backwards compatibility.
+7. **Tests and delivery quality:** compare unit/host/instrumentation tests, fixtures, CI, build configuration, release validation and migration coverage. Upstream tests may expose gaps even when runtime behavior already exists in Mew.
+
+### Required comparison record
+
+For each candidate or cohesive change group, record:
+
+- Upstream commit/release, changed paths and the user-visible or internal problem it addresses.
+- Upstream implementation contract: inputs, outputs, state ownership, side effects, lifecycle, failure behavior and platform scope.
+- Mew implementation and all relevant callers, shared components, routes, repositories, source sets and tests.
+- Semantic differences, not just file or symbol differences.
+- Whether upstream is demonstrably better, Mew is better, both have gaps, or the implementations are equivalent.
+- User impact, engineering benefit, regression/security/data-migration risk, dependencies and verification plan.
+- Decision: **TAKE**, **ADAPT**, **IMPROVE MEW**, **ALREADY IMPLEMENTED (EQUIVALENT OR BETTER — WITH EVIDENCE)**, **KEEP MEW DESIGN**, **SKIP**, or **NEEDS INVESTIGATION**.
+
+Do not label something ALREADY IMPLEMENTED just because a similarly named class, screen or setting exists. Demonstrate parity across behavior, lifecycle, errors, persistence and platform coverage. If upstream is more mature, record the exact improvement and make an adaptation candidate even if Mew's basic feature already works.
+
+### UI/UX parity is a first-class audit
+
+For every upstream UI/UX change, inspect screenshots/previews where available and trace the complete interaction. Compare the relevant Mew screen and shared design system. Record:
+- What changed visually and behaviorally, and which user problem it solves.
+- Whether the design is objectively clearer or more usable, rather than merely different.
+- Reusable components/tokens and consistency with Mew's existing visual language.
+- Android, iOS, compact phone, large-screen/tablet and TV implications where supported.
+- Accessibility, localization/RTL, focus, keyboard, scrolling, insets, gestures and navigation regressions.
+- Whether to adopt, adapt, selectively improve Mew, or retain Mew's current design, with reasons.
+
+Preserve Mew branding and intentional product choices, but do not use them as an excuse to reject genuinely better upstream UX. Do not blindly copy upstream screens or redesign unrelated areas. Ship cohesive, reviewed UI batches and verify screenshots/device behavior where possible.
+
+### Full-history audit method
+
+The 2,000+ commit range must be covered systematically. Walk release/tag checkpoints and commit ranges, group related changes by behavior and subsystem, and maintain a path/feature coverage ledger so changes are not silently skipped. Use commit subjects and changed paths only to discover candidates; inspect source, callers, tests and relevant history before deciding. For large or capped GitHub comparisons, use recursive tree inventories and smaller per-release/per-area comparisons. Track reviewed, deferred, blocked and not-yet-reviewed ranges separately. Do not report a percentage as complete unless the denominator and coverage evidence are explicit.
+
+Audit both directions: upstream improvements that Mew lacks, and Mew improvements/overlays that should be retained or considered upstream-worthy. A parity audit is not an instruction to make Mew identical where Mew's behavior is intentionally better.
+
+### Integration priority
+
+Prioritize by user impact and risk: correctness/data safety/security; playback, subtitles and provider reliability; core navigation and high-traffic UI; performance and lifecycle; feature completeness; visual polish and lower-impact cleanup. Architecture improvements should be evaluated for measurable reliability/maintenance benefit and migration cost, not novelty.
+
+No integration is automatic. First complete the semantic and UI/UX review, record the decision, then implement the smallest coherent change in the approved Mew development branch. Add regression tests where practical, inspect the final diff, and report exact verification. Preserve Mew-specific behavior unless a reviewed change explicitly improves it without unacceptable regressions.
