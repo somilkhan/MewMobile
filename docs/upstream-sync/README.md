@@ -234,3 +234,12 @@ GitHub compare confirms `1.0.0...enhanced` contains **72 commits**. Four behavio
 - Mew `main`: unchanged at `207ef8fa309b8061b73039b2d4e4bde4af65050e`.
 - Mew `upstream-sync`: this documentation branch; upstream application source snapshot remains unchanged.
 - Tests, Gradle builds, CI and device verification remain **NOT RUN** for this session.
+
+### Stremio tracking addons — privacy-sensitive feature group
+
+- Upstream feature commit: `964ecfd8d98598cd2d315cedb584fe7ef59a76fd`; follow-up correctness/performance commits: `d89811ac6c75a3f80c0ab424ab01a37639401d54` and `8f5d9bcac3c2c0535b17b26cbdff392c10b8d767`.
+- Upstream introduces player and library resource event delivery to installed addons, explicit install consent, ordered event delivery, video-id chunking, and guards against sync-derived series watched reconciliation being emitted as user intent.
+- Mew already parses addon manifest resources and has Trakt/Simkl-style tracking providers in `LibraryRepository` and `WatchedRepository`, but the inspected Mew addon install/repository and tracking call paths do not contain an addon event dispatcher or tracking-addon consent flow.
+- Classification: **MISSING FEATURE / NEEDS INVESTIGATION**. This is not a filename-level port. It transmits watch activity, playback positions and library changes to third-party addon developers/services.
+- No code changed. Before implementation, require explicit approval for the feature scope and preserve a mandatory consent step. Audit all watched/library mutation paths to ensure only direct user actions emit events—not cloud sync, playback completion, derived series reconciliation or profile switching. Review per-addon ordering, queue isolation, retry/timeout, opt-out/removal, existing installed tracking addons and privacy wording.
+- Required regression tests: consent gating; event URL encoding; per-addon ordering/isolation; 100-id chunking; no events for sync/reconciliation/playback-derived changes; correct start/pause/stop/seek lifecycle.

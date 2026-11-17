@@ -890,3 +890,16 @@ Upstream `f28929d3e3cc0d354de1dd921efc539bbf8a14cf` aligns the detail hero mute 
 ### Range checkpoint
 
 The `1.0.0...enhanced` compare contains 72 commits. Four changes are integrated into `Main-dev`; the rest are not yet fully audited. `Main-dev` is `2d5fc48d285b4ae42a2d341cb34cd28897685f6a`; `main` remains `207ef8fa309b8061b73039b2d4e4bde4af65050e`. Tests/build/CI/device verification: **NOT RUN**.
+
+## 2026-11-17 — Stremio tracking-addon feature audit
+
+Upstream commits:
+- `964ecfd8d98598cd2d315cedb584fe7ef59a76fd`: Stremio player/library resource events and tracking-addon installation consent.
+- `d89811ac6c75a3f80c0ab424ab01a37639401d54`: prevents derived series-watched reconciliation from emitting a user-intent event.
+- `8f5d9bcac3c2c0535b17b26cbdff392c10b8d767`: per-addon event queues, ordering/isolation, and no-addon fast paths.
+
+Mew's `AddonManifest` already carries manifest resource declarations. Mew's library/watched repositories integrate existing tracking providers, but the inspected addon installation, library and watched paths have no Stremio addon event dispatcher or tracking-addon consent flow. This is a new capability, not an equivalent implementation.
+
+Classification: **MISSING FEATURE / NEEDS INVESTIGATION**. It shares tracking data sources with existing Trakt/Simkl functionality, but has a different destination, protocol and consent boundary. It sends viewing activity, playback positions and library changes to third-party addon developers/services.
+
+No code changed. Do not implement without explicit approval for the feature scope. Any port must preserve mandatory install consent, per-addon ordered delivery, event chunking, and strict suppression of events caused by cloud sync, playback completion, derived series reconciliation or profile switching. Required tests include consent, URL encoding, queue ordering/isolation, 100-ID chunking, and lifecycle correctness for start/pause/stop/seek.
