@@ -1055,3 +1055,8 @@ Mew's full enabled-addon list is not only for display: it feeds metadata-provide
 ## Upstream audit continuation — 2026-11-17
 
 Older-history batch compared upstream metadata/iOS fixes against Mew `Main-dev`: iOS subtitle state patch is not applicable to Mew's native mpv bridge (separate bridge reapply audit remains); Simkl related-title fallback is not applicable because Mew uses Trakt/TMDB for More Like This; MDBList episode-runtime projection is absent from Mew's metadata-only MDBList module; detail hero native-bar anchor is an ADAPT candidate but requires pushed-navigation/RTL coordinate audit. Ledger details in `docs/upstream-sync/README.md`. No source changes, tests/build/CI/device checks NOT RUN. Refs before docs: Main-dev `69b4a96072b506f60dcbe538c5f6b71db3a4a464`, main `207ef8fa309b8061b73039b2d4e4bde4af65050e`, upstream enhanced `b4e446451f32edbdf8b1bf288d1a7a8a2bf10e03`.
+
+
+## iOS MPV rendering audit — 2026-11-17
+
+New upstream parity candidates: Mew's iOS MPV bridge uses `nativeScale` only (upstream uses max(screen.scale, nativeScale)); Mew's MetalLayer lacks preferred drawable-size protection; its foreground handler restores video/playback but does not explicitly relayout the drawable. Upstream RPU-aware Dolby Vision PiP is a missing feature; Mew's inspected iOS player has no PiP frame pipeline. All are audit-only; playback code unchanged; iOS build/simulator/device tests NOT RUN. See `docs/upstream-sync/README.md` for commits/files and risks.
