@@ -836,3 +836,46 @@ Mew's base resource set has 2,933 keys; upstream has 3,162, with 2,189 keys shar
 **ADAPT — translation completeness backlog, medium priority.** Start with Mew-owned strings that are already used by Mew screens and whose upstream translations can be safely adapted. Preserve Mew branding, product terminology, placeholders, plurals, punctuation and resource-format semantics. Exclude upstream-only feature keys until their feature is accepted. Run XML/resource validation and common/iOS/Android compilation after any translation batch. This audit made no resource-file changes.
 
 Verification: source-level key extraction and duplicate-name scan only; no XML parser/build/lint/test/CI/iOS simulator/device run. Branch refs at audit time: Mew `Main-dev` `69b4a96072b506f60dcbe538c5f6b71db3a4a464`, `main` `207ef8fa309b8061b73039b2d4e4bde4af65050e`, upstream `enhanced` `b4e446451f32edbdf8b1bf288d1a7a8a2bf10e03`.
+
+
+## Home performance and loading UX audit — 2026-11-17
+
+Compared upstream commit `e5272769a6709d43aaecc3d7bbe8d66d5a200702` with Mew Main-dev. The upstream change is a performance-focused group: mapped/distinct state collection, smaller home addon signals, separated hero metadata loading, a retryable addon-manifest error state, wordmark preloading, Compose stability configuration, and an Android Baseline Profile/benchmark module.
+
+### Home addon state collection — ADAPT candidate
+
+- Mew `HomeScreen.kt` collects the full `AddonRepository.uiState` using `collectAsStateWithLifecycle()`, then derives `enabledAddons`, metadata-provider keys and readiness keys with `remember`. The state is referenced by refresh/offline-recovery paths as well as home composition.
+- Upstream adds `collectMappedAsState` (map + `distinctUntilChanged`) and projects only `HomeAddonSignals`: metadata-provider key, readiness key, whether any manifest is active, whether manifests are loading, and first enabled-manifest error.
+- Mew has additional semantics absent from upstream: CloudStream providers participate in `hasActiveAddons`; Mew-specific Nuvio Enhanced settings, Cloud Library, profiles and other home projections remain active. The upstream projection cannot be copied unchanged.
+- Decision: **ADAPT — medium/high performance candidate**. Create a Mew-owned compact signal including all fields consumed by Mew's home and retain CloudStream state separately. Ensure the mapped signal has structural equality and no expensive work per emission. Keep refresh actions reading the current repository state to avoid stale closures. Measure recomposition/startup before and after; add tests for enabled/disabled addon, manifest refresh/error, CloudStream-only home, profile switch and offline recovery.
+
+### Manifest failure empty state — ADAPT candidate / UI review required
+
+- Upstream exposes `firstEnabledManifestError()` through `HomeAddonSignals` and, when there are no renderable sources, shows a retryable `HomeEmptyStateCard` or offline card. Retry refreshes network status and all addons.
+- Mew's inspected home path derives active/loading state but has no equivalent `addonManifestErrorMessage` projection in `HomeScreen.kt`. Mew has CloudStream provider errors and Mew-specific source states, so upstream's single error card is not directly transferable.
+- Decision: **ADAPT / NEEDS UI INVESTIGATION**. Review Mew's existing no-catalog, offline, CloudStream failure and addon refresh states before adding an error card. Avoid replacing a meaningful empty state with an addon-only error when CloudStream/server/collection content remains usable. Retry must preserve the user's enabled provider/source selection.
+
+### Hero metadata loading separation — NEEDS INVESTIGATION
+
+- Upstream moves the metadata fetch side effect into `HomeHeroMetaLoadEffect(items)`, separate from `rememberHomeHeroState(items)`, so settings changes used for metadata loading do not automatically make the hero presentation state depend on all metadata settings.
+- Mew's checked path does not have the same `HomeHeroMetaRepository.kt` source at the upstream path, so this is not a direct file port. The Mew hero metadata owner and its settings invalidation/caching semantics must be traced before changing composition boundaries.
+- Decision: **NEEDS INVESTIGATION**; preserve Mew's hero metadata, CloudStream and profile behavior. No guessed new repository/helper.
+
+### Android Baseline Profile and Compose stability config — ADAPT candidate
+
+- Upstream adds a dedicated `:baselineprofile` instrumentation module, benchmark build type, generated startup/steady-state profile, and Compose stability config for collection interfaces. This is Android-only; it does not improve iOS startup directly.
+- Mew's inspected `settings.gradle.kts`/version catalog do not declare the baseline-profile plugin/module/dependencies. No Mew baseline-profile generation or macrobenchmark setup was found in those inspected files.
+- Decision: **ADAPT — medium priority after performance baseline**. First inspect Mew's build variants, product flavors, app IDs/signing, existing Android instrumentation workflows and test navigation selectors. Reuse Mew-specific launch journeys (home, catalog, details, player) and avoid upstream package IDs or generated profiles. Profile generation requires a supported Android device/emulator; until run, report as NOT RUN. Compose stability config must be justified by compiler metrics, not copied as a blanket fix.
+
+### Brand wordmark preload — INTENTIONAL PARALLEL
+
+- Upstream preloads/caches a Compose resource bitmap for its own wordmark and uses a bitmap painter.
+- Mew's `AppBrandWordmark.kt` deliberately renders its Mew-owned SVG through Coil's SVG decoder; its source comment explains the Compose SVG painter incompatibility on Android. Replacing it with upstream's `painterResource`/bitmap cache risks breaking the SVG asset path or branding.
+- Decision: **INTENTIONAL PARALLEL**. If cold-start profiling shows wordmark decode is material, optimize through the existing Coil/resource pipeline and preserve the Mew SVG. Do not port upstream's asset/painter implementation.
+
+### Home audit classification summary
+
+- **ADAPT:** compact addon state projection; baseline profiles after measurement/build audit; carefully scoped retryable manifest-error UX.
+- **NEEDS INVESTIGATION:** hero metadata effect/state separation and Mew-specific no-source error-state interactions.
+- **INTENTIONAL PARALLEL:** Mew SVG/Coil wordmark rendering; Mew's additional CloudStream/Cloud Library/profile home behavior.
+- App source changes: **0**. No builds, benchmarks, UI tests, CI or device/simulator runs were performed in this audit batch.
