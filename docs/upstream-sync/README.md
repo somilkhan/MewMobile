@@ -1324,3 +1324,23 @@ No application source changes. Localization validation, tests/builds/CI, iOS sim
 - Classification: **MISSING PERSISTED FIRST-PAINT CACHE / INTENTIONAL HOME PIPELINE DIFFERENCE**. Decision: **ADAPT candidate**. Design a profile-scoped snapshot with explicit TTL/versioning and stale-data policy; preserve Mew's CloudStream and addon catalog identity/request keys, custom ordering, localization and hero metadata. Do not serialize unsupported target kinds or show stale private/profile data after account/profile changes. Test profile isolation, malformed/old snapshots, addon removal/renames, CloudStream provider changes, offline rendering, fresh-response replacement and cache-write cancellation.
 
 No application source changes. Startup benchmarks, tests/builds/CI, and physical-device cold/warm launch verification: **NOT RUN**.
+
+
+## DNS-over-HTTPS and Android networking resilience — 2026-11-18
+
+### DNS resolver behavior
+
+- Mew `Main-dev` uses OkHttp's `DnsOverHttps` implementation. `ConfiguredDnsOverHttps` rebuilds/caches the resolver instance when the selected provider changes; its resolver wrapper has no explicit per-host answer cache. It supports Google, Cloudflare, AdGuard, DNS.WATCH, Quad9, DNS.SB and Canadian Shield. `None` uses `IPv4FirstDns`.
+- Upstream `enhanced` uses a custom `NuvioDns` / `DohClient` / DNS wire-message parser. It caches DNS answers by provider+hostname using returned TTL (clamped to 60–3600 seconds), queries A and AAAA, and clears the cache when provider changes. It supports System, Cloudflare, Google, AdGuard and Quad9.
+- Important semantic difference: upstream falls back to system DNS when a DoH request throws `IOException`; Mew's configured DoH resolver propagates lookup failure rather than silently leaking the hostname to system DNS. Mew therefore has a stricter privacy/fail-closed behavior for selected DoH providers. Upstream treats NXDOMAIN/empty answers as unknown host, not a system fallback.
+- Mew's DNS setting is persisted for Android and iOS, but the actual custom OkHttp resolver is Android-specific; upstream explicitly reports iOS DNS as unsupported and uses platform defaults there.
+- Classification: **SHARED PATTERN / DIFFERENT PRIVACY AND FAILURE SEMANTICS**. Decision: **KEEP Mew resolver; ADAPT only after focused DNS benchmarks/tests**. TTL caching may reduce repeat DoH latency, but preserve Mew's selected-provider no-system-fallback guarantee unless the user explicitly chooses a fallback policy. Do not replace OkHttp's maintained DoH implementation with upstream's custom DNS packet parser without security review.
+- Missing verification coverage in both inspected trees: no dedicated DNS resolver test files. Add tests for provider changes/cache invalidation, TTL expiry, A/AAAA merging, IP literals/localhost, bootstrap resolution, malformed/truncated answers, NXDOMAIN, network failure and no-system-fallback privacy behavior.
+
+### HTTP client differences
+
+- Upstream adds a Ktor API client with redirects disabled at both Ktor and OkHttp levels, retry-on-connection-failure disabled, explicit connect/read/request timeouts, and a bounded response-body reader (16 MiB default).
+- Mew's shared Android OkHttp base is intentionally small and supplies the live configured DNS resolver; callers derive clients with `newBuilder()`. Mew also has dedicated CloudStream/provider request paths, so upstream's API client is not a drop-in replacement for those transports.
+- Classification: **SHARED NETWORKING CONCERNS / DIFFERENT TRANSPORT OWNERSHIP**. Decision: **NEEDS CALL-SITE AUDIT** before porting timeout, redirect, retry or response-size policies. Trace every Mew Ktor/OkHttp/CloudStream/Supabase client and its redirect/auth/header behavior first; do not silently change provider compatibility or weaken TLS/hostname checks. Consider bounded body reads only for Mew-owned API endpoints with known response contracts.
+
+No application source changes. DNS/network tests, benchmarks, build/CI and device verification: **NOT RUN**.
