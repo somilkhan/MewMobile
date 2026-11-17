@@ -801,3 +801,20 @@ Reference point: common ancestor `f9ad843b14cd3be7fa3ddb800b6961233e0e5b56`, tre
 - Use release tags as audit checkpoints, but include commits between tags and branch-only work. A tag's `prerelease` flag and release notes must be checked; historical beta-named releases may not have the GitHub prerelease flag set.
 - The first 72-commit post-`1.0.0` range is only the most recent manageable wave. It does not cover the full 2,193-commit ancestry delta.
 
+## 2026-11-17 — episode artwork fallback integration
+
+**Upstream source:** `luqmanfadlli/NuvioMobile-Enhanced` `enhanced`, commit `b4e446451f32edbdf8b1bf288d1a7a8a2bf10e03`.
+
+**Mew comparison:** `DetailSeriesContent.kt` on `Main-dev` had thumbnail-null fallback (`video.thumbnail ?: fallbackImage`) in both horizontal and list episode cards, but no Coil image-load error callback. The shared fallback is passed from `meta.background ?: meta.poster`. The Mew file is not a safe wholesale replacement: it contains fork-specific TV layout sizing, episode progress, rating, download and click/zoom behavior.
+
+**Duplicate audit:** no same-behavior helper in the inspected detail component. The two card layouts are intentional parallel presentations (not duplicate UI); both need the same fallback behavior. No dependency added; Mew and upstream version catalogs both specify Coil 3.6.3.
+
+**Decision:** `ADAPT`. Added a keyed `rememberEpisodeImageState` helper and `AsyncImage.onError` callbacks to both Mew card variants. Primary thumbnail failure switches to series artwork; Mew presentation and interactions are preserved.
+
+**Changed file:** `composeApp/src/commonMain/kotlin/com/nuvio/app/features/details/components/DetailSeriesContent.kt`.
+
+**Commits:** implementation `edcda9a8e081143ae87aab8bbc6c48cb4ca8c4c8`; callback indentation correction `813510f128e58aefa0b5daa4757f18502c733fa6`.
+
+**Verification:** GitHub diff and new branch head read back. Gradle build/tests, CI and device testing: **NOT RUN**. Runtime image-failure fallback: **NOT VERIFIED**. Repository-wide duplicate search was incomplete, so do not claim a complete global duplicate audit.
+
+**Branch safety:** `Main-dev` now points to `813510f128e58aefa0b5daa4757f18502c733fa6`; `main` remains `207ef8fa309b8061b73039b2d4e4bde4af65050e`; `upstream-sync` remains the upstream source snapshot plus Mew documentation.

@@ -146,3 +146,25 @@ At the shared ancestor `f9ad843b14cd3be7fa3ddb800b6961233e0e5b56`, upstream has 
 
 These counts measure tree paths, not features. Generated resources, vendored native code, assets, tests and build metadata need different review rules. GitHub's compare endpoint returns a capped file list for this large range; use recursive tree inventories and per-area semantic inspection for full coverage.
 
+## Selective integration progress — 2026-11-17
+
+Latest verified state (supersedes older branch-head checkpoints above):
+
+- Upstream `enhanced`: `b4e446451f32edbdf8b1bf288d1a7a8a2bf10e03`.
+- Mew `upstream-sync`: `4ded43d72a0e9e31879eaa72c76d35feb4f06720`; its source snapshot remains aligned to the upstream `enhanced` tree, with Mew-owned docs as extras.
+- Mew `Main-dev`: `813510f128e58aefa0b5daa4757f18502c733fa6`.
+- Mew `main`: unchanged at `207ef8fa309b8061b73039b2d4e4bde4af65050e`.
+
+### Completed adaptation
+
+- Upstream commit: `b4e446451f32edbdf8b1bf288d1a7a8a2bf10e03` — episode artwork fallback after image-load failure.
+- Upstream path: `composeApp/src/commonMain/kotlin/com/nuvio/app/features/details/components/DetailSeriesContent.kt`.
+- Mew equivalent inspected: same path on `Main-dev`. Mew's episode-card implementation differs substantially in layout, TV sizing, progress, ratings, download affordances and click/zoom behavior; wholesale file replacement was rejected.
+- Dependency check: Mew and upstream both use Coil 3.6.3. Existing Mew `remember` / `mutableStateOf` imports support the state helper; no dependency was added.
+- Decision: **ADAPT**. Added keyed fallback state and Coil `AsyncImage.onError` handling to Mew's horizontal and list episode cards. The original Mew card layouts and interactions remain intact.
+- Mew commits: `edcda9a8e081143ae87aab8bbc6c48cb4ca8c4c8` (implementation), `813510f128e58aefa0b5daa4757f18502c733fa6` (callback indentation correction).
+- Verification: GitHub commit diff read back; branch head confirmed. No local Gradle build, automated tests, CI run or device test was executed. Runtime fallback remains **NOT VERIFIED**.
+- No equivalent image-load fallback was found in the inspected Mew detail component. Repository-wide code search returned incomplete/no usable matches, so broader duplicate status remains unproven.
+- `Main-dev` only was changed. `main` and `upstream-sync` application source remain untouched.
+
+Next: continue auditing the remaining post-1.0.0 feature groups and older release checkpoints. Do not treat this one adaptation as completion of the full upstream audit.
