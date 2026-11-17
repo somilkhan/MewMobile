@@ -835,7 +835,7 @@ private fun EpisodeHorizontalCard(
                     .fillMaxSize()
                     .then(if (shouldBlurArtwork) Modifier.blur(18.dp) else Modifier),
                 contentScale = ContentScale.Crop,
-            onError = { episodeImage.onError() },
+                onError = { episodeImage.onError() },
             )
         }
 
@@ -1250,7 +1250,7 @@ private fun EpisodeListCard(
                             .fillMaxSize()
                             .then(if (shouldBlurArtwork) Modifier.blur(18.dp) else Modifier),
                         contentScale = ContentScale.Crop,
-                    onError = { episodeImage.onError() },
+                        onError = { episodeImage.onError() },
                     )
                 } else {
                     Box(
