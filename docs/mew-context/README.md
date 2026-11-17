@@ -944,3 +944,9 @@ Upstream commit `718b526a67654fa94a18da39aabdd7d4aa21af44` excludes the default 
 **Adapted on Main-dev:** commit `a4b8ff258439f91140da2f92c60bec868fc6cec0` adds `NSURLIsExcludedFromBackupKey` on the default downloads directory, once created. Existing files in that directory inherit the folder setting; user-selected external folders are unchanged.
 
 GitHub diff verified. iOS compilation and device verification: **NOT RUN**. Main remains unchanged at `207ef8fa309b8061b73039b2d4e4bde4af65050e`.
+
+### iOS pushed-page blur and Android player inset audit
+
+Upstream `c5e74dde1b7a7085d6e8684d5780f83faae68b38` modifies its UIKit pushed-page navigation-bar appearance and iOS 26 scroll-edge blur. Mew's iOS root controller has a different tab/navigation lifecycle and no matching upstream navigation-bar/scroll-edge integration in the inspected file. Decision: **SKIP unless reproduced on Mew's navigation stack**.
+
+Upstream `d374bdf022f63ead318387c6f9ffebcdb8113497` adjusts the bottom inset helper `playerTimelineBottomInsets`; Mew does not have that helper or equivalent calculation in `PlayerLayout.kt`. The existing `safeContent` call is for horizontal safe padding. Classification: **FALSE POSITIVE / NOT APPLICABLE**. No player layout change.

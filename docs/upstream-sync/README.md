@@ -288,3 +288,9 @@ The comparison of Mew's actual implementations against upstream commit `48cbb901
 - Decision: **TAKE / ADAPT**. Set `NSURLIsExcludedFromBackupKey` on Mew's downloads directory once it is created. This also covers existing files in that directory. User-selected external folders are not modified.
 - Main-dev commit: `a4b8ff258439f91140da2f92c60bec868fc6cec0`; file: `composeApp/src/iosMain/kotlin/com/nuvio/app/features/downloads/DownloadsPlatformDownloader.ios.kt`.
 - Verification: GitHub commit diff confirms only the iOS downloader changed and the default downloads folder receives the attribute. iOS compile/device verification: **NOT RUN**.
+
+### iOS pushed-page blur and Android player inset fixes — reviewed
+
+- `c5e74dde1b7a7085d6e8684d5780f83faae68b38` changes upstream's UIKit `RootComposeViewController` navigation-bar appearance and iOS 26 scroll-edge effects. Mew's `iosApp/iosApp/ContentView.swift` has a different root/tab-controller lifecycle; the inspected Mew controller does not have the matching pushed `UINavigationController` navigation-bar/scroll-edge setup. **SKIP for now**; only revisit if Mew reproduces the same frosted strip on its actual iOS navigation stack.
+- `d374bdf022f63ead318387c6f9ffebcdb8113497` changes upstream's `playerTimelineBottomInsets` from Android `safeContent` to `safeDrawing`. Mew's `PlayerLayout.kt` does not contain that helper or the same bottom-inset calculation; the only matching `safeContent` use found is horizontal safe padding. **FALSE POSITIVE / NOT APPLICABLE** to this Mew implementation. Do not import an unused helper or alter player layout without a reproduced device issue.
+- No code changed for either item.
