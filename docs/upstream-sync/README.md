@@ -321,3 +321,10 @@ The comparison of Mew's actual implementations against upstream commit `48cbb901
 - Decision: **ADAPT** the five upstream locale packages by merging only matching keys into Mew's resource namespace, preserve all Mew-specific strings and use default English fallback for untranslated Mew-only keys. Update `AppLanguage` and Android locale config, including the existing Arabic/Russian registration omission. Review RTL layout separately; do not assume adding Urdu/Hebrew/Arabic resources alone fixes mixed-direction text.
 - Add resource-key parity checks and verify Compose resource generation plus Android per-app language settings. No app code changed in this audit; builds/tests **NOT RUN**.
 
+### Mixed RTL/LTR text — adapted
+
+- Upstream commit: `5964cdca71c0cc6c4892af88f76083b165c6e55c`.
+- Mew's shared `NuvioInputField` hard-coded its text style, preventing callers from requesting content-aware paragraph direction. Search, recent-search labels, party sender names, chat bubbles and composer did not explicitly use `TextDirection.Content`.
+- Decision: **TAKE / ADAPT**. Added an optional `textStyle` parameter with the existing typography as its default, then applied content-aware direction only to Search and Watch Party text surfaces. Unmodified callers retain the previous default style.
+- Main-dev commit: `69b4a96072b506f60dcbe538c5f6b71db3a4a464`; files: `core/ui/Components.kt`, `features/search/SearchScreen.kt`, `features/party/PartyChatContent.kt`.
+- Verification: GitHub diff reviewed; combined status returned no status checks. Tests/build/device checks: **NOT RUN**. Mixed Arabic/Hebrew + Latin text and IME editing still need UI regression verification.

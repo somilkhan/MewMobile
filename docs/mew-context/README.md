@@ -966,3 +966,11 @@ Mew currently has no Bengali, Croatian, Urdu, Ukrainian or Simplified Chinese re
 Resource key counts: Mew default English 2,933; Hebrew 782; pt-BR 1,560. Upstream locale files map to 2,121 existing Mew English keys for Hebrew/Chinese/Ukrainian/Bengali/Croatian, 2,115 for Urdu and 2,169 for pt-BR. The Mew-only keys need to be retained and fall back to English; do not replace Mew's locale XML files wholesale.
 
 Decision: **ADAPT** the five locale packages by merging only matching resource keys, adding language enum entries and Android locale registrations, and preserving Mew-specific strings. Also register existing Arabic/Russian resources in Android locale config. Verify RTL behavior separately. Resource generation/build/tests: **NOT RUN**.
+
+### Mixed RTL/LTR text — 2026-11-17
+
+Adapted upstream commit `5964cdca71c0cc6c4892af88f76083b165c6e55c` into Mew's shared input/search/chat UI.
+
+Changed `NuvioInputField` to accept an optional `TextStyle` while retaining its existing typography as the default. Search input/recent searches and Watch Party sender names, message bubbles and composer now use `TextDirection.Content`. Existing callers that omit the new argument retain prior behavior.
+
+Commit: `69b4a96072b506f60dcbe538c5f6b71db3a4a464`. GitHub diff reviewed; no status checks were reported. Tests/build/device checks: **NOT RUN**; mixed-script IME editing needs UI verification. `main` remains unchanged.
