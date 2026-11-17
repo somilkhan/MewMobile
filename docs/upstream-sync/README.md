@@ -526,3 +526,14 @@ Decision: **NEEDS INVESTIGATION.** Trace Mew's recommendation source settings, p
 ### Audit boundaries
 
 This pass inspected the above upstream changes and Mew Main-dev files cited in each section. It did not complete the full download lifecycle, Home recomposition, addon event or end-card recommendation audits. No app source or tests changed. Builds/tests/CI/device verification: **NOT RUN**.
+
+
+### Batch-download audit refinement — Mew primitives confirmed
+
+A deeper read of Mew Main-dev `DownloadsModels.kt` (blob `df85a084657201d056c9f009015b427c5a26989a`) and `DownloadsRepository.kt` (blob `5e5dfd0b0f6ad3959da8106c83a9a6ce7b4a86eb`) narrows the previous finding:
+
+- Mew already models `DownloadQueueMode.AllAtOnce/OneAtATime`, pending per-episode source searches, persisted download details snapshots and offline metadata reconstruction (`DownloadItem.toOfflineMetaDetails`).
+- Mew repository exposes `enqueueFromStream`, pending source-search lifecycle, pause/resume/retry/cancel and offline metadata lookup. This is meaningful existing queue/domain behavior and must be retained.
+- The upstream `BatchDownloadCoordinator.kt`, `BatchDownloadDialog.kt`, `DeviceStorageBar.kt`, `DownloadQueuePolicy.kt` and `OfflineShowMetadata.kt` have no same-path Mew equivalents on Main-dev. Mew's `DetailSeriesContent.kt` has per-episode download lookup/badges, but no season batch selection/source-plan dialog was found in the inspected file.
+
+Refined decision: **ADAPT — UI/orchestration gap; architecture is partially implemented already.** Do not port upstream storage models or queue primitives wholesale. Build any batch-season flow on Mew's existing per-episode enqueue and pending-source-search contracts, and compare storage/network/profile cleanup separately. The earlier entry's broad **NEEDS INVESTIGATION** remains for the full cross-platform lifecycle; this refinement only establishes the missing batch UI/coordinator versus existing Mew primitives.
