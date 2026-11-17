@@ -1,5 +1,31 @@
 # Upstream alignment status — 2026-11-17
 
+## Semantic audit batch 3 — Stremio tracking addons and TorBox cache aliases
+
+### Stremio player/library tracking addons
+
+- Upstream commits include `964ecfd8d98592cd2d315cedb584fe7ef59a76fd` (tracking event support), `8f5d9bcac6c2c0535b17b26cbdff392c10b8d767` (per-addon event queues), and `d89811ac6c75a3f80c0ab424ab01a37639401d54` (avoid events for derived whole-series watched reconciliation).
+- Upstream adds `AddonEventDispatcher` for `player` start/pause/stop and `library` add/remove/watched/unwatched events; it filters by active addon manifest resource/type/id support, chunks video IDs to 100, queues delivery per addon, and uses a 10-second timeout. It also adds a tracking-addon consent dialog before installing manifests that declare `player` or `library` resources.
+- Mew already has a Stremio addon `AddonRepository` / manifest model, but its `AddonModels.kt` has no tracking-resource classification or consent-required result and `AddonRepository.addAddon()` installs a parsed manifest directly. Mew's repository also has its own profile-generation guards and persistence/sync behavior; do not replace it with upstream's shorter repository implementation.
+- Mew's CloudStream runtime/plugins are separate compatibility systems. Keep CloudStream provider/catalog behavior and Mew extension routing untouched; do not conflate CloudStream extension events with Stremio addon resources.
+- Classification: **NEW UPSTREAM FEATURE / INTENTIONAL PARALLEL ADDON IMPLEMENTATION**. Decision: **ADAPT candidate**, not direct TAKE. Before integration, trace every player and watched/library call site, ensure only user actions emit events, preserve event order and profile scope, and add explicit consent.
+- **Privacy blocker to resolve:** upstream's install path asks consent for newly installed tracking addons, while the dispatcher routes to every active installed addon whose current manifest declares the resource. Verify whether already-installed tracking-capable addons receive events after upgrading without a fresh consent choice; add a persisted consent/migration gate if needed. Never silently send playback position or watch/library activity to third-party addon endpoints.
+- Upstream adds `AddonEventsTest.kt` for URL encoding, video-ID chunking and tracking-resource detection. No Mew equivalent event-delivery tests exist in the inspected paths. Tests were not run: **NOT RUN**.
+
+### TorBox alternative-hash cache matching
+
+- Upstream commit `1118dfbf87de7d9e68860446ea553d48d06adcba` adds `resolveTorboxAliasMatches()` in `LocalDebridService.kt`. TorBox may return a canonical hash for a request made with an alternative hash; upstream maps single-result answers back to the requested hash and re-requests only missing hashes in a batch.
+- Mew `LocalDebridService.kt` currently lowercases the returned map keys but does not map canonical/alias answers back to the requested hash. Mew's `isCached()` then checks membership using the requested hash, so an alias response can be treated as a cache miss. The inspected Mew `DebridProviderTest.kt` checks provider capabilities, not this response-matching behavior.
+- Classification: **SAME BEHAVIOR / MISSING EDGE-CASE HANDLING**. Decision: **TAKE candidate** for the small alias-matching helper and regression tests, after confirming the current TorBox response contract and tracing all callers. Preserve cancellation propagation and avoid unnecessary extra requests for exact matches.
+- Upstream `LocalDebridServiceTest.kt` covers exact matches, a single aliased answer and batched missing-hash retries. Port equivalent tests into Mew's test source set before integrating.
+
+### Files inspected and limits
+
+- Upstream: `AddonEvents.kt`, `AddonModels.kt`, `AddonRepository.kt`, `TrackingAddonConsentDialog.kt`, `LocalDebridService.kt`, and their focused tests.
+- Mew Main-dev: `AddonModels.kt`, `AddonRepository.kt`, `AddonsScreen.kt`, `LocalDebridService.kt`, and `DebridProviderTest.kt`.
+- Addon event call-site audit and complete TorBox caller/response trace are still open. No application source changed; no tests/build/CI were run.
+
+
 ## Semantic audit batch 2 — next-episode source fallback and subtitle rendering
 
 ### Next-episode source selection
