@@ -1344,3 +1344,45 @@ No application source changes. Startup benchmarks, tests/builds/CI, and physical
 - Classification: **SHARED NETWORKING CONCERNS / DIFFERENT TRANSPORT OWNERSHIP**. Decision: **NEEDS CALL-SITE AUDIT** before porting timeout, redirect, retry or response-size policies. Trace every Mew Ktor/OkHttp/CloudStream/Supabase client and its redirect/auth/header behavior first; do not silently change provider compatibility or weaken TLS/hostname checks. Consider bounded body reads only for Mew-owned API endpoints with known response contracts.
 
 No application source changes. DNS/network tests, benchmarks, build/CI and device verification: **NOT RUN**.
+
+## Startup performance and Compose lifecycle audit — 2026-11-18
+
+### Mew startup call-site findings (Main-dev `69b4a96072b506f60dcbe538c5f6b71db3a4a464`)
+
+Inspected MainActivity.kt, App.kt, ProfileRepository.kt, PlayerSettingsRepository.kt, LibraryRepository.kt, and WatchedRepository.kt plus MainAppContent initialization call sites.
+
+- AppGate retains Mew's launch/auth/profile-selection flow. On AuthState.Authenticated, it calls ProfileRepository.ensureLoaded(userId) from a Compose LaunchedEffect; a separate LaunchedEffect for the authenticated user also calls ensureLoaded and then pullProfiles(). The ensure call is repeated but should be idempotent; synchronous disk/decode work remains a potential main-dispatcher stall.
+- ProfileRepository.loadCachedProfiles() already uses Dispatchers.IO for cached SharedPreferences/JSON loading. Preserve this existing IO path and consolidate/bridge the authenticated ensure path rather than creating a second profile cache loader.
+- MainAppContent initializes repositories in Compose remember blocks before collecting their StateFlows: AddonRepository.initialize(), LibraryRepository.ensureLoaded(), NuvioEnhancedSettingsRepository.ensureLoaded(), PlayerSettingsRepository.ensureLoaded(), P2pSettingsRepository.ensureLoaded(), WatchedRepository.ensureLoaded(), and DownloadsRepository.ensureLoaded(). This is a mixed set of local restoration and lifecycle/provider activation; do not move it wholesale into a splash-blocking preloader.
+- PlayerSettingsRepository.ensureLoaded() is idempotent via hasLoaded, but its first call invokes loadFromDisk() synchronously and reads a large set of player/subtitle/platform settings before publishing. Candidate for suspend/IO-backed restore or early preload, provided platform storage APIs are safe off-main and mutations cannot race the load.
+- LibraryRepository.ensureLoaded() is not a pure disk restore: it registers/loads tracking providers and settings, loads profile-scoped local library data, prepares connected providers and schedules async refresh. Classification: SHARED PATTERN / DIFFERENT SEMANTICS. Split local restore from activation before preloading; retain provider preparation and refresh after active profile/source is known.
+- WatchedRepository.ensureLoaded() similarly combines local disk load with tracking registry/settings initialization, effective-source activation and provider snapshot observer startup. Split restore from source activation/observer lifecycle; do not run it as an undifferentiated startup task.
+- P2pSettingsRepository and DownloadsRepository are invoked from the same Compose initialization pattern, but their implementations and platform storage/lifecycle contracts were not fully inspected in this pass. Mark as NEEDS INVESTIGATION rather than assuming safe preload candidates.
+- NuvioEnhancedSettingsRepository.ensureLoaded() is invoked from more than one remember block in MainAppContent; repository idempotency and duplicate state collection need a caller audit. Do not infer duplicate repository implementations from repeated call sites.
+
+### Upstream comparison and architecture decision
+
+Upstream StartupPreloader coordinates cached profile, library, watched, watch-progress, player/P2P settings, media-server, detail, release-notification, Live TV and Home snapshot initialization before Compose is mounted. Its current implementation is sequential and its timeout only logs; after timeout it continues awaiting the preload job. Several invoked ensure/load methods also have side effects.
+
+Decision: **ADAPT — coordinated, non-blocking startup orchestration; do not copy upstream's sequential splash gate.**
+
+Recommended Mew design:
+1. Keep essential platform initialization and Mew's AppGate/launch UI unchanged.
+2. Introduce one idempotent startup coordinator that starts independent, cheap local restores concurrently on an IO/default dispatcher, with per-task timing and bounded waiting.
+3. Let Compose render immediately and observe repository StateFlows; cached profile/settings/Home state should become available progressively.
+4. Separate repository local restore from profile/provider activation. Start tracking observers, provider preparation, remote sync, addon/network refresh and P2P engine work only when their owning lifecycle/profile requires them.
+5. Guard every profile-scoped result with user/profile generation; cancel obsolete jobs on logout, account change, profile switch and Activity destruction. Avoid stale data publication after a switch.
+6. Remove duplicate ensure calls only after confirming idempotency and all callers. A single coordinator must not become a second source of truth or duplicate repository initialization.
+7. Measure cold/warm startup and first usable Home frame before/after. Add tests for offline launch, auth transitions, remembered profile, PIN-gated profile, account/profile switching, cancellation, corrupted cache and slow/failing individual tasks.
+
+### Duplicate classification
+
+- Profile ensure calls in two AppGate effects: **SHARED INITIALIZATION CALL / POTENTIAL REDUNDANT INVOCATION**, not duplicate implementation; verify ordering before consolidation.
+- Multiple MainAppContent ensureLoaded() calls: **INTENTIONAL REPOSITORY INITIALIZATION PATTERN** where repositories have distinct state/side effects; do not merge repositories.
+- Library/Watched initialization: **SHARED PATTERN / DIFFERENT SEMANTICS**; each owns distinct persistence and provider lifecycle.
+- Player settings load: candidate for pure local preload, pending storage-thread-safety review.
+- No evidence in this pass that Mew and upstream have identical startup architecture or that upstream's preloader is safe to transplant directly.
+
+### Verification boundary
+
+Read-only audit only. No application source, tests, Gradle files, workflows or branch refs were changed. Builds/tests/CI/device benchmarks: **NOT RUN**. Main-dev and upstream enhanced were not modified. upstream-sync documentation update is limited to this audit entry.
