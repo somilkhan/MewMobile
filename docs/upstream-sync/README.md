@@ -808,3 +808,31 @@ GitHub compare reports 72 upstream commits and 160 changed paths in this range. 
 - Mew's iOS downloader already excludes its media directory from backup. Its richer live-status payload is a Mew advantage and must not be lost during integration.
 
 This inventory is based on the complete 160-path compare response (14 iOS-specific paths) and direct source reads for the Mew equivalents that exist. It does not claim every common-code caller or every iOS runtime path has been audited.
+
+
+## Localization parity audit — 2026-11-17
+
+Compared Mew `Main-dev` against upstream `enhanced` for the default, French, Brazilian Portuguese, Indonesian (`id`) and legacy Indonesian (`in`) Compose resource files. Counts are unique named `string`, `plurals` and `string-array` resources; all five files on both repositories have **zero duplicate resource names** in this static check.
+
+| Locale resource | Mew keys | Mew coverage vs Mew default | Upstream keys | Upstream coverage vs upstream default |
+|---|---:|---:|---:|---:|
+| Default `values` | 2,933 | 100% | 3,162 | 100% |
+| French `values-fr` | 2,080 | 71% | 2,529 | 80% |
+| Brazilian Portuguese `values-pt-rBR` | 1,560 | 53% | 2,953 | 93% |
+| Indonesian `values-id` | 1,559 | 53% | 3,162 | 100% |
+| Legacy Indonesian `values-in` | 1,559 | 53% | 3,162 | 100% |
+
+Mew's base resource set has 2,933 keys; upstream has 3,162, with 2,189 keys shared. Relative to Mew's base, 856 French, 1,374 pt-BR and 1,374 Indonesian keys are missing from their respective locale files. Of those missing Mew translations, upstream has translations for 203 French, 812 pt-BR and 745 Indonesian keys. This gives a concrete translation backlog, but not every upstream-only key belongs in Mew: some relate to upstream-only screens/features and must be filtered by Mew key usage/callers first.
+
+### Translation semantic checks
+
+- Comparing shared translated keys shows 552 French, 408 pt-BR and 40 Indonesian values differ between Mew and upstream. Some are expected Mew wording/branding (e.g. Mew vs Nuvio); others are stylistic or format differences. Do not wholesale replace locale files.
+- Mew `values-id` and `values-in` contain the same 1,559 resource names; the key sets are identical. The files are separate Android resource qualifiers, so treat this as a **LEGACY ALIAS / INTENTIONAL PARALLEL**, not a duplicate-key defect. Preserve both until supported locale resolution and minimum Android/resource compatibility are verified.
+- Upstream commit `106e67facd528dbd923b4ec0a087404e51372337` removes two duplicated pt-BR resources from an upstream merge. Mew's current pt-BR file has no duplicate names, so that exact cleanup is **ALREADY IMPLEMENTED / NOT NEEDED**.
+- Mew iOS Xcode project declares `developmentRegion = en` and `knownRegions = (en, Base)`; its Info.plist has no `CFBundleLocalizations`. Compose resources are bundled through the shared app, so do not add plist localization declarations solely to mirror upstream. Audit the generated iOS bundle/resource localization behavior and actual supported Mew locales before changing Xcode metadata.
+
+### Decision
+
+**ADAPT — translation completeness backlog, medium priority.** Start with Mew-owned strings that are already used by Mew screens and whose upstream translations can be safely adapted. Preserve Mew branding, product terminology, placeholders, plurals, punctuation and resource-format semantics. Exclude upstream-only feature keys until their feature is accepted. Run XML/resource validation and common/iOS/Android compilation after any translation batch. This audit made no resource-file changes.
+
+Verification: source-level key extraction and duplicate-name scan only; no XML parser/build/lint/test/CI/iOS simulator/device run. Branch refs at audit time: Mew `Main-dev` `69b4a96072b506f60dcbe538c5f6b71db3a4a464`, `main` `207ef8fa309b8061b73039b2d4e4bde4af65050e`, upstream `enhanced` `b4e446451f32edbdf8b1bf288d1a7a8a2bf10e03`.
