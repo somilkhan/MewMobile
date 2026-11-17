@@ -1,5 +1,27 @@
 # Upstream alignment status — 2026-11-17
 
+## Semantic audit batch 9 — account wipe and external playback progress
+
+### Unfinished download cleanup on account wipe
+
+- Upstream beta changes Android and iOS `PlatformLocalAccountDataCleaner` to call `DownloadsStorage.clearUnfinishedDownloads()` and `DownloadsPlatformDownloader.clearUnfinishedTransfers()`, removing unfinished transfer state when account data is wiped.
+- Mew's common `LocalAccountDataCleaner.wipe()` does not call `DownloadsRepository.clearLocalState()` or clear download storage. Mew's Android `PlatformLocalAccountDataCleaner.android.kt` also does not clear unfinished downloads/transfers. Mew's downloader interface only exposes per-file `removeFile` / `removePartialFile`; it has no equivalent bulk unfinished-transfer cleanup method.
+- Mew has active download handles, a foreground service/wake lock, pending-source WorkManager jobs, persisted download metadata and partial files. Account wipe therefore needs a Mew-specific cleanup path; simply copying the upstream two calls will not compile or cover Mew's worker/service architecture.
+- Classification: **MISSING CLEANUP CONTRACT / Mew-specific transfer architecture**. Decision: **ADAPT candidate, HIGH PRIORITY**. Define cleanup to stop the foreground service, cancel active download handles and pending source-search work, clear unfinished persisted items and partial transfer files, and reset in-memory download state. Preserve completed downloaded files unless the product's account-wipe policy explicitly says otherwise. Verify Android and iOS storage behavior and profile/account isolation; add tests for active, queued, pending-source and completed downloads.
+- This is a source-level cleanup gap, not a claim that data has already leaked in a running build. Runtime behavior and tests are **NOT RUN**.
+
+### External playback progress
+
+- Upstream `ExternalPlaybackProgress.kt` records watch progress/scrobble state when an external player returns a structured `ExternalPlaybackResult`, and emits a tracking-addon STOP event when duration is known.
+- Mew's external-source path in `PlayerScreenRuntimeSourceActions.openExternalSourceUrl()` only calls `args.onOpenExternalUrl(url)`; the inspected contract returns a Boolean and provides no external playback result/position callback. Mew has no `ExternalPlaybackProgress.kt` equivalent.
+- Classification: **FEATURE NOT PRESENT / DIFFERENT EXTERNAL-PLAYER CONTRACT**. Decision: **SKIP for now**. Do not fabricate progress or STOP events from the handoff result; revisit only if Mew introduces a supported external-player result callback and privacy-aware tracking behavior.
+
+### Profile lifecycle note
+
+- Upstream release adds `BatchDownloadCoordinator.clearLocalState()` on profile change. Mew has no batch coordinator; its own `DownloadsRepository.onProfileChanged()` and pending-source worker lifecycle must be audited independently. Do not add an upstream class just to match the call.
+- No account-wipe, profile, download or external-player code changed.
+
+
 ## Semantic audit batch 8 — Android download transport and network policy
 
 - Upstream beta's Android download transport uses `AndroidDownloadScheduler` with WorkManager below API 34 and JobScheduler on API 34+, persisted transfer records, network constraints, retry/backoff and queue re-advance. `DownloadNetworkGuard` tracks unmetered transport state and the `allowMobileDataDownloads` setting controls whether jobs require `UNMETERED` or merely `CONNECTED`.
