@@ -1963,3 +1963,36 @@ Inventory is still incomplete. Next inspect the remaining direct dialog call sit
 ### Verification limits
 
 Read-only source inspection. No source code changes, build/test/CI, iOS simulator, Android emulator or physical-device validation. Main-dev and main remain untouched.
+
+
+## Backup file bridge and import confirmation audit (2026-11-18)
+
+Verified refs before documentation update: Mew `Main-dev` `69b4a96072b506f60dcbe538c5f6b71db3a4a464`; upstream `enhanced` `b4e446451f32edbdf8b1bf288d1a7a8a2bf10e03`; `upstream-sync` `87f17fb5bdf435c801602156329d0efdee9e382a`. Existing audit document blob `f6964e0bd7625e2dbf2a9d2a2f9cf8094075f023`.
+
+### Platform bridge findings
+
+**Android — `NuvioEnhancedBackupFileBridge.android.kt`**
+- Uses deprecated `startActivityForResult` with request codes and process-memory pending callbacks/payload.
+- Export uses `ACTION_CREATE_DOCUMENT`, writes through ContentResolver; import uses `ACTION_OPEN_DOCUMENT` and requests read permission.
+- Import advertises `*/*` plus JSON/text/octet-stream MIME types, then reads the complete stream with `readText()`; no visible input-size bound or streaming validation in this bridge.
+- Pending callback state is not durable across process death. Activity recreation/result routing should be verified before changing the bridge; do not assume ordinary rotation loses the callback because the object is process-scoped.
+
+**iOS — `NuvioEnhancedBackupFileBridge.ios.kt`**
+- Export writes a temporary JSON file and presents `UIActivityViewController`; callback reports success immediately after presentation, before the user completes or cancels the share/save operation. The returned temporary path therefore means “share UI presented”, not “export completed”.
+- Import uses `UIDocumentPickerViewController` and correctly brackets file reading with security-scoped resource access.
+- Reads the full selected file into memory and decodes it as UTF-8 without a visible size bound in this bridge.
+
+### Import flow comparison
+
+- Mew's file-import callback invokes `importBackupPayload` directly. The manual-paste path uses an edit/import dialog, but the selected-file path does not show a separate parsed-preview/confirmation stage.
+- Upstream `SettingsConfigBackupSection` parses first, rejects invalid format with feedback, then shows a confirmation dialog with different warning copy when sensitive data is included; only confirmation calls `SettingsConfigTransfer.startImport`.
+- The Mew bridge is a platform adapter, not a duplicate of upstream's transfer engine. **Classification: SHARED PATTERN / DIFFERENT SEMANTICS. Decision: ADAPT.**
+- Keep Android SAF and iOS document-picker/share-sheet implementations, but make export completion semantics honest, bound/validate imported input before parsing, and route both file and pasted imports through one validated review/confirmation flow.
+- Preserve Mew's existing credential-stripping/local-credential-preservation behavior until a dedicated portable backup schema and sensitive-data policy are designed. Never treat the upstream sensitive-data toggle as permission to export Mew credentials without an explicit product decision.
+
+### Remaining verification
+
+- Trace Android activity-result dispatch and test recreation/process-death behavior before replacing the legacy result API.
+- Inspect iOS share completion/cancellation callback handling and temporary-file lifetime.
+- Inspect parser limits, malformed/oversized input feedback, and whether import can partially mutate state before failure.
+- No source changes, build/test/CI, simulator/emulator or physical-device checks were performed.
