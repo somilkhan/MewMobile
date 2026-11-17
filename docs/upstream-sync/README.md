@@ -1191,3 +1191,57 @@ No source changes. Builds, benchmarks, tests, CI and device verification: **NOT 
 - Decision: **NEEDS INVESTIGATION** as a platform capability gap. Do not transplant the converter independently of a verified Mew PiP frame lifecycle, MPVKit API and HDR fallback contract.
 
 No application source changes. iOS build, tests, CI, simulator and device verification: **NOT RUN**.
+
+
+## Catalog, artwork, provider fallback and subtitle parity — 2026-11-17
+
+### Home catalog choices arriving before catalog definitions
+
+- Upstream commit: `0b9d93599f7d7603e7814a99a70aa64d7c48e086`. Upstream preserves locally stored preferences when `knownPreferenceKeys()` is still empty at the time remote catalog preferences arrive.
+- Mew `HomeCatalogSettingsRepository.kt` already applies `shouldPreservePreferenceAfterRemoteSync(key, remoteKeys, knownKeys)`: it preserves unmatched entries when the known-key set is empty, preserves known keys, and preserves explicit sync keys (non-collection keys with more than two colon separators). It also retains Mew's pinned-collection ordering.
+- Classification: **ALREADY IMPLEMENTED / STRONGER Mew-SPECIFIC PARALLEL**. Decision: **SKIP**. Do not port upstream's simpler inline predicate over Mew's helper or remove pinned collection handling. Add/retain regression coverage for empty-known-key race, later definition arrival, remote-key replacement and collection ordering.
+
+### Episode artwork fallback after a failed thumbnail
+
+- Upstream commit: `b4e446451f32edbdf8b1bf288d1a7a8a2bf10e03`. Upstream adds remembered per-card image state: try the episode thumbnail, then switch to series artwork on image load error.
+- Mew `DetailSeriesContent.kt` already has `EpisodeImageState` and `rememberEpisodeImageState(thumbnail, fallbackImage)`; both horizontal and list episode cards pass `onError = { episodeImage.onError() }`. The implementation is semantically equivalent and present on `Main-dev`.
+- Classification: **ALREADY IMPLEMENTED**. Decision: **SKIP**. Keep Mew's wider card/layout differences; no duplicate fallback state should be added.
+
+### Brazilian Portuguese duplicate translations
+
+- Upstream commit: `106e67facd528dbd923b4ec0a087404e51372337` removes duplicate definitions for `settings_playback_tunneled_playback_description` and `settings_playback_auto_skip_segments`.
+- Mew `values-pt-rBR/strings.xml` currently has exactly one definition of the first key and no definition of the second key; no duplicate of either key was found.
+- Classification: **ALREADY CLEAN / FALSE POSITIVE FOR Mew**. Decision: **SKIP**. Do not remove valid translation entries or add the missing auto-skip string without checking whether the corresponding setting exists in Mew.
+
+### TorBox alternative-hash cache lookup
+
+- Upstream merge: `f9bce1b0cfdec875eb9cfae1767cbd3d4ba3310a`, adding `resolveTorboxAliasMatches` to `LocalDebridService.kt`.
+- Mew `LocalDebridService.kt` already contains `resolveTorboxAliasMatches`, normalizes hashes, retries only unresolved aliases concurrently and preserves cancellation. Mew's helper returns nullable when a retry cannot establish the alias result, explicitly preserving UNKNOWN availability rather than converting an inconclusive retry into a cache miss.
+- Mew `LocalDebridServiceTest.kt` covers exact matches, single aliases, partial batch retries and failed retry remaining UNKNOWN.
+- Classification: **ALREADY IMPLEMENTED / Mew HAS A STRONGER UNKNOWN-STATE CONTRACT**. Decision: **SKIP**. Do not replace Mew's nullable result with upstream's non-null map behavior.
+
+### Next-episode auto-play source fallback
+
+- Upstream merge: `ec726ddfd87392df0062fe03ac8cae24a2bff00a` adds a bounded source-fallback run for next-episode auto-play. It retries later eligible sources when the first debrid resolution is stale/expired/unplayable, preserves the tried-source set and attempt limit, and resets the fallback state when the user manually chooses a source or switches to a downloaded/P2P episode.
+- Mew `PlayerNextEpisodeAutoPlay.kt` currently loads the next episode's streams and chooses an auto-selected candidate; `PlayerScreenRuntimeSourceActions.kt` resolves the chosen direct-debrid source and refreshes the episode streams when stale. No equivalent `PlayerSourceFallbackRun` / tried-source state was found in the inspected Mew player runtime.
+- Classification: **MISSING BEHAVIOR / SHARED PLAYER FLOW**. Decision: **ADAPT candidate**. Preserve Mew's source ranking, provider/binge-group preference, current-stream reuse, download/P2P/external-source paths, retry/cache semantics, user manual selection and configured maximum fallback count. Do not copy upstream's helper until all callers and failure categories are compared. Add tests for expired first source then playable next source, limit reached, fallback disabled, duplicate identity keys, cancellation, manual source selection and next-episode reset.
+
+### Subtitle styled-overlay parity
+
+- Upstream commits `c46fc19a757d6acee10e870671744dbdeb959917`, `b8bbd700fda41ad55cdb90de2d60e48d10f5d0db` and follow-ups expand the styled overlay to preserve ASS/SRT colors and nine-position alignment and expose outline width; this is distinct from the later iOS subtitle-state fix.
+- Mew `SubtitleAudioModels.kt` already exposes subtitle text/background/outline colors, outline enable/width, shadow, font family/size and bottom offset. The inspected Mew player does not contain upstream's `StyledSubtitleCues` / `SubtitleCuePresenter` implementation at the corresponding paths; Mew uses its own player/MPV subtitle pipeline.
+- Classification: **INTENTIONAL PARALLEL / DIFFERENT RENDERING PIPELINE** with a potential fidelity gap. Decision: **NEEDS INVESTIGATION**, not a direct port. Audit Mew's Android and iOS MPV subtitle render paths, ASS override support, SRT alignment, colors, outline rendering and external subtitle behavior before changing anything. Preserve native subtitle rendering where it already supports these features; avoid double-rendering or regressions in playback/subtitle track selection.
+
+### MDBList episode runtime projection
+
+- Upstream commit: `a65cd8b2e42d7170d47cace44e5ebd6f03a053eb` prevents a series' runtime from being used as an individual episode duration in MDBList progress.
+- The corresponding upstream `MdbListProgressProjection.kt` path and MDBList projection were not found in the inspected Mew `Main-dev` source. A full feature-tree inventory is still required before declaring MDBList absent.
+- Decision: **NEEDS INVESTIGATION**. If Mew has an MDBList progress adapter elsewhere, verify movie-vs-series-vs-episode duration semantics and add a regression test; otherwise record as an upstream-only feature rather than importing a new provider integration opportunistically.
+
+### Hero mute button alignment
+
+- Upstream commit: `f28929d3e3cc0d354de1dd921efc539bbf8a14cf` anchors the details-hero mute control to the native navigation bar button position on iOS, with a platform expect/actual anchor API.
+- Mew `DetailHero.kt` still uses status-bar top inset and fixed trailing padding; Mew `PlatformInsets.ios.kt` has no native bar anchor equivalent in the inspected source.
+- Classification: **SHARED PATTERN / DIFFERENT NAVIGATION AND HERO LAYOUT**. Decision: **INVESTIGATE / ADAPT CANDIDATE**. Audit Mew's native navigation bar variants, landscape/iPad layout, safe-area and hero mute visibility before adding a platform anchor. Keep Android behavior and Mew's existing hero chrome unchanged unless the iOS geometry requires it.
+
+No application source changes. Tests/builds/CI/device verification: **NOT RUN**.
