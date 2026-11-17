@@ -1596,3 +1596,50 @@ This is a concrete behavior contract from the supplied screenshots, not a claim 
 6. Build a complete dialog/sheet inventory rather than assuming shared primitives cover every custom overlay.
 
 Verification boundary: source/tree inspection only. No code changes, builds, tests, screenshots, accessibility checks, simulator runs or device verification. This batch identifies concrete UI parity gaps; it does not authorize or perform a redesign.
+
+
+## Settings information architecture and dialog inventory — 2026-11-18
+
+Compared Mew `Main-dev` (`69b4a96072b506f60dcbe538c5f6b71db3a4a464`) with upstream `enhanced` (`b4e446451f32edbdf8b1bf288d1a7a8a2bf10e03`). The source snapshot branch was rechecked and is not the comparison target.
+
+### Settings navigation structure
+
+- Mew categories are **Account / General / Enhanced / About / Advanced**. Upstream categories are **You / Look / Watch / Services / System**.
+- Mew's root places Appearance, Content Discovery, Downloads, Playback, Integrations, Notifications under General; Account and Tracking are under Account; Nuvio Enhanced is its own root category; About and Advanced are separate.
+- Upstream separates visual/layout preferences (Look), playback/download/content behavior (Watch), integrations (Services), personal/profile settings (You), and system/about/advanced (System).
+- Mew has an Appearance page that directly contains Home, Streams, Continue Watching, Poster Customization and Meta Screen links. Upstream has a distinct **Layout** page as the parent for Streams, Continue Watching, Poster Customization, Homescreen and Meta Screen, while Appearance focuses on theme/display/app icon/language and app background.
+- Mew's Appearance file is ~41 KB and contains many Mew-specific settings/custom theme controls; upstream's corresponding file is ~10 KB and delegates app background to its own section. This is not a simple missing-file comparison.
+- Mew's PlaybackSettingsPage is ~185 KB as one source file. Upstream's SettingsPage model exposes separate playback subpages: Player, Stream Selection, Up Next, Skip Segments, Interface, Audio, Subtitles, Video, Buffer and P2P. This is a strong navigation/discoverability candidate, but first check whether Mew's monolithic page already has internal grouping/state and what navigation/persistence compatibility would be affected.
+- Mew's SettingsModels uses five categories; upstream's uses five different semantic groups. Both have parent-page navigation and tablet inline support. Do not rename enum values casually: Mew explicitly retains a legacy enum name for saved navigation-state compatibility.
+
+### Inventory counts (path-level, commonMain Kotlin only)
+
+- Settings-related source files: Mew has 24 matching page/root/full-screen files; upstream has 30. Counts include shared helper files and do not equal user-visible page counts.
+- Files with names matching Dialog / Sheet / Modal / Picker: Mew 27; upstream 44. These are filename inventory counts only, not a claim that every dialog is missing in Mew. Many are intentional feature differences and need caller/behavior comparison.
+- Mew-only overlay examples include `ContinueWatchingActionSheet`, `EpisodeDownloadFlowSheet`, `PendingSourceChoiceSheet`, `EnhancedSubtitleModal`, `NuvioAudioTrackModal`, and `MediaActionOverlayDialogProperties`.
+- Upstream-only overlay examples include `ServerConnectionDialogs`, `DownloadsQueueDialog`, `LibraryListManagementDialog`, `NavigationBarSettingsSheet`, `PlaybackSettingsDialogs`, `PlaybackStreamDialogs`, `TrackingDeviceCodeSheet`, and `ProfileBackgroundPicker`. Treat each as a candidate to trace, not an automatic port.
+
+### Dialog and sheet primitives
+
+- Mew's `DialogSurface` and upstream's `DialogSurface` share the same public API and composition pattern. Upstream adds the app-glass backdrop and uses the theme's subtle border token; Mew uses its border token directly. **SHARED PATTERN / DIFFERENT SURFACE EFFECT**. Adapt the glass layer only after classifying sensitive/contrast-critical dialogs.
+- Mew's `NuvioModalBottomSheet` is ~4.8 KB and routes to Mew's native bottom-sheet implementation when supported. Upstream's is ~9 KB and adds a reusable backdrop host/surface, live glass capture and app-background integration. **SHARED PATTERN / DIFFERENT PLATFORM IMPLEMENTATION**. Preserve Mew native sheet dismissal, gesture, keyboard, focus and iOS presentation semantics; adapt the material pipeline around it.
+- Central primitives do not cover all overlays. Several feature-specific files implement their own modal/sheet surfaces; a complete caller inventory must include direct `BasicAlertDialog`, `AlertDialog`, `ModalBottomSheet`, custom Dialog and popup usage, not only references to `DialogSurface`.
+
+### Initial IA recommendations (audit proposals, not implementation)
+
+1. Evaluate grouping settings as **You / Appearance / Playback / Services / System** (or equivalent clear Mew wording). Keep Mew-only profile, addon, CloudStream, membership, Live TV and feature settings visible in the correct group; do not force upstream's labels if they are unclear for Mew.
+2. Split **Appearance** from **Layout/Home presentation**. Appearance should own theme, color, AMOLED, glass, background, app icon and language. Layout should own home composition, poster/card presentation, detail layout, continue-watching presentation, collection and stream display controls. Confirm each setting's actual effect before moving it.
+3. Split the large Playback page into focused subpages or sections comparable to upstream's Player / Stream / Up Next / Skip / Interface / Audio / Subtitles / Video / Buffer / P2P. Keep current values, profile scoping, deep links, and saved navigation-state compatibility.
+4. Rewrite setting titles/descriptions to answer: what changes, where it applies, whether it is experimental, platform/OS limits, and whether restart is required. Remove vague/duplicated copy and ensure labels match actual behavior. Resource-key/source audit is still pending.
+5. Standardize dialogs/sheets with consistent title/body/action order, destructive emphasis, max width, padding, corner radius, safe areas, scroll limits, keyboard handling, accessibility labels, loading/error/empty states, and dismissal behavior. Use shared primitives where semantics match; do not force PIN/player/native platform surfaces into a generic modal.
+6. Build a settings glossary and map every persisted setting to one canonical page/section; no setting should appear twice under different names unless it is an intentional shortcut.
+
+### Classification and next inspection
+
+- Settings category/layout differences: **INTENTIONAL PARALLEL / PRODUCT IA GAP** — **ADAPT selectively** after full setting-to-repository/caller mapping.
+- Playback monolith versus upstream subpages: **SHARED PATTERN / DIFFERENT INFORMATION ARCHITECTURE** — **INVESTIGATE then ADAPT** without changing stored keys.
+- DialogSurface: **ALREADY IMPLEMENTED shared primitive / visual parity gap** — **ADAPT** glass-aware surface and contrast policy.
+- BottomSheet: **SHARED PATTERN / DIFFERENT PLATFORM SEMANTICS** — **ADAPT** material treatment only; retain native Mew path.
+- Named overlay differences: **NEEDS CALLER/SEMANTIC AUDIT** — no bulk copy.
+
+Verification boundary: GitHub source/tree inspection only. No app source modifications, builds, tests, screenshots, accessibility checks, simulator or device validation. Resource-string copy audit, full setting ownership map, all custom modal call sites, and cross-platform dismissal/focus testing remain outstanding.
