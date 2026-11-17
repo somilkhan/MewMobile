@@ -1,5 +1,33 @@
 # Upstream alignment status — 2026-11-17
 
+## Semantic audit batch 4 — library filters, detail hero, MDBList
+
+### Library filters and persistence
+
+- Upstream commit `2da28d707c77b0bb8d3030af8f360e67981a0994` adds per-profile remembered library list/type selection and genre, year and watched/unwatched filters with faceted counts in the vertical grid.
+- Mew has the same broad `LibraryDisplaySettings.kt` / `LibraryScreen.kt` / `LibraryRepository.kt` domain, but its current display settings only persist layout and sort. It does not contain upstream's `LibraryWatchedFilter`, selected section/type state, genre/year projection filters or their counters.
+- Mew's library screen is not a blank older copy: it includes Mew-specific release-calendar behavior, downloaded-library views and filters, and Mew's repository includes its own tracking-provider/sync/retry behavior. The upstream screen is substantially larger and cannot be copied over.
+- Classification: **SHARED PATTERN / DIFFERENT SEMANTICS**. Decision: **ADAPT candidate** for selected list/type and genre/year/watched filters, only after tracing Mew's tracking-provider list model, local vs remote sources, profile-scoped storage, watched-state lookup and release-calendar/download views. Preserve Mew's current library UI and state restoration; do not replace `LibraryScreen.kt` or `LibraryRepository.kt` wholesale.
+- Upstream adds `LibraryDisplaySettingsTest.kt`; Mew has a same-domain settings test file but its coverage must be compared before adapting. Tests were not run: **NOT RUN**.
+
+### Detail hero mute-button alignment
+
+- Upstream commit `f28929d3e3cc0d354de1dd921efc539bbf8a14cf` introduces a native navigation-bar button anchor so the hero mute control aligns with the native back button, with Android returning no native anchor and iOS calculating the UIKit bar position.
+- Mew's `DetailHero.kt` has a different layout implementation and does not expose the upstream native-anchor contract. This is primarily an iOS/native-navigation alignment change, not a generic Android feature.
+- Classification: **SHARED PATTERN / DIFFERENT PLATFORM PRESENTATION**. Decision: **SKIP for the current Android target** unless an iOS/native-navigation target is explicitly in scope. Do not change Mew's hero/player UI just to match upstream geometry.
+
+### MDBList episode runtime correction
+
+- Upstream commit `a65cd8b2e42d7170d47cace44e5ebd6f03a053eb` changes MDBList progress projection so show runtime is not reused as an episode duration; it adds a regression test for a 6,138-minute show runtime.
+- Mew Main-dev has MDBList metadata/settings files but no `MdbListProgressProjection.kt`, MDBList watched/progress projection or equivalent path in the inspected recursive tree.
+- Classification: **FALSE POSITIVE / FEATURE NOT PRESENT IN MEW** for this release item. Decision: **SKIP**; do not add an MDBList watch-progress integration solely to port this correction. Revisit only if MDBList tracking sync is added later.
+
+### Scope and limits
+
+- Inspected upstream/Mew `LibraryDisplaySettings.kt`, `LibraryScreen.kt`, `LibraryRepository.kt`, `DetailHero.kt`, Mew `DetailSeriesContent.kt`, Mew MDBList path inventory, and exact diffs for the three upstream commits above.
+- No UI runtime, accessibility, keyboard/focus, screen-size or state-restoration verification was possible remotely. No tests/build/CI were run.
+
+
 ## Semantic audit batch 3 — Stremio tracking addons and TorBox cache aliases
 
 ### Stremio player/library tracking addons
