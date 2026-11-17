@@ -137,6 +137,10 @@ See [RELEASES.md](RELEASES.md) for API setup, signing requirements and the relea
 | `composeApp/src/commonTest` | Shared tests |
 | `.github/workflows` | CI and release automation |
 
+## Support
+
+Support the creator behind Mew and other independent projects through the [TYVM donation page](https://www.thankyouverymuch.co/zehen). Indian supporters can use UPI; international supporters can use supported cards.
+
 ## Contributing
 
 Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. Keep changes focused, link reproducible bugs, and include relevant test results. UI fixes require before-and-after proof; cosmetic-only changes and unapproved feature work are not accepted.
