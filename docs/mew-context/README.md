@@ -1064,3 +1064,7 @@ New upstream parity candidates: Mew's iOS MPV bridge uses `nativeScale` only (up
 
 ## iOS PiP parity — 2026-11-17
 Upstream enhanced has an experimental native iOS PiP pipeline (frame capture/parking, rendering suspension, subtitle composition and Dolby Vision RPU conversion). Mew has Android PiP only; its iOS MPV bridge/MetalLayer has no matching frame sink/controller. **ADAPT / NEEDS ARCHITECTURE INVESTIGATION**, not a drop-in port. Define Mew's iOS PiP contract and verify MPVKit frame ownership before baseline SDR PiP, then subtitle/HDR support. Preserve Android PiP. No source changes; iOS build/simulator/device checks NOT RUN. Full audit in `docs/upstream-sync/README.md`.
+
+
+## Add-on event delivery parity — 2026-11-17
+Upstream has player + library addon event dispatch with per-transport ordered queues, timeout isolation, 100-ID chunks and no-op lookup avoidance when no addon declares library resource. Mew has manifest resource/type/id-prefix metadata but no dispatcher or event hooks in the inspected player/library/watched paths. **MISSING FEATURE — ADAPT, high priority.** Audit all mutation paths and preserve Mew profile generations, tracking-source semantics, server-ID exclusions and CloudStream behavior. Review unbounded queue risk and stale profile delivery before implementing. No source changes/tests/build/CI. See upstream-sync ledger.
