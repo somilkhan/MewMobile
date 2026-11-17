@@ -1481,3 +1481,23 @@ Compared the current Mew `Main-dev` UI implementations against upstream `enhance
 ### Verification boundary and next work
 
 Read-only source inspection on GitHub. Inspected paired commonMain files: `RootTabHost.kt`, `FloatingNavigationBar.kt`, `HomeScreen.kt`, `HomeHeroSection.kt`, `SearchScreen.kt`, `MetaDetailsScreen.kt`, `DetailHero.kt`, `LibraryScreen.kt`, plus settings screen call sites and the recursive source trees. No source files changed. No screenshot comparison, accessibility run, Gradle build, tests, CI, emulator or device verification. Next UI/UX pass: inspect poster/card components and action sheets/dialogs, TV and tablet layout branches, settings page hierarchy, keyboard/back behavior, and platform-native tab-bar integration; then reconcile all candidates against Mew's existing components and tests.
+
+
+### Action-sheet and poster interaction audit — 2026-11-18
+
+Compared Mew and upstream common UI components for continue-watching actions, episode watched actions, poster watched overlays and the shared bottom-sheet primitives.
+
+- `PosterActionSheet.kt` is effectively identical in the inspected source: the watched badge/overlay components and accessibility description are aligned. Classification: **ALREADY IMPLEMENTED**.
+- Mew's `NuvioContinueWatchingActionSheet` and `EpisodeWatchedActionSheet` intentionally use `NuvioMediaActionOverlay`: cinematic artwork-backed action panels with Mew-specific width, spacing and custom action rows. Upstream uses `NuvioModalBottomSheet`, shared Material bottom-sheet state, drag/dismiss animation and reusable action rows/dividers. Classification: **INTENTIONAL PARALLEL / DIFFERENT PRESENTATION AND DISMISSAL CONTRACT**. Do not replace Mew's overlay with upstream's bottom sheet merely to match filenames; first test touch outside, swipe/back dismissal, focus/keyboard, accessibility traversal, safe-area padding, landscape/TV sizing and animation completion.
+- Mew's continue-watching action sheet exposes details, manual play, start from beginning and remove. Upstream additionally exposes `onMarkWatched`. This is a **POTENTIAL ACTION PARITY GAP**, not yet a confirmed missing app capability: trace all Home/Library callers and check whether marking watched is intentionally available elsewhere or whether it should be added to this context menu. If added, use Mew's existing watched/progress repository action and preserve dismiss ordering.
+- Mew's episode action sheet includes download and anime tracking actions, and its current callback contract differs from upstream. Upstream includes an episode user-rating row/callback, while Mew's inspected sheet does not. This is another **NEEDS CALLER / PRODUCT INVESTIGATION** item: verify whether Mew exposes episode rating through another UI and whether the rating model/provider supports the same semantics. Do not add a duplicate rating path.
+- Mew's action sheets use artwork fallbacks and custom content descriptions. Preserve these while evaluating any upstream shared-row or dismissal improvements. The upstream sheet-state coroutine dismissal must not be copied into the Mew overlay unless its animation and callback lifecycle match.
+
+### Duplicate classification
+
+- Poster watched badge/overlay: **ALREADY IMPLEMENTED**.
+- Continue-watching / episode action presentation: **INTENTIONAL PARALLEL** (Mew media-action overlay versus upstream modal bottom sheet).
+- Mark-watched and episode-rating actions: **NEEDS INVESTIGATION** until all callers and alternate entry points are checked.
+- Download and anime-tracking actions: Mew-specific additions; preserve.
+
+Verification boundary: read-only source inspection of the paired components and shared bottom-sheet primitive. No interaction tests, accessibility tests, screenshots, build, CI or device verification. No source changes.
