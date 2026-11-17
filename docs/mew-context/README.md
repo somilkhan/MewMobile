@@ -1,5 +1,17 @@
 # Upstream alignment status — 2026-11-17
 
+## Release-range comparison — 1.0.0 to 1.1.0-beta.1
+
+- Compared upstream tag `1.0.0` (`6c2ad7937171965608d05005080b96ca19345379`) to `1.1.0-beta.1` (`eb32e0479932d28f5f6fa6afeb0e21c78ad02efd`).
+- GitHub compare reports **64 commits, 157 changed paths, 16,621 additions and 1,522 deletions** across the range. The recursive tree and compare response were not truncated.
+- Main-dev comparison for those 157 release-range paths: **78 paths absent**, **79 paths present but with a different blob**, and **0 paths byte-identical to the beta version**. This is a path-level triage only; it does not prove missing behavior or semantic incompatibility.
+- Change concentration: 146 of 157 paths are under `composeApp`; the rest cover release workflows, README, iOS host/configuration, release scripts and store metadata.
+- Main feature clusters represented in the changed paths: season batch downloads/storage management; library filters and profile-persisted display settings; subtitle styled-overlay/cue rendering; Stremio player/library tracking addons and consent; next-episode source fallback; TorBox alternative-hash cache handling; mixed RTL/LTR text; iOS download backup/network behavior; locale additions/updates; release channel and beta-store workflow.
+- The release range also contains follow-up fixes and test additions not visible as separate headline bullets. Review commits and their complete diffs, not just the release notes.
+- **No semantic decisions assigned yet** for these 157 paths. Do not treat path absence as automatic TAKE or blob difference as automatic SKIP. Search Mew's renamed equivalents, call sites, platform actuals, tests and persistence before deciding.
+- Next audit batches: (1) downloads and storage lifecycle, (2) player/subtitle/source fallback, (3) addons/debrid/provider behavior, (4) library/details/UI, (5) localization and accessibility/RTL, (6) iOS platform differences, (7) CI/release/store/dependency changes.
+
+
 > **Primary mission:** keep Mew aligned with the releases and complete behavior of `luqmanfadlli/NuvioMobile-Enhanced`. This is not a feature-picking exercise. Audit the complete upstream release surface—application code, UI/UX, player, providers, networking, settings, profiles, persistence, platform source sets, dependencies, build configuration, tests and release workflows—while preserving Mew-specific behavior. The stable-beta release is the comparison baseline; the moving `enhanced` branch is a freshness reference, not an automatic integration target.
 
 ## Latest upstream baseline
