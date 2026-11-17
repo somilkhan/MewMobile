@@ -1672,3 +1672,47 @@ Verification boundary: GitHub source/tree inspection only. No app source modific
 - Playback remains a single page with nine established groups pending usability review; do not mark it as missing subpages or force an upstream structure.
 
 Verification: source and resource inspection only. No app code changes, resource edits, builds, tests, locale validation, screenshots, accessibility or device checks.
+
+
+## Dialog/sheet implementation paths — direct primitive bypass audit (2026-11-18)
+
+Inspected Mew `Main-dev` common-source overlay implementations, beyond filename inventory.
+
+### Confirmed implementation paths
+
+- Shared `DialogSurface` wraps Material3 `BasicAlertDialog` and provides a reusable content surface.
+- Shared `NuvioModalBottomSheet` selects Mew's native platform sheet when supported, otherwise Material3 `ModalBottomSheet`.
+- Several important dialogs bypass `DialogSurface` and call `BasicAlertDialog` directly: `PinEntryDialog`, `P2pConsentDialog`, `AppIconPickerDialog`, `PlayerToolbarSettingsDialog`, `SimklSyncInfoDialog`, `TrackingAdaptivePicker` dialog mode, and `TrackingListPickerDialog`.
+- `AppIconPicker` has separate Android confirmation-dialog and bottom-sheet paths. `TrackingAdaptivePicker` has dialog and sheet paths. These are intentional adaptive presentations, not duplicate screens by default.
+- `EpisodeDownloadFlowSheet` is a large feature-specific multi-stage flow (~75 KB); it must be audited as a workflow with source/episode selection, queue and error states, not treated as a generic sheet to replace.
+- `PendingSourceChoiceSheet` uses the shared `NuvioModalBottomSheet`, but its content and source-selection actions remain feature-specific.
+
+### Glass UI coverage implication
+
+A glass modifier added only to `DialogSurface` will not automatically reach the direct-`BasicAlertDialog` implementations. A complete Glass UI pass must explicitly decide whether each bypass should:
+- migrate to a shared dialog shell,
+- use a shared glass surface slot while retaining custom content, or
+- remain intentionally opaque/solid (for example, security-sensitive PIN entry or high-contrast consent/confirmation).
+
+Do not force every overlay into one visual treatment. Player track/subtitle menus, PIN/auth/consent, destructive confirmation, download workflow, source selection and informational dialogs have different interaction and contrast requirements.
+
+### Dialog audit classification
+
+| Surface | Classification | Next decision |
+|---|---|---|
+| `DialogSurface` shared shell | SHARED PATTERN | Add opt-in/automatic glass surface support after contrast review |
+| Direct `BasicAlertDialog` callers | INTENTIONAL PARALLEL / BYPASS | Inventory caller semantics; migrate only where it improves consistency |
+| Native bottom sheet | INTENTIONAL PLATFORM PATH | Preserve dismissal, focus, keyboard and safe-area behavior |
+| App icon adaptive picker | INTENTIONAL PARALLEL | Keep Android confirmation vs platform sheet distinction |
+| Tracking adaptive picker | INTENTIONAL PARALLEL | Keep size/platform adaptive presentation |
+| Episode download flow | SHARED PRIMITIVES / DIFFERENT SEMANTICS | Keep dedicated multi-step flow; align shared chrome only |
+| Pending source choice | FEATURE-SPECIFIC SHARED SHEET | Glass-compatible shell candidate; retain source-choice behavior |
+
+### Remaining work
+
+- Search all source sets (Android/iOS/desktop) for direct Material3 and Compose dialog/sheet APIs, custom `Popup`/overlay surfaces, and SwiftUI/UIKit presentation controllers. GitHub code search did not return indexed results for the targeted symbol queries, so the commonMain inventory is not yet exhaustive.
+- Inspect actual dialog dimensions, shape/elevation/border, actions order, text hierarchy, scroll constraints, focus restoration, back/outside dismissal, accessibility semantics and tablet/TV behavior.
+- Trace each dialog's caller and lifecycle (loading, errors, cancellation, save/commit) before changing its shared implementation.
+- Build a shared visual contract with explicit variants (glass, opaque, security, player, picker) rather than one mandatory universal dialog.
+
+Verification: commonMain source inspection only. No source modifications, builds, tests, UI captures, accessibility or device checks.
