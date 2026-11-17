@@ -584,3 +584,18 @@ Do not implement this group as one wholesale port. Add policy/selector tests fir
 ### Verification boundary
 
 This comparison inspected upstream commit diffs and the named upstream/Mew source files on the refs recorded in this ledger. It did not complete all library/watched mutation callers, all downloader platform lifecycle paths, or the full batch-download UI review. No app source/tests/workflows changed in this batch. Builds/tests/CI/device verification: **NOT RUN**.
+
+
+### Next-episode fallback — Mew source-identity and selector refinement
+
+A deeper Main-dev read refines the earlier gap assessment:
+
+- Mew already implements `StreamItem.playerSourceIdentityKey()` in `PlayerScreenRuntimeSourceActions.kt`. It derives identity from normalized P2P info-hash/file index, client-resolve metadata, video hash, direct URL, then a metadata fallback. `PlayerScreenRuntime` also tracks `activeSourceIdentityKey`. Preserve this Mew-aware identity implementation; do not add a duplicate helper.
+- Upstream's identity helper additionally recognizes its `serverTarget` identity. Mew's server preparation is a separate path (`prepareServerForPlayer`); verify the server source identity contract before extending Mew's key.
+- Mew's `StreamAutoPlaySelector.evaluateAutoPlayStream()` already returns an ordered `readyStreams` list after source-scope, addon/plugin filters, regex, exact-episode filename matching and binge-group preference. However, next-episode selection currently calls `selectAutoPlayStream()` and retains only the first candidate.
+- Mew `PlayerScreenRuntime` has active source identity and next-episode preparation/search jobs, but no fallback tried-key set, bounded attempt counter, auto-selected-source marker or source-fallback job. Mew settings only expose `streamAutoPlayNextEpisodeFallbackEnabled` for binge-group/provider selection; no separate source-retry enable/max-source/startup-timeout settings were found in `PlayerSettingsRepository.kt`.
+- The current next-episode path resolves the one selected source through `DirectDebridPlaybackResolver.resolveToPlayableStream`; on failure it surfaces the result and force-refreshes streams. It does not walk the selector's remaining eligible candidates.
+
+Refined decision: **ADAPT — keep the existing Mew identity helper and ordered selector contract; add only the missing bounded retry state/runner and episode-switch propagation.** Candidate iteration must preserve Mew's current-provider-first and preferred-binge-group behavior, exact target episode matching, selected addon/plugin and regex constraints, and P2P/debrid eligibility. Exclude manual/user-picked streams, external playback and engine-switch paths; reset tried-source state on episode changes; prevent duplicate identities and cap attempts. The upstream runtime startup-timeout/error fallback is a separate, broader integration and needs its own review of Mew's playback error callbacks before porting.
+
+No source code changed. Tests/build/CI/device verification: **NOT RUN**.
