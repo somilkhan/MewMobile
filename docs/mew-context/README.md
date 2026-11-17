@@ -763,3 +763,20 @@ Scope: upstream stable tag `1.0.0` → `enhanced` HEAD (`b4e446451f32edbdf8b1bf2
 
 Tests/build/device verification for this comparison wave: **NOT RUN**. Findings are based on remote source/tree inspection only.
 
+
+## Upstream snapshot refresh — exact tree parity checkpoint
+
+- On 2026-11-17, refreshed Mew `upstream-sync` from `d00db9bd774d2d395ea2d2c9f09548e2c47d08d1` to `2017c854d6e3eeceb49ab8841548f6143034935f`.
+- Source target: upstream `enhanced` commit `b4e446451f32edbdf8b1bf288d1a7a8a2bf10e03`.
+- Updated five source paths in one commit: `.github/ISSUE_TEMPLATE/bug_report.yml`, `DetailSeriesContent.kt`, `HomeCatalogSettingsRepository.kt`, iOS `PlayerEngine.ios.kt`, and iOS `SettingsConfigFileLauncher.ios.kt`.
+- Guard: verified `upstream-sync` expected head before the ref update; non-force ref update succeeded.
+- Read-back tree verification: 2,339 upstream blobs present, zero missing, zero differing; only `docs/mew-context/README.md` and `docs/upstream-sync/README.md` are Mew-owned extras. This establishes source-tree parity with `enhanced` HEAD, not commit-history identity.
+- `Main-dev` and `main` were not changed. This was an upstream snapshot refresh only, not feature integration into Mew's app branch.
+- Tests/build/CI/device verification: **NOT RUN**. The five files were copied as the exact upstream snapshot; Mew runtime compatibility remains to be assessed in the integration audit.
+
+## Full upstream history scale
+
+- Common ancestor: `f9ad843b14cd3be7fa3ddb800b6961233e0e5b56`.
+- Upstream `enhanced` is 2,193 commits ahead of that ancestor; Mew `Main-dev` is 596 commits ahead of the same ancestor. This is the true large-scale alignment backlog.
+- The large GitHub compare file listing is capped at 300 entries; it is not a complete changed-file audit. Continue through release checkpoints, full tree inventories and semantic batches, not one giant merge or one cherry-pick per commit.
+
