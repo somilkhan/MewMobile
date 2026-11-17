@@ -1716,3 +1716,31 @@ Do not force every overlay into one visual treatment. Player track/subtitle menu
 - Build a shared visual contract with explicit variants (glass, opaque, security, player, picker) rather than one mandatory universal dialog.
 
 Verification: commonMain source inspection only. No source modifications, builds, tests, UI captures, accessibility or device checks.
+
+
+## Cross-platform settings feature parity — downloads, Live TV, servers and backup (2026-11-18)
+
+Compared the current `Main-dev` and upstream `enhanced` trees across commonMain, androidMain and iosMain. Absence below means no equivalent settings page/file was found in the inspected tree; it does not prove the underlying feature is absent.
+
+### Upstream settings pages without a Mew page counterpart found
+
+- **Downloads settings:** upstream has `DownloadsSettingsPage.kt`, `DownloadsSettingsRepository.kt`, Android/iOS storage actuals and platform download-location pickers. The page includes preferred resolution, allow-mobile-data, download-button visibility, download location and concurrency controls. Mew has a Downloads root destination and a Downloads feature/queue, but no corresponding `features/settings/DownloadsSettingsPage.kt` or platform settings storage/picker was found. Mew's Nuvio Enhanced settings include a download external-folder option; that is not yet proven equivalent to the upstream download preferences. **Classification: PARTIAL / NEEDS SEMANTIC AUDIT. Decision: INVESTIGATE then ADAPT only missing preferences.** Check existing queue defaults, external-folder setting, file URI grants, scoped storage, iOS document picker, profile scope and background transfer behavior before adding anything.
+- **Live TV settings:** upstream has a substantial `LiveTvSettingsPage.kt` for playlist/provider credentials, EPG sources, navigation and manual reload/status. No same-purpose Mew settings page was found in the settings tree. Do not infer Live TV itself is absent; inspect Mew feature availability, route and provider configuration before deciding. **Classification: NEEDS INVESTIGATION. Decision: VERIFY feature parity and ownership.**
+- **Media server settings:** upstream has `MediaServersSettingsPage.kt` plus individual server connection/sign-in flows. Mew's inspected settings tree has no corresponding page. Earlier architecture audit found Mew's custom backend configuration is not equivalent to upstream's Jellyfin/Emby-style media-server provider system. **Classification: UPSTREAM-ONLY / DIFFERENT BACKEND CONTRACT. Decision: PRODUCT + SECURITY INVESTIGATION, not a settings-page port.** Review auth token storage, TLS/hostname policy, server discovery, profile scope and playback/source semantics before any adoption.
+- **Settings configuration backup/restore:** upstream has `SettingsConfigTransfer.kt` (~78 KB), `SettingsConfigBackupSection.kt`, platform file launchers and import/export across multiple settings domains. Mew has `NuvioEnhancedBackupFileBridge` and backup/import UI inside `NuvioEnhancedSettingsPage.kt`; this is specifically a Nuvio Enhanced settings backup flow, not evidence of full-app settings transfer parity. **Classification: SHARED PATTERN / DIFFERENT SCOPE. Decision: INVESTIGATE.** Compare exact exported keys, schema/versioning, sensitive credential opt-in, profile scoping, addon/plugin secrets, migrations, partial import errors and rollback before extending. Never replace Mew's narrower backup with upstream's transfer wholesale.
+
+### Cross-platform implementation observations
+
+- Upstream download-location selection uses platform-specific Android and iOS implementations. The iOS implementation holds a strong delegate reference while the UIKit document picker is active; cancellation and selection callbacks are handled explicitly. This is a useful lifecycle detail if Mew adapts the feature.
+- Mew already has platform-specific native bottom-sheet actuals for Android and iOS and a common expect contract. Preserve those platform presentation paths while aligning shared visual surfaces; do not replace native presentation with a common Material sheet solely for appearance parity.
+- Settings pages are commonMain, but platform-specific storage, document pickers and native sheet actuals are part of the user-visible behavior. The audit must compare all three together.
+
+### Next verification required
+
+1. Trace Mew Downloads root row to its destination and identify every persisted download preference across settings/repository/storage.
+2. Search Mew Live TV routes, providers and settings/configuration entry points; determine whether there is an actual parity gap or a different feature contract.
+3. Compare Mew server integrations and custom backend config against upstream media-server provider semantics and security requirements.
+4. Diff the actual Mew Nuvio Enhanced backup payload against upstream SettingsConfigTransfer; classify every setting domain and sensitive field.
+5. Inspect Android/iOS file picker lifecycle, URI permissions, cancellation and persistence; test only after any implementation is separately approved.
+
+Verification: recursive tree and selected source inspection on GitHub. No application code changes, builds, tests, screenshots, simulator or device checks. No assumption that a missing page file proves the underlying feature is missing.
