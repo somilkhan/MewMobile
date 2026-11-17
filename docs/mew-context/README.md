@@ -207,3 +207,12 @@ Never describe a partial audit as exhaustive. State API limits, missing local ch
 - `normalizeServerAddress()` accepts HTTP and HTTPS and defaults an address without a scheme to `http://`. This may be needed for LAN servers, but credentials and playback requests can consequently use cleartext HTTP if the user supplies/accepts it. Do not silently disable HTTP; require a separate compatibility/security decision and consider clear warning/confirmation.
 - Playback URLs can contain the server token in an `api_key` query parameter. Audit player URL logging, diagnostics, history/cache and external-player handoff before integration.
 - Still unverified: `httpRequestRaw` transport/redirect policy used by `ServerDiscoveryService`; backend RPC/RLS/retention for cloud-synced server tokens; and final custom-poster request/redirect restrictions. The prior NEEDS INVESTIGATION decision for Media Servers remains unchanged.
+
+
+### Raw HTTP platform parity — confirmed resource-limit mismatch
+
+- Common expect contract `AddonPlatform.kt` (SHA `c0e30fcebfc3a1b473fa852c42f5e2c029ad6b6b`) exposes `httpRequestRaw(..., followRedirects, maxResponseBodyBytes, ...)`.
+- Android actual `AddonPlatform.android.kt` (SHA `ee184e07d075a3687b154c94f9a13def7b0fb153`) honors `followRedirects`: it uses the shared client when true and clones it with both redirect flags false when false. It streams at most the requested body limit using `readAtMostBytes`.
+- iOS actual `AddonPlatform.ios.kt` (SHA `c556d5b8fd3c15d95724114583098ef4c0224206883`) does not use the `followRedirects` argument at all. It reads the entire response into `ByteArray` first, then truncates to `maxResponseBodyBytes`. Thus the flag is not enforced on iOS and the size limit bounds returned data but not memory consumed while downloading.
+- Verified caller: `ServerDiscoveryService.discover()` requests a 64 KiB + 1 byte cap and checks the returned body size; it relies on the default redirect behavior. On iOS, an oversized response can still be fully buffered before the service rejects the truncated result. This is a real cross-platform resource-bound mismatch, not just a theoretical call-site concern.
+- Decision: **ADAPT / FIX BEFORE PORTING SERVER DISCOVERY**. Implement streaming bounded reads on iOS and honor `followRedirects` in the iOS actual. Add platform-level tests or a testable bounded-reader abstraction covering oversized responses, redirect disabled/enabled, cancellation and final response URL. Search all callers before changing the shared contract.
