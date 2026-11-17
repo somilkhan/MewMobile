@@ -1245,3 +1245,34 @@ No application source changes. iOS build, tests, CI, simulator and device verifi
 - Classification: **SHARED PATTERN / DIFFERENT NAVIGATION AND HERO LAYOUT**. Decision: **INVESTIGATE / ADAPT CANDIDATE**. Audit Mew's native navigation bar variants, landscape/iPad layout, safe-area and hero mute visibility before adding a platform anchor. Keep Android behavior and Mew's existing hero chrome unchanged unless the iOS geometry requires it.
 
 No application source changes. Tests/builds/CI/device verification: **NOT RUN**.
+
+
+## Provider protocol, YouTube-only streams, and media-server parity — 2026-11-18
+
+### Stremio `ytId`-only stream support
+
+- Upstream `enhanced` currently at `b4e446451f32edbdf8b1bf288d1a7a8a2bf10e03` includes `StreamItem.ytId`, `youTubeIdToResolve`, `YouTubeStreamResolver` and parser/resolver regression tests (`StreamYouTubeTest`, `YouTubeStreamResolverTest`).
+- Mew `Main-dev` `StreamParser.kt` reads `url`, `infoHash`, `externalUrl`, and `clientResolve`, but not `ytId`; its "must have at least one source" guard drops an otherwise valid ytId-only stream. Mew `StreamModels.kt` has no `ytId` / `youTubeIdToResolve`; `hasPlayableSource` and `isSelectableForPlayback` consequently cannot accept it. Mew `PlayerScreenRuntimeSourceActions.kt` has no YouTube stream resolver path.
+- Mew does already own reusable YouTube extraction infrastructure: common `TrailerPlaybackResolver` expect, `fullCommonMain` `InAppYouTubeExtractor`, Android full and iOS full extraction platform implementations. Play Store variants deliberately return null for in-app extraction, so the adaptation must preserve external watch-page fallback for those variants.
+- Classification: **MISSING PROTOCOL COMPATIBILITY / REUSABLE SHARED EXTRACTION INFRASTRUCTURE**. Decision: **TAKE / ADAPT**. Add optional `ytId` parsing/model semantics, only resolve when no direct URL/external URL/torrent/clientResolve is present, and route through the existing trailer resolver; if in-app extraction is unavailable or disabled, convert to a safe external YouTube watch URL. Preserve normal direct/torrent/debrid precedence. Add parser, model-selectability, precedence, trimmed-ID, extraction-failure and full-vs-Play-Store/iOS variant tests. Do not copy a second extractor or make YouTube extraction a prerequisite for normal streams.
+
+### Stream fetching and request lifecycle architecture
+
+- Mew `StreamFetchSupport.kt` is a 42 KB multi-provider adapter containing CloudStream task flattening, route/search/load conversion, and conversion of CloudStream results into Mew `StreamItem` groups. Upstream's same-path file is a 5 KB generic plugin scraper adapter; it does not contain Mew's CloudStream runtime bridge.
+- Mew `StreamsRepository.kt` and `PlayerStreamsRepository.kt` have substantially expanded provider orchestration, request-token/current-request guards, cache-aware group publication and Mew-specific CloudStream/metadata paths. Upstream uses smaller active-job cancellation flows and now adds media-server stream sources.
+- Classification: **INTENTIONAL PARALLEL / DIFFERENT PROVIDER AND LIFECYCLE CONTRACTS**. Decision: **KEEP Mew architecture**. Port only isolated protocol or bug fixes after comparing request identity, cancellation, cache freshness, partial results, provider grouping, CloudStream route semantics and diagnostics. Do not replace either Mew repository with the smaller upstream file.
+
+### Jellyfin / Emby media-server providers
+
+- Upstream has a dedicated `features/servers` architecture: `ServerProvider`, `ServerRepository`, `ServerStreams`, `ServerPlayback`, shared MediaBrowser client/provider, and separate Jellyfin/Emby provider implementations. It supports server libraries, title search/matching, candidate selection, playback preparation, track/subtitle metadata, playback reporting and optional user-state sync.
+- Mew's `core/network/ServerConfiguration.kt` is the app's backend/auth configuration (official/custom backend URL and capabilities), not a Jellyfin/Emby media-server provider. Mew `Main-dev` tree has no `features/servers` or equivalent media-library provider package.
+- Classification: **UPSTREAM-ONLY FEATURE / NO EQUIVALENT Mew PROVIDER**. Decision: **NEEDS PRODUCT/ARCHITECTURE INVESTIGATION**, not a small parity patch. A future adaptation must separately audit credential/token storage, server URL validation and cleartext policy, redirects/SSRF exposure, profile-scoped connection sync, library metadata authority, watch-state import/export, playback session lifecycle and iOS/Android transport behavior. Do not conflate media-server connections with Mew's existing custom backend setting.
+
+### Next-episode source fallback — exact Mew behavior
+
+- Upstream merge `ec726ddfd87392df0062fe03ac8cae24a2bff00a` adds a bounded `resolveWithSourceFallback` run and per-source identity tracking for auto-selected next-episode candidates.
+- Mew `PlayerNextEpisodeAutoPlay.kt` selects a single stream using current-provider/binge-group preference and `StreamAutoPlaySelector`, then calls `onEpisodeStreamSelected`. Mew `PlayerScreenRuntimeSourceActions.kt` resolves direct-debrid sources asynchronously; on stale resolution it refreshes the episode streams but does not retry a ranked alternative. Mew has `playerSourceIdentityKey()` for direct, torrent and debrid identities, but no `PlayerSourceFallbackRun` or tried-source state in `PlayerScreenRuntimeState`.
+- Mew's `streamAutoPlayNextEpisodeFallbackEnabled` only controls whether next-episode selection can fall beyond the preferred provider/binge-group set; it is not equivalent to upstream's playback-failure fallback. Keep those controls semantically separate.
+- Classification: **MISSING FAILURE-RECOVERY BEHAVIOR / SHARED NEXT-EPISODE FLOW**. Decision: **ADAPT** after designing the candidate ordering against Mew's selector. Resolve only auto-selected candidates; preserve manual selection, downloaded/P2P/external/server sources, current-provider and binge-group preferences, direct-debrid cache/UNKNOWN semantics, cancellation, request tokens, and a strict bounded attempt count. Tests must cover expired/not-cached/error outcomes, fallback disabled, candidate identity collisions, repeated provider streams, cancellation, manual selection and episode transition. Do not retry authentication/configuration errors as if they were stale media links.
+
+No application source changes. Tests/builds/CI/device verification: **NOT RUN**.
