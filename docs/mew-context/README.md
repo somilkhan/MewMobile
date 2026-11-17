@@ -1015,3 +1015,8 @@ Priority iOS follow-ups:
 6. **SKIP current upstream-specific ports:** Compose subtitle overlay state patch, native UINavigationBar hero anchor, MDBList progress projection and Simkl related-title fallback; Mew's current implementations/contracts differ or those features are absent.
 
 Mew already excludes the iOS downloads directory from backup. Its iOS live-status payload is richer than upstream's inspected version. No app source changed in this pass. iOS build/tests/CI/simulator/device verification: **NOT RUN**. User has no Apple device; continue static analysis and use macOS CI/simulator workflows where available, never claim runtime verification without execution.
+
+
+## Account-wipe/download cleanup finding — 2026-11-17
+
+Confirmed on Mew Main-dev `69b4a96072b506f60dcbe538c5f6b71db3a4a464`: common `LocalAccountDataCleaner.wipe()` does not call `DownloadsRepository.clearLocalState()`; iOS `PlatformLocalAccountDataCleaner.ios.kt` omits the profile-scoped `downloads_payload` key and does not remove partial downloads; Android's platform cleaner also omits download preferences. Mew's repository already has `clearLocalState()` to cancel active handles and the iOS/Android downloaders expose partial-file removal. Upstream commit `48cbb901bf48a641a1270c2d10bbd4260e712e68` adds common in-memory cancellation plus per-profile unfinished-record/partial-file cleanup. **Priority: HIGH**. Adapt after deciding whether completed offline downloads remain after account wipe and whether retained completed records must have source URLs/headers stripped. Add cross-platform regression tests. Details in `docs/upstream-sync/README.md` under **iOS download account-wipe parity — deeper caller audit**. No app source changed; build/tests/CI/device verification NOT RUN.
