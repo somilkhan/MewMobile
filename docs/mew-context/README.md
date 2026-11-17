@@ -1030,3 +1030,8 @@ The `1.0.0...enhanced` comparison contains 72 commits / 160 changed paths, inclu
 ## Localization parity finding — 2026-11-17
 
 Static key/duplicate audit of default, French, pt-BR, Indonesian `id` and legacy `in` resources is documented in `docs/upstream-sync/README.md` under **Localization parity audit**. Mew duplicate resource names: 0 in all five files. Coverage: French 71% vs upstream 80%; pt-BR 53% vs 93%; Indonesian 53% vs 100%. Upstream has translations for 203 / 812 / 745 keys currently missing from Mew's French / pt-BR / Indonesian files respectively, but upstream-only features and Nuvio wording must be excluded or adapted. Mew `id` and `in` key sets are identical (legacy alias / intentional parallel). Upstream duplicate pt-BR cleanup is already unnecessary in Mew. Decision: **ADAPT**, medium priority; no translation files changed. Build/resource validation not run.
+
+
+## Home performance audit handoff — 2026-11-17
+
+See `docs/upstream-sync/README.md` section **Home performance and loading UX audit**. Findings: Mew collects the full AddonRepository state; upstream uses compact mapped/distinct signals. **ADAPT** but preserve Mew CloudStream/Cloud Library/profile semantics. Upstream's retryable manifest error card is a candidate requiring Mew-specific no-source/offline UI review. Hero metadata side-effect separation needs Mew owner/caller tracing. Android Baseline Profile/benchmark module is absent in inspected Mew build files; adapt only after build variant/test journey/performance audit. Mew's Coil-rendered Mew SVG wordmark is an intentional parallel; don't replace with upstream painter. No app source changed; build/benchmark/CI/device tests NOT RUN.
