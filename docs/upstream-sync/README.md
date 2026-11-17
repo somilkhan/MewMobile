@@ -1102,3 +1102,36 @@ Compared upstream feature commit `964ecfd8d98598cd2d315cedb584fe7ef59a76fd`, rec
 - Mew's inspected player runtime files `PlayerScreen.kt`, `PlayerScreenContent.kt`, `PlayerScreenRuntimeEffects.kt`, `PlayerScreenRuntimeState.kt` and `PlayerScreenRuntimeUi.kt` do not contain the upstream movie-recommendation/end-card state, setting or candidate surface. There is no player end-card recommendation UI to which the upstream source-refresh helper can be directly ported.
 - Classification: **SHARED PATTERN / DIFFERENT PRODUCT SURFACE**. Mew has source-aware More Like This metadata on detail pages; upstream adds a player-only end-card experience. Decision: **ADAPT only as a separate player UX feature**, after inspecting the Mew player end/next-episode UI, dismissal lifecycle, playback end timing, offline mode, recommendation setting, watched filtering and source fallback. Do not add a repository helper alone or duplicate the existing detail-page source selection.
 - No source changes. Player UI tests, builds, CI and device verification: **NOT RUN**.
+
+
+## Library vertical filters — full Mew data/caller audit — 2026-11-17
+
+Upstream feature: `2da28d707c77` — remember list/type, add genre/year/watched filters and faceted counts. Compared with Mew `Main-dev` `69b4a96072b506f60dcbe538c5f6b71db3a4a464`.
+
+### Existing Mew behavior and data availability
+
+- Mew `LibraryScreen.kt` (blob `958c5320ad12f743df873229d0d519e48cf775b3`) already has a vertical projection, section/list selection for remote sources, type filtering, sorting, and separate downloads filters. The downloads filter is a different surface/semantic and must remain unchanged.
+- Mew `LibraryDisplaySettings.kt` (blob `af31a9421807bbcabe960bf479ff5b9bde68ca1a`) currently persists only layout and sort. `selectedLibrarySectionKey` and `selectedLibraryType` live as screen `rememberSaveable` state in `LibraryScreen`; they are not stored in the profile-scoped display-settings payload. Storage uses `ProfileScopedKey` on Android/iOS (common contract blob `a1cfceaa89904ff99186a655096e743dbd741b93`, Android blob `75b026835852838ebc9258e0534b92478bccd1e3`, iOS blob `aeeef6f36996a14db748ff9eb461fa74037909bc`).
+- `LibraryItem` already contains `genres` and `releaseInfo` (blob `5f4da785ec88b5d012dee23fbce1a4efeedc2a61`). Trakt mapping populates both `releaseInfo` and genres in `TraktLibraryRepository` (blob `1bdd28d4b7fa1f1ba954f5473cfc4098af89b82a`). Simkl projection populates `releaseInfo` from its year but currently does not populate genres (`SimklLibraryProjection.kt` blob `f3a44865001816c72b95b8d483bf6794370b665e`). The genre filter must therefore be data-driven and omitted/empty where a source has no genre metadata; do not fabricate genres or fetch metadata per card just to fill the facet.
+- Mew already collects `WatchedRepository.uiState.watchedKeys` and `fullyWatchedSeriesKeys` in `LibraryScreen`, and uses `WatchingState.isPosterWatched` for poster state. Reuse the same watched semantics for filtering; do not create a parallel watched-state algorithm.
+
+### Exact upstream behavior to adapt
+
+- Upstream extends `LibraryVerticalProjection` with type counts, all-types count, genre options, year options and effective selected facets. It computes genre counts constrained by selected year and year counts constrained by selected genre; type counts are calculated after genre/year filtering; watched/unwatched is applied to final entries.
+- Upstream type choices use a stable media order (`movie`, `series`, `tv`, `show`, `anime`) rather than alphabetical order and display counts. Mew's current type choices are alphabetically sorted and have no counts.
+- Upstream persists selected section/list and selected type in `LibraryDisplaySettingsRepository`; genre/year/watched selections are screen state. Preserve Mew's profile-scoped storage and use backward-compatible optional fields in the existing JSON payload.
+- Upstream adds a second filter row for vertical layout only. Its `LibraryFilterRow` distributes chips across available width when possible and scrolls when constrained; it adds optional `fillWidth` to `NuvioDropdownChip`. Mew's existing `LibrarySavedControls` (blob `d3a9d6ddd207ce7db0710a9be8161b7a8949d0d6`) is a single horizontally scrolling row and its shared `NuvioDropdownChip` (blob `82f4a193d24e8a45ce6c97ab9c14565218e9e7e8`) has no `fillWidth`. Add the new row without changing the existing horizontal layout; if extending the shared chip, keep the new parameter optional/default-false and audit its other callers.
+- Mew's current vertical projection in `LibraryDisplaySettings.kt` filters only type and sorts; it has no genre/year/watched facets or faceted counts.
+
+### Classification and decision
+
+- Genre/year/watched filters and facet counts: **MISSING FEATURE** — **TAKE / ADAPT** the projection algorithm, with source-aware metadata availability.
+- Persist selected list/type: **PARTIALLY IMPLEMENTED** — state exists in the screen but is not persisted in the profile-scoped display-settings repository. **TAKE / ADAPT** upstream persistence fields.
+- Existing type filter/sort/layout and downloaded-content filters: **ALREADY IMPLEMENTED / INTENTIONAL PARALLEL** — retain them; extend rather than replace.
+- UI row and shared dropdown width: **SHARED PATTERN / DIFFERENT LAYOUT** — **ADAPT** only for vertical saved-library controls.
+
+### Regression tests required
+
+Mew `LibraryDisplaySettingsTest.kt` (blob `79c4e076239c07acab5c8a02789d6fab1284a6c0`) currently covers sorting, vertical section/type projection and display-settings serialization; no genre/year/watched/facet tests exist. Add tests for genre+year intersection, reciprocal facet counts, year extraction from single years/ranges/malformed values, watched/unwatched including fully-watched series, source with no genres, type counts/order, invalidated selections after source/list changes, and legacy profile payload migration. Also verify Trakt/Simkl/local behavior and that the horizontal layout/download filters are unchanged.
+
+No source changes. Builds/tests/CI/device verification: **NOT RUN**.
