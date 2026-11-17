@@ -984,3 +984,11 @@ Two issues need a separately approved release-workflow task:
 2. Manual draft/publish validation checks branch ref type but does not enforce an approved branch allowlist.
 
 Do not change workflow triggers/guards or publish until release branch policy is explicitly settled. Current default branch: `main`; `Main-dev`: `69b4a96072b506f60dcbe538c5f6b71db3a4a464`; `main`: `207ef8fa309b8061b73039b2d4e4bde4af65050e`. No release created; workflow/build/CI tests: **NOT RUN**.
+
+## 2026-11-17 — Library filter and RTL/LTR audit
+
+Upstream Library commit `2da28d707c77b0bb8d3030af8f360e67981a0994`: Mew already has vertical/horizontal library layouts, sorting, list/type controls, genre/release metadata and watched indicators. Missing are vertical Genre/Year/Watched filters, facet counts and persistent selected list/type. Mew's Android/iOS storage is already profile-scoped; extend that schema rather than introducing a second store. Its LibraryScreen has Cloud Library, Downloads, release calendar/radar and other Mew-specific flows, so no wholesale upstream screen replacement. Decision: **TAKE / ADAPT** as a bounded feature group; no app code changed.
+
+Upstream mixed RTL/LTR commit `5964cdca71c0` is already substantially implemented by Mew commit `69b4a96072b506f60dcbe538c5f6b71db3a4a464`. Mew applies content-direction text styling to Search and Watch Party; upstream adds focused host regression tests. Decision: **ALREADY IMPLEMENTED** runtime behavior; test coverage remains an adaptation opportunity.
+
+Branches: `Main-dev` `69b4a96072b506f60dcbe538c5f6b71db3a4a464`; `main` unchanged at `207ef8fa309b8061b73039b2d4e4bde4af65050e`. Tests/build/CI/device checks: **NOT RUN**.

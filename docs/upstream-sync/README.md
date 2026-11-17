@@ -338,3 +338,30 @@ The comparison of Mew's actual implementations against upstream commit `48cbb901
 - Decision: **INTENTIONAL PARALLEL release architecture; NEEDS INVESTIGATION for Mew trigger/branch guard**. Do not alter workflows, publish, tag, or change repository settings in this audit. Before any release-workflow edit, explicitly settle whether release builds are allowed from `Main-dev` or only `main`, how beta versions/tags are represented, and whether Mew needs an upstream-vs-fork release-note split.
 - Live evidence: repository default branch is `main`; `android-release.yml` exists on both `main` and `Main-dev`; current branches are `Main-dev`, `main`, `upstream-sync`. Main-dev at audit: `69b4a96072b506f60dcbe538c5f6b71db3a4a464`; main: `207ef8fa309b8061b73039b2d4e4bde4af65050e`.
 - No workflow code changed; no release was created. Workflow execution/build/CI checks: **NOT RUN**.
+
+## Library filters + mixed-direction text audit — 2026-11-17
+
+### Library filters (upstream `2da28d707c77b0bb8d3030af8f360e67981a0994`)
+
+Mew `Main-dev` currently has vertical/horizontal layouts, source-aware sorting, list/type selection, genre and release metadata on `LibraryItem`, and watched badge state. It does **not** have the upstream vertical-grid Genre, Year or Watched filters, facet counts, or persistent selected list/type.
+
+Important architecture differences:
+- Mew's `LibraryDisplaySettingsStorage` is already profile-scoped on Android and iOS. Extend its existing JSON schema; do not add a second preference store.
+- Mew currently holds selected list/type in `rememberSaveable` screen-local state; upstream moves these into profile-scoped display settings.
+- Mew has LOCAL/TRAKT/SIMKL sources, not MDBList library source; do not port MDBList-only release-sort behavior from newer upstream code.
+- Mew's `LibraryScreen` contains Mew-specific cloud library, downloads, release calendar/radar, and profile logic. Upstream's 154 KB screen is not a safe replacement for Mew's 111 KB screen.
+- Mew `LibraryItem` already exposes `genres` and `releaseInfo`; watched state is available from `WatchedRepository` and fully-watched series keys.
+
+Decision: **TAKE / ADAPT**, as a bounded vertical-grid filter feature. Implement pure projection/facet logic and tests first; then add the filter row and persist selected list/type through the existing profile-scoped settings repository. Preserve Mew's sort behavior, Cloud/Downloads modes and release-calendar/radar state. Need explicit decisions for watched matching (movie/series keys and episode-derived fully-watched series) and facet-count semantics before UI wiring. No app code changed in this audit.
+
+### Mixed RTL/LTR Search and Watch Party text
+
+- Upstream commit: `5964cdca71c0`.
+- Mew commit: `69b4a96072b506f60dcbe538c5f6b71db3a4a464`.
+- Mew already adds `TextDirection.Content` to search input/recent query, watch-party message metadata/body/composer and exposes a configurable input text style.
+- Upstream additionally makes `MessageRow` and `SearchRecentRow` internal and adds Robolectric/Compose host tests covering mixed RTL/LTR text, selection/editing, and paragraph direction. Mew's patch has no equivalent targeted host test and keeps those functions private.
+- Decision: **ALREADY IMPLEMENTED** for runtime behavior; **ADAPT** the regression tests when test infrastructure permits. No duplicate UI changes needed.
+
+### Branch checkpoint
+
+At this audit: `Main-dev` = `69b4a96072b506f60dcbe538c5f6b71db3a4a464`; `main` = `207ef8fa309b8061b73039b2d4e4bde4af65050e`; upstream `enhanced` = `b4e446451f32edbdf8b1bf288d1a7a8a2bf10e03`. The `1.0.0...enhanced` range still contains 72 commits; this is a feature-group audit, not a completed review of every commit. Tests/build/CI/device verification: **NOT RUN** in this pass.
