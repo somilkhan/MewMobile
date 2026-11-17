@@ -2042,3 +2042,38 @@ A focused comparison of `clearPin` and `clearPinWithPassword` found an additiona
 - Upstream separates remote success from local cleanup, re-checks account identity before touching profile-indexed storage, performs cleanup in a non-cancellable IO section, and reports local cleanup failure without falsely reporting that the remote PIN removal failed. It also disables biometric credentials.
 - Mew's `runCatching` wrappers also catch `CancellationException` unless explicitly rethrown; upstream explicitly rethrows cancellation in these security-sensitive flows.
 - **Decision: ADAPT.** Make remote PIN removal authoritative, cleanup account-scoped local artifacts safely even during cancellation, and distinguish “PIN removed” from “local cleanup incomplete”. Keep the Mew PIN-only design unless biometric auth is separately approved.
+
+
+## Account-wide cleanup and sign-out audit (2026-11-18)
+
+Verified source refs: Mew `Main-dev` `69b4a96072b506f60dcbe538c5f6b71db3a4a464`; upstream `enhanced` `b4e446451f32edbdf8b1bf288d1a7a8a2bf10e03`. Mew `upstream-sync` before this documentation update: `7c81843f3bc4d37b6712d7c1681129703b94ca39`.
+
+### Account cleanup is present, but Mew's coverage is narrower
+
+Mew already has `LocalAccountDataCleaner.wipe()`; it clears profile sync/credential sync state, watch progress, watched/library data, addon/plugin state, settings repositories, caches and platform preference stores. This is not a missing subsystem.
+
+Compared with upstream's cleaner, the inspected Mew implementation does not explicitly:
+- Remove all profile PIN cache payloads or perform account-bound biometric cleanup (Mew currently has no biometric implementation).
+- Clear `DownloadsRepository` and `BatchDownloadCoordinator` in-memory/local state, or clear unfinished platform download transfers in the Android platform cleaner.
+- Clear `ServerRepository` local state.
+- Clear `EpisodeShuffleRepository` local state.
+- Clear `MemberAccessRepository` local state (upstream-only feature; confirm whether Mew has an equivalent before treating as a gap).
+
+The Android platform preference lists also differ. Upstream includes shuffle, library release schedule, provider-specific auth/sync stores, member access, and download-transfer cleanup; Mew has its own Trakt/Simkl and plugin stores. Do not copy the upstream list wholesale: map each preference name to an existing Mew feature and its actual persistence contract first.
+
+**Classification:** SHARED PATTERN / DIFFERENT SEMANTICS. **Decision: ADAPT selectively** after tracing Mew's download service, pending-source worker, partial-file lifecycle, server persistence and profile scoping. Preserve Mew-specific storage and do not clear global preferences merely because upstream clears a similarly named store.
+
+### Invalid-session cleanup is a separate gap from explicit sign-out
+
+- Mew's explicit `signOut()` calls `LocalAccountDataCleaner.wipe()`, then clears its local-data owner marker.
+- Mew's account-owner handoff (`claimLocalAccountData(userId)`) wipes local account data when a different authenticated user claims the device.
+- However, Mew's inspected `clearLocalSessionAfterRemoteInvalidation()` clears anonymous auth, cancels sync, clears profile/provider sync state and marks the session unauthenticated; it does **not** call the full local account cleaner. The `NotAuthenticated` session-status branch also sets unauthenticated state without an equivalent full wipe.
+- Upstream routes invalid-session/lost-session cleanup through its broader reset path, including account-local cleanup.
+
+This means Mew can retain account-scoped local caches/settings after a remote session becomes invalid, until a later explicit sign-out or a different account claims local data. Confirm intended offline behavior and ensure cleanup is bound to the invalidated user ID before adapting; avoid wiping data belonging to a newly authenticated account during asynchronous session transitions.
+
+**Decision: ADAPT** the account-identity-aware lost-session cleanup, with cancellation/error handling and account-owner guards. Do not clear local data merely because transient remote validation is unavailable.
+
+### Verification limits
+
+Read-only GitHub source inspection. No source changes, build/test/CI, simulator/emulator or physical-device checks. Mew `Main-dev` and `main` remain untouched.
