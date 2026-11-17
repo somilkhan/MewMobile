@@ -1643,3 +1643,32 @@ Compared Mew `Main-dev` (`69b4a96072b506f60dcbe538c5f6b71db3a4a464`) with upstre
 - Named overlay differences: **NEEDS CALLER/SEMANTIC AUDIT** — no bulk copy.
 
 Verification boundary: GitHub source/tree inspection only. No app source modifications, builds, tests, screenshots, accessibility checks, simulator or device validation. Resource-string copy audit, full setting ownership map, all custom modal call sites, and cross-platform dismissal/focus testing remain outstanding.
+
+
+## Settings copy and ownership audit — confirmed labels and playback grouping (2026-11-18)
+
+### Confirmed text/semantic mismatches in Mew Main-dev
+
+- The root Appearance row uses `compose_settings_page_appearance` as its title and `compose_settings_root_appearance_description` as its description. The resource value for that title is **"Layout"**, while the description says **"Home, streams, collections, and detail pages"**. The destination `SettingsPage.Appearance` opens a page that contains both Theme and Display (AMOLED, iOS native tab-bar option, app icon, language, nav-bar style) plus Home, Streams and Detail Page groups. This is a concrete title/description/contents mismatch: it is neither a pure Appearance page nor a pure Layout page. **ADAPT** after choosing the canonical split and mapping every destination.
+- `settings_appearance_liquid_glass` is rendered as **"Liquid Glass"**, but its description is **"Use the native iPhone tab bar on iOS 26 and later."** The state/callback names are `liquidGlassNativeTabBarEnabled` and `onLiquidGlassNativeTabBarToggle`, and the option is shown only when `liquidGlassNativeTabBarSupported`. It is therefore a native iOS tab-bar preference, not the app-wide live Liquid Glass effects toggle in the supplied upstream screenshot. **RENAME the visible label** to an accurate term such as "Native iOS tab bar" (final copy to be decided), and keep the distinct glass rendering control separate. Do not reuse this key for the new Glass UI feature.
+- The setting `settings_appearance_liquid_glass_auto_hide` is dependent on the native iOS tab-bar toggle (`enabled = liquidGlassNativeTabBarEnabled`). Its copy should explicitly say it auto-hides the native iOS tab bar while scrolling; don't imply it affects all glass surfaces.
+- Root Appearance description currently describes only layout-related destinations and omits theme/display controls that are on the same page. This makes the landing-row summary incomplete even before the proposed split.
+
+### Playback page correction
+
+- Mew's `PlaybackSettingsPage.kt` is large (~185 KB), but it is **not one undifferentiated list**. It already has nine named groups in the inspected source: Player, Subtitle Audio, Subtitle Rendering, P2P, Stream Selection, Stream Auto Play, Decoder, Skip Segments and Next Episode.
+- Therefore the previous suggestion to split it into upstream-style subpages is only a **UX/discoverability option**, not a confirmed missing architecture. Preserve these nine semantic groups and their persisted setting ownership. First evaluate a compact in-page index/anchors, collapsible groups, search deep links or subpages only if navigation and accessibility benefit; do not fragment it solely to match upstream.
+- Upstream has more granular playback pages, but Mew's current group structure is meaningful and should be compared by behavior/caller, not file size.
+
+### Copy audit finding
+
+- `AdvancedSettingsPage.kt` has hardcoded English diagnostics labels/body strings ("Logs", "View logs", "Copy logs", "Export logs", "Logs copied", "Export started") rather than generated string resources. **ADAPT** into localized resources and check all supported locales/fallback behavior.
+- Resource copy needs a systematic key-to-visible-control pass: verify title, description, current value, dialog title/body, action labels, disabled-state explanation, platform limits and restart requirement against the actual callback and persistence behavior. Avoid cosmetic wording changes that conceal different semantics.
+
+### Ownership map corrections
+
+- The proposed future IA should distinguish **Appearance** (theme, palette, AMOLED, glass, app background, icon, language, visual effects) from **Layout** (home hero/catalog composition, collections, Continue Watching presentation, posters, streams list/badges, detail-page layout). The current Mew page combines both.
+- Native iOS tab-bar selection/auto-hide is a platform navigation preference, not a generic Appearance > Liquid Glass setting. Place under Navigation or platform-specific Appearance, with availability explanation.
+- Playback remains a single page with nine established groups pending usability review; do not mark it as missing subpages or force an upstream structure.
+
+Verification: source and resource inspection only. No app code changes, resource edits, builds, tests, locale validation, screenshots, accessibility or device checks.
