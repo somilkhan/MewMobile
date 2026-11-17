@@ -12,6 +12,13 @@ class SubtitleStyleStateTest {
     }
 
     @Test
+    fun subtitleOutlineWidthIsBoundedToTheSupportedRange() {
+        assertEquals(SUBTITLE_OUTLINE_WIDTH_MIN, normalizeSubtitleOutlineWidth(Int.MIN_VALUE))
+        assertEquals(SUBTITLE_OUTLINE_WIDTH_MAX, normalizeSubtitleOutlineWidth(Int.MAX_VALUE))
+        assertEquals(3, normalizeSubtitleOutlineWidth(3))
+    }
+
+    @Test
     fun subtitleShadowDefaultsToDisabledWithBoundedStrength() {
         assertFalse(SubtitleStyleState.DEFAULT.shadowEnabled)
         assertEquals(SUBTITLE_SHADOW_STRENGTH_DEFAULT, SubtitleStyleState.DEFAULT.shadowStrength)

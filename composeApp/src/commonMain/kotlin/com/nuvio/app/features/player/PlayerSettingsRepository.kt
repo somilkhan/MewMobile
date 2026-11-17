@@ -317,8 +317,9 @@ object PlayerSettingsRepository {
                 ?: SubtitleStyleState.DEFAULT.outlineColor,
             outlineEnabled = PlayerSettingsStorage.loadSubtitleOutlineEnabled()
                 ?: SubtitleStyleState.DEFAULT.outlineEnabled,
-            outlineWidth = PlayerSettingsStorage.loadSubtitleOutlineWidth()
-                ?: SubtitleStyleState.DEFAULT.outlineWidth,
+            outlineWidth = normalizeSubtitleOutlineWidth(
+                PlayerSettingsStorage.loadSubtitleOutlineWidth() ?: SubtitleStyleState.DEFAULT.outlineWidth,
+            ),
             shadowEnabled = PlayerSettingsStorage.loadSubtitleShadowEnabled()
                 ?: SubtitleStyleState.DEFAULT.shadowEnabled,
             shadowStrength = normalizeSubtitleShadowStrength(
@@ -634,24 +635,25 @@ object PlayerSettingsRepository {
 
     fun setSubtitleStyle(style: SubtitleStyleState) {
         ensureLoaded()
-        if (subtitleStyle == style) return
-        subtitleStyle = style
+        val normalized = style.copy(outlineWidth = normalizeSubtitleOutlineWidth(style.outlineWidth))
+        if (subtitleStyle == normalized) return
+        subtitleStyle = normalized
         publish()
-        PlayerSettingsStorage.saveSubtitleTextColor(style.textColor.toStorageHexString())
-        PlayerSettingsStorage.saveSubtitleBackgroundColor(style.backgroundColor.toStorageHexString())
-        PlayerSettingsStorage.saveSubtitleOutlineColor(style.outlineColor.toStorageHexString())
-        PlayerSettingsStorage.saveSubtitleOutlineEnabled(style.outlineEnabled)
-        PlayerSettingsStorage.saveSubtitleOutlineWidth(style.outlineWidth)
-        PlayerSettingsStorage.saveSubtitleShadowEnabled(style.shadowEnabled)
-        PlayerSettingsStorage.saveSubtitleShadowStrength(normalizeSubtitleShadowStrength(style.shadowStrength))
-        PlayerSettingsStorage.saveSubtitleBold(style.bold)
-        PlayerSettingsStorage.saveSubtitleFontSizeSp(style.fontSizeSp)
-        PlayerSettingsStorage.saveSubtitleFontFamily(style.fontFamily.name)
-        PlayerSettingsStorage.saveSubtitleCustomFontName(style.customFontName)
-        PlayerSettingsStorage.saveSubtitleCustomFontPath(style.customFontPath)
-        PlayerSettingsStorage.saveSubtitleBottomOffset(style.bottomOffset)
-        PlayerSettingsStorage.saveSubtitleUseForcedSubtitles(style.useForcedSubtitles)
-        PlayerSettingsStorage.saveSubtitleShowOnlyPreferredLanguages(style.showOnlyPreferredLanguages)
+        PlayerSettingsStorage.saveSubtitleTextColor(normalized.textColor.toStorageHexString())
+        PlayerSettingsStorage.saveSubtitleBackgroundColor(normalized.backgroundColor.toStorageHexString())
+        PlayerSettingsStorage.saveSubtitleOutlineColor(normalized.outlineColor.toStorageHexString())
+        PlayerSettingsStorage.saveSubtitleOutlineEnabled(normalized.outlineEnabled)
+        PlayerSettingsStorage.saveSubtitleOutlineWidth(normalized.outlineWidth)
+        PlayerSettingsStorage.saveSubtitleShadowEnabled(normalized.shadowEnabled)
+        PlayerSettingsStorage.saveSubtitleShadowStrength(normalizeSubtitleShadowStrength(normalized.shadowStrength))
+        PlayerSettingsStorage.saveSubtitleBold(normalized.bold)
+        PlayerSettingsStorage.saveSubtitleFontSizeSp(normalized.fontSizeSp)
+        PlayerSettingsStorage.saveSubtitleFontFamily(normalized.fontFamily.name)
+        PlayerSettingsStorage.saveSubtitleCustomFontName(normalized.customFontName)
+        PlayerSettingsStorage.saveSubtitleCustomFontPath(normalized.customFontPath)
+        PlayerSettingsStorage.saveSubtitleBottomOffset(normalized.bottomOffset)
+        PlayerSettingsStorage.saveSubtitleUseForcedSubtitles(normalized.useForcedSubtitles)
+        PlayerSettingsStorage.saveSubtitleShowOnlyPreferredLanguages(normalized.showOnlyPreferredLanguages)
     }
 
     fun updateSubtitleStyle(transform: (SubtitleStyleState) -> SubtitleStyleState) {

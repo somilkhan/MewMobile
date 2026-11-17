@@ -377,7 +377,7 @@ private fun StyleControlsCard(
                         onStyleChanged { current ->
                             current.copy(
                                 outlineEnabled = !current.outlineEnabled,
-                                outlineWidth = current.outlineWidth.coerceAtLeast(1),
+                                outlineWidth = normalizeSubtitleOutlineWidth(current.outlineWidth),
                             )
                         }
                     }
@@ -407,8 +407,8 @@ private fun StyleControlsCard(
                 )
                 StepperControl(
                     value = style.outlineWidth.toString(),
-                    onMinus = { onStyleChanged { current -> current.copy(outlineWidth = (current.outlineWidth - 1).coerceAtLeast(1)) } },
-                    onPlus = { onStyleChanged { current -> current.copy(outlineWidth = (current.outlineWidth + 1).coerceAtMost(5)) } },
+                    onMinus = { onStyleChanged { current -> current.copy(outlineWidth = (normalizeSubtitleOutlineWidth(current.outlineWidth) - 1).coerceAtLeast(SUBTITLE_OUTLINE_WIDTH_MIN)) } },
+                    onPlus = { onStyleChanged { current -> current.copy(outlineWidth = (normalizeSubtitleOutlineWidth(current.outlineWidth) + 1).coerceAtMost(SUBTITLE_OUTLINE_WIDTH_MAX)) } },
                     buttonSize = btnSize,
                     buttonRadius = btnRadius,
                     minWidth = 46.dp,

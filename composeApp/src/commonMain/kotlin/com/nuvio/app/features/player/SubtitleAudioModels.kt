@@ -65,6 +65,8 @@ const val SUBTITLE_DELAY_STEP_MS = 100
 const val SUBTITLE_SHADOW_STRENGTH_MIN = 1
 const val SUBTITLE_SHADOW_STRENGTH_MAX = 5
 const val SUBTITLE_SHADOW_STRENGTH_DEFAULT = 2
+const val SUBTITLE_OUTLINE_WIDTH_MIN = 1
+const val SUBTITLE_OUTLINE_WIDTH_MAX = 5
 
 data class SubtitleStyleState(
     val textColor: Color = Color.White,
@@ -90,6 +92,9 @@ data class SubtitleStyleState(
 
 fun normalizeSubtitleShadowStrength(value: Int): Int =
     value.coerceIn(SUBTITLE_SHADOW_STRENGTH_MIN, SUBTITLE_SHADOW_STRENGTH_MAX)
+
+fun normalizeSubtitleOutlineWidth(value: Int): Int =
+    value.coerceIn(SUBTITLE_OUTLINE_WIDTH_MIN, SUBTITLE_OUTLINE_WIDTH_MAX)
 
 fun SubtitleStyleState.usesCustomFont(): Boolean =
     fontFamily == SubtitleFontFamily.Custom && !customFontPath.isNullOrBlank()
