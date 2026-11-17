@@ -636,3 +636,70 @@ Decision: **NEEDS INVESTIGATION — likely partial parity.** Trace the Mew movie
 ### Verification boundary
 
 Inspected the upstream commit diffs and Mew Main-dev HomeScreen, MetaDetailsRepository, MetaDetails model, PlayerScreenRuntime state/effects and Gradle version catalog. No benchmark, build, test, CI or device run was performed. No app source changed.
+
+
+## Newer upstream bug-fix parity pass — 2026-11-17
+
+### Episode artwork fallback after image-load failure — upstream `b4e446451f32edbdf8b1bf288d1a7a8a2bf10e03`
+
+Upstream changed both horizontal and list episode cards to retain an image-load error state and fall back from the episode thumbnail to series background/poster.
+
+Mew Main-dev `features/details/components/DetailSeriesContent.kt` already contains `rememberEpisodeImageState(thumbnail, fallbackImage)`, passes `onError` from both episode card variants, and switches to the series fallback after the primary image fails.
+
+Decision: **ALREADY IMPLEMENTED.** The Mew equivalent is present in both UI variants. Preserve it; no duplicate change needed. Runtime/device behavior not tested in this audit.
+
+### Home catalog sync-before-load race — upstream `0b9d93599f7d7603e7814a99a70aa64d7c48e086`
+
+Upstream preserves local preferences when the remote sync arrives before the known catalog keys are loaded, by treating an empty known-key set as a temporary incomplete catalog list.
+
+Mew Main-dev `features/home/HomeCatalogSettingsRepository.kt` already contains the same guard in its preference merge: `knownKeys.isEmpty() || key in knownKeys || key.requiresExplicitSyncKey()`.
+
+Decision: **ALREADY IMPLEMENTED.** Mew already protects the exact startup race. Do not re-port.
+
+### iOS styled subtitles after next-episode transition — upstream `c5298633914d967792c79351754ba47d54dfd242`
+
+Upstream fixes a Compose state-lifetime bug by keeping `subtitleText` across source URL changes and explicitly clearing it in `LaunchedEffect(sourceUrl)`, while leaving `subtitleStyle` intact.
+
+Mew Main-dev `iosMain/features/player/PlayerEngine.ios.kt` has a materially different player bridge/engine implementation: the inspected file has no matching `subtitleText` / `subtitleStyle` Compose state and configures the bridge through source-keyed effects. This is not a same-line port.
+
+Decision: **INTENTIONAL PARALLEL / NEEDS INVESTIGATION.** Trace subtitle style ownership in Mew's iOS bridge and the common player settings/state. Reproduce the upstream scenario (styled subtitle enabled, next episode/source changes) on iOS before deciding whether Mew has the same bug. Do not add a second subtitle state holder.
+
+### iOS floating tab bar blur — upstream `c314dd48d622de249eebbea7e531e3f7b2e506d4`
+
+Upstream consolidates top/bottom native bar appearance cleanup and clears the iOS 26 scroll-edge blur behind the floating tab pill, without changing the pill itself.
+
+Mew's `iosApp/iosApp/ContentView.swift` does not expose the same `removeBarBlur` / UIKit tab-bar appearance helper in the inspected source. Mew's native navigation integration and tab implementation differ.
+
+Decision: **NEEDS INVESTIGATION — iOS-only visual parity.** Inspect the actual Mew tab controller hierarchy and iOS 26 appearance on device/simulator before porting UIKit/SwiftUI appearance changes. Avoid copying upstream's native bar patch into a different host hierarchy. Device verification not performed.
+
+### MDBList episode duration projection — upstream `a65cd8b2e42d7170d47cace44e5ebd6f03a053eb`
+
+Upstream prevents an episode from inheriting the parent show's runtime when creating an MDBList watch-progress projection; only movie entries may use the media-level runtime fallback. A regression test covers a show runtime incorrectly assigned to an episode.
+
+The exact `features/mdblist/MdbListProgressProjection.kt` path does not exist on Mew Main-dev (404), so equivalent projection behavior has not been located.
+
+Decision: **NEEDS INVESTIGATION — data correctness.** Find Mew's MDBList progress mapping and verify episode duration is sourced only from episode runtime or known episode metadata, never the show's aggregate runtime. Add a regression test with a deliberately large show runtime and a missing episode runtime. No conclusion about current Mew correctness yet.
+
+### Detail hero mute/back-button alignment — upstream `f28929d3e3cc0d354de1dd921efc539bbf8a14cf`
+
+Upstream adds a native navigation-bar button anchor from UIKit to align the hero mute control with the actual back button, including physical insets and RTL-aware trailing geometry. Android returns no native anchor; the Compose fallback remains.
+
+Mew Main-dev `features/details/components/DetailHero.kt` currently uses status-bar inset plus fixed end padding for the mute control and has no `platformNativeBarButtonAnchor` contract in `core/ui/PlatformInsets.kt`.
+
+Decision: **NEEDS INVESTIGATION — targeted iOS UI polish.** Inspect Mew's custom/native navigation modes, RTL layout and safe-area geometry on device/simulator. If the mute control visibly misaligns with the native back button, adapt an anchor to Mew's actual navigation host. Do not add an unused expect/actual API.
+
+### Simkl related-title fallback and MDBList duration — upstream `b6ae11b8be1d2b6ff702ca8163143e06c5902810`
+
+Upstream keeps trying Trakt/TMDB when Simkl returns no related titles rather than returning an empty Simkl selection. Mew's `MetaDetailsRepository.applyMoreLikeThisSource` already contains the source selection/enrichment policy, but this specific empty-Simkl fallback path was not fully traced in the inspected range.
+
+Decision: **NEEDS INVESTIGATION.** Test empty Simkl response, Simkl API failure, non-empty Simkl response, and configured TMDB/Trakt fallback in Mew. Preserve configured-source priority and avoid duplicate metadata requests.
+
+### Localization cleanup — upstream `106e67facd528dbd923b4ec0a087404e51372337`
+
+Upstream removes two duplicated Brazilian Portuguese string resources introduced by a merge. Mew's resource path/content was not compared in this pass.
+
+Decision: **NEEDS INVESTIGATION — low risk, broad audit.** Compare resource keys across all Mew locale files and check duplicate XML names/build resource validation before cleanup. Do not remove strings based only on upstream's duplicate state.
+
+### Mew verification boundary
+
+Mew Main-dev was checked for episode artwork fallback, home catalog merge, iOS player subtitle state, native tab-bar appearance and hero mute anchoring. MDBList projection path and complete Simkl fallback call chain remain unlocated/unverified. No app source changed. Tests/build/CI/device verification: **NOT RUN**.
