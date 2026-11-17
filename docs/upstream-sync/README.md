@@ -897,3 +897,14 @@ Decision: **ADAPT — targeted iOS 26 UI candidate, not yet implemented**. If Me
 Follow-up inspected Mew `composeApp/src/commonMain/kotlin/com/nuvio/app/core/network/NetworkStatusRepository.kt` (blob `bb270c98d0b1cba878769250ecefe1c3672dd960`). It performs HTTP reachability probes against a public endpoint and app server checks, exposing `Unknown/Checking/Online/NoInternet/ServersUnreachable`. It does not observe the OS network path, distinguish Wi-Fi from cellular, report expensive/constrained paths, or gate the download queue.
 
 Classification: **SHARED PATTERN / DIFFERENT SEMANTICS**, not a true duplicate. Keep user-facing internet/server reachability and download transport-cost policy separate. A new download guard may consume network reachability as an additional signal, but must not infer Wi-Fi/cellular from `NetworkStatusRepository` or replace its existing probes. On iOS use `NWPathMonitor` for path satisfaction/expensive/constrained/cellular; on Android use the platform connectivity capabilities. Queue policy should fail closed while path state is unknown if mobile data is not explicitly allowed, and must define whether an already-active transfer pauses when the path becomes expensive. This detail is now part of the high-priority network-policy adaptation plan.
+
+
+### Mew Home compact-signal port — caller/side-effect audit refinement
+
+Further caller tracing shows why the upstream HomeAddonSignals cannot replace Mew's entire addon state flow as-is:
+
+- Mew's full enabledAddons list is used to build metaProviderKey and metaProviderReadinessKey, compute refresh state, build the catalog refresh signature, call HomeCatalogSettingsRepository.syncCatalogs(enabledAddons), and call HomeRepository.refresh(enabledAddons). There are also retry/refresh callbacks that read the latest repository state.
+- The upstream compact projection only contains the five home signals needed by its own catalog/home flow; Mew has different catalog-sync side effects and additional CloudStream provider participation.
+- Replacing Mew's full state with the upstream projection would risk suppressing a catalog refresh when an addon catalog/resource/transport changes but the projected signal remains equal.
+
+Decision refinement: ADAPT the collection/recomposition boundary, not the source-of-truth data contract. Keep current AddonRepository as the source of truth. Before implementing, identify the exact fields used by buildHomeCatalogRefreshSignature and HomeCatalogSettingsRepository.syncCatalogs; split narrow UI-only signals from a catalog-refresh signature that changes for every relevant catalog/resource mutation. Trigger side effects from a distinct key and read current repository values at execution time. Preserve CloudStream registry revision and all profile/visibility dependencies. No code change until that field/caller audit and tests are complete.
