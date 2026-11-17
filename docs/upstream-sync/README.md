@@ -1305,3 +1305,22 @@ No application source changes. Tests/builds/CI/device verification: **NOT RUN**.
 - Classification: **ALREADY IMPLEMENTED / TEST-COVERAGE GAP**. Decision: **SKIP implementation port**; adapt the upstream test intent to Mew's own navigation behavior, including selection position, tap-to-destination mapping, swipe/drag and motion cancellation under RTL.
 
 No application source changes. Localization validation, tests/builds/CI, iOS simulator and device verification: **NOT RUN**.
+
+
+## Android startup and first-home rendering — 2026-11-18
+
+### Coordinated startup preload
+
+- Upstream `enhanced` adds `core/startup/StartupPreloader.kt`; Android `MainActivity` holds the system splash with `setKeepOnScreenCondition { !contentReady }`, waits for `StartupPreloader.awaitReady()`, then mounts Compose content. Its preload sequence loads cached profiles, library, watched state, watch progress, continue-watching preferences, player/P2P settings, media servers, detail settings, release notifications, Live TV and a Home snapshot. It logs individual failures and total duration; the activity cancels its startup scope on destroy.
+- Mew `MainActivity` initializes its Android storage/platform adapters synchronously, then immediately mounts `App()`; Mew's custom AppGate/launch UI and asynchronous auth/profile gate own the visible startup experience. No coordinated repository preloader or splash keep condition exists in Mew.
+- Mew `ProfileRepository.loadCachedProfiles()` already moves SharedPreferences/JSON decoding to `Dispatchers.IO`; upstream's current implementation does not show that same explicit IO dispatch in this method. Do not regress this Mew improvement.
+- Mew `HomeScreen` starts network/addon/CloudStream/collection/watch-progress initialization and triggers Home refresh when visible. Several repository `ensureLoaded()` methods have provider registration, disk reads, source selection and observer/network side effects; they are not all safe to move into a splash-blocking preload.
+- Classification: **SHARED STARTUP GOAL / DIFFERENT APP-GATE AND REPOSITORY LIFECYCLE**. Decision: **ADAPT selectively**. First profile actual cold-start timings and identify only cheap, local, idempotent reads required by the initial route. Keep network/provider preparation lazy or parallel, preserve Mew's auth/profile gating and custom launch UI, and never block splash on remote provider availability. Add timeout/cancellation and per-step timing; test cold/warm launch, anonymous/authenticated accounts, profile switching, offline startup and process recreation. Upstream has no dedicated StartupPreloader unit test in the inspected tree.
+
+### Persistent Home snapshot
+
+- Upstream `HomeSnapshot.kt` stores a profile-keyed JSON snapshot of Home sections and hero metadata through `AppFileCache`. Startup preloads it; `HomeRepository.restoreSnapshot()` publishes cached rows immediately while a fresh catalog request continues. Snapshot targets currently serialize Addon and Server catalog targets; unsupported target kinds are skipped. The payload records `savedAtMillis`, but the inspected load path validates profile identity and decoding, not snapshot age.
+- Mew `HomeRepository.kt` has in-memory `cachedSections`, `cachedCloudSections`, collection hero and localized artwork caches, plus progressive publication and request-key guards. It has no equivalent persistent Home snapshot store/restore path. Mew's Home flow includes CloudStream fallback/selection semantics absent from upstream's simpler repository.
+- Classification: **MISSING PERSISTED FIRST-PAINT CACHE / INTENTIONAL HOME PIPELINE DIFFERENCE**. Decision: **ADAPT candidate**. Design a profile-scoped snapshot with explicit TTL/versioning and stale-data policy; preserve Mew's CloudStream and addon catalog identity/request keys, custom ordering, localization and hero metadata. Do not serialize unsupported target kinds or show stale private/profile data after account/profile changes. Test profile isolation, malformed/old snapshots, addon removal/renames, CloudStream provider changes, offline rendering, fresh-response replacement and cache-write cancellation.
+
+No application source changes. Startup benchmarks, tests/builds/CI, and physical-device cold/warm launch verification: **NOT RUN**.
