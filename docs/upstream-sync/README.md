@@ -312,3 +312,12 @@ The comparison of Mew's actual implementations against upstream commit `48cbb901
 - Mew `Main-dev`: `a4b8ff258439f91140da2f92c60bec868fc6cec0` (includes iOS download backup exclusion).
 - Mew `main`: `207ef8fa309b8061b73039b2d4e4bde4af65050e`, unchanged.
 - `upstream-sync`: documentation-only updates; app source snapshot remains the aligned upstream tree.
+
+### Localization coverage audit
+
+- Upstream adds Bengali, Croatian, Urdu, Ukrainian and Simplified Chinese UI locale packages and registers language options/Android locale configuration. Mew currently has no resource directories for those five locales and does not expose them in `AppLanguage`.
+- Mew's default strings already contain the five language display-name keys, so the missing work is the locale resources, `AppLanguage` entries and Android `locale_config.xml` registrations. Mew already has Arabic and Russian translations and `AppLanguage` entries, but its Android `locale_config.xml` currently omits `ar` and `ru`.
+- Key-count comparison (string/plural/array resource names): Mew English base has 2,933 keys. Existing Mew Hebrew has 782 (26.7%) and Brazilian Portuguese has 1,560 (53.2%). Upstream's locale files contain translations for 2,121 Mew-base keys in Hebrew/Chinese/Ukrainian/Bengali/Croatian and 2,115 in Urdu; pt-BR contains 2,169 Mew-base keys. The upstream locale files do not cover all 812 Mew-only keys, so replacing Mew resource files wholesale would drop Mew-specific translations.
+- Decision: **ADAPT** the five upstream locale packages by merging only matching keys into Mew's resource namespace, preserve all Mew-specific strings and use default English fallback for untranslated Mew-only keys. Update `AppLanguage` and Android locale config, including the existing Arabic/Russian registration omission. Review RTL layout separately; do not assume adding Urdu/Hebrew/Arabic resources alone fixes mixed-direction text.
+- Add resource-key parity checks and verify Compose resource generation plus Android per-app language settings. No app code changed in this audit; builds/tests **NOT RUN**.
+

@@ -958,3 +958,11 @@ Upstream `d374bdf022f63ead318387c6f9ffebcdb8113497` adjusts the bottom inset hel
 - The home-catalog remote-sync race safeguard is already present in Mew's `shouldPreservePreferenceAfterRemoteSync`. Decision: **ALREADY IMPLEMENTED**.
 
 Current refs: upstream `enhanced` = `b4e446451f32edbdf8b1bf288d1a7a8a2bf10e03`; Mew `Main-dev` = `a4b8ff258439f91140da2f92c60bec868fc6cec0`; Mew `main` = `207ef8fa309b8061b73039b2d4e4bde4af65050e`. No app code changed in this audit. Tests/build/CI/device verification: **NOT RUN**.
+
+## 2026-11-17 — localization parity audit
+
+Mew currently has no Bengali, Croatian, Urdu, Ukrainian or Simplified Chinese resource directories, and those languages are absent from its `AppLanguage` enum. The five language display-name keys already exist in Mew's default resource file. Mew already has Arabic and Russian translations and enum entries, but Android `locale_config.xml` omits `ar` and `ru`.
+
+Resource key counts: Mew default English 2,933; Hebrew 782; pt-BR 1,560. Upstream locale files map to 2,121 existing Mew English keys for Hebrew/Chinese/Ukrainian/Bengali/Croatian, 2,115 for Urdu and 2,169 for pt-BR. The Mew-only keys need to be retained and fall back to English; do not replace Mew's locale XML files wholesale.
+
+Decision: **ADAPT** the five locale packages by merging only matching resource keys, adding language enum entries and Android locale registrations, and preserving Mew-specific strings. Also register existing Arabic/Russian resources in Android locale config. Verify RTL behavior separately. Resource generation/build/tests: **NOT RUN**.
