@@ -1406,3 +1406,15 @@ Refined preload tiers:
 Decision: **ADAPT** the startup coordinator with explicit task tiers and per-repository restore/activate contracts. Do not treat all ensureLoaded() calls as equivalent. No source changes; P2P settings are a low-risk candidate, Player/Nuvio settings require concurrency guards, Downloads must remain lifecycle-gated.
 
 Verification boundary: source inspection only. No timing benchmark, build, tests, CI or device verification. No app source changes.
+### iOS foreground/background lifecycle parity — 2026-11-18
+
+Inspected Mew and upstream common lifecycle contracts, iOS and Android actuals, and the Mew App.kt consumer.
+
+- Mew common contract exposes Flow<Unit>; Android emits on ProcessLifecycleOwner.ON_START, while iOS emits only UIApplicationDidBecomeActiveNotification. The iOS callback observer is correctly removed in awaitClose.
+- Upstream expands the contract to Flow<AppVisibility> with explicit Foreground and Background states. Its iOS actual emits the current UIApplication.sharedApplication.applicationState immediately, then observes both UIApplicationDidBecomeActiveNotification and UIApplicationWillResignActiveNotification, applying distinctUntilChanged(). Its Android implementation is a separate platform actual and must be checked before treating this as a shared drop-in.
+- Mew's inspected App.kt consumer only reacts to foreground events: it requests a network-status refresh and retries authenticated device-session registration. It does not currently consume a background event. Therefore, the current one-way contract is sufficient for this caller; changing it now would widen API scope without a demonstrated Mew behavior requirement.
+- Classification: **SHARED PATTERN / DIFFERENT SEMANTICS**. Upstream has a richer app-visibility contract; Mew currently uses a foreground-refresh signal. Not a duplicate implementation.
+- Decision: **ADAPT LATER / NEEDS CALLER REVIEW**, not an immediate port. If Mew adds background-sensitive behavior (for example pausing eligible sync/expensive work), introduce an explicit visibility state and migrate all platform actuals and consumers together. Do not infer that iOS should cancel downloads or playback merely because the app resigns active; background audio, PiP, downloads and native player lifecycles have separate policies.
+- iOS app entry differs too: Mew's MainViewController() initializes crash diagnostics and CloudStream platform storage before mounting App(); upstream's controller factory additionally wires native profile switcher/biometric and auto-sync setup for its richer native navigation entry points. These are intentional product/platform integrations, not safe startup boilerplate to copy. Preserve Mew's initialization ordering and inspect each native controller caller before any change.
+
+Verification boundary: read-only source inspection. GitHub code-search returned no useful indexed matches, so caller scope was verified through the recursive tree and direct source reads; no claim of exhaustive repository-wide usage beyond inspected files. No app source changes, builds, tests, CI or iOS device verification.
