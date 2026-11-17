@@ -1000,3 +1000,18 @@ Branches: `Main-dev` `69b4a96072b506f60dcbe538c5f6b71db3a4a464`; `main` unchange
 - Upstream `d703ca48e5ad` changes document-picker export. Mew exports backups using a temporary file + `UIActivityViewController` share sheet, so this is **FALSE POSITIVE / DIFFERENT UX**.
 
 No app code changed. iOS device checks and tests: **NOT RUN**.
+
+
+## iOS parity audit handoff — 2026-11-17
+
+Latest source refs: Mew `Main-dev` `69b4a96072b506f60dcbe538c5f6b71db3a4a464`; Mew `main` `207ef8fa309b8061b73039b2d4e4bde4af65050e`; upstream `enhanced` `b4e446451f32edbdf8b1bf288d1a7a8a2bf10e03`. Audit notes are detailed in `docs/upstream-sync/README.md`, section **iOS parity audit — static source review (2026-11-17)**.
+
+Priority iOS follow-ups:
+1. **ADAPT, high priority:** add a device-level mobile-data download opt-in and NWPathMonitor-equivalent policy. Mew currently allows cellular/expensive/constrained paths and has no queue network guard; preserve `Waiting` status and `DownloadQueueMode`.
+2. **ADAPT, low risk:** device storage statistics + UI, after checking shared and Android contracts.
+3. **NEEDS INVESTIGATION:** whether the custom UIKit tab bar needs an iOS 26 transparent-background adaptation; preserve Liquid Glass preference and avatar overlay.
+4. **NEEDS INVESTIGATION:** reapplication of subtitle style after Mew's mpv bridge loads a new source.
+5. **NEEDS INVESTIGATION:** iOS background transfer support; do not replace Mew's Range/`.part` downloader with upstream background URLSession without lifecycle/migration review.
+6. **SKIP current upstream-specific ports:** Compose subtitle overlay state patch, native UINavigationBar hero anchor, MDBList progress projection and Simkl related-title fallback; Mew's current implementations/contracts differ or those features are absent.
+
+Mew already excludes the iOS downloads directory from backup. Its iOS live-status payload is richer than upstream's inspected version. No app source changed in this pass. iOS build/tests/CI/simulator/device verification: **NOT RUN**. User has no Apple device; continue static analysis and use macOS CI/simulator workflows where available, never claim runtime verification without execution.
