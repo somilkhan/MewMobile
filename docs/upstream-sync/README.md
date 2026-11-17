@@ -132,3 +132,17 @@ Current status: **UPSTREAM-SYNC TREE ALIGNED; MAIN-DEV INTEGRATION AUDIT ONLY**.
 - Verification: recursive source-tree comparison now finds all 2,339 upstream blobs present, **zero missing paths, zero differing upstream blobs**, and only the two Mew-owned documentation files as extras. This is exact tree parity, not identical commit history.
 - `Main-dev` and `main` remain at `207ef8fa309b8061b73039b2d4e4bde4af65050e`; no app changes have been integrated there. The 2,193-commit semantic audit remains ongoing.
 
+
+
+## Exact current Mew-vs-upstream inventory
+
+At the shared ancestor `f9ad843b14cd3be7fa3ddb800b6961233e0e5b56`, upstream has advanced 2,193 commits and Mew Main-dev has advanced 596 commits. Recursive tree comparison gives:
+- Base 1,097 blobs; upstream enhanced 2,339; Mew Main-dev 1,668.
+- Upstream vs Main-dev: 1,133 upstream-only paths, 462 Mew-only paths, 500 shared identical blobs, 706 shared paths with different blobs.
+- Most upstream-only paths are commonMain (617), commonTest (120), Android main (112), Android host tests (94) and iOS main (53).
+- Most differing shared paths are commonMain (399), Android main (132), commonTest (58) and iOS main (36).
+- Most Mew-only paths are Android main (159), commonMain (110), commonTest (69) and iOS main (23); this includes Mew-specific CloudStream, branding and platform work that must be preserved.
+- The upstream release API currently lists 86 published releases through `1.1.0-beta.1`. Audit by release checkpoints and feature areas, not commit-by-commit cherry-picking.
+
+These counts measure tree paths, not features. Generated resources, vendored native code, assets, tests and build metadata need different review rules. GitHub's compare endpoint returns a capped file list for this large range; use recursive tree inventories and per-area semantic inspection for full coverage.
+

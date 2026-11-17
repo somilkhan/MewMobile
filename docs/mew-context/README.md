@@ -780,3 +780,24 @@ Tests/build/device verification for this comparison wave: **NOT RUN**. Findings 
 - Upstream `enhanced` is 2,193 commits ahead of that ancestor; Mew `Main-dev` is 596 commits ahead of the same ancestor. This is the true large-scale alignment backlog.
 - The large GitHub compare file listing is capped at 300 entries; it is not a complete changed-file audit. Continue through release checkpoints, full tree inventories and semantic batches, not one giant merge or one cherry-pick per commit.
 
+
+
+## Full-tree alignment inventory — common ancestor to current heads
+
+Reference point: common ancestor `f9ad843b14cd3be7fa3ddb800b6961233e0e5b56`, tree `ebba9d7f3c7f2d7dda239f5fb10224a34a49c5fc`. Upstream `enhanced` tree `519923a50e2b8c3f226bcafa4e46c6160b8095d3`; Mew `Main-dev` tree `db06d0a44367f7881460317f0d7a7233ed6bc115`.
+
+- Base: 1,097 blobs.
+- Upstream enhanced: 2,339 blobs; since base: 1,255 added, 13 removed, 583 modified.
+- Mew Main-dev: 1,668 blobs; since base: 573 added, 2 removed, 396 modified.
+- Direct tree comparison (current Mew Main-dev vs enhanced): **1,133 upstream-only paths**, **462 Mew-only paths**, **500 shared identical paths**, **706 shared paths with different content**.
+- Largest upstream-only groups: commonMain 617, commonTest 120, androidMain 112, androidHostTest 94, iosMain 53, Android app/native and assets after that.
+- Largest shared-but-different groups: commonMain 399, androidMain 132, commonTest 58, iosMain 36, then full/platform-specific source sets.
+- Largest Mew-only groups: androidMain 159, commonMain 110, commonTest 69, iosMain 23, Android full source 17, Mew branding/assets and CloudStream support.
+- These are **path/blob counts, not feature counts**. Some paths are generated resources, vendored native code, binary assets, tests, release metadata or platform-only files. Every candidate still needs semantic review and duplicate classification.
+
+## Release checkpoints
+
+- GitHub returned 86 published release entries for the upstream repository (current page, 2026-11-17), from the 0.1.x/0.2.x/0.3.x/0.4.x/0.5.x/0.6.x lines through stable `1.0.0` and beta `1.1.0-beta.1`.
+- Use release tags as audit checkpoints, but include commits between tags and branch-only work. A tag's `prerelease` flag and release notes must be checked; historical beta-named releases may not have the GitHub prerelease flag set.
+- The first 72-commit post-`1.0.0` range is only the most recent manageable wave. It does not cover the full 2,193-commit ancestry delta.
+
