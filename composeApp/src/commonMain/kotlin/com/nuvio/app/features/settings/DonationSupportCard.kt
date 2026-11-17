@@ -33,7 +33,6 @@ import com.nuvio.app.core.ui.appTheme
 import com.nuvio.app.core.ui.nuvio
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.support_nuvio_description
-import nuvio.composeapp.generated.resources.support_nuvio_donate_upi
 import nuvio.composeapp.generated.resources.support_nuvio_title
 import nuvio.composeapp.generated.resources.support_nuvio_view_supporters
 import org.jetbrains.compose.resources.stringResource
