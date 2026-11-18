@@ -3000,3 +3000,44 @@ Measure before changing behavior:
 ### Verification limits
 
 Static source comparison only. No benchmark, startup trace, profiler, build, test, CI or device verification was run. The `CloudStreamPlatformRuntime.initialize()` implementation and all pre-content initializers were not fully classified; do not defer them until side effects and lifecycle contracts are inspected. No source files changed.
+
+
+## iOS native navigation and PiP hero-trailer audit (2026-11-19)
+
+Verified refs before documentation update:
+- Mew `Main-dev`: `69b4a96072b506f60dcbe538c5f6b71db3a4a464`.
+- Upstream `enhanced`: `017bdaf0d63a2e3d9f2817d9febed43eae6ef5bd`.
+- Mew `upstream-sync` before update: `9fd616a382126e2abf54e035e961333b422ec37b`; README blob: `aa5ca103cdda8de84307acb92f36156a19051929`.
+
+### Upstream iOS tablet mute-button anchor change — not currently equivalent
+
+Upstream commit `49f73c2fadad9dcecf34b5c1f100ce2689e030e8` changes only `TabletDetailHero.kt`: when `LocalUseNativeNavigation` is enabled, it positions the mute button against `platformNativeBarButtonAnchor()` and uses the physical top inset as fallback.
+
+Mew:
+- Has a single `features/details/components/DetailHero.kt` with status-bar top padding and `LocalVerticalBarPadding`; no `platformNativeBarButtonAnchor` or `LocalUseNativeNavigation` usage was found in that file.
+- iOS `MainViewController()` calls `App()` with default arguments, so `useNativeNavigation` remains false. The Swift host provides a native UITabBar, but that is not the same as upstream's Compose native-navigation bar anchor.
+
+**Classification:** platform-specific layout pattern / different host architecture.
+
+**Decision: SKIP for current Mew iOS host.** Do not add the anchor helper solely to copy this commit. Revisit if Mew enables upstream-style native navigation or a native navigation bar on iPad; then align the mute control to the actual host anchor and test split-view/rotation.
+
+### Upstream parked-PiP hero suppression — Mew has a likely gap
+
+Upstream commit `c598b0c14c0ba8f1e665891fd5fa37b867bb1d33`:
+- Adds `MiniPlayerController.parkedInPictureInPicture`.
+- Makes `MiniPlayerController.isActive` true for either a minimized mini-player or parked PiP.
+- Prevents `HeroTrailerPlayerSurface` from being composed in mobile and tablet detail heroes while that controller is active.
+- Bridges the platform PiP callback through `setPlayerParkedInPictureInPicture()`.
+
+Mew:
+- Has no `MiniPlayerController` or common parked-PiP bridge in the inspected paths.
+- Android `PlayerPictureInPictureManager` tracks `wasInPictureInPictureMode` privately; `MainActivity.onPictureInPictureModeChanged` calls the manager, but no observable Compose state is exposed from that manager.
+- Mew `DetailHero.kt` composes `HeroTrailerPlayerSurface` when a trailer source exists and uses the supplied `heroTrailerPlayWhenReady()`; no PiP state guard is present in the component.
+
+**Classification:** SHARED PATTERN / DIFFERENT SEMANTICS. Mew has PiP but no upstream mini-player.
+
+**Decision: ADAPT PiP-only suppression.** Expose a lifecycle-safe observable PiP-active state from Mew's existing PiP manager and prevent detail hero trailer surface creation while PiP is active. Do not add upstream's mini-player controller. Verify behavior when PiP starts while detail is visible, app returns foreground with PiP still active, PiP exits while app is foreground/background, and the player is disposed. Confirm no extra decoder/audio session remains active. This is a source-level candidate; device behavior is NOT VERIFIED.
+
+### Verification limits
+
+Static source comparison only. No iPad/iPhone or Android PiP device test, playback trace, Compose lifecycle test, build, tests or CI run. No source files changed.
