@@ -2427,3 +2427,61 @@ Inspected `fullCommonMain/.../PluginSettingsDialog.kt`:
 ### Audit boundary
 
 No source changes. This pass does not complete TMDB/AI Assistant credential dialogs, Debrid device-auth and formatter dialogs, addon delete/configuration flows, backup import/export confirmation, or all playback picker dialogs. No translation resource matrix, builds, tests, CI, simulator/emulator or device checks performed.
+
+
+## Integration, destructive-action and backup dialog audit — third pass (2026-11-19)
+
+Verified refs: Mew `Main-dev` `69b4a96072b506f60dcbe538c5f6b71db3a4a464`; upstream `enhanced` `017bdaf0d63a2e3d9f2817d9febed43eae6ef5bd`; `upstream-sync` before update `31f6e1465b02325da2ca7d9808fe46fc40a38c03`. README blob before update: `8c3662195622627b6728edda9e757ff07b00eaa0`.
+
+### Debrid provider API-key dialog exposes the key
+
+Inspected `DebridSettingsPage.kt`:
+
+- API-key provider dialog uses plain `OutlinedTextField` without `PasswordVisualTransformation` or reveal toggle, despite common `SettingsSecretTextField` existing and being used by MDBList, TMDB, AI Assistant and Simkl manual client ID.
+- Provider status on the parent row is masked (last four characters), but the edit dialog itself displays the full key.
+- Save validates the key asynchronously before storing; Clear removes it immediately; Cancel dismisses without saving the draft.
+- Device-code authorization is a separate flow with persisted pending session, polling, expiry/failure/retry, copy code, open verification URL, and disconnect action. Preserve this lifecycle; it is not interchangeable with API-key entry.
+- Debrid stream filters use shared local dialog helper functions: single choice commits on selection; multi-choice stages a draft and commits on Save; text-list stages and commits on Save. Choice lists cap at 420dp and scroll. Template editing stages a draft with Reset-to-default, Cancel and Save. Formatter reset from the settings row itself is immediate.
+- Some dialogs use `DebridDialogSurface`, a feature-local surface abstraction, while prepare-count uses a bespoke Material surface. These are related presentation patterns but different content/commit semantics; don't mass replace without reviewing each.
+
+**Decision: ADAPT, security priority.** Use the shared secret input (or equivalent) for API-key provider edit fields. Preserve validation, Clear, Cancel and Save behavior. Review clipboard/autofill and keyboard behavior. Consider consolidating the feature-local surface only after glass fallback and all dialog semantics are verified.
+
+### Add-on removal has no confirmation in the inspected caller
+
+Inspected `AddonsScreen.kt`:
+
+- Installed add-on card's delete icon invokes `onDeleteClick` directly; caller wires this to `AddonRepository.removeAddon(addon.manifestUrl)`.
+- No confirmation state or confirmation dialog appears in this screen path.
+- Install does have a localized busy/success/error `NuvioStatusModal`; configuring opens the add-on's external `/configure` URL when manifest hints permit it.
+
+**Decision: NEEDS INVESTIGATION / UX safety.** Trace repository removal side effects, catalog/provider sync and whether another layer wraps the caller before proposing confirmation. If this is the only delete path, add an explicit localized confirmation that identifies the add-on and preserves Cancel as default; never remove directly on accidental icon tap.
+
+### Backup import/export: current confirmation boundary is incomplete
+
+Inspected `NuvioEnhancedSettingsPage.kt` and `NuvioEnhancedBackupFileBridge.kt`:
+
+- Export file invokes the platform file bridge and reports callback success/failure with a toast. Copy export opens a read-only payload dialog and supports copy-again.
+- Paste import opens a localized text dialog with validation error area, Import and Cancel; import runs directly when Import is tapped.
+- File import calls `NuvioEnhancedBackupFileBridge.importBackup` and immediately passes the returned string to `ProfileSettingsSync.importBackupJson`; there is no preview/confirmation step in this caller.
+- Import success closes and clears the paste dialog; failure remains visible and shows a toast. Preserve that failure feedback.
+- These are still profile-settings sync schema imports rather than the dedicated versioned portable backup described in the earlier architecture audit.
+
+**Decision: ADAPT, high data-impact priority.** Both file and pasted imports should converge on one validated preview/confirmation path before applying settings, with explicit scope and local-credential preservation summary. Preserve platform picker cancellation/error handling. Do not claim rollback/atomicity until importer semantics are separately audited.
+
+### TMDB and AI Assistant credential controls
+
+Inspected `TmdbSettingsPage.kt` and `AiAssistantSettingsPage.kt`:
+
+- TMDB personal API key and AI provider/Tavily keys use `SettingsSecretTextField`, with reveal toggle; explicit Save commits draft.
+- TMDB enrichment and AI web-search controls are disabled until the required key exists, with localized explanatory text. AI provider/model controls use inline chips and text field rather than a modal.
+- This contrasts with Debrid's unmasked edit field and supports using the shared secret component there.
+
+**Decision: ALREADY IMPLEMENTED** for these inspected credential pages. No duplicate credential dialog abstraction is needed.
+
+### Outstanding in this area
+
+- Trace Home catalog Reset scope/undo expectations and add-on deletion call paths.
+- Inspect remaining Debrid stream filter variants, device-auth lifecycle on background/rotation, and keyboard/short-height behavior.
+- Complete backup importer validation/partial-apply audit and platform file bridge result semantics already identified earlier.
+- Inspect playback picker/dialog inventory and all platform-specific settings source sets.
+- No source changes, builds, tests, CI or device checks. No translated resource matrix yet.
