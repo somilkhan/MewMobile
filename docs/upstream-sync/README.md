@@ -2115,3 +2115,40 @@ The Mew tree at the verified Main-dev SHA has no upstream-equivalent `features/s
 ### Verification limits
 
 Read-only GitHub source inspection. No app source changes, builds, tests, CI, simulator/emulator or device checks. `Main-dev` and `main` remain untouched.
+
+
+## Home-row placement parity and pending-download worker cleanup audit (2026-11-18)
+
+Verified refs before documentation update: Mew `Main-dev` `69b4a96072b506f60dcbe538c5f6b71db3a4a464`; upstream `enhanced` `017bdaf0d63a2e3d9f2817d9febed43eae6ef5bd`; `upstream-sync` before update `24fa4886cb19b856ac03f5dd98cf0fc03c96be8d`. Existing README blob: `81b365784c2a1cef70bbcc5b6c2d03d92232cf42`.
+
+### New upstream feature: pin rows and hidden rows
+
+Upstream commit `017bdaf0d63a` adds home-row placement and hidden-row management across `HomeCatalogSettingsRepository`, `HomeRepository`, `HomescreenSettingsPage`, and `HomescreenCatalogRow`, with repository tests and localized labels.
+
+- Per-row/collection placement supports default, pinned top, and pinned bottom. Existing collection-pinned-to-top behavior is retained.
+- Hidden catalogs/collections move into a separate expandable section; hidden rows can be reordered independently without changing visibility or visible-row order.
+- Drag reorder is constrained to the same placement section; attempts to cross pinned boundaries are rejected with feedback.
+- Placement is stored in the existing platform home-catalog payload (Android SharedPreferences / iOS NSUserDefaults) under the profile-scoped key. It is intentionally excluded from the profile sync payload; remote sync updates preserve the local placement preference.
+- Upstream tests cover top/bottom ordering, hidden-list reordering, placement exclusion from sync, and preservation during remote settings application.
+
+Mew already has catalog visibility, ordering, custom titles, collection pinning and a reset-to-defaults action. Its current item/preference models and settings UI have no equivalent row-placement field, pin-top/bottom controls or hidden-row section. Existing platform storage is already profile scoped, so this can be added without replacing the storage abstraction.
+
+**Classification:** SHARED PATTERN / DIFFERENT SEMANTICS. **Decision: ADAPT.** Port the placement model and ordering constraints into Mew's existing repository; keep placement local/profile-scoped rather than adding it to the shared sync contract. Preserve Mew's hero-source selection, custom titles, catalog definitions, collections and reset behavior. Add common tests for placement ordering, hidden-row reorder isolation, remote-sync preservation and profile switching. Audit reset semantics so “reset catalog layout” resets placement as well as existing ordering/visibility where product intent says it should.
+
+### Pending-source worker lifecycle and account wipe
+
+- Android schedules each pending episode-source search as unique WorkManager work with a network-connected constraint and a delay derived from `nextAttemptAtEpochMs`. Individual search removal/status changes call `cancelUniqueWork`.
+- The worker initializes addon, plugin, debrid, profile, download, external-folder, downloader and live-status storage before retrying the search.
+- Pending searches are serialized in the same `DownloadsStorage` payload as download queue items. The model stores provider identity and retry/expiry metadata, but no explicit account/user identity snapshot.
+- Mew's `LocalAccountDataCleaner.wipe()` does not call `DownloadsRepository.clearLocalState()`, does not clear the Android `nuvio_downloads` preference file, and does not cancel pending-source WorkManager jobs. The existing repository clear method cancels active download task handles only; it does not cancel pending-source jobs.
+- Consequently, account wipe can leave persisted pending searches and scheduled Android work behind. A worker may execute after the wipe and re-read profile-scoped storage. Account/profile ownership must be checked before retrying or mutating queue state; cancellation alone is insufficient if persisted work can be recreated.
+- iOS pending-source scheduling/cancellation/notification adapter is currently a no-op, so the Android WorkManager lifecycle is not shared cross-platform.
+- On repository load, expired or exhausted pending searches are filtered from the in-memory state and persisted normalization; this is a useful stale-entry guard but does not itself cancel already-enqueued WorkManager jobs.
+
+**Classification:** SHARED PATTERN / DIFFERENT SEMANTICS. **Decision: ADAPT, high priority with download cleanup.** Define a single account-wipe sequence that prevents new work, cancels all pending-source work, cancels active handles, clears pending and queue metadata under the correct account/profile owner, then reinitializes only after the new owner is established. Keep completed media deletion separate and explicit. Add tests for account switch/wipe racing a running worker, stale work after process restart, expiry, and cancellation. Do not introduce a new scheduler architecture; retain Mew's WorkManager foreground/coroutine split.
+
+**Investigation limitation:** the tracked source tree contains the Android worker's call to `EpisodeDownloadCoordinator.retryPending(searchId)`, but the corresponding coordinator declaration was not located in the recursive tree or indexed source search. Do not infer that the worker retry implementation is verified until the symbol is resolved and its callers/account guards are inspected. No build was run to determine whether this is generated, supplied elsewhere, or a compile-time issue.
+
+### Verification limits
+
+Read-only GitHub inspection. No app source changes, builds, tests, CI, simulator/emulator or physical-device checks. `Main-dev` and `main` remain untouched.
