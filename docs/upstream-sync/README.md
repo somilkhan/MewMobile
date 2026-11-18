@@ -2361,3 +2361,69 @@ Inspected `AppIconPicker.kt`:
 - Preserve platform-specific confirmation and the pending/failed states. Do not flatten phone/tablet presentation into one surface or remove the Android close-confirmation step.
 
 **Decision: ALREADY IMPLEMENTED** for adaptive shell, localized user-facing text and bounded content. Remaining runtime checks: focus/selection accessibility, rotation while pending, failed platform icon switch and dismissal while an operation is in flight.
+
+
+## Settings controls and integration dialogs — second pass (2026-11-19)
+
+Verified refs: Mew `Main-dev` `69b4a96072b506f60dcbe538c5f6b71db3a4a464`; upstream `enhanced` `017bdaf0d63a2e3d9f2817d9febed43eae6ef5bd`; `upstream-sync` before update `e1c80981e2fada7af9e341ba155030408c27c846`. Audit README blob before update: `6a49b05b91b65748df6d882a83cf0c410732e1b8`.
+
+### Theme customization is inline, not a dialog
+
+Inspected `AppearanceSettingsPage.kt` and `ThemeSettingsRepository.kt`:
+
+- Theme groups (Classic, Supporter and Enhanced) are inline selectable grids. Selection persists immediately.
+- Custom theme exposes two inline color controls. Preset swatches, saturation/value canvas, hue control and hex field all update the repository immediately; no separate Apply/Cancel dialog.
+- Theme and custom colors are profile-backed via `ThemeSettingsRepository`/platform storage and are reset to defaults by its local-state clear path.
+- The color picker expands inline in the Layout page; it is not an extra modal to redesign.
+
+**Decision: ALREADY IMPLEMENTED** for inline theme selection. Preserve immediate updates and selected-state feedback. Follow-up UI review: verify touch/keyboard/TV focus on the custom picker, hex validation feedback, and small-height/landscape scrolling. Do not introduce a confirmation dialog unless the product changes the commit semantics intentionally.
+
+### Home catalog editor is inline; reset is immediate
+
+Inspected `HomescreenSettingsPage.kt`:
+
+- Hero visibility, catalog type, unreleased content and catalog underline are inline switches.
+- Hero-source selection expands inline with a selected-count/limit, per-catalog switches and a limit explanation.
+- Catalog/collection visibility, ordering and placement are handled in the list; Reset invokes `HomeCatalogSettingsRepository.resetToDefaults` directly. No confirmation dialog in this screen.
+- Preserve pin/placement constraints, source cap and profile-aware persistence; a generic modal redesign is not applicable.
+
+**Decision: ALREADY IMPLEMENTED** for inline controls. **UX risk to investigate:** Reset is immediate and has no confirmation/undo in the inspected caller. Decide whether that is acceptable given it resets multiple custom catalog preferences; do not add confirmation without checking repository reset scope and existing user expectation.
+
+### Tracking provider selection is intentionally adaptive
+
+Inspected `TrackingAdaptivePicker.kt`, `TrackingSettingsPage.kt`, `TrackingProviderCards.kt`:
+
+- Phone uses shared `NuvioModalBottomSheet`; tablet uses a bounded-width dialog.
+- The picker has title/subtitle, selected option, disabled state and unavailable-reason text, a 520dp scroll cap; selecting an option commits immediately and dismisses. Tablet additionally has Close.
+- Tracking list membership is a separate stateful `TrackingListPickerDialog`: staged membership toggles, loading/error state, Save and Cancel. It is not a duplicate of the immediate source picker.
+- Simkl sync info is a separate explanatory dialog. Provider cards have connected/disconnected/awaiting-approval states; preserve OAuth/device authorization lifecycle rather than flattening into simple credential forms.
+
+**Decision: ALREADY IMPLEMENTED / INTENTIONAL PARALLEL.** Keep adaptive source picker and staged membership editor separate. Remaining verification: narrow landscape, keyboard/focus, option-unavailable explanation, dismissal during refresh and preserving staged changes on Cancel.
+
+### Integration credential controls
+
+Inspected `MdbListSettingsPage.kt`, `TrackingSettingsPage.kt`, `SettingsSecretTextField.kt`, `IntegrationsSettingsPage.kt`:
+
+- Integrations landing page is a short route hub for AI Assistant, TMDB, MDBList and Debrid; tracking providers are in their own Tracking page. This is a deliberate separation by integration function, not a missing duplicate category.
+- MDBList API key and Simkl manual client ID use `SettingsSecretTextField` with password transformation and explicit visibility toggle. MDBList provider switches remain disabled until the API key exists; the explanatory text tells the user why.
+- Simkl manual client ID uses explicit Save; the saved state is shown. Preserve that explicit commit behavior.
+- Do not expose credential values in a general glass preview or diagnostic text. Keep the secret-field visibility toggle and keyboard password mode.
+
+**Decision: ALREADY IMPLEMENTED** for common secret input behavior in these inspected controls. Full audit of TMDB, AI Assistant and each provider’s auth errors/redirect failure copy remains pending.
+
+### Plugin settings dialog: password metadata is currently ignored
+
+Inspected `fullCommonMain/.../PluginSettingsDialog.kt`:
+
+- Dialog parses plugin layout JSON fields including `isPassword`, but the value is never used; every `text` field uses the same `NuvioInputField`. A plugin-declared password/secret field therefore does not receive password masking or a reveal control.
+- Dialog-owned copy is hardcoded English: dynamic title suffix “Settings”, “Select option”, “Cancel”, “Save”.
+- The content scrolls but has no explicit maximum height; dropdowns are nested inside a vertically scrolling dialog.
+- Draft settings are held locally and only persisted on Save; Cancel/dismiss discards edits. Preserve this transaction boundary.
+- Plugin labels/descriptions/options are remote plugin metadata, not app-owned strings; do not translate or rewrite those values as if they were Mew copy.
+- This is in `fullCommonMain`; verify source-set inclusion for each distribution before treating it as universally visible.
+
+**Decision: ADAPT, security-sensitive UI priority.** Honor `isPassword` with masked input and an accessible reveal toggle (reuse `SettingsSecretTextField` only if its behavior fits the plugin field API); localize app-owned dialog actions/placeholder; cap dialog height and keep footer reachable. Preserve local draft + Save/Cancel semantics. Inspect PluginStorage persistence separately before making any claim about at-rest encryption; this UI audit does not establish storage protection.
+
+### Audit boundary
+
+No source changes. This pass does not complete TMDB/AI Assistant credential dialogs, Debrid device-auth and formatter dialogs, addon delete/configuration flows, backup import/export confirmation, or all playback picker dialogs. No translation resource matrix, builds, tests, CI, simulator/emulator or device checks performed.
