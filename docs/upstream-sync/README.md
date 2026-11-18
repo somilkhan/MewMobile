@@ -2603,3 +2603,59 @@ Inspected the 14 playback-related keys for player preference, external player, c
 ### Verification limits
 
 Static XML key-presence scan only; no translation quality review, runtime locale switch, RTL layout test, build, test, CI, emulator or device check. No source files changed.
+
+
+
+## Post-beta.2 upstream audit — home row organization and release refresh (2026-11-19)
+
+Verified branch refs before documentation update:
+- Upstream release tag `1.1.0-beta.2`: `1b9f21f0b19dc6b50e2c74fb8cfeb5f8fe48a211`.
+- Upstream `enhanced`: `017bdaf0d63a2e3d9f2817d9febed43eae6ef5bd`; compare reports 6 commits ahead of beta.2, 0 behind.
+- Mew `Main-dev`: `69b4a96072b506f60dcbe538c5f6b71db3a4a464` (verified against `main`, which remains `207ef8fa309b8061b73039b2d4e4bde4af65050e`; Main-dev is 7 commits ahead).
+- Mew `upstream-sync`: `dd62be9dcbe75942177a5f43cff103b6e46dc70c` before this update; compare confirms exact equality. README blob before update: `2b06c61497129c1a3c740c34edcd728fcfa8e1c4`.
+
+### New upstream feature: pin home rows and organize hidden rows
+
+Upstream commit: `017bdaf0d63a2e3d9f2817d9febed43eae6ef5bd` — “Pin home rows and hidden rows section (#410)”.
+
+Inspected upstream and Mew:
+- `composeApp/src/commonMain/kotlin/com/nuvio/app/features/home/HomeCatalogSettingsRepository.kt`
+- `composeApp/src/commonMain/kotlin/com/nuvio/app/features/settings/HomescreenSettingsPage.kt`
+- `composeApp/src/commonMain/kotlin/com/nuvio/app/features/home/HomeRepository.kt`
+- Upstream Android host test `composeApp/src/androidHostTest/kotlin/com/nuvio/app/features/home/HomeCatalogSettingsRepositoryTest.kt`
+
+Mew already supports general row reordering and enabled/disabled catalog rows. It also has `isPinnedToTop`, but source inspection proves this flag is derived specifically from `CollectionCatalogDefinition.isPinnedToTop`; `enforcePinnedCollectionsAtTop()` only promotes those pinned collection keys. It is not general catalog-row placement.
+
+Upstream adds:
+- `HomeCatalogRowPlacement`: NORMAL, PINNED_TOP and PINNED_BOTTOM (legacy PINNED_POSITION normalizes to NORMAL).
+- General catalog/collection row placement, with pinned sections protected from invalid cross-section drag reorder.
+- A dedicated hidden-rows section, with visible and hidden groups independently reorderable.
+- Row placement stored locally and explicitly excluded from `SyncHomeCatalogPayload`; tests cover exclusion and preservation when remote sync changes enabled state.
+- Tests for top/bottom ordering, hidden-row reorder without visibility changes, and local placement surviving remote settings application.
+
+**Mew comparison:**
+- `HomeCatalogSettingsRepository.kt` has no `rowPlacement` field or `setRowPlacement`; stored preferences contain custom title, enabled, hero source and order.
+- `HomescreenSettingsPage.kt` has one reorder path and protects collection-pinned rows; no equivalent independent hidden/visible reorder or pinned-bottom behavior was found.
+- Mew's order/enabled settings currently participate in `HomeCatalogSettingsSyncService`; upstream's new placement deliberately does not.
+
+**Classification:** SHARED PATTERN / DIFFERENT SEMANTICS. Mew collection pinning is intentional and must remain intact.
+
+**Decision: ADAPT.** Add general top/bottom placement and a clearly separated hidden-row section while retaining Mew's collection pinning, hero-source limit, CloudStream catalog behavior and current sync contract. Keep the new placement as a local preference unless a separate product decision explicitly requests cross-device sync. Do not replace either settings repository or screen wholesale.
+
+### Other commits after beta.2 — triage
+
+The six commits on `enhanced` after beta.2 are:
+- `017bdaf0`: home row placement/hidden rows — detailed audit above.
+- `49f73c2f`: iOS tablet detail mute-button alignment using native navigation bar anchors — platform-specific; Mew equivalent and native anchor contract still need investigation.
+- `875de58d`: iOS settings export switches from document-export picker to `UIActivityViewController` share sheet, with iPad popover anchoring and temp-file cleanup — Mew iOS source path/equivalent still needs investigation; do not assume the same callback semantics.
+- `e069755c`: README feature documentation only.
+- `c598b0c1`: prevent detail hero trailers from playing while MiniPlayer or parked PiP is active; adds PiP parked state to `MiniPlayerController`. Mew's inspected common `App.kt` and `DetailHero.kt` do not contain this controller/state; check Mew's iOS PiP lifecycle and whether the equivalent issue exists before adapting.
+- `90daa0e4`: beta store metadata publication only.
+
+### Release beta.2 feature group still needing full semantic audit
+
+The beta.2 release introduces Smart Streams and related stream-selection behavior: merged addon results, sorting/filtering, device-aware codec/HDR/memory ranking, preferred-audio-language ranking, timeout-aware Smart auto-play, fallback to next ranked stream, and same-release-group preference for subsequent episodes. This extends the previously recorded source-fallback audit; it is not covered by the earlier four adaptations. Audit ranking inputs, capability probes per platform, timeout/cancellation, cache availability, provider metadata parsing, persisted settings, and playback retry state before deciding what to port.
+
+### Verification limits
+
+This pass is read-only source comparison plus guarded documentation preparation. No Mew application source changed. No Gradle build, tests, CI, simulator/emulator or physical-device checks were run. The iOS export, native-anchor and PiP paths remain unresolved. Smart Streams is a separate high-priority audit batch.
