@@ -2152,3 +2152,39 @@ Mew already has catalog visibility, ordering, custom titles, collection pinning 
 ### Verification limits
 
 Read-only GitHub inspection. No app source changes, builds, tests, CI, simulator/emulator or physical-device checks. `Main-dev` and `main` remain untouched.
+
+
+## Settings dialog and shared glass-surface audit (2026-11-18)
+
+Verified refs before documentation update: Mew `Main-dev` `69b4a96072b506f60dcbe538c5f6b71db3a4a464`; upstream `enhanced` `017bdaf0d63a2e3d9f2817d9febed43eae6ef5bd`; `upstream-sync` before update `a04afce709fc631a17217fcf10a3e62ad4015add`. Existing README blob: `d8af5ca7f7f6d259126df0503647c66380c2c533`.
+
+### Important correction: shared DialogSurface glass treatment
+
+The earlier audit note said Mew's `DialogSurface` includes the app glass backdrop. Re-reading the current `Main-dev` source disproves that: Mew's `core/ui/Dialog.kt` applies dialog tokens, shape, border and solid `surfaceDialog`, but does **not** call `appGlassBackdrop`. Upstream's corresponding `Dialog.kt` adds `appGlassBackdrop(tokens.shapes.dialog)` to the dialog surface and uses its surface-edge treatment. This is a real shared-component parity gap, not merely a call-site difference.
+
+**Decision: ADAPT.** Port the backdrop treatment into Mew's shared component only after checking Mew's own glass enablement/fallback and backdrop lifecycle. Preserve Mew dialog tokens, max width, button layout, accessibility and opaque/security-sensitive exceptions. Do not assume every dialog should be transparent/glassy.
+
+### Settings dialog inventory — partial, not a blanket duplicate
+
+Read-only scan of current Mew settings pages confirms several presentation paths:
+
+- `PlaybackSettingsPage.kt` contains many independent `BasicAlertDialog` pickers (player preference, language, decoder, playback engine, subtitle font/color, autoplay provider/regex, etc.). Several construct legacy Material color-scheme surfaces with fixed 20dp/12dp styling rather than the shared Nuvio dialog tokens. These are not automatically duplicates: their inputs, selection behavior, platform-specific options and content differ, but their presentation layer is inconsistent.
+- `DebridSettingsPage.kt` has a large family of `BasicAlertDialog` pickers and a local `DebridDialogSurface`. It is a page-local shared surface pattern, but its choice models and stream-template editors have distinct semantics. Compare/migrate the shell, not the picker behavior wholesale.
+- `StreamsSettingsPage.kt` defines a second local `SettingsDialogSurface` with title + tokenized surface. It overlaps the core `DialogSurface` presentation contract and is a candidate for consolidation after checking its call sites and content sizing.
+- `TrackingAdaptivePicker.kt` deliberately uses a bottom sheet on phones and a dialog on tablets. Preserve this adaptive interaction; the tablet dialog currently builds its own surface rather than using the shared component.
+- `AdvancedSettingsPage.kt` has direct `BasicAlertDialog` implementations for runtime logs and Sentry consent. The logs dialog uses hardcoded English labels/actions and an unbounded text column in the inspected implementation; Sentry consent has a separate explanatory/confirmation flow. Keep consent semantics distinct; improve logs scrolling/localization and shared shell.
+- `NuvioEnhancedSettingsPage.kt` uses Material `AlertDialog` for backup export payload and pasted import. This bypasses the Nuvio dialog surface; import also remains without a parsed preview/confirmation stage as recorded in the backup audit.
+- `TrackingListPickerDialog.kt` is another direct BasicAlertDialog with custom list/loading/error/save states; it should be evaluated against the adaptive tracking picker rather than presumed equivalent.
+
+**Classification:** mixed. Local dialog shells are **SHARED PATTERN / DIFFERENT SEMANTICS**; `StreamsSettingsPage.SettingsDialogSurface` is a likely **TRUE DUPLICATE PRESENTATION ABSTRACTION** of the core shell, subject to call-site review. The selection/picker bodies are not duplicates.
+
+### UI/UX risks and next checks
+
+- Do not mass-replace every `BasicAlertDialog`: first compare dismissal/back/outside behavior, DialogProperties, focus/keyboard, scroll constraints, selected-value commit timing, destructive actions, loading/disabled states, screen-reader semantics and tablet/TV sizing.
+- Mew has an established adaptive sheet pattern; preserve it where phone/tablet interaction differs.
+- Security-sensitive PIN entry and P2P consent remain intentional special surfaces; keep them opaque/consent-focused where required.
+- Continue the remaining settings and feature-dialog inventory (profiles, addons, tracking, player, download, metadata, provider setup, pickers) and compare corresponding upstream callers before proposing a consolidated component migration.
+
+### Verification limits
+
+Source-only inspection of the listed shared/settings components. Full dialog call-site inventory remains incomplete. No source changes, build/test/CI, simulator/emulator or device checks. `Main-dev` and `main` remain untouched.
