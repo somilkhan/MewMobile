@@ -2825,3 +2825,34 @@ This is a proposal, not an implemented decision. Before changing categories, map
 ### Verification limits
 
 Static enum/page/call-site comparison only. The root composable and full settings search result ranking were not fully audited; no navigation tests, locale switch, RTL, build, CI or device checks were run. No source files changed.
+
+
+### Settings navigation localization sample (22 locales, 30 keys)
+
+Static key-presence scan of the 30 resource keys imported by Mew `SettingsModels.kt` across all 22 translated `values-*` directories. English base file contains all 30 keys.
+
+Most frequent missing keys:
+- `compose_settings_page_cloudstream`: absent in 21/22 locales (brand/product label; decide whether deliberate untranslated naming is acceptable).
+- `compose_settings_page_tracking`: absent in 20/22.
+- `compose_settings_page_profile`: absent in 19/22.
+- `settings_nuvio_enhanced_category` and `settings_nuvio_enhanced_title`: absent in 18/22 each (base value is “Mew”; proper-name policy may justify leaving it unchanged, but resource fallback should be explicit).
+- `profile_insights_favorite_people_title`: absent in 18/22.
+- `compose_settings_page_ai_assistant`: absent in 8/22.
+- `compose_settings_page_streams`: absent in 6/22.
+- `compose_settings_page_advanced`: absent in 5/22.
+- Hebrew has two additional missing integration page labels in this sample (`compose_settings_page_mdblist_ratings`, `compose_settings_page_tmdb_enrichment`).
+
+The English base resource should provide fallback for absent locale keys; this is a localization-consistency issue, not evidence of a missing-resource crash. Runtime fallback and RTL display were not tested. Prioritize generic labels (“Tracking”, “My Profile”, “Favorite Actors”) over product names.
+
+### Indonesian locale alias check
+
+`values-id/strings.xml` and `values-in/strings.xml` each contain 1,557 string keys but are not identical (13 differing values).
+- Twelve `values-in` entries contain Hindi text where the corresponding `values-id` entries are Indonesian, including download settings/quality/mode/status labels.
+- One appearance description has extra text in `values-in`.
+- The directory name `in` is the legacy Indonesian language code, not Hindi (`hi`).
+
+**Decision: NEEDS INVESTIGATION / localization correction.** Do not merge or delete either locale directory blindly. Verify Android/Compose resource qualifier behavior for the legacy `in` alias, correct the Hindi strings under Indonesian, and check whether a separate `values-hi` locale exists before deciding on alias cleanup.
+
+### Verification limits
+
+Static XML key scan and value comparison only. No translation quality review, locale switching, Android resource resolution test, RTL test or build was run.
