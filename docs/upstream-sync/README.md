@@ -1,6 +1,6 @@
 # Mew ↔ Nuvio Enhanced upstream alignment
 
-Last verified: 2026-11-17 (GitHub API; no local checkout)
+Last verified: 2026-11-19 (GitHub API; no local checkout)
 
 ## Mission
 
@@ -15,28 +15,26 @@ This is a semantic port, not a blind merge. Preserve Mew branding, CloudStream c
 - `main`: stable release; do not modify or promote without explicit approval.
 - Mother upstream: `luqmanfadlli/NuvioMobile-Enhanced`; inspect `enhanced`, `stable-release`, release tags and any relevant feature branches. A branch name alone does not establish release stability.
 
-## Current upstream references (2026-11-17)
+## Current upstream references (2026-11-19)
 
 | Reference | SHA / state |
 |---|---|
-| Latest published stable release | `1.0.0` |
-| Latest published beta | `1.1.0-beta.1` — `eb32e0479932d28f5f6fa6afeb0e21c78ad02efd` |
-| Upstream `enhanced` | `b4e446451f32edbdf8b1bf288d1a7a8a2bf10e03` |
-| Upstream `stable-release` | `5b8c6dc2ad3cf83846ccbe3e05e96d409f5b2ab4` |
-| Mew `upstream-sync` current source-sync commit | `2017c854d6e3eeceb49ab8841548f6143034935f` (tree matches `enhanced` exactly, plus two Mew docs) |
-| Mew `Main-dev` | `207ef8fa309b8061b73039b2d4e4bde4af65050e` |
+| Latest published beta | `1.1.0-beta.2` — `1b9f21f0b19dc6b50e2c74fb8cfeb5f8fe48a211` |
+| Upstream `enhanced` | `017bdaf0d63a2e3d9f2817d9febed43eae6ef5bd` (6 commits / 13 changed paths after beta.2) |
+| Upstream `stable-release` | `5b8c6dc2ad3cf83846ccbe3e05e96d409f5b2ab4` (branch head verified) |
+| Mew `upstream-sync` | `bc2415c2d527c941c154f11ddcce493d5c780e41` before this header refresh |
+| Mew `Main-dev` | `69b4a96072b506f60dcbe538c5f6b71db3a4a464` |
 | Mew `main` | `207ef8fa309b8061b73039b2d4e4bde4af65050e` |
 
 Re-fetch every ref before acting. These values are an audit checkpoint, not permanent truth.
 
 ## What the commit counts mean
 
-- Upstream `1.0.0` → `enhanced`: 72 commits, 160 changed paths. This is the broad post-stable-release backlog.
-- Upstream `stable-release` → `enhanced`: 73 ahead / 1 behind (diverged); do not merge the branch names blindly.
-- Upstream beta `1.1.0-beta.1` → `enhanced`: 8 commits, 7 changed paths.
-- Mew `upstream-sync` source base `f4b7e55e31c2778827095dbdb246193e8675016f` → upstream `enhanced`: 5 commits, 5 changed paths. Two earlier post-beta paths are already in Mew's snapshot; the five remaining paths are recorded in the detailed ledger.
-- Mew `Main-dev` ↔ `upstream-sync`: 2,214 ahead / 596 behind by commit graph. This reflects divergent history, not a count of missing features. Never use this number as a merge plan.
-- The 72-commit range includes features, bug fixes, UI/UX, localization, tests, release workflows and platform work. It must be audited by behavior and dependency, not processed as 72 isolated cherry-picks or one giant merge.
+- Upstream beta.1 → beta.2: 53 commits and 108 changed paths (published beta release range).
+- Upstream beta.2 → `enhanced`: 6 commits ahead / 0 behind, 13 changed paths (current post-beta development delta).
+- The older 1.0.0 → `enhanced` range (72 commits / 160 paths) is a historical baseline, not the current delta.
+- `stable-release` and `enhanced` remain distinct references. Never merge branch names blindly or treat the six post-beta commits as already released.
+- Mew `Main-dev`, `main` and `upstream-sync` are separate refs with different roles. Graph-distance counts are not feature-parity metrics and must not be used as a merge plan.
 
 ## Audit batches
 
