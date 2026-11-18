@@ -1,4 +1,40 @@
-# Upstream alignment status — 2026-11-17
+# Upstream alignment status — 2026-11-19
+
+
+# Current verification snapshot — 2026-11-19
+
+- **Repository:** `somilkhan/MewMobile`; mother upstream `luqmanfadlli/NuvioMobile-Enhanced`.
+- **Latest published beta:** `1.1.0-beta.2` — `1b9f21f0b19dc6b50e2c74fb8cfeb5f8fe48a211`.
+- **Upstream `enhanced`:** `017bdaf0d63a2e3d9f2817d9febed43eae6ef5bd` (6 commits / 13 changed paths beyond beta.2).
+- **Upstream `stable-release`:** `5b8c6dc2ad3cf83846ccbe3e05e96d409f5b2ab4`.
+- **Mew `Main-dev`:** `69b4a96072b506f60dcbe538c5f6b71db3a4a464`.
+- **Mew `main`:** `207ef8fa309b8061b73039b2d4e4bde4af65050e`.
+- **Mew `upstream-sync`:** `8978dcd63cd92ac36a25278f555b1444b68f3ab9` before this context update.
+- Branch comparisons verified: `Main-dev`, `main`, `upstream-sync`, `enhanced` and `stable-release` match the SHAs above; beta.2 → enhanced is 6 ahead / 0 behind.
+- Root `MEW-CONTEXT-SNAPSHOT.md` was not found. This `docs/mew-context/README.md` remains the available context/handoff document.
+- No Mew application source changed in this audit continuation. No build, tests, CI or device verification run. `main` and `Main-dev` were not written.
+
+## Audit continuation — 2026-11-19
+
+New evidence and decisions are recorded in `docs/upstream-sync/README.md`. Key points:
+
+1. **Home row organization — ADAPT:** Mew's pinned-top flag is collection-specific. Upstream adds general top/bottom placement and a separate hidden-row section. Preserve Mew collection pinning and sync contract; keep new placement local.
+2. **Smart Streams — ADAPT:** Mew has provider filters, pinned sources and a deeply customized repository; it has no equivalent ranking/quality/device subsystem. Port ranking/controls into Mew's existing stream flow; do not replace StreamsRepository, StreamModels or autoplay policy. Review device probes, settings profile scope and parser/test coverage.
+3. **Settings taxonomy — ADAPT proposal:** Mew's General category is overloaded. Use a Mew-oriented functional split (Account, Appearance/Layout, Playback, Content & Providers, Services/Integrations, System, Mew, About) only after mapping page routes, search targets, tablet navigation and localized labels. Playback's 3,860-line page is a candidate for semantic subpages.
+4. **Destructive settings actions:** Home's Catalogs Reset resets broader Home settings and syncs them; Add-on removal is immediate and remote-synced, while inherited-primary profile controls remain visible but silently no-op. Add scoped confirmation and read-only UI state.
+5. **Backup safety:** Profile settings import decodes version 3 but does not check/migrate schema version in the inspected path; sequential repository updates have no rollback, and absent fields can reset settings. Add validation, staged preview, profile/concurrency guard and atomic/rollback strategy.
+6. **iOS backup export:** Mew share sheet lacks iPad popover anchoring and temp-file cleanup; success callback occurs at presentation rather than confirmed completion. Adapt upstream completion/cleanup patterns; preserve Mew backup contract.
+7. **Settings localization sample:** 30 navigation keys across 22 locales show frequent gaps for Tracking, Profile and Favorite Actors. `values-id` and legacy `values-in` differ in 13 values; 12 Hindi strings are in the Indonesian alias directory. Correct without deleting/merging locale directories blindly.
+8. **Startup/Compose:** Mew registers Coil 3.6.3's singleton factory inside Composable `App()`; Android manifest has no custom Application, unlike upstream's early `NuvioApplication` factory. Adapt early initialization with Mew's network config. Keep process bootstrap, Activity bindings, Compose gate, feature loading and Next Up recomposition coalescing as separate phases. No benchmark yet.
+9. **Profile biometric:** upstream has Android Keystore/iOS Keychain biometric unlock for remembered primary profile; Mew has PIN cache only. Security-sensitive; investigate before porting.
+10. **PiP hero trailers:** Mew PiP state is private to Android manager and DetailHero has no PiP guard. Adapt a PiP-only observable guard; do not add upstream MiniPlayerController. Upstream iOS native-navigation mute anchor is SKIP for Mew's current iOS host because MainViewController calls `App()` with native navigation disabled.
+
+### Current next actions
+
+- Continue auditing remaining settings/dialog callers and localized copy; inspect CloudStream startup/runtime and remaining pre-content initializers before any lazy-init change.
+- Finish Smart Streams metadata/parser and autoplay fallback caller audit, including Mew's source failure/retry lifecycle.
+- Continue platform review (iOS playback/PiP, settings file bridge, native navigation) with source-only claims clearly separated from unverified device behavior.
+- Keep updates on `upstream-sync` only; integrate nothing into `Main-dev` or `main` without a separately approved implementation task.
 
 ## Post-beta upstream `enhanced` delta — separate from the beta baseline
 
