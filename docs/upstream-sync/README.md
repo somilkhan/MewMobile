@@ -2268,3 +2268,42 @@ Compared `core/ui/BottomSheet.kt`, `NativeBottomSheet.kt`, and Android/iOS actua
 ### Verification limits
 
 Read-only source comparison. No app source changes, builds, tests, CI, simulator/emulator or physical-device checks. Native UIKit and Android fallback behavior are source-inspected only, not runtime-verified. `Main-dev` and `main` remain untouched.
+
+
+## Settings information architecture and copy alignment — first pass (2026-11-19)
+
+Verified refs: Mew `Main-dev` `69b4a96072b506f60dcbe538c5f6b71db3a4a464`; upstream `enhanced` `017bdaf0d63a2e3d9f2817d9febed43eae6ef5bd`; `upstream-sync` before this update `2e8d7dd151e3a13a4215affef452ab261f030eec`. README blob before update: `f17643accda2fe2eac26d38d4e2d696d969c0cf4`.
+
+### Root categories and navigation model
+
+Inspected `SettingsRootPage.kt`, `SettingsModels.kt`, `SettingsScreen.kt`, `SettingsSearch.kt`, `AppearanceSettingsPage.kt`, and English `strings.xml`.
+
+- Root page groups Account (profiles/account/tracking), General (Layout, Content & Discovery, Downloads, Playback, Watch Party, Integrations, Notifications), About (supporters, privacy, licenses, updates) and Advanced. The Mew Enhanced hub is deliberately separated into its own section.
+- The tablet/TV sidebar categories are Account, General, Mew Enhanced, About and Advanced. `SettingsPage.category` is the source for inline-page category selection; nested Appearance pages (Home Layout, Streams, Continue Watching, Poster Card Style, Detail Page) correctly remain in General.
+- `SettingsSearch` includes page and individual-setting entries with page/section/category context. Keep its index aligned whenever labels, category placement or page hierarchy changes; otherwise search results can point to a page while presenting stale category/context text.
+- No direct duplicate page route was found in this pass. The split between Content & Discovery (addons/plugins/CloudStream/provider discovery) and Layout (how Home/collections/Continue Watching/posters/detail/streams are presented) is a defensible distinction; do not merge them just because both affect the home experience.
+
+### Confirmed root-description mismatch
+
+- The page title resource `compose_settings_page_appearance` resolves to **Layout**.
+- Its root description `compose_settings_root_appearance_description` is **“Home, streams, collections, and detail pages”**.
+- The actual Layout page also contains Theme, Display, AMOLED, app icon, app language, Android navigation-bar style, Home, Continue Watching, Poster Card Style, Streams and Detail Page controls.
+- The description is incomplete and does not tell users that this is also where themes, language, app icon and navigation presentation live.
+
+**Decision: ADAPT copy only.** Proposed description: “Customize themes, navigation, app display, Home, streams, collections and detail pages.” Check localized variants before changing the resource; no copy was changed in this audit.
+
+### Liquid Glass setting naming is too broad
+
+- The setting appears only when `liquidGlassNativeTabBarSupported` is true.
+- The toggle is wired to `liquidGlassNativeTabBarEnabled`; its description explicitly says it uses the native iPhone tab bar on iOS 26 and later.
+- The separate auto-hide option is enabled only while that native tab-bar toggle is enabled; its description accurately says it hides the native tab bar while scrolling down and reveals it while scrolling up.
+- Therefore this toggle does not represent the app-wide Liquid Glass rendering/backdrop system discussed in the glass audit. Its current label **Liquid Glass** risks implying a global visual mode.
+
+**Decision: ADAPT label/copy and placement.** Rename the control to a precise label such as “Native iOS Tab Bar” or “iOS 26 Tab Bar”; retain the explicit iOS 26+ description and auto-hide dependency. If Mew later exposes a true app-wide glass preference, give it a separate setting with platform support/fallback explanation. Do not bind this native-tab toggle to global glass rendering.
+
+### Follow-up checks
+
+- Verify every translated settings title/description/action and the per-platform variants (Android, iOS, TV/tablet, Play Store/App Store source sets); this pass inspected English source only.
+- Audit each dialog/sheet opened from Layout and Advanced for exact title/body/action copy, save-vs-immediate behavior, restart requirements and platform-only controls.
+- Reconcile settings search entries after any approved copy/IA changes.
+- No source changes, builds, tests, CI, emulator/simulator or device checks. Findings are documentation-only; `Main-dev` and `main` remain untouched.
