@@ -2228,3 +2228,43 @@ The dialog inventory is still partial. Resolve `NuvioStatusModal` definition/cal
 ### Verification limits
 
 Read-only source inspection. No app source changes, build/test/CI, simulator/emulator or physical-device verification. `Main-dev` and `main` remain untouched.
+
+
+## Player overlays, P2P consent and native bottom-sheet parity (2026-11-18)
+
+Verified refs before documentation update: Mew `Main-dev` `69b4a96072b506f60dcbe538c5f6b71db3a4a464`; upstream `enhanced` `017bdaf0d63a2e3d9f2817d9febed43eae6ef5bd`; `upstream-sync` before update `ca04bcaa3c89caa2005062c7fcf124ef969126c8`. Existing README blob: `48d7a7ac7bce6522b472896af96fd9c0ca70cfb9`.
+
+### Bottom-sheet / Liquid Glass gap
+
+Compared `core/ui/BottomSheet.kt`, `NativeBottomSheet.kt`, and Android/iOS actual implementations.
+
+- Mew's shared `NuvioModalBottomSheet` selects native UIKit page-sheet presentation on iOS and Material3 `ModalBottomSheet` elsewhere. Android's `usesNativeNuvioBottomSheet` is false and its native actual is a no-op, so Android correctly falls back to Material3.
+- Upstream's shared sheet adds a backdrop host/lifecycle (`NuvioSheetBackdropHost`, active sheet count, backdrop source), a glass surface with blur/refraction/highlight, and a solid edge fallback when glass is unsupported or backdrop is not ready. It only selects native UIKit when app glass is not active; otherwise the Compose sheet handles glass.
+- Mew has none of that shared sheet backdrop/glass lifecycle in `BottomSheet.kt`. Its iOS native page sheet is always selected when `usesNativeNuvioBottomSheet` is true, regardless of app-glass state. This can bypass the app's intended glass treatment on iOS and leaves Android sheets without upstream's captured-backdrop Liquid Glass path.
+- Upstream iOS native sheet additionally propagates `LocalThemePalette` into the embedded `ComposeUIViewController`; Mew propagates density, Nuvio tokens/type scale, app theme, ripple and Material theme but omits `LocalThemePalette`.
+
+**Classification:** shared pattern with meaningful rendering/lifecycle differences. **Decision: ADAPT, high UI priority.** Port the backdrop host/source reference counting, readiness/support gating, glass surface and solid fallback. Preserve Mew's existing sheet content API, detents, grabber, native dismissal delegate and Android Material fallback. On iOS, select native UIKit only when the app-glass path is not active; propagate `LocalThemePalette` into the embedded controller. Verify overlapping sheets, composition disposal, interactive dismissal, rotation, background/foreground and backdrop-not-ready behavior before shipping. Do not simply copy upstream's 245-line file wholesale.
+
+### P2P consent dialog
+
+- Mew uses a bespoke `BasicAlertDialog` with animated soft/accent brushes, explicit surface/elevation, scrollable consent text (max 360dp) and localized Cancel/Enable actions.
+- Upstream's current implementation uses shared `DialogSurface`, shared `DialogButtons` and the same localized title/body/actions. The consent semantics are the same; the custom animated treatment is presentation-only.
+- Mew's consent is triggered when a selected stream requires enabling P2P, including a possible next-episode autoplay path. Dismissal also resets autoplay searching/countdown/source state when appropriate; preserve this caller behavior.
+
+**Classification:** shared confirmation pattern / different presentation. **Decision: ADAPT.** Move Mew to `DialogSurface` and shared buttons while preserving the exact consent content, enable/dismiss callbacks and autoplay cleanup. Ensure the shared surface is scroll-safe and its glass behavior is gated/fallback-safe.
+
+### Player audio/subtitle overlays — not duplicates
+
+- `AudioTrackModal` is a selector-style dispatcher. The default style renders Mew's centered, bounded-height, animated Material card; the Nuvio style renders `NuvioAudioTrackModal`, a bottom-left player overlay with a 444dp rail cap and 620dp list cap. Both are selectable user-facing styles with different interaction/placement.
+- `SubtitleModal` dispatches between Enhanced and Nuvio subtitle experiences. The Enhanced modal has its own legacy selection/style/sync presentation; Nuvio modal includes language grouping, selection staging, addon subtitles, style, delay and auto-sync flows. The Sync tab intentionally routes to Enhanced when Enhanced style is selected.
+- Both player overlays use `PlayerOverlayScaffold`: animated fade, gradient/scrim backdrop and platform back handler. This is shared overlay infrastructure, not a dialog or bottom-sheet.
+- These are **INTENTIONAL PARALLEL** user-selectable experiences, not duplicates to delete. Preserve both settings choices and their distinct semantics. Consolidate only truly common behavior after call-site and state-commit review; do not replace player overlays with settings `DialogSurface`.
+
+### Other player modal
+
+- `SubmitIntroDialog` uses a custom `BasicAlertDialog` with bounded (512dp) scrollable content, segment type, start/end time inputs, capture-current-time actions, loading/submit state and localized labels. This is a form dialog with keyboard/focus needs; it is not equivalent to a simple confirmation.
+- P2P and submit-intro surfaces should be checked for keyboard/IME overlap, focus order, back/outside dismissal and short landscape height. The P2P body has a 360dp scroll cap; submit-intro has a 512dp dialog content cap.
+
+### Verification limits
+
+Read-only source comparison. No app source changes, builds, tests, CI, simulator/emulator or physical-device checks. Native UIKit and Android fallback behavior are source-inspected only, not runtime-verified. `Main-dev` and `main` remain untouched.
