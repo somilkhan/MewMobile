@@ -1,7 +1,7 @@
 # Upstream alignment status — 2026-11-19
 
 
-# Current verification snapshot — 2026-11-19
+## Current verification snapshot — 2026-11-19
 
 - **Repository:** `somilkhan/MewMobile`; mother upstream `luqmanfadlli/NuvioMobile-Enhanced`.
 - **Latest published beta:** `1.1.0-beta.2` — `1b9f21f0b19dc6b50e2c74fb8cfeb5f8fe48a211`.
