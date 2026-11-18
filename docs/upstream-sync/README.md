@@ -2307,3 +2307,45 @@ Inspected `SettingsRootPage.kt`, `SettingsModels.kt`, `SettingsScreen.kt`, `Sett
 - Audit each dialog/sheet opened from Layout and Advanced for exact title/body/action copy, save-vs-immediate behavior, restart requirements and platform-only controls.
 - Reconcile settings search entries after any approved copy/IA changes.
 - No source changes, builds, tests, CI, emulator/simulator or device checks. Findings are documentation-only; `Main-dev` and `main` remain untouched.
+
+
+## Settings dialog and action audit — Layout and Advanced (2026-11-19)
+
+Verified source refs: Mew `Main-dev` `69b4a96072b506f60dcbe538c5f6b71db3a4a464`; upstream `enhanced` `017bdaf0d63a2e3d9f2817d9febed43eae6ef5bd`. Current audit doc blob before this update: `a504353a2c7dba7ccfe49bae9750ea4ad126f1c7`.
+
+### Layout selection sheets
+
+Inspected `AppearanceSettingsPage.kt`:
+
+- App language opens a full-height `NuvioModalBottomSheet` with a localized title, all `AppLanguage.entries`, selected checkmark and immediate selection; selection is committed before the sheet dismisses. There is no Save/Cancel action because selection is immediate.
+- Android navigation-bar style opens a separate `NuvioModalBottomSheet` with localized title and `NavBarStyle.entries`; iOS does not show this row. Selection commits immediately and dismisses.
+- Auto-hide is disabled unless the native iOS tab bar toggle is enabled. This is a deliberate dependency, not a missing enabled state.
+- Both sheets use the shared bottom-sheet shell and divider/action-row components. Preserve their immediate-commit behavior and dismissal animation when restyling; do not add a generic Save button.
+
+**Decision: ALREADY IMPLEMENTED** for shared sheet shell/localized title/selection feedback. Continue checking screen-reader labels, focus restoration and long-list behavior in runtime/device tests; not verified here.
+
+### Advanced diagnostics: confirmed localization and layout defects
+
+Inspected `AdvancedSettingsPage.kt`:
+
+- The Logs section title, View logs, description, Copy logs, Logs copied, Copy diagnostics description, Export logs, Export started, export description, Runtime logs dialog title, Copy and Export actions are hardcoded English strings.
+- The logs dialog uses a bespoke `BasicAlertDialog` and tokenized surface, but the log body is a plain `Text` in a `Column` with no visible height cap or `verticalScroll`. Long diagnostic snapshots can exceed the available dialog height and make actions inaccessible.
+- Copy/export actions refresh the diagnostic snapshot before acting. Export status is only set from the file-bridge callback; retain this actual callback semantics.
+- Sentry consent is a separate `BasicAlertDialog` with localized title/body, three explanatory sections (what helps, what is sent, what is not sent), and explicit keep/cancel plus turn-on/off actions. It commits only on confirmation. This is consent UX, not a duplicate of a generic confirmation dialog.
+
+**Decision: ADAPT, high confidence.** Move app-owned Logs labels/actions/dialog title to string resources; keep technical log payload untouched. Constrain the log body to available height and make only that region vertically scrollable, keeping Copy/Export actions reachable. Preserve the Sentry disclosure and explicit consent boundary; adapt its outer surface to the shared dialog shell only if glass/fallback behavior is verified.
+
+### Player toolbar customization dialog
+
+Inspected `PlayerToolbarSettingsDialog.kt`:
+
+- Localized title and explanatory note; shown/hidden groups; per-button move up/down and show/hide accessibility descriptions; explicit Reset and Done actions.
+- List has a 460dp max height and scroll; changes are applied immediately through `onLayoutChange`; Reset applies `PlayerToolbarLayout.Default`; Done only dismisses.
+- This is a stateful reorder/configuration dialog, not a confirmation. Preserve immediate updates and the distinction between Reset and Done.
+- Its bespoke Material surface differs from core `DialogSurface`; assess shell alignment but do not replace its internal controls or state semantics.
+
+**Decision: ADAPT outer shell only**, subject to shared glass readiness/fallback and keyboard/focus/accessibility review.
+
+### Remaining settings dialog coverage
+
+This batch did not complete the all-settings dialog inventory. Remaining work includes app-icon picker, theme/custom color/animation controls, Home catalog editor and placement dialogs, Content & Discovery addon/plugin configuration, integrations credentials/authorization, backup import/export confirmation, tracking dialogs, playback picker dialogs, and platform-specific source-set variants. English source inspected only; translated resources are not yet audited. No source changes, builds, tests, CI or device checks.
