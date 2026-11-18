@@ -2706,3 +2706,27 @@ Mew `Main-dev` has no matching SmartStream* modules. Its `StreamsScreen.kt` alre
 ### Verification limits and next work
 
 Static source comparison only. No source changes, tests, builds, CI or device checks. No real device capability probe was executed. Next: inspect Mew's player source-fallback state machine against Smart auto-play; audit quality parser/badge overlap and provider metadata contracts; inspect iOS profile scoping; then review settings layout/copy/locales for the new controls.
+
+
+### Smart autoplay and player fallback integration — caller-level comparison
+
+Additional inspected files:
+- Upstream `PlayerScreenRuntimeSourceFallback.kt` and `PlayerNextEpisodeAutoPlay.kt`.
+- Mew `PlayerNextEpisodeAutoPlay.kt`, `StreamsRepository.kt`, `StreamAutoPlayPolicy.kt`, and `StreamModels.kt`.
+
+Findings:
+- Upstream's Smart auto-play is not just a sort mode. `StreamsRepository` reads Smart settings, device profile and existing player settings; it waits for sources, computes ranked candidates and feeds the loading overlay with candidate/source progress.
+- Upstream source fallback retries ranked streams after an auto-selected source fails before playback begins. The runtime helper preserves resume position, active subtitle/proxy/header context, stream identity, provider and binge-group metadata, while excluding user-selected streams and respecting retry limits.
+- Mew has no same-path `PlayerScreenRuntimeSourceFallback.kt` or upstream `StreamAutoPlayLoadingPolicy.kt`. Mew's `StreamAutoPlayPolicy` covers last-link reuse, binge-group preference and manual/first/regex modes; Mew's `PlayerNextEpisodeAutoPlay.kt` separately handles next-episode selection, download-first behavior and provider/binge-group candidate restrictions.
+- Mew's current `StreamsRepository` already has extensive independent provider fan-out, request generation, CloudStream/plugin paths and debrid resolution. It is not equivalent to upstream's shorter repository plus `StreamSourceLoader`.
+
+**Decision: ADAPT, but split the work.** First integrate Smart ranking as an optional selection strategy in the existing Mew request lifecycle. Then separately design ranked retry after inspecting Mew player runtime state, source identity, resume, subtitles, P2P cleanup, external playback and cancellation. Do not transplant upstream runtime helper into Mew by filename; no equivalent runtime contract was found in the inspected path. Preserve Mew next-episode behavior and do not conflate next-episode source selection with retrying a failed current episode.
+
+### Smart settings profile scope and localization
+
+- Upstream Android Smart settings use `ProfileScopedKey.of(settingsKey)`.
+- Upstream iOS `SmartStreamSettingsStorage.ios.kt` reads/writes a plain `NSUserDefaults` key. In the same upstream tree, iOS `PlayerSettingsStorage.ios.kt` and `StreamBadgeSettingsStorage.ios.kt` use `ProfileScopedKey`. This is a concrete platform persistence asymmetry; verify whether Smart settings are intentionally device-wide before copying. Mew profile isolation must not be weakened.
+- The beta.1 → beta.2 compare adds Smart Streams resource files for base English, `values-id` and `values-in` only. Other locale directories do not receive a dedicated Smart Streams resource file in this range; they will need translation/fallback review. Do not estimate overall localization quality from key presence alone.
+- No SmartStream-specific test path was found in the compare or in the checked commonTest/AndroidHostTest candidate paths. This is a coverage warning, not proof that no indirect tests exist anywhere.
+
+**Additional risk:** stream quality parsing is regex-driven over provider metadata. Mew's badges/source labels are user-facing presentation and source pinning, not a substitute for a structured ranking model. Keep the two separate; share only a parser primitive if inputs, normalization, cache invalidation and error semantics are proven equivalent.
