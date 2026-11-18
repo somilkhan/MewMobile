@@ -2856,3 +2856,66 @@ The English base resource should provide fallback for absent locale keys; this i
 ### Verification limits
 
 Static XML key scan and value comparison only. No translation quality review, locale switching, Android resource resolution test, RTL test or build was run.
+
+
+## Backup import safety and iOS share-sheet audit (2026-11-19)
+
+Verified refs before documentation update:
+- Mew `Main-dev`: `69b4a96072b506f60dcbe538c5f6b71db3a4a464`.
+- Upstream `enhanced`: `017bdaf0d63a2e3d9f2817d9febed43eae6ef5bd`.
+- Mew `upstream-sync` before update: `7218f232966e49dcc22edff0b28ad7572ff220cb`; README blob: `c977558727a2cc6e2a5fa38dd075380981975c3a`.
+
+Inspected Mew:
+- `features/settings/NuvioEnhancedSettingsPage.kt`
+- `features/settings/NuvioEnhancedBackupFileBridge.kt`
+- Android/iOS actual backup bridges
+- `core/sync/ProfileSettingsSync.kt`
+
+Compared upstream iOS `SettingsConfigFileLauncher.ios.kt`, which demonstrates a share-sheet completion callback, iPad popover anchor and temporary-file cleanup.
+
+### Import schema and partial-apply risk
+
+Mew's backup schema is `MobileProfileSettingsBlob(version = 3)`. `importBackupJson()` decodes the JSON, calls `applyRemoteBlob()` and applies each repository sequentially. No explicit version compatibility check/migration or staged preview was found in the inspected import path.
+
+Important behavior:
+- Several absent feature fields have empty defaults; `applyRemoteBlob()` passes those empty payloads to storage replacement methods. Importing an older or partial JSON can therefore reset omitted settings instead of preserving them.
+- `applyRemoteBlob()` mutates theme, poster/card depth, player, stream badges, debrid, TMDB, MDBList, Meta screen, collections, continue-watching, Trakt, notifications and Mew settings sequentially.
+- The import is wrapped in `runCatching`, but no rollback/snapshot transaction was found. If a later repository update throws, earlier settings may already have changed while the UI reports import failure.
+- The blob's `version` is decoded but not checked in the inspected import function. Unknown JSON keys are ignored.
+- Local credentials are deliberately preserved for Player, Debrid, TMDB, MDBList and AI Assistant through the credential-preserving import helpers; these backup payloads are not a portable credential backup. Keep this contract explicit in UI copy.
+- The file-picker path calls `importBackupPayload()` immediately after reading the file; it applies settings without a preview/confirmation. Paste import uses a separate dialog, but also applies directly when Import is pressed.
+
+**Decision: ADAPT, high-priority data-safety.**
+1. Validate supported schema versions and required structure before touching repositories; add explicit migrations for older supported versions.
+2. Stage and validate all feature payloads first. Decide how to handle absent optional features (preserve current vs reset) rather than inheriting empty-default behavior accidentally.
+3. Show a localized preview/confirmation listing settings categories to be overwritten and explicitly state that local credentials are preserved, not imported.
+4. Guard import against profile changes and concurrent profile sync; inspect the unguarded import path relative to `syncMutex` and active profile lifecycle.
+5. Provide atomic apply or a tested rollback strategy. Do not claim atomicity from `runCatching` alone.
+6. Add tests for malformed JSON, unsupported versions, partial/legacy blobs, missing optional fields, preserved credentials, profile switch, and injected failure midway through apply.
+
+### iOS export bridge gaps
+
+Mew's `NuvioEnhancedBackupFileBridge.ios.kt`:
+- Writes a temporary JSON file and presents `UIActivityViewController`.
+- Does not configure `popoverPresentationController` source view/rect for iPad.
+- Does not install `completionWithItemsHandler` and does not delete the temporary file after sharing/cancellation.
+- Calls the bridge result callback immediately after presenting the sheet, so the UI's “file ready” success toast does not prove the user completed a save/share action.
+- Import does use a retained document-picker delegate and security-scoped resource access, but the UTF-8 read path does not explicitly strip a BOM.
+
+Upstream's current `SettingsConfigFileLauncher.ios.kt`:
+- Anchors the share-sheet popover to the presenter view for iPad.
+- Removes the temporary file in the share-sheet completion handler.
+- Reports save success only when the activity reports completion.
+- Strips a UTF-8 BOM when reading imported text.
+
+**Classification:** SHARED PATTERN / DIFFERENT SEMANTICS. Upstream's generic config launcher is not the same file/API as Mew's profile backup bridge, but its iOS lifecycle patterns are directly relevant.
+
+**Decision: ADAPT.** Keep Mew's backup format and callback contract intentional; add iPad-safe popover anchoring, temp-file cleanup on every completion/dismissal path, and accurate success/cancel reporting. Add BOM handling and verify security-scoped import behavior. Check repeated share attempts, app backgrounding and presenter lifecycle.
+
+### Android bridge note
+
+Mew Android uses `ACTION_CREATE_DOCUMENT` and `ACTION_OPEN_DOCUMENT` with explicit MIME types and read permission. The file result is routed through `MainActivity`. No equivalent iPad popover issue applies. Still test activity recreation while a picker result is pending because callbacks/payload are held in object fields and the activity reference is weak.
+
+### Verification limits
+
+Static source inspection only. No backup import/export was executed; no iPad/iPhone, Android device, picker cancellation, activity recreation, malformed file, profile switch, build or tests were run. No source files changed.
