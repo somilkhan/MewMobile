@@ -2188,3 +2188,43 @@ Read-only scan of current Mew settings pages confirms several presentation paths
 ### Verification limits
 
 Source-only inspection of the listed shared/settings components. Full dialog call-site inventory remains incomplete. No source changes, build/test/CI, simulator/emulator or device checks. `Main-dev` and `main` remain untouched.
+
+
+## Profile and plugin dialog follow-up audit (2026-11-18)
+
+Verified refs before documentation update: Mew `Main-dev` `69b4a96072b506f60dcbe538c5f6b71db3a4a464`; upstream `enhanced` `017bdaf0d63a2e3d9f2817d9febed43eae6ef5bd`; `upstream-sync` before update `21b4579672a4fc3ef62024caafac4cf8b5800c0f`. Existing README blob: `4e15e4e965deca7f69cca362c60ee09c2a3247aa`.
+
+### Shared confirmation flows already exist
+
+- Profile deletion uses `NuvioStatusModal` with localized title/body, explicit Delete/Cancel actions, and profile name in the confirmation message.
+- Account sign-out and account deletion use the same confirmation component. Account deletion blocks dismissal while the request is busy and reports failure separately.
+- These are **ALREADY IMPLEMENTED** shared confirmation patterns; do not introduce a second destructive-confirmation abstraction.
+- The exact `NuvioStatusModal` implementation file was not resolved in this pass, so its glass treatment, focus restoration, keyboard/back handling and accessibility semantics remain to be inspected directly.
+
+### Profile dialogs
+
+- `PinEntryDialog` is a dedicated four-digit keypad with retry/error feedback, haptic feedback, asynchronous verification and optional forgot-PIN callback. It is security-sensitive and should remain visually opaque; do not blindly apply translucent app-glass styling.
+- `PinSetupDialog` sequences current-PIN verification and new-PIN setup through the same keypad component. This is an intentional multi-step flow, not duplicate dialogs.
+- `ProfileGifSearchDialog` is a separate search-and-select experience with query state, loading, error/not-configured messaging, result selection and a bounded-height scrollable content area. It currently uses a bespoke Material 3 surface (28dp shape, tonal/shadow elevation, fixed 18dp padding) rather than the shared Nuvio dialog shell. **Decision: ADAPT** the outer shell only; retain its search/result states and ensure keyboard, IME, scrolling and focus behavior remain correct.
+
+### Plugin settings dialog
+
+- Full plugin build's `PluginSettingsDialog` uses raw Compose `Dialog` + Material `Card`, not the shared Nuvio dialog shell.
+- The dialog renders a plugin-defined JSON layout (header/info/text/select/toggle fields), keeps edits in local state, and persists the resulting JSON only when Save is pressed. Cancel/dismiss leaves stored settings unchanged.
+- App-owned copy is hardcoded English (`Cancel`, `Save`, `Select option`, and the generated “{scraperName} Settings” title). Plugin field labels/descriptions are supplied by plugin metadata and should not be blindly localized by Mew.
+- The layout is vertically scrollable, but the inspected implementation has no explicit maximum dialog height; long plugin forms can become excessively tall on short displays. Password metadata is read into `isPassword`, but the inspected text-field branch does not pass it to a password-masked input. This is a functional/security UX issue worth a focused follow-up, not just styling.
+- **Classification:** shared presentation pattern / plugin-specific dynamic form semantics. **Decision: ADAPT** the dialog shell, localize Mew-owned actions/title/placeholder, cap height and preserve scrolling; separately fix password masking based on the plugin field's `isPassword` metadata. Do not replace the JSON-driven schema with fixed app-specific controls.
+- Platform scope: file is in `fullCommonMain`; this finding must not be generalized to Play Store/App Store builds without checking their source-set wiring.
+
+### Download and adaptive flow confirmation
+
+- `PendingSourceChoiceSheet` uses `NuvioModalBottomSheet` with full-height content, loading/empty/completion states and grouped pending episodes. This is an intentional multi-step workflow, not a dialog migration target.
+- Tracking's phone-sheet/tablet-dialog split remains a deliberate adaptive presentation.
+
+### Remaining audit scope
+
+The dialog inventory is still partial. Resolve `NuvioStatusModal` definition/callers; inspect profile GIF search IME behavior; verify plugin password masking and max-height constraints; then continue into player dialogs, P2P consent, native iOS sheet behavior, and TV/tablet focus/accessibility. Settings copy alignment (category, title, description, control label, dialog title/body, action, platform limitation and restart note) remains a separate cross-page pass.
+
+### Verification limits
+
+Read-only source inspection. No app source changes, build/test/CI, simulator/emulator or physical-device verification. `Main-dev` and `main` remain untouched.
