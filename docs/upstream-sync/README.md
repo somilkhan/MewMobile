@@ -2659,3 +2659,50 @@ The beta.2 release introduces Smart Streams and related stream-selection behavio
 ### Verification limits
 
 This pass is read-only source comparison plus guarded documentation preparation. No Mew application source changed. No Gradle build, tests, CI, simulator/emulator or physical-device checks were run. The iOS export, native-anchor and PiP paths remain unresolved. Smart Streams is a separate high-priority audit batch.
+
+
+## Smart Streams feature audit — beta.2 source comparison (2026-11-19)
+
+Verified refs before documentation update:
+- Mew `Main-dev`: `69b4a96072b506f60dcbe538c5f6b71db3a4a464` (still exact).
+- Upstream `enhanced`: `017bdaf0d63a2e3d9f2817d9febed43eae6ef5bd` (still exact).
+- Mew `upstream-sync` before update: `38554c6704f5e86ea7f2235366328774a47b67ca` (still exact). README blob: `3c4ddcd7d84d69f27f42479dc1adf2638b4a997d`.
+
+### Scope and Mew equivalent
+
+Compared the beta.1 → beta.2 release range (53 commits, 108 changed paths) and the current upstream/Mew stream sources.
+
+Upstream adds a new Smart Streams subsystem:
+- `SmartStreamQuality.kt`: cached regex-based extraction of resolution, HDR, codec, audio, source type, file size, low-quality markers and instant/cache state.
+- `SmartStreamRanking.kt`: device-target scoring, filter matching, alternate sort modes, preferred-language score, reasons explaining the best pick, and auto-play ranking with optional binge-group bonus.
+- `SmartStreamDevice.kt` plus Android/iOS actuals: screen/HDR/decoder capability probes, external display and tablet detection; combines with memory and network state for a target.
+- `SmartStreamSettings.kt`: sort, filters, resolution limit, mobile-data behavior, remember choices and auto-play.
+- `SmartStreamControls.kt`: merged-list controls, filters and “play best” affordance.
+- Integrations in `StreamsScreen.kt`, `StreamsTabletLayout.kt`, `PlaybackStreamSettings.kt`, `PlaybackStreamDialogs.kt`, loading overlay and stream repository/autoplay policy.
+
+Mew `Main-dev` has no matching SmartStream* modules. Its `StreamsScreen.kt` already has Mew-specific provider filtering, source pinning and search-related stream presentation. It does not expose the upstream merged-all-addons sort/filter and device-aware “best match” flow. The stream UI is not a blank upstream screen to replace.
+
+### Duplicate audit and architecture decision
+
+- Mew `StreamsRepository.kt` is 62,464 characters versus upstream's 33,360-character file and contains Mew CloudStream discovery, plugin scraping, diagnostics, direct-debrid preparation and other fork-specific paths. Upstream's new `StreamSourceLoader.kt` has no same-path Mew equivalent.
+- Mew `StreamModels.kt` has fork-specific stream fields and behavior; upstream's model also has server playback targets and other upstream-only fields. These are not safe file replacements.
+- Mew's `StreamAutoPlayPolicy` already combines last-link reuse, binge-group preferences and manual/first/regex modes. Upstream adds Smart auto-play as another effective-autoplay condition. This is a shared policy boundary with different existing semantics, not a reason to replace Mew's policy.
+- Mew's source-filter/pinning behavior is not equivalent to SmartStream quality filters or merged-list ranking.
+
+**Classification:** SHARED PATTERN / DIFFERENT SEMANTICS for stream listing, filtering and autoplay policy; FALSE POSITIVE for treating Mew's badge display or source pinning as a SmartStream ranking implementation.
+
+**Decision: ADAPT.** Port the quality model/ranker and controls into Mew's current stream UI and existing repository/policy. Preserve CloudStream, plugins, debrid, provider filtering, source pinning, Mew's stream fields and existing autoplay modes. Integrate Smart autoplay as an additive mode/condition with explicit precedence and cancellation semantics. Do not transplant upstream `StreamsRepository.kt`, `StreamSourceLoader.kt`, `StreamModels.kt` or the full `StreamsScreen.kt`.
+
+### Device, persistence and correctness risks
+
+- Android upstream checks hardware MediaCodec support, 4K Main10 decode capability and display HDR formats; Dolby Vision is only treated as supported when a decoder is present.
+- iOS uses VideoToolbox hardware-decode checks and EDR/screen information. These platform probes are not equivalent; maintain expect/actual separation and conservative fallback when probes fail.
+- Android settings storage uses `ProfileScopedKey`; iOS storage uses a plain `NSUserDefaults` key. Verify whether this is intentional device-wide behavior before adapting into Mew's profile settings model.
+- `SmartStreamSettingsRepository.onStreamsScreenClosed()` resets sort/filter choices when remember-choices is disabled, while resolution limit, mobile-data preference and auto-play remain separately persisted. Preserve these distinctions if adopted.
+- Ranking depends on metadata inferred from provider names/descriptions/badges and can misclassify ambiguous strings. Cache size, stale stream metadata, missing size/resolution, unknown instant status and unsupported HDR/codec data need tests.
+- Smart auto-play filters for selectable streams, waits on source timeout, ranks cached/uncached candidates and can prefer the previous binge group. Review how this interacts with Mew's own retry/fallback, provider timeout, cancellation, external players, watch party and next-episode transitions.
+- The 53-commit beta.1 → beta.2 compare contains no SmartStream-specific test file. Candidate commonTest and AndroidHostTest paths for SmartStream ranking/quality/settings were also absent. Treat scoring/parsing and settings codec as under-tested until a complete tree/test search proves otherwise.
+
+### Verification limits and next work
+
+Static source comparison only. No source changes, tests, builds, CI or device checks. No real device capability probe was executed. Next: inspect Mew's player source-fallback state machine against Smart auto-play; audit quality parser/badge overlap and provider metadata contracts; inspect iOS profile scoping; then review settings layout/copy/locales for the new controls.
