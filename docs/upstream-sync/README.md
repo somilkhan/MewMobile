@@ -2730,3 +2730,41 @@ Findings:
 - No SmartStream-specific test path was found in the compare or in the checked commonTest/AndroidHostTest candidate paths. This is a coverage warning, not proof that no indirect tests exist anywhere.
 
 **Additional risk:** stream quality parsing is regex-driven over provider metadata. Mew's badges/source labels are user-facing presentation and source pinning, not a substitute for a structured ranking model. Keep the two separate; share only a parser primitive if inputs, normalization, cache invalidation and error semantics are proven equivalent.
+
+
+## Settings destructive-action and inherited-addon UX audit (2026-11-19)
+
+Verified refs before documentation update:
+- Mew `Main-dev`: `69b4a96072b506f60dcbe538c5f6b71db3a4a464`.
+- Upstream `enhanced`: `017bdaf0d63a2e3d9f2817d9febed43eae6ef5bd`.
+- Mew `upstream-sync` before update: `bb25ec8e51ff30d7cb57fc0957c17ba7114d9954`; README blob: `e61059c5bfaad467efbd23d1eeb9455c503fe690`.
+
+### Home screen Reset button has a broader scope than its placement/label suggests
+
+Inspected `HomescreenSettingsPage.kt` and `HomeCatalogSettingsRepository.resetToDefaults()`.
+
+- The visible `Reset` action is attached to the Catalogs / Collections section header.
+- Its callback resets more than catalog row ordering: hero enabled, hero auto-scroll, hero motion preview, catalog type, unreleased-content visibility, catalog underline, selected CloudStream provider, all catalog/collection preferences (enabled state, custom titles, hero-source selection and order).
+- It then persists, reapplies Home state and triggers `HomeCatalogSettingsSyncService.triggerPush()`.
+- No confirmation, preview of affected settings or undo is present in the inspected caller.
+
+**Decision: ADAPT / UX data-impact issue.** Split reset actions by scope (e.g. catalog organization vs all Home settings), or move the broad action to an explicitly named “Reset all Home settings” control with a localized confirmation that lists the affected preferences. Preserve current default values and sync behavior unless the reset contract is intentionally changed. Do not silently narrow the repository reset without checking callers.
+
+### Add-on removal is immediate and the inherited-primary profile state is not reflected in controls
+
+Inspected `AddonsScreen.kt`, `InstalledAddonCard` and `AddonRepository.removeAddon()`.
+
+- The installed add-on card always renders an enabled delete action; the screen wires it directly to `AddonRepository.removeAddon(addon.manifestUrl)`. No confirmation dialog exists in this path.
+- Repository removal immediately removes the add-on from the UI state, cancels its active refresh, asynchronously clears its known-version and pending-version-change metadata under a mutex, persists the add-on list and pushes the changed list to the server.
+- `removeAddon()`, `setAddonEnabled()` and `moveAddon()` silently return when a secondary profile inherits the primary profile's add-ons (`usesPrimaryAddons`). The inspected screen does not disable those mutation controls or display a read-only explanation. The Add action does return a user-visible error, but the installed-card mutation controls do not.
+- The delete operation is therefore both destructive and remotely synchronized; an accidental tap can remove an add-on from the shared primary list. In inherited-primary mode the same visible delete control can appear to work but do nothing.
+
+**Decision: ADAPT, high-priority UX safety.**
+1. Add localized add-on-specific confirmation with Cancel as the safe/default action before removal.
+2. Detect inherited-primary/read-only mode in the screen and disable or hide Add, enable/disable, reorder and delete controls with an explanatory localized message. Do not rely only on silent repository guards.
+3. Preserve repository-side guards for race safety even after disabling UI controls.
+4. Review whether removal should report completion/failure to the UI; current function returns Unit and remote push outcome is not surfaced by this caller.
+
+### Verification limits
+
+Static source and caller inspection only. No source edits, builds, tests, CI or device checks. The full set of callers for repository mutation methods was not established beyond the inspected AddonsScreen path; search coverage remains incomplete.
