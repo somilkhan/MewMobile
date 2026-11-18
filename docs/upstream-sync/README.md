@@ -2349,3 +2349,15 @@ Inspected `PlayerToolbarSettingsDialog.kt`:
 ### Remaining settings dialog coverage
 
 This batch did not complete the all-settings dialog inventory. Remaining work includes app-icon picker, theme/custom color/animation controls, Home catalog editor and placement dialogs, Content & Discovery addon/plugin configuration, integrations credentials/authorization, backup import/export confirmation, tracking dialogs, playback picker dialogs, and platform-specific source-set variants. English source inspected only; translated resources are not yet audited. No source changes, builds, tests, CI or device checks.
+
+
+### App icon picker: intentional adaptive presentation
+
+Inspected `AppIconPicker.kt`:
+
+- Phone uses the shared `NuvioModalBottomSheet`; tablet uses a bounded-width `BasicAlertDialog`. This is intentional adaptive presentation, not a duplicate dialog/sheet implementation.
+- The content has a 720dp maximum height and vertical scrolling, a localized title, selected state semantics, pending/loading state, and a localized failure message.
+- Platforms requiring close confirmation show a localized `NuvioStatusModal` with explicit OK/Cancel before applying the icon; other platforms apply directly.
+- Preserve platform-specific confirmation and the pending/failed states. Do not flatten phone/tablet presentation into one surface or remove the Android close-confirmation step.
+
+**Decision: ALREADY IMPLEMENTED** for adaptive shell, localized user-facing text and bounded content. Remaining runtime checks: focus/selection accessibility, rotation while pending, failed platform icon switch and dismissal while an operation is in flight.
