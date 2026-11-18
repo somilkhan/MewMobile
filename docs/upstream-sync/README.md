@@ -2919,3 +2919,84 @@ Mew Android uses `ACTION_CREATE_DOCUMENT` and `ACTION_OPEN_DOCUMENT` with explic
 ### Verification limits
 
 Static source inspection only. No backup import/export was executed; no iPad/iPhone, Android device, picker cancellation, activity recreation, malformed file, profile switch, build or tests were run. No source files changed.
+
+
+## Startup and Compose performance architecture audit (2026-11-19)
+
+Verified refs before documentation update:
+- Mew `Main-dev`: `69b4a96072b506f60dcbe538c5f6b71db3a4a464`.
+- Upstream `enhanced`: `017bdaf0d63a2e3d9f2817d9febed43eae6ef5bd`.
+- Mew `upstream-sync` before update: `8780536feb8b46db8568425c7c0a9e17cd7fa8dd`; README blob: `cad0bdc04e0c20e99850f0ba2ab640ad0631ecc9`.
+
+Inspected:
+- Mew `App.kt` (234,836 chars), `MainActivity.kt`, Android app manifest, `PlatformImageLoader.android.kt`, P2P initialization and download storage.
+- Upstream `App.kt`, `AppGate.kt`, `NuvioApplication.kt`, Android app manifest and `MainActivity.kt`.
+- Mew and upstream both use Coil 3.6.3.
+
+### Confirmed early ImageLoader initialization gap
+
+Mew:
+- `App.kt` calls `setSingletonImageLoaderFactory` inside the Composable `App()`.
+- Mew's Android app manifest `androidApp/src/main/AndroidManifest.xml` has no `android:name` custom Application registration.
+- No Mew Application class was found at the checked source paths.
+- Mew `PlatformImageLoader.android.kt` only adds GIF decoder support; Mew's Compose factory adds SVG and a Ktor network fetcher/cache policy.
+- Mew does not have upstream's `platformProvidesImageLoader` expect/actual switch.
+
+Upstream:
+- Android manifest registers `com.nuvio.app.NuvioApplication`.
+- `NuvioApplication` implements `SingletonImageLoader.Factory` and creates the loader before Activity/Compose startup. Its source comment explains that Coil's auto-init ContentProvider may create the singleton before `MainActivity.onCreate`, making a later Compose factory too late.
+- Upstream `App.kt` uses `platformProvidesImageLoader` to avoid registering a second late factory when the platform Application already provides it.
+
+**Finding:** Mew's current registration timing is a concrete startup/network/cache configuration risk under the same Coil version. No runtime trace was run, so the exact user-visible impact is not yet proven.
+
+**Decision: ADAPT, high priority.** Add an Android Application-level Coil factory and a platform-provided-loader flag so Android does not register it again from Compose. Preserve Mew's SVG/GIF support, Ktor fetcher, cache settings and Mew-specific network configuration. Do not copy upstream's Plex/Silo/custom-poster interceptors or SharedOkHttpClient wholesale; those are not present as equivalent Mew interceptors/network contracts in the inspected source. Verify that the first image request uses the configured factory.
+
+### App / AppGate / MainActivity separation
+
+- Mew `App.kt` is a 234 KB root file containing `App()`, startup/profile gate, `MainAppContent()`, tab activation, route callbacks and large feature launch flows.
+- Upstream `App.kt` is a small environment wrapper; `AppEnvironment` owns theme/background and loader selection, while `AppGate.kt` owns authentication/profile selection and transition lifecycle.
+- The core auth/profile startup pattern is shared: initialize auth, start network status, load cached profiles and avatars, observe auth/profile state, then select a remembered profile or show the gate.
+- Mew's `rememberedStartupProfile`, `completeProfileSelection` and `enterProfileGate` match the basic remembered-profile flow, but upstream's gate also coordinates biometric unlock, intro/transition state, external gate controllers and native navigation callbacks.
+- Mew's Android `MainActivity` initializes many platform storage/runtime adapters before `setContent`. Upstream's MainActivity does likewise and has at least as many initialization calls. Several inspected initializers are cheap context/SharedPreferences bindings (e.g. P2P engine initialization only stores application context; DownloadsStorage obtains SharedPreferences). The call count alone is not evidence of a cold-start bottleneck.
+
+**Decision: ADAPT structure, not wholesale code.** Separate Mew's gate/environment from its main content only after mapping `ownsAppRuntime`, offline cached-profile access, profile switching, route disposal, native navigation, download/debrid/P2P launch flows and app-ready callbacks. Preserve Mew's existing profile behavior. Do not copy upstream's intro delay or external controller contract without a product reason. File extraction is a maintainability/lifecycle isolation improvement, not a proven runtime speedup by itself.
+
+### Profile biometric gate — new upstream feature
+
+- Upstream adds common `ProfileBiometricAuth` with Android and iOS actual implementations. Android uses strong biometric authentication and Android Keystore; iOS uses LocalAuthentication and Keychain with current-biometry-set/device-only access controls.
+- Upstream `MainActivity` initializes the biometric host. `AppGate` attempts biometric unlock for the remembered locked primary profile and falls back to the normal profile/PIN gate for cancellation, unavailability, invalidation or failure.
+- Mew's checked `ProfileRepository` has local PIN verification and profile PIN cache but no `ProfileBiometricAuth` API, platform actuals or gate integration.
+
+**Classification:** new feature / no equivalent found in checked Mew paths.
+
+**Decision: NEEDS INVESTIGATION, security-sensitive.** Review account/profile binding, key invalidation, biometric enrollment changes, device passcode fallback, app lifecycle, cancellation and offline PIN fallback on both platforms before porting. Keep this separate from startup performance optimization; biometric prompts are an authentication policy, not a generic startup accelerator. Static source review only; no Android/iOS device test.
+
+### Compose state publication versus cold-start work
+
+Previously recorded HomeRepository finding remains separate:
+- Upstream coalesces Next Up/catalog state publications to reduce Compose recompositions.
+- Mew publishes individual resolution results immediately and has extra caching/retry/deferred-resolution behavior.
+
+**Decision: ADAPT publication coalescing** while preserving Mew's partial-result behavior, cache and retry semantics. This improves runtime state churn; it does not replace process bootstrap or prove cold-start improvement.
+
+### Combined optimization plan — keep phases separate
+
+Do not create one monolithic “startup manager” that mixes platform bootstrap, Compose lifecycle and feature loading. Coordinate them through explicit phases:
+1. **Process bootstrap (Android Application):** early Coil factory and only process-wide platform initialization.
+2. **Activity binding:** attach activity-bound bridges/hosts; keep required storage bindings available before feature use.
+3. **First Compose frame:** render theme/shell and cached auth/profile state without waiting for unrelated network/service work.
+4. **App gate:** own auth/profile selection and app-ready transitions; preserve offline and PIN paths.
+5. **Main content:** start profile-dependent sync/services only after the correct profile is selected.
+6. **Feature loading:** defer expensive provider, CloudStream, P2P, downloads and metadata work until required, but only after inspecting each initializer's side effects and callers.
+7. **Compose runtime:** batch/coalesce high-frequency state updates such as Next Up without hiding useful partial results.
+
+Measure before changing behavior:
+- Android cold/warm start with Macrobenchmark/Startup Tracing; record Application, Activity, first frame, first interactive frame and first Home content.
+- Trace image-loader singleton creation and confirm configured network/cache/decoder components are active for the first request.
+- Use Compose tracing/recomposition counts around Home/Next Up and gate transitions.
+- Test offline cached profile, authenticated startup, profile PIN, app background/restore, P2P entry, provider loading and tablet/TV navigation.
+- iOS requires its own startup/image-loader path; do not infer Android Application behavior applies to iOS.
+
+### Verification limits
+
+Static source comparison only. No benchmark, startup trace, profiler, build, test, CI or device verification was run. The `CloudStreamPlatformRuntime.initialize()` implementation and all pre-content initializers were not fully classified; do not defer them until side effects and lifecycle contracts are inspected. No source files changed.
