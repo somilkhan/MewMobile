@@ -2529,3 +2529,46 @@ These are not one generic dialog behavior. Some select and commit immediately; p
 - Compare upstream equivalents by semantic behavior before proposing any port.
 - Audit every referenced string resource in translated locales and any platform-specific string source sets.
 - No source changes, builds, tests, CI, emulator/simulator or device checks.
+
+
+## Playback dialog extraction: upstream semantic comparison (2026-11-19)
+
+Verified refs: Mew `Main-dev` `69b4a96072b506f60dcbe538c5f6b71db3a4a464`; upstream `enhanced` `017bdaf0d63a2e3d9f2817d9febed43eae6ef5bd`; `upstream-sync` before update `4f0b05f897604d00bce31aad86686cd644f58e3d`. Mew `Dialog.kt` blob `8a441ca8cce3e46f9fc7e3d15bb31d9893d94025`; upstream `Dialog.kt` blob `0227c8d4b9ed4d19fdac6dbfe1e85719ef759383`; README blob before update `f6fc6e5e34d60ea0406fe6807cf8f45c99ecd13e`.
+
+### Confirmed upstream refactor opportunity
+
+Upstream split `PlaybackSettingsDialogs.kt` out of its 51-line `PlaybackSettingsPage.kt` and introduced reusable `LanguageSelectionDialog` and generic `SettingsChoiceDialog<T>` built on `DialogSurface`, `DialogOption`, and `DialogButtons`.
+
+Mew's corresponding `PlaybackSettingsPage.kt` is 3,860 lines and has 21 `BasicAlertDialog` call sites. Its language selector and many single-choice dialogs repeat Material `Surface` + `Column` + selected-row UI. The generic upstream helpers are a good fit for the truly uniform choice cases, but not all 21 call sites.
+
+### Shared dialog foundation already exists in Mew
+
+Mew already has `core/ui/Dialog.kt` with the same public primitives and essentially the same layout/selection/action implementation as upstream:
+
+- `DialogSurface`, `DialogButtons`, `DialogButton`, `DialogOption`, `DialogButtonStyle`.
+- Mew surface uses Nuvio tokens, `surfaceDialog`, dialog shape and subtle border.
+- Upstream adds `appGlassBackdrop(tokens.shapes.dialog)` and uses `SurfaceEdge` for the edge.
+- Thus Mew does not need a second dialog framework or a wholesale upstream `Dialog.kt` replacement. The missing parity is the backdrop/glass integration (already recorded in the earlier Liquid Glass audit) and consistent adoption of existing primitives in the playback settings page.
+
+### Per-behavior decision
+
+| Candidate | Decision | Reason |
+| --- | --- | --- |
+| Language selection | TAKE / ADAPT | Extract to helper using existing `DialogSurface` + `DialogOption`; preserve 420dp list cap, immediate select behavior, nullable “None” option and close action |
+| Uniform single-choice dialogs | TAKE / ADAPT | Generic helper fits only options with same immediate commit semantics and no extra per-option side effects |
+| Player preference / external app | ADAPT | Keep empty-state, close hint and immediate selection; generic choice helper only if it can represent both without semantic loss |
+| Multi-choice / staged Save dialogs | SKIP generic helper | Draft state, Save/Cancel and validation are not the same transaction as immediate single-choice |
+| Regex, text, API-key, font import and P2P dialogs | SKIP generic helper | Form, validation, platform action or consent lifecycle requires dedicated content |
+| Player audio/subtitle overlays | SKIP | Full-screen player overlay experience, not settings dialog |
+
+### Important UX issue to verify before extraction
+
+Mew's current language selector has a 420dp cap but the dialog body itself does not visibly establish a short-window overall height cap; the title and bottom close hint sit outside the list. Upstream helper uses the same 420dp list cap, so this is not automatically fixed by copying it. Test on short landscape and large font settings; if needed constrain the dialog content region while keeping the list independently scrollable.
+
+### Glass parity is a separate dependency
+
+Mew's `DialogSurface` is already the shared shell for settings and consent dialogs. Upstream's `appGlassBackdrop` is the only material surface difference observed in this file comparison; porting that requires the backdrop host/readiness/fallback lifecycle already audited. Do not add the modifier alone without its host and safe solid fallback. Keep Mew's dialog token/border styling unless visual comparison demonstrates a regression.
+
+### Verification limits
+
+Read-only comparison of branch source. No source edits, tests, builds, CI, emulator/simulator or physical-device verification. Generic helper adoption is a selective integration candidate, not implemented. Playback page's full caller graph and every dialog's commit/dismiss semantics still require a final per-family pass.
