@@ -2485,3 +2485,47 @@ Inspected `TmdbSettingsPage.kt` and `AiAssistantSettingsPage.kt`:
 - Complete backup importer validation/partial-apply audit and platform file bridge result semantics already identified earlier.
 - Inspect playback picker/dialog inventory and all platform-specific settings source sets.
 - No source changes, builds, tests, CI or device checks. No translated resource matrix yet.
+
+
+## Playback settings dialog inventory — first pass (2026-11-19)
+
+Verified refs: Mew `Main-dev` `69b4a96072b506f60dcbe538c5f6b71db3a4a464`; upstream `enhanced` `017bdaf0d63a2e3d9f2817d9febed43eae6ef5bd`; `upstream-sync` before update `61e872d8b21e1fb625fed20b4f6f4bbba5f10fd1`. README blob before update: `9eaaa68fd229e60ced6d8012e605a423b19862f6`.
+
+Inspected `PlaybackSettingsPage.kt` (3,860 lines) and its dialog call sites.
+
+### Scope and semantics
+
+The page has 21 `BasicAlertDialog` call sites, including:
+
+- Player preference and external-player app selection.
+- Preferred/secondary audio and subtitle language selectors.
+- Reuse-cache duration, decoder priority, playback engine and iOS engine options.
+- Skip seconds, hold-to-speed, Libass render type, subtitle font and color.
+- Add-on subtitle startup mode and P2P consent/profile/cache controls.
+- Auto-play mode/source/provider selection and regex editor.
+- AnimeSkip client ID, IntroDB API key and next-episode threshold.
+
+These are not one generic dialog behavior. Some select and commit immediately; provider selection stages a draft then Save; regex and template-like editors stage text; font import/clear invokes platform actions; P2P consent has explicit lifecycle cleanup. Preserve each commit/dismissal behavior.
+
+### Repeated surface pattern
+
+- Most dialogs repeat a Material `Surface` with 20dp rounded corners and `MaterialTheme.colorScheme.surface`, plus repeated title/content/action layouts.
+- This is a **SHARED PATTERN / DIFFERENT SEMANTICS**, not proof that the dialog bodies can be collapsed into one abstraction. It is a reasonable candidate for a shared outer shell that retains per-dialog content, actions and state.
+- The player toolbar dialog already has its own bounded list and distinct Reset/Done semantics; see earlier audit entry.
+- Long language and provider lists have explicit scroll caps (420dp and 340dp respectively); regex editor has a 520dp cap. Other dialogs are mostly short fixed option lists, but the overall page needs short-height/landscape review.
+
+**Decision: ADAPT outer shell only**, after the shared glass/backdrop host and solid fallback are ready. Do not bulk replace 21 dialogs or change their transaction semantics. Add focused accessibility/keyboard/back/outside-dismiss checks per dialog family.
+
+### Credential and copy observations
+
+- IntroDB API-key dialog uses `SettingsSecretTextField` and validation state; preserve masking, reveal toggle, verification lock and Cancel disablement while verifying.
+- AnimeSkip client ID is not necessarily a secret; do not mask automatically without provider/API semantics.
+- No hardcoded literal dialog copy was found by a source scan in this page; labels/actions are predominantly string resources.
+- iOS-specific engine/color options are conditionally presented from the shared settings page; ensure the user-visible platform limitation and fallback copy remain accurate. Runtime platform behavior not verified.
+
+### Remaining work
+
+- Inspect individual dialog bodies for keyboard overlap, dynamic font sizing, accessibility labels, state restoration and small-screen bounds; source scan is not device verification.
+- Compare upstream equivalents by semantic behavior before proposing any port.
+- Audit every referenced string resource in translated locales and any platform-specific string source sets.
+- No source changes, builds, tests, CI, emulator/simulator or device checks.
