@@ -2768,3 +2768,60 @@ Inspected `AddonsScreen.kt`, `InstalledAddonCard` and `AddonRepository.removeAdd
 ### Verification limits
 
 Static source and caller inspection only. No source edits, builds, tests, CI or device checks. The full set of callers for repository mutation methods was not established beyond the inspected AddonsScreen path; search coverage remains incomplete.
+
+
+## Settings category and navigation taxonomy audit (2026-11-19)
+
+Verified refs before documentation update:
+- Mew `Main-dev`: `69b4a96072b506f60dcbe538c5f6b71db3a4a464`.
+- Upstream `enhanced`: `017bdaf0d63a2e3d9f2817d9febed43eae6ef5bd`.
+- Mew `upstream-sync` before update: `1a003507c4f7df400696e4a075579b9f1673dabe`; README blob: `482bccc72a9880704d6b7253016941af4f649d5f`.
+
+Inspected both `features/settings/SettingsModels.kt` and `SettingsScreen.kt`, plus Mew's `AppearanceSettingsPage.kt`, `ContentDiscoverySettingsPage.kt` and `IntegrationsSettingsPage.kt`.
+
+### Category mapping
+
+Mew categories:
+- Account: account/profile/favorite people/Trakt authentication.
+- General: playback, appearance, streams, notifications, content discovery (add-ons/plugins/CloudStream), Home/Meta screen and integrations (AI/TMDB/MDBList/Debrid).
+- Mew: Mew-specific backup/import and homepage intelligence settings.
+- About: supporters/contributors and licenses.
+- Advanced: advanced settings.
+
+Upstream categories:
+- You: account/profile.
+- Look: appearance/layout, Home, Meta screen, posters, continue watching and stream presentation.
+- Watch: playback, downloads, content discovery, add-ons/plugins/media servers.
+- Services: integrations and external service providers.
+- System: about, notifications, advanced/debug and app information.
+
+### Findings
+
+- Mew's `General` category is overloaded: visual preferences, playback behavior, notifications, provider discovery and external integrations all sit together.
+- Upstream's functional split (Look / Watch / Services / System) is clearer for finding settings. This is a category taxonomy change, not a reason to replace Mew's page implementations.
+- Mew currently has one `Playback` page; upstream divides playback into Player, Stream Selection, Up Next, Skip Segments, Interface, Audio, Subtitles, Video, Buffer and P2P pages. Mew's playback page is 3,860 lines with 21 dialog call sites (see previous audit). This is a strong candidate for semantic subpages, but all current settings keys, callers, search targets and navigation/back state must be mapped before moving controls.
+- Mew places `Streams` under Appearance; upstream places it under Layout. This is consistent if Mew's page controls stream-list presentation, not playback selection. Verify every control's semantics before changing the parent.
+- Mew places Notifications in General; upstream places it in System. Mew's integrations (AI/TMDB/MDBList/Debrid) are in General under a dedicated Integrations page; upstream places them in Services. Both are sensible candidates for reclassification.
+- Mew's `TraktAuthentication` is under Account while upstream puts tracking under Services. Keep the Mew placement if the page represents user identity/account linkage; otherwise group it with integrations. Check Simkl and Trakt together before deciding.
+- Mew's `Mew` category is intentional branding: resource values for `settings_nuvio_enhanced_title` and `settings_nuvio_enhanced_category` are already “Mew”. Do not rename these back to Nuvio or flatten Mew-specific backup/import and homepage intelligence into generic settings.
+- Mew has a `CloudStream` page nested under Content Discovery; upstream's Media Servers hierarchy is a separate capability. Do not rename CloudStream to Media Servers or assume equivalent behavior.
+- Upstream has a dedicated Downloads settings page; Mew's current settings navigation invokes an external Downloads destination callback rather than exposing the same page enum. Determine whether download preferences are already located elsewhere before adding another entry.
+- SettingsSearch has its own target routing. Any taxonomy or page split must update search target mapping, mobile navigation, tablet inline navigation, saved-page restoration and back-stack behavior together.
+
+**Classification:** SHARED PATTERN / DIFFERENT SEMANTICS. The category labels are comparable, but Mew's actual pages and capabilities differ.
+
+**Decision: ADAPT.** Use a Mew-oriented taxonomy inspired by upstream's functional groups:
+- Account
+- Appearance / Layout
+- Playback
+- Content & Providers
+- Services / Integrations
+- System
+- Mew
+- About
+
+This is a proposal, not an implemented decision. Before changing categories, map every existing `SettingsPage` to one category and audit root page cards, tablet category navigation, search aliases, feature-policy visibility and localized labels. Split Playback into focused subpages only after assigning every existing setting/dialog to a stable destination and preserving current storage keys and actions.
+
+### Verification limits
+
+Static enum/page/call-site comparison only. The root composable and full settings search result ranking were not fully audited; no navigation tests, locale switch, RTL, build, CI or device checks were run. No source files changed.
