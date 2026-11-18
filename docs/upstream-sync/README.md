@@ -2572,3 +2572,34 @@ Mew's `DialogSurface` is already the shared shell for settings and consent dialo
 ### Verification limits
 
 Read-only comparison of branch source. No source edits, tests, builds, CI, emulator/simulator or physical-device verification. Generic helper adoption is a selective integration candidate, not implemented. Playback page's full caller graph and every dialog's commit/dismiss semantics still require a final per-family pass.
+
+
+## Playback dialog upstream extraction + locale coverage sample (2026-11-19)
+
+Verified refs: Mew `Main-dev` `69b4a96072b506f60dcbe538c5f6b71db3a4a464`; upstream `enhanced` `017bdaf0d63a2e3d9f2817d9febed43eae6ef5bd`; `upstream-sync` before update `1b51a961d39ee7ae7e27345be503aec31f2b41b3`. README blob before update: `1b94e9b82ae3f369ae27352de07fcea08ded8739`.
+
+### Upstream extraction compared against Mew
+
+Inspected upstream `PlaybackSettingsDialogs.kt` (104 lines), upstream and Mew `core/ui/Dialog.kt`, and Mew `PlaybackSettingsPage.kt`.
+
+- Upstream extracts two reusable helpers: nullable language selection and generic immediate single-choice selection. Both use the existing `DialogSurface`, `DialogOption`, and `DialogButtons`.
+- Mew already has the same shared dialog primitives in `core/ui/Dialog.kt`; upstream's `Dialog.kt` differs mainly by adding `appGlassBackdrop(tokens.shapes.dialog)` and `SurfaceEdge` border. The backdrop integration depends on the full glass host/readiness/fallback audited earlier.
+- Mew's 3,860-line playback settings page repeats the language-selector surface/row implementation and many immediate choice rows. The extraction can reduce repeated UI without introducing a new abstraction or changing business logic.
+
+**Decision: TAKE / ADAPT** the two small helper patterns, using Mew's existing `Dialog.kt` primitives. Preserve nullable values, 420dp language-list cap, immediate-selection callback semantics and close action. Apply generic choice helper only to genuinely uniform immediate-choice dialogs. Do not migrate staged multi-select, forms, API-key entry, regex editors, font import, P2P consent or player overlays.
+
+### Locale coverage sample: playback dialog copy
+
+Inspected the 14 playback-related keys for player preference, external player, close hint and stream-selection mode in all 23 locale `strings.xml` files (English base plus 22 translated locales).
+
+- Full 14/14 key coverage in Arabic, Bulgarian, Czech, Greek, Spanish, French, Hungarian, Italian, Japanese, Norwegian? No — Norwegian Bokmål (`nb`) has 10/14, Dutch, Polish, Portuguese, Romanian, Russian, Slovak and Vietnamese.
+- Missing four player-preference keys in German (`de`), Indonesian (`id`), legacy Indonesian alias (`in`), Norwegian Bokmål (`nb`), Brazilian Portuguese (`pt-rBR`) and Turkish (`tr`).
+- Hebrew (`he`) has only 3/14 in this sampled group; the other 11 keys are absent.
+- All sampled locales have the shared close hint and stream-selection mode keys except the Hebrew gaps.
+- These are translation coverage gaps, not missing runtime resources: the English base resource contains the keys, so Compose resource fallback should be checked before labeling this a crash/runtime defect. Actual fallback rendering has not been tested.
+
+**Decision: NEEDS INVESTIGATION / localization backlog.** Translate the missing keys rather than copying English text into translated resource files. Audit the rest of playback settings and all settings categories before estimating overall locale completeness. The `id` and `in` directories should be checked for intentional locale aliasing to avoid maintaining duplicate translations unnecessarily.
+
+### Verification limits
+
+Static XML key-presence scan only; no translation quality review, runtime locale switch, RTL layout test, build, test, CI, emulator or device check. No source files changed.
