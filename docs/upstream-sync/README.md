@@ -3340,3 +3340,39 @@ Continue next with:
 3. Continue details/library/debrid/player platform parity and localization.
 4. Complete settings dialog/action inventory and final taxonomy proposal after every page/route is classified.
 5. Update both audit documents after meaningful findings. No source implementation, merge, release or promotion is authorized.
+
+
+## 2026-11-19 — audit continuation: profile isolation and download lifecycle risks
+
+### Profile-scoped data cleanup — HIGH PRIORITY
+
+Confirmed in current Mew Main-dev:
+- ProfileScopedKey.of(baseKey) uses ProfileRepository.activeProfileId, which is activeProfileIndex (Int), not NuvioProfile.id (the profile UUID).
+- createProfile() explicitly reuses the lowest free profileIndex.
+- ProfileScopedKey has no cleanup/registry API.
+- deleteProfile() does not clear all profile-scoped local repository keys. The anonymous path removes ProfilePinCacheStorage only; the authenticated path calls sync_delete_profile_data and pullProfiles(). pullProfiles()/syncPinCache cleans PIN cache for missing profiles, not the many other ProfileScopedKey-backed settings and repositories.
+- ProfileEditScreen allows deletion for any profileIndex > 1, including the active profile; its confirmation callback calls deleteProfile() then onBack().
+- When the active profile is deleted, pullProfiles() selects the first remaining profile and updates activeProfileIndex, but the inspected path does not call ProfileRepository.selectProfile() and therefore does not run the normal onProfileChanged() fan-out for repositories.
+
+Risk: when a deleted profile slot is reused by createProfile(), old profile-scoped settings/data can reappear for the new profile. This can include add-ons, downloads, watch progress, library state, playback preferences, tracking settings and locally stored integration credentials that use ProfileScopedKey. This is a potential cross-profile data exposure, not a claim that a specific user's data has already leaked.
+
+Upstream comparison:
+- Upstream uses the same integer profile-index ProfileScopedKey scheme and also reuses the lowest free index.
+- Upstream deleteProfile() adds explicit ServerRepository / SubtitleDevicePreferences cleanup and PIN/biometric cleanup, but no general ProfileScopedKey data cleanup was found.
+- Do not copy the upstream profile cleanup model as complete.
+
+Decision: NEEDS INVESTIGATION / HIGH PRIORITY. Design a comprehensive profile-data cleanup or migrate new storage keys to stable profile UUIDs with a guarded migration from index-based keys. Enumerate all profile-scoped stores, including SharedPreferences, DataStore and NSUserDefaults; do not delete by broad prefix without account/profile ownership checks. Ensure active-profile deletion triggers the same repository transition as an explicit profile selection. Add regression tests for delete/recreate same slot, active-profile deletion, account switching and cleanup failure. No source changes.
+
+### Download task ownership across profile switches — HIGH PRIORITY
+
+Mew ProfileRepository.selectProfile() changes activeProfileIndex and then calls DownloadsRepository.onProfileChanged(). That method only reloads the active profile payload; it does not cancel or detach activeHandles. clearLocalState() cancels handles, but the normal profile-switch path does not call it.
+
+DownloadsRepository callbacks mutate the current _uiState by download ID and persist through the currently active ProfileScopedKey. If a download finishes while a different profile is active, the old profile's item is not in the current state, so the success callback cannot mark it Completed or persist its final URI. When the old profile is loaded again, loadFromDisk() normalizes persisted Downloading items to Paused; it does not infer completion from an existing final file for a Paused item. This can leave an orphaned file and an unplayable/stuck download entry. Progress updates during the switch are also not written to the owning profile.
+
+The same broad onProfileChanged()/activeHandles pattern exists in upstream DownloadsRepository; this is not an upstream improvement to copy.
+
+Decision: NEEDS INVESTIGATION / HIGH PRIORITY. Either pause/cancel and persist the owning profile before changing activeProfileIndex, or keep per-profile download state and route callbacks to the captured profile key. Do not simply call clearLocalState() after the active profile index has changed. Add a fake-downloader regression test: start download on profile A, switch to B, complete/fail while B is active, switch back to A, and verify correct status/file URI and no cross-profile mutation. No source changes.
+
+### Verification boundary
+
+Static GitHub source inspection only. No build, tests, CI, Android device or iOS device verification. Profile data isolation and active-profile deletion should be treated as blockers before any profile-related upstream integration.
