@@ -3376,3 +3376,89 @@ Decision: NEEDS INVESTIGATION / HIGH PRIORITY. Either pause/cancel and persist t
 ### Verification boundary
 
 Static GitHub source inspection only. No build, tests, CI, Android device or iOS device verification. Profile data isolation and active-profile deletion should be treated as blockers before any profile-related upstream integration.
+
+
+## 2026-11-19 — audit continuation: Smart Streams, debrid and settings taxonomy
+
+### Smart Streams — new feature, ADAPT only after profile/device corrections
+
+Mew already has StreamSourcePreferencesRepository for pinned sources, provider filters/custom ordering, StreamModels/StreamParser with behaviorHints and StreamClientResolve metadata, and StreamAutoPlaySelector with exact preferred filename/infoHash plus binge-group preference.
+
+Upstream adds a separate Smart Streams layer: resolution/HDR/codec/audio/source filters, maximum file size, instant-only/low-quality filters, quality sorting, device capability scoring and optional Smart auto-play.
+
+Classification: SHARED PATTERN / DIFFERENT SEMANTICS. Mew provider filters and pinned ordering are not duplicates of content-quality/device filters. Smart ranking is a new optional layer; do not replace Mew grouping, provider filtering, pinned ordering, source identity or auto-play selector. Adapt through a Mew StreamItem adapter and preserve exact filename/infoHash matching before ranking fallback.
+
+Upstream risks:
+- SmartStreamSettingsStorage.android.kt uses ProfileScopedKey, but SmartStreamSettingsStorage.ios.kt stores one global NSUserDefaults key. SmartStreamSettingsRepository has no onProfileChanged() lifecycle. Android can retain the old profile's in-memory settings after switching; iOS shares settings across profiles. Do not port as-is.
+- SmartStreamDevice.currentSmartDeviceProfile() fallback assumes onWifi=true and hevcHardware=true if probing throws. This is not a safe unknown-network/codec default. iOS capability probing infers 4K/HDR from HEVC hardware and EDR headroom rather than verified per-format support. Use conservative unknown defaults and test real devices.
+- No SmartStreamRanking unit-test file was found in the inspected upstream test tree. Ranking estimates runtime as 45 minutes per episode / 120 minutes per movie instead of using actual metadata runtime.
+- Ranking must not override Mew exact filename/infoHash auto-play match, manual selection, debrid eligibility, provider filters or pinned order. Keep provider-group presentation; do not flatten groups without a deliberate UI decision.
+- Smart settings should be profile-scoped and reloaded on profile switch on both platforms. Reuse Mew's profile lifecycle pattern only after fixing the missing Mew StreamSourcePreferencesRepository callback below.
+Decision: ADAPT as a separate opt-in ranking/filter layer only after adding pure ranking tests, conservative device fallbacks, profile-switch tests and a Mew-specific grouping/identity adapter.
+
+### Existing Mew pinned-source profile lifecycle — HIGH PRIORITY
+
+Mew StreamSourcePreferencesRepository has profile-scoped storage and implements onProfileChanged(), but:
+- ProfileRepository.selectProfile() does not call StreamSourcePreferencesRepository.onProfileChanged().
+- StreamsScreen only calls ensureLoaded(); it does not react to active profile changes.
+- No other callsite for onProfileChanged() was found in inspected paths.
+
+Risk: after switching profiles, the singleton repository can keep profile A's pinned sources in memory. Saving while profile B is active can persist those values into B's ProfileScopedKey.
+
+Account cleanup:
+- LocalAccountDataCleaner calls StreamSourcePreferencesRepository.clearLocalState(), but that method clears only the currently active profile's key.
+- Android PlatformLocalAccountDataCleaner preference-file list does not include nuvio_stream_source_preferences.
+- iOS profileScopedBaseKeys list does not include the pinned-source preference keys.
+- Therefore pinned-source preferences for inactive profile slots may survive account cleanup and reappear when a later account reuses those slots.
+
+Decision: HIGH PRIORITY profile-isolation fix. Add the missing profile-switch fan-out and test two profiles with different pinned sources. Add all-profile cleanup for this storage using explicit key ownership; do not broad-delete unrelated preferences.
+
+### Debrid parity — preserve safer Mew behavior, adapt parser
+
+Mew LocalDebridService is more conservative than upstream:
+- Mew retries unresolved TorBox alias hashes and returns unknown/null if any retry request fails.
+- Upstream returns partial alias results after retry failure.
+- Mew has a regression test asserting failed retries remain UNKNOWN rather than being reported as a cache miss.
+Decision: SKIP upstream's partial-result relaxation. Preserve Mew's fail-closed UNKNOWN behavior; a failed lookup must not become NOT_CACHED.
+
+Mew DebridStreamPresentation has a quality parsing priority issue:
+- Mew combines explicit resolution tokens and generic HD/SD tokens in one list.
+- It checks parsedResolution, then parsedQuality, then search/title text. A generic provider quality value such as "HD" can resolve to 720p before an explicit "2160p" title token is examined.
+- Upstream separates explicit resolution tokens from generic quality labels and checks explicit resolution across provider fields/title before generic HD/SD fallback. It also expands 2160p/2160i patterns and language aliases.
+Decision: ADAPT explicit-vs-generic priority and add conflict tests (e.g. parsedQuality=HD with title=2160p), preserving Mew-specific aliases and badges.
+
+LocalDebridAvailabilityService:
+- Upstream adds cacheCheckConfiguration() and checkCachedAvailability(), but no production callsites were found in the current enhanced tree. Do not count these helpers as a working account-change fix.
+- Mew PlayerStreamsRepository request keys do not include debrid account configuration. Mew StreamDebridCacheStatus includes providerId/providerName, but hasPendingCacheCheck()/annotateCachedAvailability() primarily treat CACHED/NOT_CACHED as final without verifying the currently active provider/account.
+- DebridSettingsRepository updates do not visibly invalidate PlayerStreamsRepository cached source state in the inspected path.
+Decision: NEEDS INVESTIGATION / ADAPT. Add provider/account identity or a safe credential revision to the source/cache key and invalidate old cache states when the account changes. Test account A → account B while the same title's stream list remains cached. Never use raw API keys in logs or UI.
+
+### Details helpers — distinguish working behavior from unused additions
+
+- Mew MetaDetailsScreen maps external episode ratings directly by season/episode. The upstream EpisodeRatingsAlignment helper and tests exist, but no production callsite was found in inspected MetaDetailsScreen/DetailSeriesContent paths. Treat as an unused helper until a callsite is proven; do not claim enhanced currently fixes rating alignment.
+- The upstream DetailEpisodeRatingMap component also had no callsite in inspected detail screen paths. Treat as a possible unfinished UI feature, not verified parity.
+- Upstream SeasonLabel.kt exists, but DetailSeriesContent still contains runBlocking { getString(...) } for season/episode labels in inspected code. Mew does the same inside Composable execution. This is a shared main-thread blocking risk, not an upstream fix. ADAPT composable stringResource-based labels only after mapping callsites and preserving Specials/localization semantics.
+- DetailHero PiP suppression remains an ADAPT candidate; include HomeHeroSection video-preview lifecycle.
+- Native-navigation tablet hero mute-button positioning remains SKIP while Mew's iOS host disables equivalent native navigation.
+
+### Settings taxonomy refined against upstream
+
+Upstream organizes settings into You / Look / Watch / Services / System, with a migration helper for old category names. This is a better reference than Mew's current General catch-all.
+
+Mew proposal:
+- You: Account, Profile, Favorite Actors.
+- Look: Appearance, Streams, Homescreen, Meta Screen, Poster Customization, Continue Watching and Home/Hero presentation.
+- Watch: Playback (split into child pages), Downloads screen/preferences, Content Discovery and future Media Servers if approved.
+- Services: Integrations and Tracking (move Trakt/Simkl out of Account; they are external services).
+- System: Notifications, Advanced, About and support.
+- Keep Mew Enhanced as a distinct Mew-specific section, but move discoverable Home/Hero presentation controls into Look while retaining persisted repository keys.
+
+Playback page:
+- Mew PlaybackSettingsPage is ~3,860 lines with 21 BasicAlertDialog callsites and 10 major section headings: Player, Subtitle & Audio, Subtitle Rendering, P2P, Stream Selection, Stream Auto Play, Decoder, iOS Audio Output, Skip Segments and Next Episode.
+- Upstream splits Playback into dedicated subpages (Player, Stream Selection, Up Next, Skip Segments, Interface, Audio, Subtitles, Video, Buffer, P2P).
+Decision: ADAPT the subpage organization to reduce the oversized page. Preserve Mew setting keys, staged forms, consent, API-key, font, regex and player-overlay semantics. Adapt only the outer dialog shell where appropriate.
+
+Migration:
+- Mew SettingsCategory values are Account, General, Enhanced, About and Advanced.
+- Upstream settingsCategoryForName() demonstrates saved-category migration, but its mapping is upstream-specific. Mew must explicitly map old Account → You, General → Look (or current page category), About/Advanced/Notifications → System, and Enhanced → Mew Enhanced. Do not remove old enum names until saved-state migration is in place.
+- Keep all Mew SettingsPage enum identifiers stable; they are saved navigation names and external route identifiers.
