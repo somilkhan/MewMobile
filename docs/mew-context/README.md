@@ -1167,3 +1167,19 @@ New source/caller findings are recorded in docs/upstream-sync/README.md under **
 - No root MEW-CONTEXT-SNAPSHOT.md on Main-dev or upstream-sync; docs/mew-context/README.md remains the handoff document.
 
 No source changes, builds, tests, CI or device checks were performed. Audit remains IN PROGRESS.
+
+
+## Latest audit checkpoint — 2026-11-19 (downloads, home and expanded parity)
+
+- Full upstream stable-release → enhanced comparison: 134 commits ahead / 1 behind, 265 changed paths. The one stable-only commit is release workflow/tagging. Recent beta.2 → enhanced is 16 commits / 40 paths.
+- Changed areas: downloads 42, player 33, streams 28, servers 27, settings 20, details 11, library 7, home 4, watched 4, debrid 4, core 3, plus platform/tests/resources.
+
+New decisions:
+- Downloads: Mew's batch flow/repository is an intentional parallel; do not replace. Missing candidates: Wi-Fi/network guard, bounded transfer concurrency, a separate download settings page/gear, storage stats, global pause/resume, add-on subtitle resolution, iOS external-folder bookmarks and optional background URLSession. Mew already has offline metadata snapshots and source subtitle sidecars. Its iOS downloader is default-session .part + Range and pauses on background; preserve as a fallback if background transfer is ever added. Keep downloads and batch choices profile-scoped; device network/storage policy should be separate.
+- Home sync: Mew already preserves local catalog choices during early/partial remote sync using profile-aware merge and tests. New catalogs can still default-enable hero sources after a user explicitly chose a subset; ADAPT hasHeroChoice behavior. Repeated identical catalog sync inputs also lack a cache.
+- Home hero: Mew already has richer custom modes, poster art, streaming showcase video preview, sound, ratings and TMDB/MDBList enrichment. Intentional parallel. However, metadata fetches for other hero items launch without a concurrency cap, and video preview/auto-scroll lack explicit screen-activity/PiP suppression. ADAPT bounded metadata concurrency/debounce and lifecycle-safe playback suppression.
+- Settings taxonomy: General is overloaded. Candidate grouping: Account & Profiles; Playback & Downloads; Appearance & Home; Sources & Services; Notifications; Mew/Enhanced; About & Support; Advanced. Continue Watching mixes visual and playback behavior. Hero controls are split between Appearance and Mew Enhanced. Preserve SettingsPage enum names and migrate saved SettingsCategory values before category changes.
+- Servers: upstream adds Plex/Jellyfin/Emby/Silo/MediaBrowser; Mew has no equivalent. Android Keystore AES-GCM and iOS Keychain are used locally, but ServerSync serializes raw tokens into a remote payload. NEEDS INVESTIGATION with backend RLS/encryption/consent review; do not port blindly.
+- No application source changes, builds, tests, CI or device checks.
+
+Next: finish download profile-switch behavior, details/library/debrid parity, full localization and remaining settings/dialog inventory. Audit remains IN PROGRESS.
