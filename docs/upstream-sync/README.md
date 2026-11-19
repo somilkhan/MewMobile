@@ -3496,3 +3496,67 @@ Required Mew regression coverage before implementation is accepted:
 - Profile switch/cancellation cannot leave a fallback job mutating the wrong player session.
 
 No source changes or runtime verification.
+
+
+## 2026-11-19 — startup, CloudStream and P2P initialization audit
+
+### Android process/activity startup
+
+Mew MainActivity performs roughly 75 storage/platform initialize calls before setContent. Upstream performs roughly 82, so call count alone is not a Mew regression; many are context/SharedPreferences bindings. Do not defer every initializer blindly.
+
+Important classifications:
+- Mew P2pStreamingEngine.initialize(applicationContext) only stores applicationContext. NuvioEngine is created lazily from startStream()/clearCache() on Dispatchers.IO. This is not a process-start engine launch.
+- Mew CloudStreamPlatformRuntime.initialize(context) only stores applicationContext/Activity reference. DEX/plugin loading occurs later in provider() under Dispatchers.IO. The initialize call itself is cheap.
+- Mew ConfiguredDnsOverHttps and SharedOkHttpClient are lazy. DNS resolver construction happens on first DNS lookup and reads the current DnsOverHttpsSettingsRepository snapshot. This is an intentional dynamic DoH implementation; do not replace with upstream NuvioDns/DnsPlatform wholesale.
+- Mew and upstream both start Sentry before super.onCreate and initialize many storage adapters before setContent. Treat this as a shared pattern, not a reason to port all upstream startup code.
+- Mew has no Application class; image-loader singleton registration remains inside App() (already recorded as a high-priority startup/configuration adaptation).
+
+### Confirmed CloudStream Activity-reference ordering bug
+
+In Mew MainActivity:
+1. CloudStreamPlatformStorage.initialize(this) is called.
+2. CloudStreamPlatformStorage.initialize() calls CloudStreamPlatformRuntime.initialize(androidContext), passing the Activity.
+3. Immediately afterward MainActivity calls CloudStreamPlatformRuntime.initialize(applicationContext).
+4. CloudStreamPlatformRuntime.initialize() replaces activityReference with (androidContext as? Activity), which is null for applicationContext.
+
+CloudStreamPlatformRuntime.prepareHostContext() later uses activityReference to set CommonActivity's Activity instance. The second initialization therefore clears the Activity reference established by the first call. No later CloudStream bindActivity() call was found in MainActivity.
+
+Decision: HIGH-PRIORITY BUG / ADAPT. Remove the redundant application-context reset or change initialization semantics to preserve a live Activity binding when passed applicationContext. Verify CloudStream plugin actions that require Activity (dialogs, permissions, external intents) after the fix. No source changes.
+
+### CloudStream first-use initialization
+
+- CloudStreamPlatformRuntime.initialize() is cheap and does not load DEX/plugins.
+- CloudStreamRepository.initialize() in fullCommonMain synchronously restores profile state from CloudStreamPlatformStorage (SharedPreferences/NSUserDefaults + JSON decoding).
+- Mew HomeScreen calls CloudStreamRepository.initialize() unconditionally from LaunchedEffect(Unit), alongside checkForUpdates(). This runs on the Home composition coroutine and is extra compared with upstream HomeScreen, which does not initialize CloudStream there.
+- checkForUpdates() schedules background work; it is not the synchronous storage read.
+- provider() loads plugin classes on Dispatchers.IO. Native repository registration has a separate suspend path and should retain caller/dispatcher review.
+Decision: ADAPT lazy/IO state restoration. Initialize CloudStream when its settings/provider path is first needed or move restoreState to IO with an explicit loading state. Do not remove provider compatibility or background update behavior.
+
+### Home initializers and upstream StartupPreloader
+
+Mew HomeScreen LaunchedEffect(Unit) synchronously calls AddonRepository.initialize(), CloudStreamRepository.initialize(), CollectionRepository.initialize(), ContinueWatchingPreferencesRepository.ensureLoaded(), WatchedRepository.ensureLoaded() and WatchProgressRepository.ensureLoaded(). Upstream HomeScreen shares most of these local initializers, but upstream StartupPreloader moves several critical reads (library, watched, watch progress, continue-watching, player/P2P settings, server settings, meta settings, notifications and Home snapshot) onto Dispatchers.IO before setContent.
+
+Upstream StartupPreloader:
+- Loads cached profiles on Main, then the remaining synchronous ensureLoaded/preloadSnapshot calls on IO.
+- Catches per-step failures and logs elapsed time.
+- Keeps the Android splash visible until the preload finishes.
+- Its 6-second threshold is only a warning: awaitReady() then awaits indefinitely. A stuck initializer can keep the splash visible indefinitely.
+
+Decision: ADAPT selectively, not wholesale. First measure cold/warm startup. Move demonstrably disk-heavy JSON/state reads off Main, keep only required bootstrap bindings before first frame, and allow content with loading placeholders after a bounded deadline where safe. Do not create a monolithic startup manager or block all content on optional features. Mew's additional unconditional CloudStream restore should be deferred first.
+
+### P2P engine cache layout — NEEDS INVESTIGATION
+
+Mew ensureEngine() passes cacheDirectory = cacheDir/nuvio-engine/payload.
+Upstream passes cacheDirectory = cacheDir/nuvio-engine and calls migrateNestedPayloadDirectory(), which moves legacy payload/payload contents to payload. Upstream adds tests for migration and preserving existing current payload. Mew has no equivalent migration test.
+
+The engine source is not part of either repository tree: composeApp/build.gradle.kts references ../nuvio-engine/platform/apple/NuvioEngine.xcframework, while settings.gradle includes only composeApp and androidApp. The exact NuvioEngine API/version and cacheDirectory contract cannot be verified from these repositories alone.
+
+Decision: NEEDS INVESTIGATION. Do not change Mew's cache path or migrate files until the external engine contract and existing on-device directory layout are verified. Otherwise this could orphan existing P2P cache data.
+
+Other P2P differences:
+- Mew keeps canonical infoHash → actual engine torrentId in a map; upstream uses a set and assumes the returned torrent ID can be reused from the canonical hash. Preserve Mew's mapping unless engine semantics prove equivalence.
+- Mew cache-clear UI measures usedBytes before/after and waits for an initial stats sample if no measurement exists. Upstream uses the cumulative diskCacheReclaimedBytes delta but does not retain Mew's initial-measurement wait. Verify engine metric semantics before adapting; preserve the wait to avoid reporting zero from an uninitialized stats snapshot.
+
+### Verification boundary
+
+Static source inspection only. No startup trace, Macrobenchmark, StrictMode run, build, tests, CI or device verification. No application source changes.
