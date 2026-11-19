@@ -1211,3 +1211,14 @@ No source changes. No builds, tests, CI or device verification.
 - Upstream adds bounded retry only for auto-selected sources before playback starts; manual sources and post-start errors do not fall back. It preserves resume position, filters tried identities/failed torrents, resolves through DirectDebridPlaybackResolver and propagates attempt history to the next episode.
 - ADAPT around Mew's existing source identity/player runtime. Add separate profile-scoped failure-fallback/max-attempt settings and tests. Keep streamAutoPlayNextEpisodeFallbackEnabled separate; it controls next-episode fallback, not current-source retry.
 - No source changes or runtime verification.
+
+
+## Latest audit checkpoint — 2026-11-19 (startup and CloudStream)
+
+- MainActivity has many pre-setContent initializers in both Mew and upstream; most are bindings, so call count alone is not proof of a startup defect.
+- Mew P2pStreamingEngine.initialize() only stores context; engine creation is lazy on IO. ConfiguredDnsOverHttps/SharedOkHttpClient are lazy and dynamic; preserve Mew DNS architecture.
+- Confirmed CloudStream bug: MainActivity calls CloudStreamPlatformStorage.initialize(this), which initializes CloudStreamPlatformRuntime with Activity, then calls CloudStreamPlatformRuntime.initialize(applicationContext), which clears activityReference. prepareHostContext later uses that reference for CommonActivity. HIGH PRIORITY.
+- CloudStreamPlatformRuntime.initialize() itself is cheap; plugin loading is IO. However Mew HomeScreen synchronously calls CloudStreamRepository.initialize() on first composition to restore profile JSON, unlike upstream HomeScreen. Defer or move restore to IO.
+- Upstream StartupPreloader moves several synchronous local loads to IO before setContent, but waits indefinitely after a 6-second warning. Adapt selectively with a bounded UI deadline; do not block on optional features.
+- P2P cacheDirectory differs: Mew passes .../nuvio-engine/payload; upstream passes .../nuvio-engine and migrates legacy payload/payload. External ../nuvio-engine source is not included in the GitHub repository, so cache contract remains NEEDS INVESTIGATION. Preserve Mew's hash→engine-ID map.
+- No source changes, build, tests, startup trace, CI or device checks.
