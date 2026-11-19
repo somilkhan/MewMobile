@@ -3147,3 +3147,80 @@ Continue next with:
 3. Finish add-on event mutation-path/privacy audit before any dispatcher design.
 4. Continue broader upstream delta by functional group, especially settings, home, downloads, playback and platform-specific changes.
 5. Update this ledger and the context handoff after each meaningful batch. No source implementation, merge, release or promotion is authorized by this audit.
+
+
+## 2026-11-19 — audit continuation: player fallback, add-on events and dialog safety
+
+### Settings/dialog audit — credential and diagnostics sweep
+
+A current Main-dev scan of the shared settings source set found these credential-field patterns:
+- AI Assistant uses SettingsSecretTextField.
+- MDBList uses SettingsSecretTextField.
+- IntroDB API key uses SettingsSecretTextField and retains asynchronous verification.
+- Debrid API-key dialog uses a plain OutlinedTextField without password masking.
+- PluginSettingsDialog reads isPassword but does not apply password masking.
+- AnimeSkip client ID is a plain BasicTextField; it is an identifier, not confirmed to be a secret.
+This narrows the confirmed credential-masking gaps to Debrid and plugin settings. Do not replace already-correct AI, MDBList or IntroDB flows.
+
+Additional UI findings:
+- AdvancedSettingsPage Runtime Logs displays RuntimeDiagnostics.snapshotText(), which includes up to 250 app log lines plus platform Logcat output. The viewer has no bounded scroll region or maximum height. Copy and export also use the raw snapshot. RuntimeDiagnostics.kt defines sanitizeDiagnosticText() to redact authorization headers, token/API-key/password fields, URLs and emails, but AdvancedSettingsPage does not call it on the inspected view/copy/export paths. This is a potential credential/URL exposure risk, not proof that every current log contains secrets. Apply sanitization before copy/export and review what should be visible in the viewer; bound the content area and keep actions visible.
+- Runtime Logs section, row labels, descriptions and dialog buttons are hardcoded English. Localize these app-owned strings.
+- PlaybackSettingsPage has 20 current BasicAlertDialog call sites, mostly using direct BasicAlertDialog + Material Surface shells rather than the shared DialogSurface/DialogButtons components. The outer visual shell can be aligned, but keep each form's immediate/staged/consent/validation semantics. Language and provider lists already have bounded LazyColumn areas; do not add unnecessary scrolling to small fixed-choice dialogs.
+- StreamAutoPlayProviderSelectionDialog commits its staged set from onDismissRequest, including outside/back dismissal, rather than an explicit Save/Cancel footer. NEEDS INVESTIGATION: confirm this is intentional and make the commit behavior visible; do not silently change persistence semantics.
+- ContinueWatchingSettingsPage uses a separate Material dialog shell with no height/scroll cap; the option list is currently small, but include short-screen/keyboard checks.
+- NuvioEnhancedSettingsPage uses Material AlertDialog flows for backup import/export rather than the shared DialogSurface. Preserve the existing schema/data-safety work; preview and staged import remain unimplemented.
+- AppIconPicker remains an ALREADY IMPLEMENTED adaptive phone/tablet pattern. Runtime focus, rotation, dismissal and accessibility checks remain outstanding.
+
+### Player source-failure fallback — Mew caller audit refined
+
+Mew current error handling is layered:
+1. PlayerScreenRuntimeUi calls tryRefreshCredentialedSourceAfterError first.
+2. If that does not handle the error, maybeFailoverPlaybackEngine can switch Android Auto engine (guarded by engineFailoverDisarmed / engineFailoverTriggered).
+3. Otherwise the UI exposes the error and removeFailedStreamFromCache invalidates the last-link cache entry.
+
+The credential refresh path is not generic source fallback. It force-refreshes PlayerStreamsRepository for the same content, then looks for a replacement matching the failed stream's provider/name/binge-group identity. Preserve this before any broader fallback so expired credentials do not cause an unnecessary provider switch.
+
+Mew PlayerScreenArgs carries source URL, provider, stream metadata, torrent metadata and resume position, but no auto-selected-versus-user-selected provenance flag. PlayerScreenRuntimeState also has no autoSelectedSourceUrl equivalent. Upstream fallback only applies to an automatically selected initial source before playback has successfully started; it avoids silently overriding a user-selected source. Mew cannot safely port that guard until launch callers explicitly identify the initial selection origin and manual source changes clear that marker.
+
+Mew PlayerStreamsRepository is a dedicated player source/episode repository with separate StateFlows, request keys, generations and partial results. It exposes clearAll(), which cancels both source and episode loads; it does not expose upstream's stopSourcesLoading() equivalent. A fallback job must not clear the shared source/episode panel state or cancel unrelated loads.
+
+Mew switchToSource() performs more than assigning a URL: it handles DirectDebridPlaybackResolver, P2P, external URL opening, resume position, watch-progress flush, active P2P stop, reuse-cache save, sanitized request/response headers, external subtitles and provider/binge-group/filename/info-hash metadata. A replacement helper must preserve those side effects and must not auto-open external URLs.
+
+Mew's StreamAutoPlaySelector is not a drop-in upstream copy. It has additional preferred filename and info-hash matching to avoid selecting the wrong episode from a stale binge group, plus resolver-provider and pending-debrid handling. Preserve those safeguards. Mew already has streamAutoPlayNextEpisodeFallbackEnabled, but that controls next-episode source selection; it is not current-source failure retry. Mew propagates provider/binge-group/filename/info-hash preference to the next episode but does not carry a failed-source attempt set.
+
+Upstream generic fallback tracks failed source identity, deduplicates torrent hashes, bounds attempts and can carry attempt history into next-episode selection. Decision: ADAPT, high priority, but NEEDS INVESTIGATION for initial auto-selection provenance and a safe sequential resolver API. Preserve Mew credential refresh first, Android engine failover precedence, P2P/debrid/CloudStream behavior, partial results and next-episode identity preference. Add regression tests for manual selection, auto selection, expired links, same-torrent duplicate providers, debrid stale results, P2P, external URLs, engine failover and profile/session changes before implementation.
+
+### Add-on event delivery — full behavior and privacy comparison
+
+Mew:
+- AddonManifestParser and AddonModels preserve generic Stremio resource name/type/id-prefix metadata.
+- AddonRepository has profile-generation-aware refresh/persistence and secondary-profile guards, but its persisted add-on row has URL/name/enabled/sort order only. No durable per-add-on tracking-consent field or event dispatcher was found in the Main-dev source tree.
+- TrackingScrobbleCoordinator is a separate Trakt/Simkl/AniList/MyAnimeList provider dispatcher. Player START/PAUSE/STOP and seek events go to connected tracking providers, with an active-profile guard. This is not Stremio add-on event delivery.
+- WatchProgressRepository has profileGeneration and an active source of NUVIO_SYNC / TRAKT / SIMKL. LibraryRepository has LOCAL / TRAKT / SIMKL membership semantics and confirmation for destructive provider removals. WatchedRepository has profileGeneration, active source and separate local/provider stores. These are distinct mutation systems.
+- No ServerItemRef implementation was found in the inspected Mew tree. Audit Mew's actual ID namespaces before applying upstream's server-ID exclusion.
+- CloudStream providers remain a separate repository/provider system; do not send Stremio player/library events to CloudStream.
+
+Upstream AddonEvents.kt:
+- Player resource events: START / PAUSE / STOP with currentTime and duration.
+- Library resource events: libraryAdd / libraryRemove / watched / unwatched; episode video IDs are deduplicated and chunked in groups of 100.
+- Events are routed only to active add-ons whose manifest supports the resource/type/id, deduplicated by transport URL and delivered sequentially per transport URL with a 10-second request timeout.
+- ServerItemRef.isServerId() is excluded before enqueue.
+- Player event target state sends STOP to a previous target when the session changes; short placeholder durations are suppressed.
+- Watched events are emitted for explicit changed mark/unmark operations. Playback-completion marking and local reconciliation paths deliberately bypass those public event emitters, reducing false events.
+
+Critical upstream gaps to fix before adapting:
+1. Tracking consent is install-time only. AddonRepository has pending consent state and installWithTrackingConsent(), but no durable per-addon consent field. AddonEventDispatcher.hasEnabledAddonFor() checks active/resource only and does not check consent. Existing or server-synced tracking add-ons can therefore receive events without a locally recorded consent decision.
+2. AddonEvent and AddonDelivery do not capture profile ID or profile generation. The global event channel routes against the current AddonRepository state, and per-transport delivery queues can continue after a profile switch. Add profile/generation tokens and recheck before routing and sending to prevent cross-profile/stale delivery.
+3. Both global and per-transport queues use Channel.UNLIMITED. A slow or unreachable add-on can accumulate an unbounded backlog. Define bounded queue/backpressure and coalescing/drop policy without losing required START/STOP ordering.
+4. Existing tests cover URL encoding, player URL construction, 100-ID chunking and resource detection, but do not cover consent, profile switches, stale delivery, queue growth/order, server IDs or reconciliation suppression.
+
+Mew decision: ADAPT the feature, high priority, but design consent and profile isolation first. Emit only from explicit user/player mutation paths after successful state changes. Do not emit from server pulls, tracking-provider refresh, watched reconciliation, profile migration or CloudStream. Preserve active tracking-source semantics and require durable per-profile or per-addon consent before any player/library event is sent. Add tests for every boundary above before wiring dispatch into player/library/watched flows.
+
+### Context and monitor
+
+- No root MEW-CONTEXT-SNAPSHOT.md exists on either Main-dev or upstream-sync. Continue using docs/mew-context/README.md as the handoff record.
+- Existing automation Mew Audit Completion was privately rechecked: enabled, daily flexible schedule in Asia/Kolkata, next scheduled check 2026-11-20 09:00 IST. It only notifies after verified audit completion. No duplicate automation was created.
+
+### Verification boundary
+
+Static source inspection only. No application source changes. No build, tests, CI, Android device or iOS simulator/device verification. The audit remains IN PROGRESS; do not estimate completion percentage until the full checklist is defined and marked.
