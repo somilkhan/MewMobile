@@ -3224,3 +3224,119 @@ Mew decision: ADAPT the feature, high priority, but design consent and profile i
 ### Verification boundary
 
 Static source inspection only. No application source changes. No build, tests, CI, Android device or iOS simulator/device verification. The audit remains IN PROGRESS; do not estimate completion percentage until the full checklist is defined and marked.
+
+
+## 2026-11-19 — audit continuation: expanded parity, downloads and home
+
+### Upstream branch scope refreshed
+
+Current upstream comparison:
+- enhanced: b23b28a878b78f5ef9252128b901155fee6eeea9.
+- stable-release: 5b8c6dc2ad3cf83846ccbe3e05e96d409f5b2ab4.
+- stable-release → enhanced: 134 commits ahead, 1 behind, 265 changed paths.
+- The one stable-only commit is release-workflow/tagging only, not an application feature. Do not merge divergent branch histories.
+- Changed-path groups: downloads 42, player 33, streams 28, servers 27, settings 20, details 11, library 7, home 4, watched 4, debrid 4, core 3, plus navigation, sync, platform source sets, tests and localized resources.
+- The smaller beta.2 → enhanced comparison is 16 commits ahead / 0 behind / 40 paths; it is only the recent delta, not the full parity scope.
+
+### Downloads — selective adaptation, keep Mew architecture
+
+Mew already has a substantial distinct system:
+- EpisodeDownloadFlowSheet supports multi-season episode selection, auto-selection, provider/source resolution, manual stream override, preferred quality and queue mode.
+- DownloadSourceResolver / EpisodeDownloadCoordinator preserve Mew provider matching, Stremio/Plugin/CloudStream compatibility, debrid resolution and bounded concurrent source searches.
+- DownloadsRepository owns queue lifecycle and platform downloader handles.
+- DownloadItem stores detailsSnapshot and externalSubtitles; findOfflineMetaDetails() supports offline detail presentation.
+- Android and iOS cache source-provided external subtitles to sidecar files.
+
+Classification: INTENTIONAL PARALLEL / SHARED PATTERN, DIFFERENT ARCHITECTURE. Do not copy upstream BatchDownloadCoordinator or replace Mew's repository/downloader.
+
+New gaps:
+1. Mew queue mode is only AllAtOnce or OneAtATime. AllAtOnce starts every queued transfer; no total concurrent-download, per-show or concurrent-show limit. Upstream DownloadQueuePolicy adds these. ADAPT into Mew's queue without changing batch source-search limits.
+2. Mew has no download-specific NetworkGuard / Wi-Fi-only preference; platform downloaders allow cellular access. ADAPT a device-level network policy.
+3. Mew has no DownloadsSettingsRepository / DownloadsSettingsPage. SettingsRootPage Downloads opens DownloadsScreen, not a preferences page; DownloadsScreen has no settings callback/gear. ADAPT a separate preferences destination.
+4. Mew DownloadsScreen has no storage usage summary or global Pause All / Resume All action in the inspected path. ADAPT if useful, preserving per-item controls and pending-source flow.
+5. Mew DownloadItem stores externalSubtitles but no subtitleRequests. Its cacheSubtitleFiles() stores source-provided subtitles; it does not fetch add-on subtitle resources after download. Upstream DownloadSubtitles does. ADAPT only after defining migration-safe subtitle-request snapshots and bounded fetch behavior; do not persist credentials or short-lived secrets.
+6. Mew has no EpisodeDownloadIndex; findPlayableDownload() scans the downloads list. ADAPT only if large-library profiling shows this matters.
+7. Mew already has OfflineShowMetadata-equivalent behavior via DownloadDetailsSnapshot and findOfflineMetaDetails(). ALREADY IMPLEMENTED.
+8. Mew DownloadsExternalFolderPlatform.ios.kt is a no-op; iOS external-folder selection is absent. Upstream uses security-scoped bookmarks. ADAPT candidate; audit stale bookmark refresh, revocation and cleanup.
+9. Mew iOS uses default NSURLSession configuration with NSURLSessionDataTask, writes .part, resumes with HTTP Range, restarts on 416 and pauses active downloads when app backgrounds. It is not a background-transfer session. Background completion hooks exist, but the inspected request uses default configuration. Upstream adds background URLSession transfers plus a legacy direct-file mode. Mew's existing path is close to that legacy mode; preserve it as a fallback if background transfers are introduced. Do not add a redundant legacy toggle.
+10. Mew Android has its own retry/range/partial-file logic. Do not replace it with upstream WorkManager workers without auditing notifications, process death, retries, profile switches, external-folder copying and queue ownership.
+
+Storage scope:
+- Mew downloads payload, external folder URI and EpisodeDownloadSettings are profile-scoped on Android and iOS.
+- Upstream network/transfer settings are device-level.
+- Keep downloaded content and batch choices profile-scoped. Treat network policy and device storage limits as device-level unless a clear per-profile requirement exists.
+
+### Home settings and hero — parity refinement
+
+Home catalog sync:
+- Mew HomeCatalogSettingsSyncService already has profile tokens, shared/legacy-platform payload merge and delayed initial-pull protection.
+- HomeCatalogSettingsRepository.applyFromRemote() preserves local hero-source choices for matching keys; unknown local preferences are retained while catalog definitions are not yet known.
+- HomeCatalogRemotePreferenceMergeTest covers preserving local choices across remote payload merges.
+Decision: ALREADY IMPLEMENTED for preserving local choices when sync arrives before catalog definitions load. Preserve Mew's broader legacy-platform merge.
+
+Remaining gaps:
+- normalizePreferences() defaults a newly discovered catalog's heroSourceEnabled to true while selected count is below the limit, even if the user previously made an explicit hero-source selection. Upstream tracks hasHeroChoice/chosenHeroKeys and keeps newly added/reordered catalogs disabled once a subset is chosen. ADAPT.
+- Mew syncCatalogs()/syncCollections() lack upstream's last-input signature cache; repeated identical inputs still normalize, publish and persist. ADAPT a profile/revision-safe guard after checking call frequency.
+- General row placement and hidden-row sections remain ADAPT candidates as recorded above.
+- Home reset still resets more than its Catalogs/Collections label implies and pushes sync; add explicit scope/confirmation without silently changing semantics.
+
+Hero comparison:
+- Mew already has three NuvioHeroDisplayMode variants, artwork-source selection, poster-art hero, streaming-showcase hero, video-preview enable/sound controls, ratings, overview and metadata presentation in NuvioEnhancedSettingsRepository / NuvioEnhancedSettingsPage. HomeHeroSection resolves trailers through TrailerPlaybackResolver and enriches metadata through MetaDetailsRepository, MDBList and TMDB. This is a richer intentional parallel than upstream's simpler HomeHeroStyle/trailer settings. Do not replace Mew hero presentation or duplicate settings keys.
+- Settings placement is fragmented: standard hero source/scroll/motion controls are in HomescreenSettingsPage under Appearance, while Hero Experience controls live in NuvioEnhancedSettingsPage under Mew Enhanced. ADAPT the settings organization so Home/Hero controls are discoverable together while preserving repositories and persisted keys.
+- Mew HomeHeroSection prioritizes the current page's metadata fetch, then launches fetches for every remaining item without a semaphore. Each fetch can perform base details, MDBList enrichment and TMDB fallback with individual timeouts. Upstream HomeHeroMetaRepository bounds concurrent fetches with Semaphore(4) and debounces page changes. ADAPT bounded concurrency/debounce and cancellation; keep Mew metadata sources and fallback behavior.
+- Mew HomeHeroSection auto-scroll only checks autoScrollEnabled, user interaction and pager scrolling. Streaming showcase video preview is active when scrollOffsetPx < 74% of hero height; no explicit screen-activity, mini-player or PiP guard was found in this path. ADAPT a lifecycle-safe active-screen/PiP guard so home trailers cannot compete with active playback or continue on an obscured route. Runtime route/PiP behavior remains unverified.
+- DetailHero PiP suppression remains an ADAPT item from the prior audit. Include HomeHeroSection in the same lifecycle design.
+
+### Settings taxonomy proposal — audit only
+
+Current root General section contains Playback, Appearance, Notifications, Content Discovery, Downloads (external screen route), Watch Party (external route) and Integrations.
+
+Semantic review:
+- Streams is primarily stream-card/badge presentation; Appearance is correct.
+- Homescreen, Meta Screen and Poster Customization are display/layout settings; Appearance is correct.
+- Continue Watching mixes card visibility/style with resume prompt and Up Next playback behavior. Consider moving it to Playback or splitting only if users cannot find the behavior; do not duplicate persisted controls.
+- Downloads is currently an external DownloadsScreen route, not a settings page. A future DownloadsSettingsPage should be separate.
+- Hero Experience controls in Mew Enhanced and Home controls in Appearance should be presented together while retaining Mew-specific settings.
+
+Candidate root grouping:
+1. Account & Profiles (Account, Profile, Tracking).
+2. Playback & Downloads (Playback, Continue Watching, download preferences, Watch Party entry).
+3. Appearance & Home (Appearance, Streams, Home, Meta Screen, Poster Customization, Hero Experience).
+4. Sources & Services (Content Discovery and Integrations).
+5. Notifications.
+6. Mew/Enhanced.
+7. About & Support.
+8. Advanced.
+
+Navigation constraints:
+- SettingsPage enum names are saved page identifiers and external navigation names. Keep existing constants.
+- SettingsCategory selected state is restored with direct SettingsCategory.valueOf(savedValue); removing/renaming a category can break restored state. Add migration/fallback first.
+- SettingsPage.parentPage controls Back and tablet inline behavior. Search targets and some pages use external callbacks rather than openPage. Reparenting must test phone Back, tablet category selection, search entry, saved-state restoration and external route return.
+- SettingsRootPage, SettingsScreen, SettingsSearch, title mapping, feature-policy visibility, localized labels and outer App navigation must change together.
+
+### New server integration — NEEDS INVESTIGATION, security-sensitive
+
+The 27-path upstream server group adds Plex, Jellyfin, Emby, Silo and MediaBrowser providers, ServerRepository, ServerItemRef IDs, library sync, watched-state projection and playback. Mew Main-dev has no features/servers implementation or ServerItemRef equivalent.
+
+Positive upstream safeguards:
+- Android credentials use AES-GCM with Android Keystore and key-bound AAD.
+- iOS credentials use Keychain with AfterFirstUnlockThisDeviceOnly.
+- ServerRepository is profile-aware, generation-guards calls and serializes token renewal per connection.
+- ServerItemRef uses a typed srv1: prefix and escaped item IDs.
+
+Security review required:
+- ServerSync serializes raw server tokens into SyncedServer JSON for the account sync payload. Verify backend RLS, transport, encryption at rest, access controls, token revocation and explicit user consent before porting. Local Keychain/Keystore protection does not protect a remote sync payload.
+- Review LAN/remote address handling, redirects, cleartext HTTP exceptions, Plex relay/local IP fallbacks, authorization headers, token renewal, profile removal and server-side library sync.
+- Preserve server ID exclusions in any future Stremio add-on event dispatcher; Mew has no matching typed server ID implementation.
+Decision: NEEDS INVESTIGATION. No implementation or credential sync authorized.
+
+### Verification boundary and next work
+
+Static source/tree/compare inspection only. No Mew application source changes. No build, tests, CI, Android device or iOS simulator/device verification.
+
+Continue next with:
+1. Finish download settings/queue/subtitle/storage comparison and inspect profile-switch cancellation.
+2. Audit upstream server auth/sync/security boundaries; keep out of implementation scope unless explicitly prioritized.
+3. Continue details/library/debrid/player platform parity and localization.
+4. Complete settings dialog/action inventory and final taxonomy proposal after every page/route is classified.
+5. Update both audit documents after meaningful findings. No source implementation, merge, release or promotion is authorized.
