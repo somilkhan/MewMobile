@@ -3560,3 +3560,82 @@ Other P2P differences:
 ### Verification boundary
 
 Static source inspection only. No startup trace, Macrobenchmark, StrictMode run, build, tests, CI or device verification. No application source changes.
+
+
+## 2026-11-19 — settings taxonomy, search, secrets and dialog inventory
+
+### Current root taxonomy and proposed placement
+
+Mew SettingsRootPage currently groups:
+- Account: Account, Profile, Tracking.
+- General: Appearance, Content Discovery, Downloads, Playback, Watch Party, Integrations, Notifications.
+- Enhanced: Mew Enhanced plus community link.
+- About: Supporters, Licenses, updates and debug test.
+- Advanced: Advanced.
+
+This makes General overloaded and places Tracking under Account. Upstream's You / Look / Watch / Services / System is a better organizing model.
+
+Proposed Mew mapping:
+- You: Account, Profile, Favorite Actors/Profile Insights.
+- Look: Appearance, Homescreen, Meta Screen, Streams presentation, Poster Customization, Continue Watching and Home/Hero presentation.
+- Watch: Playback, Downloads, Watch Party, Content Discovery (Add-ons, Plugins, CloudStream), and future Media Servers if approved.
+- Services: Integrations (TMDB, MDBList, Debrid, AI) and Tracking (Trakt/Simkl).
+- System: Notifications, Advanced, About, Supporters, Licenses, update status and diagnostics.
+- Keep Mew Enhanced as a Mew-specific section; move generic Home/Hero appearance controls to Look. Move the community link to Support/About.
+
+Current page enum details:
+- SettingsPage.TraktAuthentication is categorized as Account, although it is an external tracking service. Move only its category; preserve its enum identifier because the source explicitly documents saved-navigation compatibility.
+- Downloads and Watch Party are external routes from SettingsRootPage, not SettingsPage preference pages. Keep their external navigation callbacks while moving their root placement to Watch.
+- ContentDiscovery has Add-ons, Plugins and CloudStream child routes.
+- Integrations has AI, TMDB, MDBList and Debrid child routes.
+- FavoriteActors is nested under Profile.
+- Keep all existing SettingsPage enum names stable; add new Playback child-page identifiers rather than renaming the existing Playback route.
+
+Migration risk:
+- SettingsScreen stores selectedCategory with rememberSaveable and resolves it using SettingsCategory.valueOf(selectedCategory) without a fallback.
+- Renaming/removing Account, General, Enhanced, About or Advanced without a migration can crash when restoring old saved state.
+- SettingsPage.valueOf(initialPageName) is guarded with runCatching; preserve this fallback.
+- Add a Mew-specific settingsCategoryForName() migration and a visible-category list so legacy enum values can be retained for saved-state compatibility without showing obsolete sections.
+
+### Settings search and navigation
+
+- SettingsSearchEntry searchableText includes title, description, page title, section and category, but no synonym/keyword field.
+- addRow() creates a Page target only; the row key/section is not carried into the navigation target. Search results open the containing page but do not scroll to, focus or highlight the exact setting row.
+- Search result categories are derived from the old category taxonomy; update them with the root and SettingsPage.category mapping.
+Decision: ADAPT. Add a stable row target/anchor for searchable controls and restore scroll/focus/highlight after navigation. Add synonyms for common terms (e.g. cache/buffer, subtitles/captions, tracking/scrobbling) without duplicating entries. Preserve external route callbacks and phone/tablet back behavior.
+
+### Secret-field audit
+
+Already uses SettingsSecretTextField:
+- AI assistant API key.
+- TMDB API key.
+- MDBList API key.
+
+Confirmed gaps:
+- Debrid API-key edit dialog uses a plain OutlinedTextField and exposes the full key.
+- PluginSettingsDialog parses the isPassword schema flag but still renders a plain field.
+Decision: ADAPT both to SettingsSecretTextField while preserving validation, staged Save/Cancel and credential lifecycle. Do not change device-code authorization behavior.
+
+### Dialog and sheet audit additions
+
+- AccountSettingsPage uses the shared NuvioStatusModal for sign-out/delete confirmations; preserve its busy/dismissal behavior.
+- ProfileEditScreen has PIN flows, a delete confirmation and a bounded/scrollable GIF search dialog. The active-profile deletion flaw remains separately recorded.
+- AdvancedSettingsPage runtime-log dialog has no height cap or vertical scrolling, and its "Runtime logs", "Logs" and "View logs" labels are hardcoded English. Add a bounded scroll region and localized strings.
+- ContinueWatchingSettingsPage uses a Material colorScheme BasicAlertDialog with a fixed option list and no explicit height cap. The list is currently small; retain semantics but align its shell with shared dialog tokens.
+- NuvioEnhancedSettingsPage uses Material3 AlertDialog for backup payload/import. The backup payload dialog scrolls; the import dialog has a bounded text field but no preview of affected categories. Keep the existing text-paste flow but add validated preview/confirmation before applying backup data.
+- ProfileInsightsSettingsPage mixes NuvioModalBottomSheet and standard Material3 ModalBottomSheet implementations. Review dismissal, max-height, keyboard, tablet and theme behavior; consolidate outer presentation only where semantics match.
+- SupportersContributorsPage uses a custom BasicAlertDialog surface based on MaterialTheme.colorScheme rather than Nuvio dialog tokens. Review theme consistency and long-content scrolling.
+- PlayerToolbarSettingsDialog has an explicit 460dp height cap and vertical scrolling; this is a good bounded-dialog pattern.
+- StreamsSettingsPage uses its own shared SettingsDialogSurface/Buttons pattern; compare with core DialogSurface before creating another helper.
+- SimklSyncInfoDialog contains fixed informational content; no urgent sizing issue found.
+- AppIconPicker and TrackingAdaptivePicker already use adaptive phone/tablet presentation and bounded content. Preserve their distinct selection/save semantics.
+- PlaybackSettingsPage still has 21 dialog callsites. Adapt the outer shell consistently, but do not collapse staged forms, consent, API-key, font, regex or player-overlay flows into immediate-choice dialogs.
+- PluginSettingsDialog still needs an explicit height cap/footer behavior and localized app-owned copy.
+
+### Donation/support placement and text
+
+DonationSupportCard already uses the project TYVM destination and a separate UPI action. Do not replace these links again.
+- "Support on TYVM" and "Support via UPI" are hardcoded English labels; localize them.
+- SupportersContributorsPage still has individual contributor Ko-fi links, and workers/kofi-supporters still ingests Ko-fi supporter webhooks. These are separate from the project's donation CTA; do not remove them as part of a simple donation-link update. If the goal changes to a complete Ko-fi migration, audit the worker, webhook configuration, database and individual contributor links separately.
+
+No source changes or runtime dialog verification.
