@@ -1193,3 +1193,13 @@ Two high-priority profile lifecycle risks were found:
 2. DownloadsRepository.onProfileChanged() reloads state but does not cancel/detach active download handles. If a download completes while another profile is active, its callback cannot find the owning item in current state; when the old profile returns, its persisted Downloading item is normalized to Paused and the completed file may be orphaned. The same broad pattern exists upstream. Add a profile-switch regression test.
 
 No source changes. No builds, tests, CI or device verification.
+
+
+## Latest audit checkpoint — 2026-11-19 (Smart Streams, debrid, settings)
+
+- Smart Streams is a new optional quality/device-ranking layer, not a duplicate of Mew provider filters or pinned sources. If adapted, preserve Mew grouping, provider filters, pinned order, debrid eligibility and exact filename/infoHash auto-play identity. Upstream Smart settings have Android profile-scoped storage but iOS global storage and no profile reload; device fallback assumes Wi-Fi/HEVC on probe failure; no Smart ranking unit tests found.
+- Mew StreamSourcePreferencesRepository is profile-scoped but its onProfileChanged() is not called by ProfileRepository.selectProfile(); StreamsScreen only calls ensureLoaded(). This can carry pinned sources from one profile into another. Account cleanup clears only the active profile key; platform cleaner lists omit pinned-source storage for inactive profiles.
+- Debrid: preserve Mew's stricter TorBox alias retry behavior (UNKNOWN on failed retry); adapt upstream explicit-resolution-before-generic-HD/SD parsing. Mew cache status/request keys do not clearly invalidate when the active debrid account changes; upstream's new cache helper methods appear unused.
+- Details: upstream EpisodeRatingsAlignment and DetailEpisodeRatingMap helpers had no production callsite found in inspected detail screens. Mew and upstream DetailSeriesContent both use runBlocking string retrieval in Composable paths; this is a shared performance risk, not an upstream fix.
+- Settings taxonomy should follow You / Look / Watch / Services / System, with Mew Enhanced retained separately. Split the 3,860-line PlaybackSettingsPage into child pages while preserving keys and dialog semantics. Move Tracking under Services; Downloads under Watch; consolidate Home/Hero controls under Look.
+- No source changes or runtime verification.
