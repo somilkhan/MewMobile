@@ -1233,3 +1233,13 @@ No source changes. No builds, tests, CI or device verification.
 - Dialog additions: Advanced runtime-log dialog is unbounded/unscrollable and has hardcoded English labels. ProfileInsights mixes custom and standard bottom sheets. Supporters dialog uses Material colorScheme surface instead of Nuvio dialog tokens. ContinueWatching uses a fixed-choice Material dialog without explicit height cap. PlayerToolbar dialog has a good bounded/scrollable pattern. Preserve adaptive AppIconPicker/Tracking picker.
 - Project DonationSupportCard already points to TYVM and has a separate UPI action; localize the two button labels. Ko-fi supporter worker and individual contributor links are separate from the project donation CTA.
 - No source changes or runtime dialog verification.
+
+
+## Latest audit checkpoint — 2026-11-19 (CloudStream/settings actions)
+
+- CloudStream repository/plugin removal is immediate and destructive: removeRepository deletes every plugin package for that repository; removePlugin unloads/deletes the package. Editing a repository URL also adds the new repository then removes the old one and all its installed plugins. The "Apply changes" label hides this cascade. Add explicit confirmation/preview before removal or URL replacement.
+- CloudStreamSettingsCopy is manually localized only for Turkish and English; other languages fall back to English. Move app-owned strings to resources. Preserve the third-party .cs3 security warning/acceptance gate.
+- CloudStreamSettingsSection also calls StreamSourcePreferencesRepository.ensureLoaded() without profile reload, affected by the missing profile-switch callback.
+- SettingsFullScreenPages uses isTablet=false for several full-screen screens (Homescreen, Meta Screen, Continue Watching, Account); verify tablet spacing/columns/back behavior and pass actual adaptive state if needed.
+- Notification permission handling is asynchronous and reports denial; verify Android 13+ and iOS. TMDB enrichment correctly remains disabled until an API key is configured.
+- No source changes or runtime UI verification.
