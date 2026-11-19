@@ -3462,3 +3462,37 @@ Migration:
 - Mew SettingsCategory values are Account, General, Enhanced, About and Advanced.
 - Upstream settingsCategoryForName() demonstrates saved-category migration, but its mapping is upstream-specific. Mew must explicitly map old Account → You, General → Look (or current page category), About/Advanced/Notifications → System, and Enhanced → Mew Enhanced. Do not remove old enum names until saved-state migration is in place.
 - Keep all Mew SettingsPage enum identifiers stable; they are saved navigation names and external route identifiers.
+
+
+## 2026-11-19 — player source-failure fallback comparison
+
+Mew current behavior:
+- Mew has a robust StreamItem.playerSourceIdentityKey() covering P2P hash/file index, add-on/service metadata, torrent/filename/size, behaviorHints hash, playable URL and fallback metadata.
+- Mew PlayerNextEpisodeAutoPlay.kt implements a separate next-episode policy: same-provider candidates, optional binge-group restriction and the streamAutoPlayNextEpisodeFallbackEnabled setting.
+- Mew PlayerSettingsRepository has engine-switch-on-error and next-episode fallback settings, but no streamAutoPlayFallbackOnFailure / max-source retry setting.
+- No Mew PlayerScreenRuntimeSourceFallback.kt or PlayerSourceFallbackRun.kt equivalent exists in Main-dev.
+Classification: SHARED PATTERN / DIFFERENT SEMANTICS. Do not confuse next-episode fallback with retrying another source for the currently selected episode.
+
+Upstream behavior:
+- PlayerSourceFallbackRun is a bounded generic resolver loop. It tracks tried source identities, handles expired DirectDebrid resolution results and records attempt history.
+- PlayerScreenRuntimeSourceFallback only runs for an auto-selected source before initial playback has started. It refuses manual selections, refuses fallback after playback has started, respects the configured source limit, and yields to Android engine-switch-on-error when enabled.
+- It reuses PlayerStreamsRepository's current source search, filters tried identities and failed torrent copies, resolves each candidate through DirectDebridPlaybackResolver, preserves the current resume position when replacing the source, removes the failed stream from reuse cache and shows the original error only after fallback is exhausted.
+- PlayerNextEpisodeAutoPlay receives PlayerSourceFallbackTried and passes attempt history through the next-episode selection callback.
+- Upstream has focused PlayerSourceFallbackTest and PlayerSourceFallbackRunTest coverage for bounded attempts, expired debrid results, manual selection, post-start errors, regex matching, same-torrent filtering and next-episode reset.
+
+Decision: ADAPT — high priority. Port behavior around Mew's existing player runtime and source identity, not upstream files wholesale. Add separate profile-scoped settings for failure fallback and max attempts. Preserve Mew's existing engine failover, DirectDebridPlaybackResolver refresh, P2P/debrid paths, source filters, exact identity, resume position and platform-specific error handling. Keep streamAutoPlayNextEpisodeFallbackEnabled separate; it controls next-episode binge-group fallback, not current-source retry.
+
+Required Mew regression coverage before implementation is accepted:
+- Manual source never falls back.
+- No fallback after playback has started.
+- Android engine-switch-on-error takes precedence.
+- Disabled fallback attempts only the first source.
+- Max attempts are exact and bounded.
+- Same source identity and duplicate failed torrent are not retried.
+- Expired debrid link can resolve through the next eligible source without bypassing provider/debrid policy.
+- Replacement source preserves resume position and does not reset playback speed unexpectedly.
+- Network-offline state stops source search cleanly.
+- Next episode receives attempt history and starts a fresh episode-specific budget.
+- Profile switch/cancellation cannot leave a fallback job mutating the wrong player session.
+
+No source changes or runtime verification.
