@@ -3039,3 +3039,111 @@ Mew:
 ### Verification limits
 
 Static source comparison only. No iPad/iPhone or Android PiP device test, playback trace, Compose lifecycle test, build, tests or CI run. No source files changed.
+
+
+## 2026-11-19 — audit continuation: expanded upstream delta, settings, startup and player parity
+
+Verified before this update:
+- Mew Main-dev: 69b4a96072b506f60dcbe538c5f6b71db3a4a464.
+- Mew main: 207ef8fa309b8061b73039b2d4e4bde4af65050e.
+- Mew upstream-sync: 5cfa381a020c30edfc96b6e8c7628317be05e6a2.
+- Upstream enhanced: b23b28a878b78f5ef9252128b901155fee6eeea9.
+- Upstream stable-release: 5b8c6dc2ad3cf83846ccbe3e05e96d409f5b2ab4.
+- Beta.2: 1b9f21f0b19dc6b50e2c74fb8cfeb5f8fe48a211.
+
+The previous six-commit / 13-path post-beta.2 checkpoint is stale. The live compare now reports 16 commits ahead / 0 behind and 40 changed paths. The additional delta includes Home row placement/hidden rows, Smart Streams, watched-threshold settings, iOS download behavior, settings presentation, player overlay positioning, PiP hero suppression and related fixes. Keep the beta baseline and enhanced development-head delta distinct.
+
+### Settings taxonomy and dialog follow-up
+
+Rechecked Mew SettingsModels.kt, SettingsRootPage.kt, SettingsScreen.kt and SettingsSearch.kt.
+
+- The category enum remains Account, General, Mew/Enhanced, About and Advanced.
+- General currently contains Playback, Appearance, Streams, Notifications, Content Discovery, Home, Meta Screen and Integrations. Streams, Continue Watching, Poster Customization, Home and Meta Screen are nested under Appearance; Add-ons/Plugins/CloudStream under Content Discovery; AI/TMDB/MDBList/Debrid under Integrations. Trakt authentication remains under Account.
+- The earlier functional-taxonomy proposal remains valid, but is not implemented. Any change must update SettingsSearch targets, phone navigation, tablet inline navigation, saved-page restoration, external Downloads routing, feature-policy visibility and localized labels together.
+- SettingsScreen keeps Downloads as an external destination callback rather than a SettingsPage enum destination. Do not add a second downloads page until the existing destination and settings ownership are mapped.
+- PlaybackSettingsPage currently has 20 BasicAlertDialog call sites in the fetched Main-dev blob. The previous ledger's 21 count is historical. Dialogs have distinct semantics; preserve staged forms, credential validation, consent and editor flows.
+
+Confirmed UI/data-impact findings:
+- HomescreenSettingsPage places a broad resetToDefaults callback beside Catalogs / Collections. The repository resets hero settings, catalog visibility/type/underline, selected CloudStream provider and all row preferences, then persists and pushes sync. No confirmation/undo is present in that caller. ADAPT: make scope explicit and add localized confirmation; do not silently narrow repository behavior.
+- AddonsScreen always renders installed-card enable/reorder/delete controls. Delete directly calls AddonRepository.removeAddon(). Repository removal mutates state, cancels refresh, clears version metadata and pushes the list to the server. Inherited-primary secondary profiles are guarded in repository methods, but the inspected screen does not present read-only state and mutation controls can silently no-op. ADAPT: disable/hide mutation controls with explanation and add confirmation; retain repository guards.
+- PluginSettingsDialog reads isPassword but does not use it to mask NuvioInputField. App-owned strings include hardcoded English title/actions/placeholders, and the dialog has no explicit maximum height. Preserve draft-only state and Save/Cancel semantics while adapting masking, localization and bounded layout.
+- DebridApiKeyDialog validates asynchronously before saving, but its OutlinedTextField has no password visual transformation or visibility control. ADAPT masked input without changing validation/device-code authorization lifecycle.
+
+### Watched threshold and completion policy — ADAPT
+
+Mew WatchingPolicies.kt uses a hardcoded 90% completion threshold and does not reject short placeholder/error clips in shouldStoreProgress() or isProgressComplete().
+
+Upstream adds selectable completion thresholds of 80, 85, 90, 95 and 99 percent, a 121-second minimum real-content duration guard, and a Playback / Up Next settings row/dialog.
+
+Mew's watch-progress identity and watched repositories are customized; port only threshold/placeholder behavior into the existing policy. Upstream threshold storage is global on both Android and iOS (plain SharedPreferences / NSUserDefaults keys). Mew should preserve profile isolation. Define how Trakt imported completion percentages interact with the user threshold and add tests for ended streams, unknown duration, zero/negative duration, short placeholders and each threshold.
+
+Decision: ADAPT, high priority. No source changes.
+
+### Home row placement — partial existing behavior, ADAPT
+
+Mew HomeCatalogSettingsItem.isPinnedToTop is collection-related; Mew has no general HomeCatalogRowPlacement model or pin-to-bottom behavior. enabled=false hides a row, but the inspected Mew settings page keeps visible and disabled rows in one catalog/collection list rather than a separate hidden-row section.
+
+Upstream adds default / pinned-top / pinned-bottom placement, visible/hidden sections and independent reordering within those groups. Its row-placement preference is deliberately local (pushRemote=false) and excluded from the shared sync payload, with tests for remote sync preserving local placement.
+
+Decision: ADAPT into Mew's existing HomeCatalogSettingsRepository. Preserve collection pinning and existing profile/cloud-sync contracts; keep new row placement local unless a deliberate sync decision is made. Add tests for hidden ordering, pin boundaries, collection pin interaction and remote-sync preservation.
+
+### Smart Streams — source/caller comparison refined
+
+Mew features/streams contains pinned source preferences, provider/source filtering, custom stream badges, StreamsRepository, and a separate StreamAutoPlaySelector / StreamAutoPlayPolicy. It does not contain upstream SmartStreamSettings, device profile, hardware capability probes or quality-ranking engine. These existing Mew controls are not duplicates: source pinning/provider selection and display badges have different inputs and outputs from codec/HDR/resolution/network-aware ranking.
+
+Upstream ranking reads display/decoder capability, memory tier, network state, language preferences, source metadata, instant availability and quality filters. It runs scoring off the main dispatcher and exposes reasons for its recommended stream. Upstream Android settings use ProfileScopedKey; upstream iOS Smart settings use a plain NSUserDefaults key. Mew's pinned-source preferences are profile-scoped on both Android and iOS.
+
+Decision: ADAPT as a new optional ranking layer inside Mew's existing stream lifecycle. Do not replace StreamsRepository, StreamModels, pinned-source filters, badges or autoplay policy. Preserve profile isolation on both platforms. Audit parser false positives, missing metadata, network changes, unknown codec/HDR, cached streams, external player, debrid/P2P and user-selected-stream precedence. Add common tests for ranking/parser/settings codec before enabling automatic selection.
+
+### CloudStream pre-content initialization — preserve current contract
+
+Inspected Android MainActivity.onCreate() and CloudStreamPlatformRuntime.android.kt.
+
+- MainActivity calls CloudStreamPlatformRuntime.initialize(applicationContext) before setContent.
+- initialize() is light: stores application context, updates weak Activity reference and resets hostInitialized only when application context changes. It does not initialize NiceHttp or load providers.
+- prepareHostContext() later installs CloudStream context and CommonActivity, initializes app.initClient(context), sets provider HTTP timeout and marks the host initialized. It is invoked from the plugin/native-repository path, not as eager MainActivity client initialization.
+- Native repository reconciliation uses a dedicated IO scope, generation checks, a mutex and bounded retry scheduling.
+
+Decision: keep early context binding; do not move it after Compose or wrap it in another startup manager. Any change to prepareHostContext() must preserve the guarantee that CloudStream plugins and native repository registration see initialized context/client before calling app.get() or repository APIs. Runtime timing was not measured.
+
+### Player overlay and header presentation — ADAPT candidates
+
+- Mew PlayerPlaybackOverlays.kt places Skip Intro at bottom-start and Next Episode at bottom-end, independently. Upstream adds PlayerEndTimeAnchor and stacks Skip / Next Episode / movie recommendation surfaces on the right above the displayed end-time anchor. Mew has no matching anchor or movie recommendation card in this path. ADAPT only after checking Mew player controls, cutout/safe-area padding, portrait/landscape, locked controls, countdown visibility and card collisions. Preserve Mew's player UI language.
+- Mew NuvioScreenHeader uses a two-line title with ellipsis. Upstream adds TextAutoSize for long titles beside header actions. This is a candidate for long localized page titles, but not a direct duplicate; compare Mew title style and two-line layout before adopting auto-size.
+- Upstream Smart sheet close-scroll fix is not directly applicable until Mew adds corresponding Smart Streams controls/sheet. Keep as a regression requirement for that future UI.
+
+### iOS download and subtitle-font commits — do not copy blindly
+
+- Mew's iOS downloader already streams into a .part file, resumes with HTTP Range and handles a 416 response by restarting from zero. It pauses active downloads when the app backgrounds. Upstream's new optional legacy mode is an alternative to its own background URLSession path. Mew's foreground/range architecture is an intentional parallel; do not add the toggle or replace transport without a reproduced Mew device issue.
+- Upstream's libass change targets its bundled 16 MB CJK font and dedicated sub-fonts-dir. Mew's inspected iOS player passes a custom font directory only for user-selected custom fonts; Mew's current resource tree has JetBrains Sans regular/semibold/bold and no bundled CJK font. Decision: SKIP this specific patch unless Mew later bundles a comparable large subtitle font.
+- Upstream iOS share-sheet completion/popover/temp-file fixes remain an ADAPT candidate already recorded in the prior backup audit.
+- Upstream iOS downloads-settings tab routing remains NEEDS INVESTIGATION against Mew's external Downloads destination and tab lifecycle.
+
+### New upstream delta triage
+
+| Upstream change | Mew status / decision |
+|---|---|
+| Parked PiP / mini-player suppresses hero trailers (c598b0c) | ADAPT PiP-only observable guard; already recorded. |
+| iOS share-sheet completion, iPad anchor and cleanup (875de58) | ADAPT; already recorded. |
+| iOS native-navigation tablet mute anchor (49f73c2) | SKIP for current Mew iOS host with native navigation disabled. |
+| Home row top/bottom placement and hidden rows (017bdaf) | ADAPT; partial collection-only pinning exists. |
+| Smart Streams device-aware ranking (9d18557 plus earlier feature commits) | ADAPT as optional new ranking layer. |
+| iOS downloads settings stay in originating tab (2d3dcc6) | NEEDS INVESTIGATION; route/tab contracts differ. |
+| Long header titles beside actions (8106d9f) | ADAPT candidate; preserve Mew two-line header semantics unless tests justify auto-size. |
+| Download progress percent formatting (043ece0) | NEEDS INVESTIGATION; Mew has no matching DownloadsFormatting.kt path in the inspected tree. Search actual Mew formatting callers before deciding. |
+| iOS legacy direct-folder download mode (ee8dc64) | SKIP as a toggle; Mew already uses direct .part + Range resume as its own transport. |
+| Watched threshold and short-placeholder guard (d251935) | ADAPT; profile-scope storage and sync semantics need design. |
+| iOS CJK subtitle font memory fix (e5000dc) | SKIP for current resource set; no bundled CJK font found. |
+| Smart sheet close-scroll fix (ff72092) | Not directly applicable until Mew has the Smart controls sheet. |
+| Player skip/next/recommendation anchor (b23b28a) | ADAPT candidate; player UI/layout audit required. |
+
+### Verification boundary and next work
+
+Static GitHub source/tree/compare inspection only. No Mew application source changed. Build, unit tests, instrumentation, CI, Android device, iOS simulator/device, startup benchmark, playback, backup round-trip and locale runtime checks remain NOT RUN.
+
+Continue next with:
+1. Finish settings action/dialog caller inventory, including remaining page-specific dialogs, confirmation surfaces, search ranking and route/back behavior.
+2. Inspect player source-failure fallback and integrate design with Mew's existing source identity/resolver lifecycle.
+3. Finish add-on event mutation-path/privacy audit before any dispatcher design.
+4. Continue broader upstream delta by functional group, especially settings, home, downloads, playback and platform-specific changes.
+5. Update this ledger and the context handoff after each meaningful batch. No source implementation, merge, release or promotion is authorized by this audit.
