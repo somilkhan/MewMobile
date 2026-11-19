@@ -1203,3 +1203,11 @@ No source changes. No builds, tests, CI or device verification.
 - Details: upstream EpisodeRatingsAlignment and DetailEpisodeRatingMap helpers had no production callsite found in inspected detail screens. Mew and upstream DetailSeriesContent both use runBlocking string retrieval in Composable paths; this is a shared performance risk, not an upstream fix.
 - Settings taxonomy should follow You / Look / Watch / Services / System, with Mew Enhanced retained separately. Split the 3,860-line PlaybackSettingsPage into child pages while preserving keys and dialog semantics. Move Tracking under Services; Downloads under Watch; consolidate Home/Hero controls under Look.
 - No source changes or runtime verification.
+
+
+## Latest audit checkpoint — 2026-11-19 (player source fallback)
+
+- Mew has robust source identity and a separate next-episode provider/binge-group fallback policy, but no current-source failure retry coordinator/settings.
+- Upstream adds bounded retry only for auto-selected sources before playback starts; manual sources and post-start errors do not fall back. It preserves resume position, filters tried identities/failed torrents, resolves through DirectDebridPlaybackResolver and propagates attempt history to the next episode.
+- ADAPT around Mew's existing source identity/player runtime. Add separate profile-scoped failure-fallback/max-attempt settings and tests. Keep streamAutoPlayNextEpisodeFallbackEnabled separate; it controls next-episode fallback, not current-source retry.
+- No source changes or runtime verification.
