@@ -1151,3 +1151,19 @@ Next work:
 - Audit player source-failure retry and add-on event delivery against Mew's actual callers and side effects.
 - Continue broader functional parity audit against the refreshed enhanced head.
 - Keep all audit-document writes on upstream-sync; no implementation, merge, release or promotion is authorized by this audit.
+
+
+## Latest audit checkpoint — 2026-11-19 (player fallback, add-on events and settings safety)
+
+New source/caller findings are recorded in docs/upstream-sync/README.md under **2026-11-19 — audit continuation: player fallback, add-on events and dialog safety**.
+
+- Player fallback: Mew already retries likely-expiring credentials from the same provider and can fail over Android playback engines. Generic source fallback must run after those paths, only for an explicitly auto-selected initial source, and must preserve Mew's P2P/debrid/external-link/resume/subtitle/header/cache behavior. PlayerScreenArgs currently does not carry auto-vs-manual provenance. PlayerStreamsRepository uses partial results and shared source/episode state; do not copy upstream stop/clear behavior.
+- Mew StreamAutoPlaySelector has additional preferred filename/infoHash matching and resolver-aware pending-debrid handling. Preserve it; do not replace it with upstream's simpler selector. The existing next-episode fallback setting is not current-source retry.
+- Add-on events: Mew has no generic Stremio event dispatcher or persisted per-addon tracking consent. Existing Trakt/Simkl/etc scrobble delivery is a separate subsystem. Upstream AddonEvents supports player/library events, but its install-time consent is not durable, dispatch does not capture profile generation, and its global/per-addon queues are unbounded. ADAPT only after fixing consent, profile isolation, queue limits and user-mutation-only event sources.
+- Event sources must preserve Mew's profile-generation guards, LOCAL/TRAKT/SIMKL source modes, destructive provider confirmations, watched reconciliation behavior and CloudStream separation. Mew has no ServerItemRef path in the inspected tree; audit ID namespaces before applying upstream server-ID exclusion.
+- Settings safety: AI Assistant, MDBList and IntroDB use SettingsSecretTextField. Debrid API-key and plugin password inputs remain unmasked. Advanced Runtime Logs copies/exports raw RuntimeDiagnostics snapshots even though sanitizeDiagnosticText exists; it also has no bounded scroll/height and hardcoded English labels. Treat this as a potential credential/URL exposure risk.
+- PlaybackSettingsPage currently has 20 BasicAlertDialog call sites; align the outer shell only. StreamAutoPlayProviderSelectionDialog saves on dismiss and needs an explicit interaction-semantics review. NuvioEnhanced backup preview and broader dialog behavior remain outstanding.
+- Existing Mew Audit Completion automation was verified enabled with daily 9:00 AM IST flexible schedule; next run 2026-11-20 09:00 IST. No duplicate was created.
+- No root MEW-CONTEXT-SNAPSHOT.md on Main-dev or upstream-sync; docs/mew-context/README.md remains the handoff document.
+
+No source changes, builds, tests, CI or device checks were performed. Audit remains IN PROGRESS.
