@@ -3639,3 +3639,42 @@ DonationSupportCard already uses the project TYVM destination and a separate UPI
 - SupportersContributorsPage still has individual contributor Ko-fi links, and workers/kofi-supporters still ingests Ko-fi supporter webhooks. These are separate from the project's donation CTA; do not remove them as part of a simple donation-link update. If the goal changes to a complete Ko-fi migration, audit the worker, webhook configuration, database and individual contributor links separately.
 
 No source changes or runtime dialog verification.
+
+
+## 2026-11-19 — CloudStream settings actions, localization and tablet coverage
+
+### CloudStream settings — HIGH PRIORITY destructive-action issue
+
+CloudStreamSettingsSection.kt currently:
+- Removes a repository immediately from its delete icon.
+- Removes an installed plugin immediately from its Remove button.
+- CloudStreamRepository.removeRepository() deletes all plugin package files belonging to that repository, unloads them, invalidates in-flight installs and removes their UI state.
+- CloudStreamRepository.removePlugin() unloads the plugin, deletes its package file, disables it and persists the new state.
+- When editing a repository URL, a successful add of the new URL calls removeRepository(previous). This removes the old repository and all its installed plugins/packages. The UI label is "Apply changes", which does not communicate this cascade.
+
+Decision: HIGH PRIORITY ADAPT. Add explicit confirmation that names the repository and number of installed plugins/packages affected. For URL edits, either preserve old repo/plugins until the user confirms the migration or present a separate destructive confirmation before removing the old repository. Keep generation invalidation so an in-flight install cannot commit after removal. Test active provider playback, install/update in progress, and profile switch during removal.
+
+Localization:
+- CloudStreamSettingsCopy manually supplies Turkish and English strings; all other app languages fall back to English.
+- The repository URL placeholder is hardcoded English.
+- Move app-owned CloudStream labels, warning copy, actions and content descriptions into localized resources. Keep technical identifiers such as .cs3, MegaRepo and CloudStream untranslated.
+- The security warning correctly explains that .cs3 packages are third-party code on Android full builds and iOS only supports compiled adapters. Preserve the explicit acceptance gate.
+
+Profile interaction:
+- CloudStreamSettingsSection calls StreamSourcePreferencesRepository.ensureLoaded() but not onProfileChanged(). This is another visible path affected by the missing profile-switch callback already recorded.
+- It calls CloudStreamRepository.initialize() in LaunchedEffect; this is a synchronous local restore on the settings screen's main composition coroutine. Consider loading profile state on IO with a loading state.
+
+### Full-screen settings and tablet behavior
+
+SettingsFullScreenPages.kt routes Homescreen, Meta Screen, Continue Watching, Add-ons, Plugins, CloudStream and Account through full-screen NuvioScreen routes. Several call their content with isTablet=false (Homescreen, Meta Screen, Continue Watching and Account), regardless of actual device width.
+
+Decision: NEEDS DEVICE/EMULATOR VERIFICATION. Check tablet width, spacing, columns, scroll, header/back behavior and keyboard/focus. If these pages remain full-screen on tablets, pass actual adaptive state instead of hardcoding phone layout. Preserve external navigation callbacks and back-stack behavior.
+
+### Notification and Content Discovery checks
+
+- NotificationsSettingsPage uses EpisodeReleaseNotificationsRepository.setEnabled(); the repository requests platform notification authorization asynchronously, handles denial by reverting the enabled state and exposes a localized error message. Test Android 13+ denial/grant, iOS authorization, repeated toggles and profile changes.
+- The test-notification action is disabled until a saved show is available and reports success/failure; this is appropriate.
+- ContentDiscoverySettingsPage disables TMDB enrichment until an API key exists and routes to TMDB settings; this is correct dependency messaging.
+- Add-ons, Plugins and CloudStream entries are feature-policy gated. Preserve Android full / Play Store / iOS compatibility distinctions.
+
+No source changes or runtime UI verification.
