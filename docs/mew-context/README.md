@@ -1183,3 +1183,13 @@ New decisions:
 - No application source changes, builds, tests, CI or device checks.
 
 Next: finish download profile-switch behavior, details/library/debrid parity, full localization and remaining settings/dialog inventory. Audit remains IN PROGRESS.
+
+
+## Latest audit checkpoint — 2026-11-19 (profile isolation)
+
+Two high-priority profile lifecycle risks were found:
+
+1. ProfileScopedKey uses integer profileIndex, while createProfile reuses the lowest free slot. deleteProfile does not clear all profile-scoped local data; only PIN cache is cleaned. A new profile reusing a deleted slot may inherit old add-ons, downloads, watch/library state, settings or locally stored credentials. Active-profile deletion also updates ProfileRepository state without calling the normal selectProfile repository fan-out. NEEDS INVESTIGATION before profile-related integration.
+2. DownloadsRepository.onProfileChanged() reloads state but does not cancel/detach active download handles. If a download completes while another profile is active, its callback cannot find the owning item in current state; when the old profile returns, its persisted Downloading item is normalized to Paused and the completed file may be orphaned. The same broad pattern exists upstream. Add a profile-switch regression test.
+
+No source changes. No builds, tests, CI or device verification.
