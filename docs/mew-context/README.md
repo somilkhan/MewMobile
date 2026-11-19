@@ -1119,3 +1119,35 @@ Mew already has a profile-scoped six-hour release-radar metadata cache; upstream
 
 ## Player source fallback audit — 2026-11-17
 Upstream has bounded source retry with source identity tracking, failed-torrent dedupe, next-episode attempt-history propagation, and profile-scoped settings/sync. Mew has the source identity primitives and its own provider/binge-group next-episode policy, but lacks source-failure retry/settings and history propagation. **ADAPT high priority** around Mew's selector/resolver; integrate between expired-link refresh and engine failover, preserve Android/iOS differences, P2P/debrid and profile settings. Do not conflate Mew's existing next-episode fallback toggle with upstream's distinct failed-source fallback. No source changes/build/tests/CI/device checks. Full evidence in docs/upstream-sync/README.md.
+
+
+## Latest audit checkpoint — 2026-11-19 (GitHub source review)
+
+Verified refs:
+- Mew Main-dev: 69b4a96072b506f60dcbe538c5f6b71db3a4a464.
+- Mew main: 207ef8fa309b8061b73039b2d4e4bde4af65050e.
+- Mew upstream-sync before this documentation update: 5cfa381a020c30edfc96b6e8c7628317be05e6a2.
+- Upstream enhanced: b23b28a878b78f5ef9252128b901155fee6eeea9.
+- Upstream stable-release: 5b8c6dc2ad3cf83846ccbe3e05e96d409f5b2ab4.
+- Beta.2: 1b9f21f0b19dc6b50e2c74fb8cfeb5f8fe48a211.
+- Beta.2 to enhanced now compares 16 commits ahead / 0 behind, 40 changed paths. The previous six-commit checkpoint is historical.
+
+New findings are recorded in docs/upstream-sync/README.md, section **2026-11-19 — audit continuation: expanded upstream delta, settings, startup and player parity**.
+
+Key decisions:
+1. Watched threshold — ADAPT: Mew is hardcoded at 90% and lacks the 121-second placeholder guard. Port into existing watch policy, but use profile-scoped persistence and test Trakt completion semantics.
+2. Home row placement — ADAPT: Mew's pin-to-top behavior is collection-specific; general row top/bottom placement and a hidden-row section are absent. Preserve collection pinning and keep new placement local unless sync behavior is explicitly designed.
+3. Smart Streams — ADAPT: Mew's pinned sources/provider filters/badges are not a duplicate of upstream's device-aware quality ranking. Integrate as an optional ranking layer without replacing Mew's repository, models or autoplay contracts. Preserve profile isolation on iOS as well as Android.
+4. Settings safety: broad Home reset needs explicit scope/confirmation; add-on deletion needs confirmation and inherited-primary read-only UI; plugin password metadata is ignored; Debrid API-key input is visible.
+5. CloudStream startup — preserve: Android initialize(applicationContext) is a light pre-Compose context/Activity binding. Actual NiceHttp initialization and host setup happen lazily in prepareHostContext() before plugin/native repository use. Do not move or duplicate this contract without caller proof.
+6. Player UI — ADAPT candidate: Mew skip/next cards occupy opposite bottom corners; upstream anchors and stacks them beside end time. Review Mew safe areas and layout before porting. Mew's two-line header differs from upstream auto-size behavior.
+7. iOS download transport — intentional parallel: Mew already uses .part + HTTP Range resume and pauses on background; do not add upstream's legacy toggle or replace transport blindly. The CJK-font memory patch is not applicable to Mew's current font resources.
+8. Existing audit decisions retained: PiP hero suppression ADAPT; iOS share-sheet completion/popover/temp cleanup ADAPT; native-navigation mute anchor SKIP for current host; iOS downloads tab routing NEEDS INVESTIGATION.
+
+No application source files changed. No build, unit/instrumentation tests, CI, Android device, iOS simulator/device, startup benchmark, playback, backup round-trip or localization runtime verification was run.
+
+Next work:
+- Finish remaining settings/dialog/action callers and navigation/search behavior.
+- Audit player source-failure retry and add-on event delivery against Mew's actual callers and side effects.
+- Continue broader functional parity audit against the refreshed enhanced head.
+- Keep all audit-document writes on upstream-sync; no implementation, merge, release or promotion is authorized by this audit.
