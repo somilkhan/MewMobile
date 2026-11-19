@@ -1222,3 +1222,14 @@ No source changes. No builds, tests, CI or device verification.
 - Upstream StartupPreloader moves several synchronous local loads to IO before setContent, but waits indefinitely after a 6-second warning. Adapt selectively with a bounded UI deadline; do not block on optional features.
 - P2P cacheDirectory differs: Mew passes .../nuvio-engine/payload; upstream passes .../nuvio-engine and migrates legacy payload/payload. External ../nuvio-engine source is not included in the GitHub repository, so cache contract remains NEEDS INVESTIGATION. Preserve Mew's hash→engine-ID map.
 - No source changes, build, tests, startup trace, CI or device checks.
+
+
+## Latest audit checkpoint — 2026-11-19 (settings UI/dialog coverage)
+
+- Root categories are Account / General / Enhanced / About / Advanced. General is overloaded; propose You / Look / Watch / Services / System while retaining Mew Enhanced. Move Tracking to Services; Downloads, Watch Party, Content Discovery and Playback to Watch; appearance/home presentation to Look; notifications/about/advanced to System.
+- SettingsScreen restores selectedCategory via direct SettingsCategory.valueOf(); add a migration before renaming categories. Preserve SettingsPage enum identifiers, especially TraktAuthentication (source comment explicitly protects saved-navigation compatibility).
+- SettingsSearch results open a page but do not focus/scroll/highlight the exact row; add stable row anchors and synonyms.
+- Secret inputs: AI, TMDB and MDBList already use SettingsSecretTextField. Debrid API key and PluginSettingsDialog password fields do not; adapt without changing staged save/validation.
+- Dialog additions: Advanced runtime-log dialog is unbounded/unscrollable and has hardcoded English labels. ProfileInsights mixes custom and standard bottom sheets. Supporters dialog uses Material colorScheme surface instead of Nuvio dialog tokens. ContinueWatching uses a fixed-choice Material dialog without explicit height cap. PlayerToolbar dialog has a good bounded/scrollable pattern. Preserve adaptive AppIconPicker/Tracking picker.
+- Project DonationSupportCard already points to TYVM and has a separate UPI action; localize the two button labels. Ko-fi supporter worker and individual contributor links are separate from the project donation CTA.
+- No source changes or runtime dialog verification.
