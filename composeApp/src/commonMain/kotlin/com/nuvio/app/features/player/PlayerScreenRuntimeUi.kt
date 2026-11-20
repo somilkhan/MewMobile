@@ -568,6 +568,7 @@ private fun BoxScope.RenderPlaybackOverlays(
         isSeries = isSeries,
         nextEpisodeInfo = nextEpisodeInfo,
         showNextEpisodeCard = showNextEpisodeCard,
+        nextEpisodeSwipeDismissEnabled = playerSettingsUiState.nextEpisodeSwipeDismissEnabled,
         nextEpisodeAutoPlaySearching = nextEpisodeAutoPlaySearching,
         nextEpisodeAutoPlayReady = nextEpisodeAutoPlayReady,
         nextEpisodeAutoPlaySourceName = nextEpisodeAutoPlaySourceName,

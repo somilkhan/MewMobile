@@ -3,6 +3,8 @@ package com.nuvio.app.features.player.skip
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
@@ -13,6 +15,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,19 +34,30 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.dismiss
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import com.nuvio.app.core.ui.PlatformBackHandler
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.compose_player_episode_title_format
 import nuvio.composeapp.generated.resources.detail_btn_play
@@ -65,11 +79,31 @@ fun NextEpisodeCard(
     autoPlayCountdownSec: Int?,
     onPlayNext: () -> Unit,
     onDismiss: () -> Unit,
+    /** When true, a right swipe or the back key dismisses the card without playing. Default off. */
+    swipeDismissEnabled: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     if (nextEpisode == null) return
 
+    PlatformBackHandler(enabled = visible && swipeDismissEnabled, onBack = onDismiss)
     val isPlayable = nextEpisode.hasAired
+    var dragOffsetX by remember(nextEpisode.videoId) { mutableFloatStateOf(0f) }
+    var dragging by remember(nextEpisode.videoId) { mutableStateOf(false) }
+    val animatedOffsetX by animateFloatAsState(
+        targetValue = dragOffsetX,
+        animationSpec = if (dragging) snap() else tween(160),
+        label = "next_episode_swipe",
+    )
+    val dismissThreshold = with(LocalDensity.current) { 60.dp.toPx() }
+    val currentOnDismiss by rememberUpdatedState(onDismiss)
+
+    LaunchedEffect(nextEpisode.videoId, visible) {
+        if (visible) {
+            dragging = false
+            dragOffsetX = 0f
+        }
+    }
+
     val statusPulse by rememberInfiniteTransition(label = "nextEpisodeStatusPulse").animateFloat(
         initialValue = 0.45f,
         targetValue = 1f,
@@ -92,9 +126,38 @@ fun NextEpisodeCard(
         Row(
             modifier = Modifier
                 .widthIn(max = 292.dp)
+                .graphicsLayer { translationX = animatedOffsetX }
                 .clip(shape)
                 .background(Color(0xFF191919).copy(alpha = 0.89f))
                 .border(1.dp, Color.White.copy(alpha = 0.12f), shape)
+                .pointerInput(nextEpisode.videoId, visible, swipeDismissEnabled, dismissThreshold) {
+                    if (!visible || !swipeDismissEnabled) return@pointerInput
+                    detectHorizontalDragGestures(
+                        onDragStart = {
+                            dragOffsetX = animatedOffsetX
+                            dragging = true
+                        },
+                        onHorizontalDrag = { change, amount ->
+                            change.consume()
+                            dragOffsetX = (dragOffsetX + amount).coerceAtLeast(0f)
+                        },
+                        onDragEnd = {
+                            dragging = false
+                            if (dragOffsetX >= dismissThreshold) {
+                                currentOnDismiss()
+                            } else {
+                                dragOffsetX = 0f
+                            }
+                        },
+                        onDragCancel = {
+                            dragging = false
+                            dragOffsetX = 0f
+                        },
+                    )
+                }
+                .semantics {
+                    if (visible && swipeDismissEnabled) dismiss { currentOnDismiss(); true }
+                }
                 .clickable { if (isPlayable) onPlayNext() }
                 .padding(horizontal = 9.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
