@@ -4,10 +4,10 @@
 
 ## Verified repository refs
 - Mew repository: `somilkhan/MewMobile`
-- Active target: `Main-dev` — latest verified HEAD at 2026-11-20 13:15:47 IST: `9614925c37d63bbcc5f65c2057a32cb46cd1a735`. Application source audit baseline: `a7f066297ba000833a981b12f8b57c26ce833f7d`; live GitHub compare confirms all commits since that baseline changed only `docs/UPSTREAM_PARITY_AUDIT.md`. Latest audit document blob SHA: `46f45d37a834152872d5274064f040362219b75e`. Re-read the live ref at the start of the next session.
+- Active target: `Main-dev` — latest verified HEAD at 2026-11-20 15:27 IST: `a0f1dc0d1d1f9df1e7832604681baac5c6ddfe57`. Application source audit baseline: `a7f066297ba000833a981b12f8b57c26ce833f7d`; live GitHub compare confirms all 36 commits since that baseline changed only `docs/UPSTREAM_PARITY_AUDIT.md`. Latest audit document blob SHA before this update: `5279070fcab6855e59b8257f37112b723ebbddd2`. Re-read the live ref at the start of the next session.
 - Protected stable branch: `main` — `207ef8fa309b8061b73039b2d4e4bde4af65050e` (untouched)
 - Reference branch: `upstream-sync` — `af51bbbc13cdb315a88ef597eb4d2672a60335d5` (live ref rechecked 2026-11-20)
-- Mother upstream: `luqmanfadlli/NuvioMobile-Enhanced`, `enhanced` — live ref `375d93d90864d6b0774d8ab6f58c72d63d10d2af`. The delta `b23b28a878b78f5ef9252128b901155fee6eeea9..375d93d90864d6b0774d8ab6f58c72d63d10d2af` was reviewed: 2 commits, both Home hero-source behavior fixes; decisions and Mew semantic comparison are recorded below. Full current upstream settings-tree parity remains NOT COMPLETE.
+- Mother upstream: `luqmanfadlli/NuvioMobile-Enhanced`, `enhanced` — live ref `3f9c50c122c9c1d63bf3f061e65bd2cb17967fb6`. The prior delta `b23b28a878b78f5ef9252128b901155fee6eeea9..375d93d90864d6b0774d8ab6f58c72d63d10d2af` (2 Home hero-source commits) is reviewed below. The new delta `375d93d90864d6b0774d8ab6f58c72d63d10d2af..3f9c50c122c9c1d63bf3f061e65bd2cb17967fb6` is one player-logo lookup commit, unrelated to settings IA; SKIP for this audit scope and retain as a separate player-parity candidate. Full current upstream settings-tree parity remains NOT COMPLETE.
 - Audit file: `docs/UPSTREAM_PARITY_AUDIT.md`
 - No `MEW-CONTEXT-SNAPSHOT.md` or `CONTEXT-SNAPSHOT.md` exists in the current Main-dev tree.
 
@@ -1832,3 +1832,51 @@ The existing canonical credential-visibility finding above now includes the Debr
 **Decision:** localization must be a dedicated implementation workstream in the final plan, not a small copy-only cleanup. Keep default English strings complete; add/update translated keys consistently across all locale files and test layout/overflow on representative scripts (RTL, CJK, long German strings).
 
 **Verification:** GitHub reads of the default file and all 23 locale files; no resource edits, app build, locale switching or device rendering tests.
+
+
+## Tracking, addon consent and account-flow parity — 2026-11-20 15:27 IST
+
+**Target:** `Main-dev`  
+**Verified source HEAD before write:** `a0f1dc0d1d1f9df1e7832604681baac5c6ddfe57`  
+**Previous audit document blob / write guard:** `5279070fcab6855e59b8257f37112b723ebbddd2`  
+**Application source baseline:** `a7f066297ba000833a981b12f8b57c26ce833f7d`; compare confirms only this audit MD changed since baseline.  
+**Upstream Enhanced ref:** `3f9c50c122c9c1d63bf3f061e65bd2cb17967fb6`.  
+**Files inspected:** Mew `AddonModels.kt`, `AddonRepository.kt`, `AddonsScreen.kt`, `TrackingProvider.kt`, `TrackingSources.kt`, `TrackingSettingsPage.kt`, `TrackingProviderCards.kt`, `TrackingSettings.kt`, `PlayerSettingsRepository.kt`, `AccountSettingsPage.kt`, `AuthRepository.kt`, `SettingsModels.kt`, `SettingsRootPage.kt`, `Routes.kt`, `NuvioNavigator.kt`; corresponding Enhanced Addon consent/model/repository/screen, Tracking provider/settings/repository, Player settings and Account page files.
+
+### Addon tracking-consent gate — CONFIRMED PRIVACY / SECURITY PARITY GAP
+
+- Enhanced defines `AddonManifest.isTrackingAddon` when the manifest exposes either the `player` or `library` resource. `AddonRepository.addAddon()` returns `TrackingConsentRequired` instead of installing immediately; the UI requests consent, and `TrackingAddonConsentDialog` requires the checkbox before enabling Install. The explicit continuation calls `installWithTrackingConsent()`.
+- Mew's `AddonManifest` has no equivalent tracking-resource classification or consent-required result. `AddonRepository.addAddon()` validates/parses the manifest and immediately persists/installs it; `AddonsScreen` handles only Success/Error. No tracking-consent dialog or gate exists in the inspected Mew source tree.
+- **Decision: ADAPT / HIGH PRIORITY.** Port the consent behavior into Mew's existing add-on install transaction, not the upstream repository wholesale. Preserve Mew's profile-session/generation guards, primary-addons profile restrictions, URL normalization, manifest validation, redacted logging, server sync and install-state behavior. Consent must be bound to the exact manifest/transport URL being installed; re-check profile/session and duplicate state when consent is accepted. Do not silently install on dialog dismissal.
+- **Classification:** Mew add-on validation and Enhanced consent are shared install pipeline with different privacy safeguards, not duplicate dialogs. The missing consent gate is a confirmed gap. Existing installed add-ons/migration and consent persistence policy require a deliberate decision; the inspected upstream flow asks at install time and does not establish a long-term blanket permission.
+
+### Tracking provider and capability delta — SHARED PATTERN / DIFFERENT SEMANTICS
+
+- Mew `TrackingProviderId` currently contains TRAKT, SIMKL, ANILIST and MY_ANIME_LIST. Mew's tracking data-source picker currently considers only connected Trakt and Simkl. AniList and MyAnimeList have separate anime-tracking cards/settings and should not be treated as interchangeable with the current library/progress source selectors.
+- Enhanced's provider IDs are TRAKT, SIMKL, MDBLIST, ANILIST, WETRAKR and PUBLICMETADB; it no longer has the Mew `MY_ANIME_LIST` provider ID. Enhanced adds MDBList, WeTrakr and PublicMetaDB provider cards and includes their authenticated providers in library/progress source selection.
+- Mew has an MDBList integration/settings surface, but the inspected Mew tracking registry has no MDBLIST/WETRAKR/PUBLICMETADB IDs or corresponding tracking provider adapters. No source evidence supports simply mapping the existing MDBList API-key integration to a library/progress provider.
+- **Decision: ADAPT candidates / NEEDS INVESTIGATION.** Preserve Mew's MyAnimeList support and serialized provider IDs. Assess MDBList, WeTrakr and PublicMetaDB one provider at a time: API/auth model, supported capabilities, profile-scoped credentials, sync direction, paging/rate limits, conflict policy, tests and platform support. Do not replace the enum or migrate stored provider IDs wholesale.
+- Enhanced also adds `TrackingCapability.RATINGS`, a `TrackingRatingProvider` registry and `UserRatingsRepository` for profile-scoped 1–10 ratings. Mew has no corresponding ratings package/registry capability in the inspected tree. Treat in-app cross-provider ratings as a separate feature candidate, not a setting-only port.
+- Enhanced adds `privateViewingEnabled` to Player settings and exposes it under Tracking → Privacy. Mew's current `PlayerSettingsRepository.kt` does not contain that state and the inspected tracking/scrobble settings have no private-viewing control. **NEEDS INVESTIGATION:** trace every local history, scrobble, provider sync, analytics and profile write path before adopting a privacy mode. A UI toggle without complete write suppression would be misleading. Keep this separate from existing parental-guide and tracking source controls.
+- **Duplicate audit:** no new TRUE DUPLICATE found. Mew's MyAnimeList vs Enhanced's new provider set is an intentional capability difference; Mew's MDBList integration configuration is not proof of a tracking adapter.
+
+### Account anonymous-to-account label — NEEDS INVESTIGATION
+
+- Enhanced Account UI detects anonymous guest state and changes the primary action/copy to “Sign in with account”. However, its confirmation callback still calls `AuthRepository.signOut()`; the inspected AuthRepository in both Mew and Enhanced exposes sign-up/sign-in methods separately and no explicit anonymous-session link/upgrade method.
+- Mew's Account page always labels this action “Sign Out” and calls the same sign-out flow. The sign-out path clears anonymous local identity and local account data, so the Enhanced wording must not be copied as a standalone UI change.
+- **Decision: NEEDS INVESTIGATION.** Trace the root auth-screen transition and guest-data retention contract before changing Mew's copy or behavior. Do not assume that `signOut()` converts or links a guest account.
+
+### Current upstream movement
+
+- Enhanced advanced one commit after the previous audit anchor: `375d93d90864d6b0774d8ab6f58c72d63d10d2af..3f9c50c122c9c1d63bf3f061e65bd2cb17967fb6`.
+- The commit changes `StreamDestination.kt` and `PlayerScreen.kt` to look up a missing title logo during playback. This is outside settings IA; **SKIP for this pass** and record it as a separate player metadata-parity candidate. No Mew port or behavior claim was made.
+
+### Status and remaining work
+
+- **Audit progress estimate: ~90%; still IN PROGRESS.** This is a scope estimate, not a test-completion percentage.
+- Confirmed duplicate controls remain **2** (Parental Guide and TMDB enrichment); confirmed contextual navigation/back mismatch remains **1**. No new true duplicate was added.
+- Newly recorded high-priority privacy gap: addon tracking-resource consent before install.
+- Remaining audit work: finish Plugins/CloudStream dialog and settings persistence review; verify Compose resource fallback behavior and representative locale rendering; complete contextual navigation/back-stack/deep-link restoration checks; consolidate all candidate decisions into one deduplicated migration matrix.
+- No application source changes. Builds, tests, Android device checks and iOS simulator/device checks are **NOT RUN** in this audit continuation.
+
+**Verification:** source-only GitHub reads and branch/commit comparisons. No app code or protected branch modified.
