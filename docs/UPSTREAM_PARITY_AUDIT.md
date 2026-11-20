@@ -1294,3 +1294,19 @@ The Nuvio Enhanced page contains 13 functional sections and at least 49 ordinary
 - Keep the existing template reset dialog and learn-more external link attached to the formatting group. Validate reset confirmation/copy and long rule lists during the dialog pass.
 
 **Decision:** ADAPT into Services → Debrid and Watch → Stream Selection subgroups; no repository split or second copy of stream preferences. **Verification:** source inspection only; no code changes/builds/tests/device checks.
+
+
+## Debrid result-picker dialog copy mismatch — 2026-11-20 08:19:39 IST
+
+**Branch:** `Main-dev`; verified HEAD `a0202e7d13bb2c2aaea65cc08e3267c0d5ced6cd`.  
+**Source baseline:** `a7f066297ba000833a981b12f8b57c26ce833f7d`.  
+**Previous document blob / write guard:** `f4a79358ca91a273ad46039d5d60aa9d1245ce86`.  
+**File inspected:** `DebridSettingsPage.kt`.
+
+- Result Management exposes distinct rows/resources for Max Results, Per Resolution Limit and Per Quality Limit.
+- In `DebridStreamPreferenceDialog`, all three picker branches currently pass `settings_debrid_max_results` as the dialog title. Therefore the Per Resolution Limit and Per Quality Limit rows open a dialog titled “Max Results” despite representing different values.
+- **CONFIRMED COPY/CONTEXT BUG:** each picker should use its matching localized title resource. No state or storage behavior should change.
+- The page has a local shared `DebridDialogSurface` and shared option-row helpers used by its picker/device-auth/template dialogs. This is a page-local shared pattern, not a duplicate of the global settings dialog.
+- Dialog count: seven `BasicAlertDialog` call sites across choice, text-list, template, prepare-count, device-auth and API-key workflows. A full per-dialog action/dismissal/error pass remains open.
+
+**Decision:** ADAPT dialog titles to the matching existing resources during approved implementation. **Verification:** source inspection only; no source changes/builds/tests/device checks.
