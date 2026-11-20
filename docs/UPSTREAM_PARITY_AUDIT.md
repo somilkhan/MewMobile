@@ -3010,3 +3010,15 @@ No other TRUE DUPLICATE was confirmed. Similar cards, source-set actuals, separa
 - Mew's MPV surface lifecycle is regression-sensitive: surface generation guards, stale load rejection, TLS verification and CA bundle, subtitle selection/AutoSync, decoder settings, audio-route recovery and teardown must remain intact if the library changes.
 
 **Decision: NEEDS INVESTIGATION / ADAPT, not a version-only TAKE.** Before upgrading, inspect the exact 0.2.1 public API/Gradle metadata and binary methods, compile Mew's existing BaseMPVView integration against it, then port only the required surface/lifecycle differences. Verify MPV init/destroy/close, surface attach/detach, recreation, hardware decoding, YUV output, TLS/CA handling, external subtitles, libass font loading and playback teardown on the POCO device. Keep Mew's MPVKit/iOS fork pin separate; this Android artifact does not authorize an MPVKit submodule update.
+
+
+## Stream badge regex safety and player badge grouping (2026-11-20 17:28:19 IST)
+
+**Upstream commit inspected:** `c056f649c1a47f4c7398ca927f08e7c5960a0f9c`.
+- Mew already has `StreamBadgeRules`, import parsing, groups, source selection and a `StreamBadgeMatcher`. However, `StreamBadgeMatcher.compile()` stores standard `Regex` objects and `matchedBadges()` directly calls `containsMatchIn()` with no protection against `StackOverflowError`. Badge patterns come from imported user-controlled JSON; a pathological pattern can crash the matching call rather than simply fail to match.
+- Upstream introduces `expect/actual BadgePattern`: Android wraps Kotlin Regex matching and catches `StackOverflowError`; iOS uses Foundation `NSRegularExpression`. It also retains filter `groupId`, adds `forPlayer(sourceUrl)` and performs two-phase player matching so metadata candidates do not add a duplicate badge from a group already matched by the actual playback filename.
+- Mew's compiled filter currently discards `groupId` and has no two-phase `matchedPlayerBadges` API. The regex crash guard is directly applicable; group-aware player matching is a separate parity enhancement.
+
+**Decision: ADAPT the safety wrapper now in the future approved plan; do not port SmartStream UI or ranking as a prerequisite.** Use Mew's existing `StreamBadgeMatcher` owner, Android/iOS actuals and source model. Catch only the intended stack overflow/failure path; do not silently swallow arbitrary VM errors. Add tests for nested quantifiers/stack overflow, invalid patterns, long stream names, multiple candidates, duplicate badge groups, player-source selection and iOS NSRegularExpression behavior. Consider a bounded regex input/pattern length and execution strategy separately because catching stack overflow does not prevent all catastrophic CPU backtracking.
+
+**Classification:** Mew badge import/matcher = **ALREADY IMPLEMENTED / SINGLE OWNER**; Android regex stack-overflow protection = **CONFIRMED ROBUSTNESS GAP / ADAPT**; iOS Foundation regex wrapper = **ADAPT**; two-phase player badge group matching = **ADAPT candidate**; SmartStream ranking/UI = **SEPARATE FEATURE**.
