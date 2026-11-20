@@ -3022,3 +3022,12 @@ No other TRUE DUPLICATE was confirmed. Similar cards, source-set actuals, separa
 **Decision: ADAPT the safety wrapper now in the future approved plan; do not port SmartStream UI or ranking as a prerequisite.** Use Mew's existing `StreamBadgeMatcher` owner, Android/iOS actuals and source model. Catch only the intended stack overflow/failure path; do not silently swallow arbitrary VM errors. Add tests for nested quantifiers/stack overflow, invalid patterns, long stream names, multiple candidates, duplicate badge groups, player-source selection and iOS NSRegularExpression behavior. Consider a bounded regex input/pattern length and execution strategy separately because catching stack overflow does not prevent all catastrophic CPU backtracking.
 
 **Classification:** Mew badge import/matcher = **ALREADY IMPLEMENTED / SINGLE OWNER**; Android regex stack-overflow protection = **CONFIRMED ROBUSTNESS GAP / ADAPT**; iOS Foundation regex wrapper = **ADAPT**; two-phase player badge group matching = **ADAPT candidate**; SmartStream ranking/UI = **SEPARATE FEATURE**.
+
+
+## Mini-player / parked PiP hero-trailer interaction (2026-11-20 17:28:19 IST)
+
+**Upstream commit inspected:** `c598b0c14cbe`.
+- Upstream has a common `MiniPlayer.kt` and `MiniPlayerController` that owns a minimized in-app PlayerRoute/runtime, hosted-route placeholders, minimize/close behavior, and a `parkedInPictureInPicture` state. The inspected commit synchronizes that parked-PiP state so hero trailers do not start while the mini-player/PiP owns playback.
+- Mew has no `MiniPlayer.kt` or `MiniPlayerController` in the inspected tree. It does have its own Android `PlayerPictureInPictureManager` with custom play/pause RemoteActions and callback handling, plus a separate iOS PiP controller. The upstream mini-player state owner and route-hosting lifecycle therefore have no direct Mew equivalent.
+
+**Decision:** exact hero-trailer/mini-player suppression commit = **NOT APPLICABLE** to Mew's current feature set. The in-app mini-player itself is a **NEW FEATURE / NEEDS PRODUCT REVIEW**. If approved, design it around Mew's existing PlayerRoute/runtime ownership, watch-progress flush, PiP callbacks and profile generation; do not copy upstream controller state without mapping Mew's navigation and player lifecycle. Preserve Mew's existing PiP RemoteActions and platform controllers.
