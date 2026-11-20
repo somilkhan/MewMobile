@@ -1221,3 +1221,28 @@ The Nuvio Enhanced page contains 13 functional sections and at least 49 ordinary
 **Planning note:** final Look hierarchy should distinguish Theme, Interface/Display, Home, Layout and Details. Keep theme editing centralized, move navigation destinations into subpages, and preserve current repository fields. Do not copy upstream theme persistence or collapse custom accent colors without a separately approved migration.
 
 **Verification:** source-level review only; no app source changes; no accessibility/device checks or builds/tests run.
+
+
+
+## Shared settings-row accessibility and picker audit — 2026-11-20 08:17:03 IST
+
+**Target:** `Main-dev`  
+**Verified branch HEAD before write:** `2802152e499bc40dd66982317d4ed41c65276498`  
+**Application source baseline:** `a7f066297ba000833a981b12f8b57c26ce833f7d` (source changes since baseline remain none).  
+**Previous document blob / write guard:** `df64786d3f94de8facb8f7d5a47fd05846f64397`.  
+**Files inspected:** `SettingsComponents.kt`, `TrackingAdaptivePicker.kt`, `TrackingSettingsPage.kt`, `AppearanceSettingsPage.kt`.
+
+### Shared row semantics — NEEDS ACCESSIBILITY VERIFICATION
+
+- `SettingsSwitchRow` uses a clickable parent row to invert `checked`; the visible switch is a custom-drawn `Box` track/thumb. The inspected implementation does not explicitly attach `Role.Switch`, `toggleable` semantics, or state description to the row/visual switch.
+- `SettingsNavigationRow` uses `clickable` and a custom focus indicator; no explicit role is set in the inspected implementation.
+- This is a code-level accessibility review finding, **not yet a confirmed screen-reader defect**. Verify TalkBack, VoiceOver and keyboard focus on Android/iOS before choosing the fix. Do not add semantics blindly if the Compose clickable semantics already produce the intended role/state in the supported versions.
+- Selected Tracking picker options are represented by a trailing check icon passed into `SettingsNavigationRow`; the generic row does not accept an explicit selected parameter. Confirm whether selected state is announced to screen readers. If not, add selected semantics to the picker option row rather than changing every navigation row.
+
+### Tracking adaptive picker
+
+- One shared `TrackingAdaptivePicker` chooses tablet `BasicAlertDialog` vs mobile `NuvioModalBottomSheet`; both render the same title/subtitle/options content. This is an **INTENTIONAL RESPONSIVE PARALLEL**, not duplicate picker logic.
+- Option lists support disabled entries and explanatory unavailable reasons; content is scroll-limited to 520dp. Selection applies immediately and dismisses; tablet also exposes Close. Preserve this behavior and ensure long translated labels/options remain scrollable.
+- The picker uses shared Nuvio dialog tokens on tablet and shared bottom-sheet primitives on mobile. It is a useful reference pattern for other settings pickers; do not create a second adaptive picker abstraction.
+
+**Verification:** static source inspection only; TalkBack/VoiceOver, keyboard/focus, device and simulator checks NOT RUN. No source changes.
