@@ -3031,3 +3031,10 @@ No other TRUE DUPLICATE was confirmed. Similar cards, source-set actuals, separa
 - Mew has no `MiniPlayer.kt` or `MiniPlayerController` in the inspected tree. It does have its own Android `PlayerPictureInPictureManager` with custom play/pause RemoteActions and callback handling, plus a separate iOS PiP controller. The upstream mini-player state owner and route-hosting lifecycle therefore have no direct Mew equivalent.
 
 **Decision:** exact hero-trailer/mini-player suppression commit = **NOT APPLICABLE** to Mew's current feature set. The in-app mini-player itself is a **NEW FEATURE / NEEDS PRODUCT REVIEW**. If approved, design it around Mew's existing PlayerRoute/runtime ownership, watch-progress flush, PiP callbacks and profile generation; do not copy upstream controller state without mapping Mew's navigation and player lifecycle. Preserve Mew's existing PiP RemoteActions and platform controllers.
+
+
+### Downloads route tab-preference applicability addendum (2026-11-20 17:28:19 IST)
+
+**Upstream commit inspected:** `2d3dcc6422cde14b804d6c3e02687e328ecc222e`.
+- Upstream makes `DownloadsSettingsRoute.preferredTabName = null` so it stays in whichever tab opened it. Mew's `Routes.kt` has `DownloadsSettingsRoute : SettingsDestinationRoute`, whose default `preferredTabName` is `Settings`; Mew has no separate `DownloadsRoute` tab destination, and `DownloadsScreen` is hosted only by `DownloadsSettingsRoute` in the inspected App.kt route registration.
+- **SKIP this exact tab-preference override for Mew.** The current Settings tab preference is consistent with Mew's route ownership. Revisit only if Mew adds a dedicated Downloads tab or launches the downloads manager cross-tab.
