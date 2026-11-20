@@ -4,7 +4,7 @@
 
 ## Verified repository refs
 - Mew repository: `somilkhan/MewMobile`
-- Active target: `Main-dev` — latest verified HEAD at 2026-11-20 13:15:18 IST: `a8f5fa707f1f3995315c288181e0f1b3a461b144`. Application source audit baseline: `a7f066297ba000833a981b12f8b57c26ce833f7d`; live GitHub compare confirms all commits since that baseline changed only `docs/UPSTREAM_PARITY_AUDIT.md`. Latest audit document blob SHA: `36f457e55bd421f9c80a163e19840d4027ef7506`. Re-read the live ref at the start of the next session.
+- Active target: `Main-dev` — latest verified HEAD at 2026-11-20 13:15:47 IST: `9614925c37d63bbcc5f65c2057a32cb46cd1a735`. Application source audit baseline: `a7f066297ba000833a981b12f8b57c26ce833f7d`; live GitHub compare confirms all commits since that baseline changed only `docs/UPSTREAM_PARITY_AUDIT.md`. Latest audit document blob SHA: `46f45d37a834152872d5274064f040362219b75e`. Re-read the live ref at the start of the next session.
 - Protected stable branch: `main` — `207ef8fa309b8061b73039b2d4e4bde4af65050e` (untouched)
 - Reference branch: `upstream-sync` — `af51bbbc13cdb315a88ef597eb4d2672a60335d5` (live ref rechecked 2026-11-20)
 - Mother upstream: `luqmanfadlli/NuvioMobile-Enhanced`, `enhanced` — live ref `375d93d90864d6b0774d8ab6f58c72d63d10d2af`. The delta `b23b28a878b78f5ef9252128b901155fee6eeea9..375d93d90864d6b0774d8ab6f58c72d63d10d2af` was reviewed: 2 commits, both Home hero-source behavior fixes; decisions and Mew semantic comparison are recorded below. Full current upstream settings-tree parity remains NOT COMPLETE.
@@ -155,11 +155,11 @@ A newly added setting/page gets a small, subtle **NEW** label for **three app re
 - Keep NuvioEnhanced and old SettingsPage/category names as compatibility routes until migration and saved-state behavior are tested.
 
 ## Next audit work
-1. Finish the remaining page/control → search entry → route → state/repository → storage/sync → policy/platform map for Appearance, Addons, Plugins/CloudStream, Integrations, Tracking, Profiles and About.
+1. Finish remaining page/control → search entry → route → state/repository → storage/sync → policy/platform mapping for Appearance, Addons, Plugins/CloudStream, Integrations, Tracking, Profiles and About.
 2. Complete remaining dialog review outside Playback and Debrid: Addons install, Plugins/CloudStream schema dialogs, Integrations/provider auth, Tracking sync/adaptive picker, Sentry, Account and Profile sheets. Review validation, cancellation, error recovery, loading and destructive states.
-3. Finish localization audit across settings UI and the 24 locale resource directories. Verify resource-key coverage instead of assuming translations are complete; do not mechanically translate technical enum names.
+3. Follow up the 1,162-key localization coverage report: verify Compose resource fallback behavior, inspect missing high-use settings keys, prioritize untranslated UI copy, and validate RTL/CJK/long-string layout. Do not assume key absence means runtime crash.
 4. Finish navigation/back-stack/tablet restoration compatibility matrix, including legacy category parsing, contextual parent routes, deep links and state restoration for granular Playback subpages.
-5. Consolidate current findings and all upstream candidate decisions into the final deduplicated settings migration matrix. Then, after audit sign-off, create the separate plan MD.
+5. Consolidate all findings and upstream candidate decisions into the final deduplicated settings migration matrix. After audit sign-off, create the separate plan MD.
 6. No app source implementation until the user reviews and explicitly approves that plan. Run targeted tests/builds only after approval; report iOS/device verification separately.
 
 ## Verification status
