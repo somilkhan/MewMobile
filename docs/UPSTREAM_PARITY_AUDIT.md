@@ -2918,3 +2918,40 @@ No other TRUE DUPLICATE was confirmed. Similar cards, source-set actuals, separa
 - Version updates, MPVKit changes, Baseline Profile, Cast and iOS CI remain **NOT IMPLEMENTED**.
 
 **Classification:** Mew Gradle coroutines compatibility rule = **KEEP**; MPVKit submodule = **INTENTIONAL PARALLEL / NATIVE COMPATIBILITY BOUNDARY**; Baseline Profile = **ADAPT**; Cast = **NEW FEATURE / NEEDS PRODUCT REVIEW**; iOS CI = **ADAPT candidate**; release workflow = **SKIP wholesale port**.
+
+
+## Networking transport cross-platform security audit — first pass (2026-11-20 17:14:00 IST)
+
+**Target:** `Main-dev`  
+**Verified target HEAD before write:** `adbe2f0aeed2f1b64cc7a0c92c347a18cc66a965`  
+**Application-source baseline:** `8a36dcede748ba6bb35d2a49c1ffd062bf7efbd0`  
+**Previous audit document blob / write guard:** `4fe0cc0b027cc443b20a748ae7b70db2be070669`  
+**Files inspected:** Mew Android/iOS `AddonPlatform` actuals, `SharedOkHttpClient.kt`, `network_security_config.xml`, Mew TMDB request callsite; upstream Android/iOS `ApiHttpClient`, `SharedOkHttpClient`, `AddonHttpClient`, `MdbListHttpClient`.
+
+### Confirmed Mew Android/iOS transport mismatches
+
+- **HIGH — redirect flag ignored on iOS.** The common `httpRequestRaw(..., followRedirects)` contract is honored on Android: when false, OkHttp is derived with both HTTP and SSL redirects disabled. Mew iOS uses one Ktor Darwin client whose default redirect behavior remains enabled; the iOS `httpRequestRaw` implementation does not read or apply its `followRedirects` argument. A caller requesting no redirects therefore gets different behavior by platform. Review cross-origin authorization/header handling before changing this.
+- **HIGH — response byte limit is not a memory cap on iOS.** Android's `readAtMostBytes()` streams at most the requested limit and detects truncation. iOS `httpGetBytesWithHeaders()` first materializes the entire response with `response.body<ByteArray>()`, then checks its size; iOS `httpRequestRaw()` likewise materializes the entire body before `copyOf(maxResponseBodyBytes)`. The configured maximum is enforced after allocation and cannot prevent a large/untrusted response from consuming memory.
+- **MEDIUM — DELETE body mismatch.** Android's `requestAllowsBody()` includes DELETE and forwards a provided body. iOS `httpRequestRaw` only calls `setBody` for POST/PUT/PATCH, so DELETE-with-body requests differ by platform.
+- **Timeout policy differs:** Mew Android addon HTTP uses 10s connect / 20s read / 20s write; Mew iOS addon Ktor uses 60s request/connect/socket timeouts. These are not automatically wrong, but callers can have materially different latency and cancellation behavior.
+- Mew Android's shared OkHttp base is DNS-only; addon calls derive a client with the currently selected DoH provider, timeouts and redirects. Mew iOS uses a single Darwin client for addon text/raw requests. Upstream has a separate API client with redirects disabled and explicit 30s/15s/30s timeouts; do not copy it blindly without mapping Mew's API/addon/plugin callers.
+
+### Shared network policy requiring separate security review
+
+- Both inspected Android `network_security_config.xml` files permit cleartext globally and trust system roots plus bundled ISRG roots. This is **not a newly introduced upstream delta**, but it remains a security-sensitive policy. Addons, local servers and plugin streams may rely on HTTP; do not disable cleartext or weaken TLS/hostname verification without auditing every provider, local-network and compatibility caller.
+- Mew's Android addon client explicitly uses `Proxy.NO_PROXY`; iOS uses Darwin networking. Preserve platform DNS/proxy semantics unless a specific compatibility/security requirement is demonstrated.
+- Do not pass untrusted URL, redirect or provider response content into new API clients without URL/host validation, response-size limits and header redaction.
+
+### Decision
+
+**HIGH-PRIORITY Mew platform-parity/security fixes; not an upstream wholesale port.** Before implementation, map every caller of `httpRequestRaw`, `httpGetBytesWithHeaders` and header-bearing helpers. Then adapt the existing platform actuals so they enforce the common contract consistently:
+
+1. Apply request-specific redirect policy on iOS and test 301/302/307/308, same-origin and cross-origin redirects, method rewriting and Authorization/cookie/custom-header stripping.
+2. Enforce response byte caps while streaming on iOS, before allocating the full body; preserve truncation/error semantics and cancellation.
+3. Match DELETE body semantics on both platforms or explicitly reject unsupported combinations in the common contract.
+4. Define one documented timeout policy by request class (API vs addon/plugin/download) rather than forcing identical values on all network operations.
+5. Add Android/iOS parity tests for large bodies, redirect chains, cancellation, timeouts, DNS changes and raw HTTP methods.
+
+**Classification:** Android raw redirect handling = **KEEP**; iOS redirect flag = **CONFIRMED PLATFORM CONTRACT BUG / ADAPT**; iOS response cap = **CONFIRMED RESOURCE-LIMIT GAP / ADAPT**; DELETE body = **CONFIRMED PLATFORM MISMATCH / ADAPT**; cleartext policy = **NEEDS SECURITY REVIEW / PRODUCT COMPATIBILITY**; upstream ApiHttpClient = **REFERENCE PATTERN, NOT WHOLESALE REPLACEMENT**.
+
+**Verification:** static source inspection only. No HTTP requests, redirect tests, memory profiling, TLS tests, builds or device checks run.
