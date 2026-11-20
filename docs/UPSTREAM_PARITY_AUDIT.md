@@ -2414,3 +2414,37 @@ No other TRUE DUPLICATE was confirmed. Similar cards, source-set actuals, separa
 **Classification:** Mew AutoPlay vs upstream Smart AutoPlay = **SHARED PATTERN / DIFFERENT SEMANTICS**; Mew stream request lifecycle = **KEEP**; structured stream metadata and player language settings = **ALREADY IMPLEMENTED / REUSE**; Smart device profile and quality ranking = **ADAPT / NEEDS INVESTIGATION**.
 
 **Verification:** static source reads only. No ranking code, settings, models, tests, builds, playback or device behavior changed or run.
+
+
+## Media Servers — authentication, credential storage and sync security pass (2026-11-20 16:51:31 IST)
+
+**Target:** `Main-dev`  
+**Verified target HEAD before write:** `366f8858225b416363e87ea3eec2db628e59d179`  
+**Application-source baseline:** `8a36dcede748ba6bb35d2a49c1ffd062bf7efbd0`  
+**Previous audit document blob / write guard:** `751a17c63291f3c2f906846de98cc34e96aa5b41`  
+**Files inspected:** upstream `ServerStorage.kt` and Android/iOS actuals, `ServerRepository.kt`, `ServerSync.kt`, `PlexAccountClient.kt`, `SiloClient.kt`; Mew source-tree absence of a `features/servers/` subsystem confirmed.
+
+### Confirmed upstream contracts
+
+- Android local server credentials are stored in app-private SharedPreferences encrypted with AES/GCM using an Android Keystore key; key-specific AAD is applied. Failed decryption removes the unreadable entry. iOS uses the Keychain generic-password APIs.
+- Server repository state is profile-scoped: it tracks the loaded profile, clears in-memory tokens on profile changes, deletes per-profile credential references on profile removal, and uses a generation guard when connection work completes.
+- Token renewal is serialized per connection and only replaces a token if the same profile is still loaded and the previous token still matches.
+- **Security-sensitive sync contract:** `SyncedServer` contains a `token` field. `ServerRepository.syncSnapshot()` obtains each stored credential, converts it with provider `tokenForAccount()` where applicable, and includes the resulting token in the server sync snapshot. Applying remote sync writes the chosen token back into local credential storage. Local encryption therefore does not, by itself, establish protection of tokens while stored or processed by the remote sync backend.
+- Plex discovery may construct local `http://` addresses from local server connections; the source comments state unencrypted addresses are only used on the home network. The reachability path filters to HTTPS or local addresses and checks that the responding machine ID matches the expected server. This needs transport/network-policy review before any port.
+- Silo's client defaults to disallowing redirects; its API error mapping and bounded response handling are provider-specific and must be preserved.
+- The server subsystem is not just sign-in UI: provider account clients, per-server tokens, libraries, watch-state import, catalog metadata, server playback/streams, sync, connection renewal and profile cleanup are coupled.
+
+### Decision and mandatory gates
+
+**NEEDS INVESTIGATION / SECURITY GATE — do not port yet.**
+
+1. Establish the server-sync backend contract: TLS, authentication/authorization, per-profile access isolation, database/log/backup encryption, retention, export/delete semantics and whether tokens are stored as plaintext or protected server-side.
+2. Determine whether sync should contain provider tokens at all, or use a separate device authorization/re-link flow. Provider-specific `tokenForAccount` and renewal semantics require review.
+3. Verify credential revocation/sign-out behavior, profile switch/delete races, server removal, failed decryption, key loss and account switching.
+4. Audit local HTTP policy, DNS rebinding/SSRF defenses, redirect handling, address probing timeouts, private-network access and header/token redaction. Never weaken TLS or hostname verification to make servers connect.
+5. Review Plex/Silo/Emby/Jellyfin provider terms/API requirements and iOS support before choosing implementation scope.
+6. Add tests for token sync isolation, profile-generation races, token renewal, remote merge, credential cleanup, redirect policy and local/remote address selection before runtime integration.
+
+**Correction to prior settings-only SKIP:** Media Servers remain SKIP only as empty settings placeholders in the settings IA pass. For full feature parity they are an upstream-only feature candidate requiring product approval and this security audit; no final TAKE/ADAPT decision is made.
+
+**Verification:** read-only upstream source inspection. No server feature or credentials were added to Mew; no app source changes, tests, builds or runtime/network/device checks performed.
