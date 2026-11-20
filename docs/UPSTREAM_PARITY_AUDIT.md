@@ -961,6 +961,16 @@ This is the clearest current mapping from the audited Mew pages to upstream Enha
 - Keep this release metadata app-global, not profile-scoped. Existing `seenFeatureIds` is profile-scoped and user-dismissable; it must not control the new three-version setting badge.
 - Add one central registration step for every newly introduced setting/page; shared `SettingsNavigationRow` / `SettingsSwitchRow` rendering should read the registry so individual screens do not hardcode badge UI.
 
+
+
+### Search and root discoverability follow-up — 2026-11-20
+- **Search taxonomy is still legacy:** `SettingsSearchEntry` builds categories from Account / General / Enhanced / About / Advanced, rather than the proposed You / Look / Watch / Services / System taxonomy. Tracking search results are explicitly tagged Account. When the category model changes, update search metadata and labels in the same change; otherwise search will contradict the visible navigation.
+- **Search omissions:** Advanced → Logs (View / Copy / Export) is present in `AdvancedSettingsPage` but has no corresponding search entries. Add a Logs result only if it opens the correct Advanced/Diagnostics destination; do not claim exact-control navigation until reveal/focus support exists.
+- **Search target semantics:** `addRow` stores a page target for control-level matches. Its page/section context is descriptive only; clicking does not scroll to the matching row. Treat the current behavior as a page shortcut, and design exact-row reveal separately.
+- **Root placement still reflects the old taxonomy:** Tracking appears inside the Account root section; Integrations appears inside General; Downloads manager and Watch Party are utility actions inside General. The revised root should separate You/Services/Look/Watch/System preferences from utility shortcuts. Downloads manager must remain distinct from the proposed Watch → Downloads preferences page.
+- **Localization gap reconfirmed:** Advanced Logs titles, descriptions, status labels and dialog actions are hardcoded English. Include them in localization scope; also verify export completion/failure feedback, since the current row label changes only when the callback reports success.
+- Classification: these are confirmed discoverability/taxonomy/localization gaps, not duplicate settings implementations. No application code changed.
+
 ### Final audit scope note
 - Settings architecture and many major controls have been inspected, but the audit is **not complete** until every remaining dialog state, localization string, search entry, platform-specific control and persistence owner is mapped.
 - No source implementation, build, tests or device verification has been performed.
