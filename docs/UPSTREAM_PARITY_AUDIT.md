@@ -883,3 +883,23 @@ This is the clearest current mapping from the audited Mew pages to upstream Enha
 - Preserve fallback behavior for disabled Plugins/CloudStream routes, or provide a deliberate safe redirect.
 - Preserve iOS-only Playback controls and platform-specific storage behavior.
 - Validate iPhone/iPad navigation and sheet dismissal on simulator/device before release; report this as NOT RUN until performed.
+
+
+## Utility shortcuts and NEW badge version-source refinement — 2026-11-20
+
+### Root utility shortcuts
+- Mew's SettingsRootPage General section includes Downloads and Watch Party navigation rows. Both callbacks leave the SettingsPage model; Downloads opens `DownloadsScreen` (the manager), and Watch Party opens its feature screen. These are **utility shortcuts**, not settings preferences.
+- Keep these destinations accessible if desired, but do not mix them into the new preference category taxonomy. Consider a separate utility/quick-access area outside You/Look/Watch/Services/System.
+- Mew search uses a special `SettingsSearchTarget.Downloads` for the manager; upstream search uses `SettingsSearchTarget.Page(SettingsPage.Downloads)` for the actual Downloads preferences page. These targets are not semantically interchangeable.
+
+### NEW badge implementation constraints
+- Gradle generates `AppVersionConfig.VERSION_NAME` from `MARKETING_VERSION` and `VERSION_CODE` from `CURRENT_PROJECT_VERSION`.
+- Existing updater `VersionUtils.parseVersionParts` extracts numeric version components and its comparison helper also supports build codes; it is not a complete SemVer prerelease comparator. Do not assume it correctly orders every beta/RC suffix.
+- Recommended badge registry: stable setting ID → explicit `introducedInVersion` and `visibleThroughVersion` (or equivalent explicit expiry release). Render only when current installed `VERSION_NAME` is within that range. For example, 0.5.2 → visible through 0.5.4 → hidden from 0.5.5.
+- This avoids arithmetic assumptions about patch increments and naturally expires when a user skips releases. Unknown/unparseable current or expiry version should fail safely and be covered by tests.
+- Keep this release metadata app-global, not profile-scoped. Existing `seenFeatureIds` is profile-scoped and user-dismissable; it must not control the new three-version setting badge.
+- Add one central registration step for every newly introduced setting/page; shared `SettingsNavigationRow` / `SettingsSwitchRow` rendering should read the registry so individual screens do not hardcode badge UI.
+
+### Final audit scope note
+- Settings architecture and many major controls have been inspected, but the audit is **not complete** until every remaining dialog state, localization string, search entry, platform-specific control and persistence owner is mapped.
+- No source implementation, build, tests or device verification has been performed.
