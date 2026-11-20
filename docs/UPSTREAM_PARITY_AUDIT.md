@@ -1788,3 +1788,47 @@ The existing canonical credential-visibility finding above now includes the Debr
 **Classification:** resource-key absence = **LOCALIZATION COVERAGE GAP / NEEDS FALLBACK VERIFICATION**; hardcoded English UI text remains a separate canonical issue. Do not add duplicate findings for each locale. The spot-check is not an exhaustive audit of every settings key or translation quality.
 
 **Verification:** GitHub source reads of all 24 resource files; no localization source changes, app rendering, locale switching or device tests.
+
+
+## Expanded localization coverage across all settings resources — 2026-11-20 13:14:55 IST
+
+**Target:** `Main-dev`  
+**Verified source HEAD before write:** `c1a53c386b5ff468073a72b75630526f1b26eb6e`  
+**Previous audit document blob / write guard:** `6e3ded08ce84bc285896dbf9e52a36b96537f179`  
+**Method:** compared every `settings_`, `compose_settings`, `player_`, `downloads_`, `live_tv_` and `sentry_` string/plural/array key in default `values/strings.xml` against each of the 23 locale files. Baseline set: **1,162 keys**.
+
+| Locale folder | Missing keys | Coverage |
+|---|---:|---:|
+| ar | 286 | 75.4% |
+| bg | 215 | 81.5% |
+| cs | 381 | 67.2% |
+| de | 714 | 38.6% |
+| el | 222 | 80.9% |
+| es | 364 | 68.7% |
+| fr | 341 | 70.7% |
+| he | 948 | 18.4% |
+| hu | 327 | 71.9% |
+| id | 596 | 48.7% |
+| in | 596 | 48.7% |
+| it | 358 | 69.2% |
+| ja | 383 | 67.0% |
+| nb | 620 | 46.6% |
+| nl | 362 | 68.8% |
+| pl | 317 | 72.7% |
+| pt-rBR | 610 | 47.5% |
+| pt | 377 | 67.6% |
+| ro | 362 | 68.8% |
+| ru | 286 | 75.4% |
+| sk | 381 | 67.2% |
+| tr | 528 | 54.6% |
+| vi | 329 | 71.7% |
+
+- The default `values/strings.xml` contains all 1,162 baseline keys. Missing keys in locale folders are **translation coverage gaps**, not missing default resources.
+- Coverage varies significantly. Hebrew (18.4%) and German (38.6%) are the largest gaps in this key subset; this should be prioritized before a settings taxonomy release.
+- The duplicated `id` / `in` folders have identical counts but are separate resource directories; do not delete or consolidate either without locale configuration and build verification.
+- The counts are key-presence coverage only. They do not measure translation quality, stale wording, parameter correctness, plural correctness, text overflow, or runtime fallback. Compose resource fallback behavior remains **NOT VERIFIED** in this audit.
+- This comparison is broader than the earlier 5-key spot-check; retain the earlier spot-check as a historical sample, but use this section for current coverage totals.
+
+**Decision:** localization must be a dedicated implementation workstream in the final plan, not a small copy-only cleanup. Keep default English strings complete; add/update translated keys consistently across all locale files and test layout/overflow on representative scripts (RTL, CJK, long German strings).
+
+**Verification:** GitHub reads of the default file and all 23 locale files; no resource edits, app build, locale switching or device rendering tests.
