@@ -3139,3 +3139,44 @@ No other TRUE DUPLICATE was confirmed. Similar cards, source-set actuals, separa
 **Classification:** Mew card style vs upstream custom poster URL = **FALSE POSITIVE**; Mew DownloadItem poster metadata = **ALREADY IMPLEMENTED / NOT RENDERED IN CURRENT DOWNLOAD ROW**; custom poster URL resolver/repository = **UPSTREAM-ONLY FEATURE / SKIP until approved**.
 
 **Verification:** static source/commit inspection only. No download UI, poster setting, image resolver, persistence, tests or app source changed. No builds or runtime checks run.
+
+
+## Trakt library refresh queue — caller, timeout and profile-isolation follow-up (2026-11-20 18:28:41 IST)
+
+**Upstream commit inspected:** `1e41574929e2c85286d7b0eac4c0488a405f0088` (`fix(trakt): prevent unbounded library refresh queue`).  
+**Target:** `Main-dev`; verified HEAD before write `9c54167100afa9efc9bf32a5d21d38ec8e6c7c11`.  
+**Previous audit document blob / write guard:** `f2ee1b760d410f08c7571038d0af2b2e80824983`.  
+**Files inspected:** Mew `TraktLibraryRepository.kt`, `TraktTrackingLibraryProvider.kt`, `TrackingProvider.kt`, `TrackingReads.kt`, `TrackingProviderBootstrap.kt`, `ProfileRepository.kt`, `ProfileScopedKey.kt`, `TraktLibraryStorage` common/Android/iOS actuals, `AddonPlatform` Android/iOS HTTP actuals, `TraktProgressRepository.kt`; upstream equivalents and commit diff.
+
+### Queue-risk evidence and upstream behavior
+
+- Mew's `TraktLibraryRepository.refresh(force)` holds `refreshMutex` for the complete paginated network refresh. All callers wait on the mutex, including automatic refreshes and membership reads. The shared HTTP transport is time-bounded (Android addon client: 10 s connect / 20 s read / 20 s write; iOS addon client: 60 s request / connect / socket). The request is therefore bounded by transport timeout, but the number of coroutines retained while waiting is not bounded by those timeouts.
+- Confirmed automatic/membership paths: `TraktTrackingLibraryProvider.refresh(AUTOMATIC)` → `ensureFresh()`; `membership(item)` → `getMembershipSnapshot()` → `ensureFresh()`; `applyMembershipChanges()` calls `ensureFresh()` and then `getMembershipSnapshot()`, which calls it again. `prepare()` → `preloadListTabsAsync()` is a separate fetch using the same `refreshMutex`; repeated prepare calls while tabs remain empty can also queue because there is no tracked preload job.
+- Upstream adds `refreshJobMutex` + `refreshJob`: one tracked `refreshOnce()`; automatic callers return rather than queue behind an active request; forced callers join the active job. It retains the existing `refreshMutex` for actual work. The commit changes only `TraktLibraryRepository.kt` and does not add tests.
+- Mew's `TraktProgressRepository` already has a stronger local pattern: `refreshJobMutex`, a tracked `inFlightRefresh`, `refreshRequestId`, `invalidateInFlightRefreshes()` on profile change/clear, and latest-request checks before publishing results. Reuse this proven Mew owner/pattern rather than inventing another coordinator.
+
+### Additional profile-isolation issue found during caller tracing
+
+- `ProfileRepository.selectProfile()` calls `TrackingProviderRegistry.onProfileChanged()`.
+- In both Mew and the inspected upstream, `TrackingProviderRegistry.onProfileChanged()` only calls `profileStoreSnapshot().forEach(TrackingProfileStore::onProfileChanged)`; it does **not** dispatch lifecycle callbacks to registered `libraryProviders`.
+- `TraktTrackingLibraryProvider` has `onProfileChanged()` and `clearLocalState()` adapters, but `TrackingProviderBootstrap` registers it only with `registerLibraryProvider`. It is not a `TrackingProfileStore`. Thus the Trakt library adapter's lifecycle hooks are not reached by the current registry profile-switch path.
+- `TraktLibraryRepository.onProfileChanged()` would clear its cached state and refresh timestamps, but the traced profile-switch path does not call it. Its `hasLoaded` flag can therefore remain true across profile switches and retain the previous profile's list state.
+- More importantly, `TraktLibraryStorage.loadPayload()/savePayload()` use `ProfileScopedKey.of(payloadKey)`, which resolves the **currently active** profile dynamically. A request can obtain authorization headers for the old profile, continue across a profile switch, then persist its old-profile response under the new active profile's key. No explicit request profile ID or generation guard exists in this repository's refresh path.
+- This is a **confirmed lifecycle wiring gap** plus a **cross-profile stale-write risk** from the inspected call graph/storage key. It is not fixed by the upstream queue commit; the same registry/profile-store shape exists in the inspected upstream version.
+
+### Decision
+
+**ADAPT the single-flight queue behavior, but do not cherry-pick the upstream change alone.** Treat this as a combined correctness fix in a future approved plan:
+
+1. Wire library-provider profile lifecycle callbacks into the registry (or explicitly register the Trakt library adapter as a profile store) and verify all library providers' lifecycle semantics.
+2. Capture `profileId` and a monotonically increasing request generation before network work; cancel/invalidate in-flight jobs on profile change and clear.
+3. Make Trakt library storage read/write use the explicit request profile ID (`ProfileScopedKey.of(key, profileId)`), never the active profile at response-completion time.
+4. Automatic callers should not accumulate behind a running refresh; forced callers should join the active refresh. Preserve existing cache TTL, force-refresh semantics, partial-state publication, optimistic membership mutations and errors.
+5. Give `preloadListTabsAsync()` its own single-flight/deduped job or fold it into a single refresh owner; the upstream commit does not address this separate queue.
+6. Keep auth token refresh and Trakt library refresh as separate owners; do not merge their mutexes or state.
+
+**Required regression tests:** many concurrent automatic callers; forced-vs-automatic joining; hung request timeout; repeated preload calls; caller cancellation without cancelling shared work; profile switch during old-profile refresh; profile switch during preload; profile-specific storage writes; clear/disconnect while request is in flight; cache TTL and optimistic membership rollback. Add a registry lifecycle test proving every registered library provider receives profile-change/clear callbacks.
+
+**Classification:** upstream tracked refresh job = **ADAPT**; Mew TraktProgressRepository request-generation/single-flight = **ALREADY IMPLEMENTED / REUSE**; Trakt library lifecycle dispatch = **CONFIRMED WIRING GAP**; dynamic active-profile storage write = **CROSS-PROFILE STALE-WRITE RISK**; repeated preload queue = **ADDITIONAL UNADDRESSED PATH**.
+
+**Verification:** static source/call-graph inspection only. No Trakt refresh, registry, storage, profile or auth code changed; no tests/builds/network or multi-profile runtime checks run.
