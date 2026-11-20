@@ -2766,3 +2766,23 @@ No other TRUE DUPLICATE was confirmed. Similar cards, source-set actuals, separa
 **Classification:** Mew custom UIKit tab bar vs upstream SwiftUI/native tab integration = **INTENTIONAL PARALLEL / DIFFERENT ARCHITECTURE**; transparent background behavior = **NEEDS DEVICE VERIFICATION**.
 
 **Verification:** static source comparison only. No iOS simulator/device, Liquid Glass mode, tab visibility, scroll-edge or accessibility test run.
+
+
+## iOS download finalization move/copy fallback (2026-11-20 17:05:15 IST)
+
+**Target:** `Main-dev`  
+**Verified target HEAD before write:** `2df73ebe4eb72af67e01bcecdef2ead741dd22ae`  
+**Application-source baseline:** `8a36dcede748ba6bb35d2a49c1ffd062bf7efbd0`  
+**Previous audit document blob / write guard:** `497b3f13f9ffc815f49e4f58124a7fa647154f3b`  
+**Upstream commit inspected:** `38351e30510cb4cfefda0fa87db00153ea3a611f`  
+**Files compared:** Mew/upstream `composeApp/src/iosMain/kotlin/com/nuvio/app/features/downloads/DownloadsPlatformDownloader.ios.kt`.
+
+- Mew's iOS background download finalization removes any existing destination, then calls `NSFileManager.moveItemAtPath(tempPath, destinationPath, null)`. If the move fails, it reports finalization failure; no copy fallback is present in the inspected path.
+- Upstream introduces `moveOrCopy()`: attempt move and capture/log its NSError; if move fails, attempt copy and remove the source after successful copy; if copy also fails, fall back to streaming `copyByAppending()`. It uses this for finalizing completed downloads and appending partial files.
+- The failure mode is relevant to Mew's background `NSURLSession` downloads when temp and destination locations do not support a direct move (for example, filesystem/provider boundary behavior). Mew's iOS external-folder/security-scoped access makes this a data-integrity-sensitive path.
+
+**Decision: ADAPT — high-priority iOS reliability candidate.** Add a Mew-specific move/copy fallback to the existing finalization owner; preserve current partial-resume and security-scoped bookmark behavior. Do not wholesale-copy upstream's transfer coordinator. Capture and redact filesystem error details, clean up source only after destination copy is verified, avoid deleting an existing completed destination before a safe replacement is ready, and ensure partial-file recovery remains possible after both move and copy fail.
+
+**Required tests/device checks:** move succeeds; move fails/copy succeeds; both fail; destination already exists; partial resume; low disk space; external folder access revoked; background session completes after app relaunch; cancellation and retry; verify file length/content before marking Completed. iOS device/simulator and external-provider tests are **NOT RUN**.
+
+**Classification:** Mew iOS background transfer lifecycle = **KEEP**; move-only finalization = **CONFIRMED RELIABILITY GAP / ADAPT**; upstream transfer engine = **DO NOT REPLACE**.
