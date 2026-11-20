@@ -866,3 +866,20 @@ This is the clearest current mapping from the audited Mew pages to upstream Enha
 - Confirmed localization gap: Advanced Logs.
 - Confirmed accent contrast impact: P2P Enable and Enhanced backup dialog buttons use primary/onPrimary.
 - Source changes: **NONE**. Builds/tests/device checks: **NOT RUN**.
+
+
+## Platform and feature-policy audit — 2026-11-20
+
+- Settings UI is primarily shared in `commonMain`, with responsive mobile/tablet navigation and platform conditionals. Keep the shared setting model and preserve intentional presentation differences.
+- Appearance hides Navigation Bar Style on iOS (`if (!isIos)`); Playback adds explicit iOS audio/video output controls. Keep these platform-specific controls rather than forcing identical Android/iOS lists.
+- Playback conditionals include engine-dependent decoder/rendering options and P2P visibility via `P2pSettingsRepository.isVisible`. Preserve the current runtime capability/policy gates when splitting Playback.
+- Plugins and CloudStream entries are exposed only when `AppFeaturePolicy.pluginsEnabled`. Their SettingsPage branches intentionally fall back to Addons content when disabled; classify as **COMPATIBILITY SHIM** unless further caller audit proves otherwise. Do not expose hidden entries through search.
+- Mew's Enhanced external-folder section is hidden on iOS and `DownloadsExternalFolderPlatform.ios.kt` is currently a no-op. Upstream Enhanced has an iOS document-picker implementation for Downloads settings. This is a platform capability gap to investigate, not permission to port storage behavior without reviewing Mew's private-download storage and lifecycle.
+- Android Material bottom sheets and iOS UIKit page sheets are **INTENTIONAL PARALLEL**. The iOS sheet coordinator permits one active native sheet and dismisses an existing one before presenting another; overlapping presentation/disposal lifecycle remains a targeted iOS regression test.
+- Source-level iOS inspection only. No iOS simulator/device verification was run.
+
+### Policy/navigation requirements for restructuring
+- Every page, search result and legacy route must honor the same feature-policy visibility.
+- Preserve fallback behavior for disabled Plugins/CloudStream routes, or provide a deliberate safe redirect.
+- Preserve iOS-only Playback controls and platform-specific storage behavior.
+- Validate iPhone/iPad navigation and sheet dismissal on simulator/device before release; report this as NOT RUN until performed.
