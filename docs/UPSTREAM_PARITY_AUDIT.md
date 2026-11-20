@@ -2681,3 +2681,23 @@ No other TRUE DUPLICATE was confirmed. Similar cards, source-set actuals, separa
 **Classification:** metadata repository = **KEEP / SINGLE OWNER**; player-time logo fallback = **ADAPT**; no new metadata service or parallel cache.
 
 **Verification:** static source/commit inspection only. No playback route, network lookup, tests, builds or device checks run.
+
+
+## Player skip/next overlay placement vs end-time anchor (2026-11-20 17:01:34 IST)
+
+**Target:** `Main-dev`  
+**Verified target HEAD before write:** `ef41e9ed33f87ca944e52e40d0cf1f943cb14117`  
+**Application-source baseline:** `8a36dcede748ba6bb35d2a49c1ffd062bf7efbd0`  
+**Previous audit document blob / write guard:** `85537f14f5072d14c97d8f22f3b0e6c2041c07cd`  
+**Upstream commit inspected:** `b23b28a878b78f5ef9252128b901155fee6eeea9`  
+**Files compared:** Mew/upstream `PlayerControls.kt`, `PlayerPlaybackOverlays.kt`, `PlayerScreenRuntimeUi.kt`; Mew `PlayerClockEndTimeOverlay.kt`, `NextEpisodeCard.kt`, `SkipIntroButton.kt`.
+
+- Mew renders Skip Intro at bottom-start and Next Episode at bottom-end using the same overlay-bottom padding. Mew's clock end-time display is rendered from the progress-control area; there is no shared anchor that exposes its actual bottom/right coordinates to playback overlays.
+- Upstream adds `PlayerEndTimeAnchor` to the progress/end-time row, measures its root-relative bottom/right position, moves Skip Intro to the bottom-right, and stacks Next Episode / movie recommendation cards above it. It also measures skip-button height so the cards do not overlap.
+- Mew has a Next Episode card but no matching movie-recommendation card in the inspected overlay. Do not copy an unrelated recommendation feature as part of this layout fix.
+
+**Decision: ADAPT the anchor/stacking behavior only.** Reuse Mew's existing clock/end-time control and Next Episode/Skip Intro components. Preserve Mew's player lock behavior, control visibility, safe-area padding and skip dismissal state. Test phone/tablet/TV, portrait/landscape, RTL, narrow screens, end-time hidden, skip hidden/dismissed, locked controls and large text before shipping.
+
+**Classification:** end-time control and skip/next components = **ALREADY IMPLEMENTED / REUSE**; anchor-based non-overlap layout = **ADAPT**; upstream movie-recommendation card = **NOT APPLICABLE / SKIP** for this pass.
+
+**Verification:** static source/commit inspection only. No player UI, layout, accessibility, tests, builds or device checks run.
