@@ -3045,3 +3045,41 @@ No other TRUE DUPLICATE was confirmed. Similar cards, source-set actuals, separa
 **Upstream commit inspected:** `2d3dcc6422cde14b804d6c3e02687e328ecc222e`.
 - Upstream makes `DownloadsSettingsRoute.preferredTabName = null` so it stays in whichever tab opened it. Mew's `Routes.kt` has `DownloadsSettingsRoute : SettingsDestinationRoute`, whose default `preferredTabName` is `Settings`; Mew has no separate `DownloadsRoute` tab destination, and `DownloadsScreen` is hosted only by `DownloadsSettingsRoute` in the inspected App.kt route registration.
 - **SKIP this exact tab-preference override for Mew.** The current Settings tab preference is consistent with Mew's route ownership. Revisit only if Mew adds a dedicated Downloads tab or launches the downloads manager cross-tab.
+
+
+## Home catalog row placement, hidden rows and collection pinning comparison (2026-11-20 18:20:10 IST)
+
+**Target:** `Main-dev`  
+**Verified target HEAD before write:** `96f31df48189f7f281edbeae6d39bb2fe7b83727`  
+**Application-source baseline:** `8a36dcede748ba6bb35d2a49c1ffd062bf7efbd0` (the 48 commits after this baseline are documentation-only; compare endpoint returned one changed path: this audit document)  
+**Mother upstream:** `luqmanfadlli/NuvioMobile-Enhanced:enhanced` `3f9c50c122c9c1d63bf3f061e65bd2cb17967fb6`  
+**Previous audit document blob / write guard:** `4cf8b831f90a87e3926a70e7defa0b3d488b2bae`  
+**Files inspected:** both versions of `HomeCatalogSettingsRepository.kt`, `HomeCatalogSettingsSyncService.kt`, `HomescreenSettingsPage.kt`, `HomeCatalogDefinitions.kt`, `HomeCatalogSection.kt`; Mew `HomeRepository.kt`, Android/iOS `HomeCatalogSettingsStorage` actuals, and `HomePinnedCollectionOrderTest.kt` / `HomeCatalogRemotePreferenceMergeTest.kt`.
+
+### Confirmed behavior matrix
+
+| Behavior | Mew today | Upstream enhanced | Classification / decision |
+|---|---|---|---|
+| Hide/show catalog rows | Already supported by `enabled`; disabled rows are omitted from Home. Settings shows all rows in one reorderable list with per-row enable control. | Same persisted `enabled` concept, plus a dedicated collapsible Hidden Rows section and visible/hidden counts. | **ALREADY IMPLEMENTED / UX PARITY GAP.** ADAPT the hidden-row grouping/count UI only if wanted; do not add a second hidden-state field. |
+| Pin catalog rows to top/bottom | No catalog-row placement state. | `HomeCatalogRowPlacement` supports NORMAL, PINNED_TOP and PINNED_BOTTOM; rendering sorts top → normal → bottom and drag is constrained to the same placement group. | **ADAPT candidate / NEW behavior.** Extend existing preference model only after checking catalog identity changes, reorder interaction, and persistence scope. |
+| Pin collection to top | Already implemented from `Collection.pinToTop`; `enforcePinnedCollectionsAtTop()` preserves pinned collection order and prevents normal catalog reorder from moving them below. | Also preserves collection-level pinning and treats those collections as PINNED_TOP in row-placement ordering. | **ALREADY IMPLEMENTED / REUSE.** Do not replace collection's domain-owned pin flag with a duplicate row preference. |
+| Reorder | Mew persists one `order` across addon catalog and collection entries; its collection pin enforcement is applied after reorder. | Upstream retains the same base order, then overlays row placement sections and constrains drag between placement groups. | **SHARED PATTERN / DIFFERENT SEMANTICS.** Adapt only placement-aware ordering; preserve Mew's existing cross-catalog/collection order and pinned-collection rules. |
+| Persistence scope | Mew Android and iOS storage both use `ProfileScopedKey`; home catalog preferences are profile-scoped locally. | Row placement is added to local `StoredHomeCatalogPreference`. | **KEEP Mew profile scope.** No implicit migration to app-global settings. |
+| Cloud sync | Mew `SyncCatalogItem` exports `enabled`, `order`, title and identity; row placement is not represented. | Upstream's `SyncCatalogItem` also omits row placement; remote apply preserves the current device's `rowPlacement`. | **INTENTIONAL DEVICE-LOCAL PREFERENCE.** If adapting placement, keep it out of sync unless the product explicitly chooses cross-device placement. Existing hidden/enabled state and order remain in Mew's profile sync contract. |
+
+### Important semantic constraints
+
+- Mew's `isPinnedToTop` is derived from `Collection.pinToTop`; it is not a generic catalog pin setting. Upstream's row placement is a separate preference layered on top of collection pinning.
+- Mew's `enforcePinnedCollectionsAtTop()` and `pinnedCollectionsFirst()` are already covered by `HomePinnedCollectionOrderTest`. Preserve this owner and test behavior.
+- Mew's HomeCatalogSettingsSyncService is more involved than upstream's single shared-platform fetch: it checks legacy platform rows and merges the newest standalone preferences. Do not replace it while porting row placement.
+- Mew's remote merge deliberately preserves locally known/explicit keys when a remote payload arrives before catalogs finish loading. Preserve `shouldPreservePreferenceAfterRemoteSync` and add tests if the preference model changes.
+- Upstream's `PINNED_POSITION` storage value is normalized to NORMAL for compatibility; do not resurrect that obsolete enum value as an active mode.
+- Upstream's server catalog definitions are appended to the home catalog; Mew has no equivalent ServerCatalog owner yet. A row-placement port must not silently add server catalogs or change addon catalog source selection.
+
+### Decision
+
+**ADAPT selectively, not wholesale.** Mew already has the core hide/show, reorder, collection pinning, profile-scoped persistence and remote sync behavior. Candidate additions are: (1) clearer hidden-row section/count UI using existing `enabled`; (2) optional PINNED_TOP/PINNED_BOTTOM for catalog rows using a new local-only row-placement preference. No second hidden-state store, no duplicate collection pin flag, no new sync field, no replacement HomeCatalogSettingsSyncService.
+
+**Tests required before implementation:** ordering with top/normal/bottom groups; collection-pinned rows remain top; hidden rows can be restored; drag cannot cross placement groups; reset defaults; old JSON without placement defaults NORMAL; unknown placement defaults NORMAL; remote sync preserves local placement; remote payload with missing catalogs preserves unknown/explicit preferences; profile switch isolates row placement; HomeRepository section ordering and hero-source behavior remain unchanged.
+
+**Verification:** read-only static source comparison. No Home UI, settings, sync schema, preference model, repository, tests or app source changed. No tests/builds/runtime checks run.
