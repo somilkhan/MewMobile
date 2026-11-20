@@ -2068,3 +2068,58 @@ The existing canonical credential-visibility finding above now includes the Debr
 **Classification:** static parent/contextual back = existing CONFIRMED NAVIGATION LIMITATION; tablet category decoding = existing CONFIRMED COMPATIBILITY RISK; settings navigation test coverage = TEST GAP / NEEDS VERIFICATION; sync apply/profile switch = NEEDS INVESTIGATION; app navigator handoff = INTENTIONAL LAYERING.
 
 **Verification:** GitHub source reads at application HEAD 8a36dcede748ba6bb35d2a49c1ffd062bf7efbd0; live Main-dev and main refs checked before this write. No app source changes, builds, tests, Android/iOS runtime checks or locale-rendering checks performed.
+
+## Localization key coverage sweep — 2026-11-20 16:26 IST
+
+**Target:** Main-dev  
+**Verified branch HEAD before write:** 394e5bf73e6c9579cd1a39e45db27e0f957c76d5  
+**Previous audit document blob / write guard:** 5a8222d737b55f5275fe53ae53eda0d6339fe6f3  
+**Application source audit HEAD:** 8a36dcede748ba6bb35d2a49c1ffd062bf7efbd0  
+**Files inspected:** commonMain/composeResources/values/strings.xml; all 23 locale strings.xml files under values-{ar,bg,cs,de,el,es,fr,he,hu,id,in,it,ja,nb,nl,pl,pt-rBR,pt,ro,ru,sk,tr,vi}; features/settings/AppLanguage.kt.
+
+### Key coverage (static XML inventory; not a translation-quality or runtime test)
+
+The default strings.xml contains 2,930 string entries. For a settings-relevant key inventory, prefixes were grouped into five overlapping-but-explicit domains: settings pages/category (892 keys), tracking/anime (158), addons/plugins (97), playback/player/P2P (340), and appearance/theme (103). Counts below are missing keys in each locale-specific strings.xml compared with the default resource file. A missing locale entry is not proof of a blank UI; actual Compose resource fallback and rendered output were NOT runtime-verified.
+
+| Locale | Settings /892 | Tracking & anime /158 | Addons & plugins /97 | Playback /340 | Appearance /103 |
+|---|---:|---:|---:|---:|---:|
+| ar | 201 | 142 | 3 | 97 | 58 |
+| bg | 87 | 78 | 12 | 70 | 5 |
+| cs | 232 | 142 | 12 | 99 | 58 |
+| de | 520 | 142 | 62 | 203 | 62 |
+| el | 94 | 78 | 12 | 70 | 29 |
+| es | 226 | 142 | 12 | 95 | 58 |
+| fr | 209 | 118 | 12 | 97 | 58 |
+| he | 743 | 157 | 65 | 285 | 81 |
+| hu | 195 | 142 | 12 | 95 | 51 |
+| id | 402 | 142 | 61 | 182 | 60 |
+| in | 402 | 142 | 61 | 182 | 60 |
+| it | 226 | 142 | 12 | 95 | 81 |
+| ja | 234 | 142 | 12 | 101 | 58 |
+| nb | 426 | 142 | 62 | 198 | 60 |
+| nl | 228 | 142 | 12 | 99 | 82 |
+| pl | 185 | 142 | 12 | 93 | 45 |
+| pt | 228 | 71 | 12 | 106 | 59 |
+| pt-rBR | 416 | 71 | 62 | 189 | 60 |
+| ro | 228 | 142 | 12 | 99 | 82 |
+| ru | 201 | 142 | 3 | 97 | 58 |
+| sk | 232 | 142 | 12 | 99 | 58 |
+| tr | 388 | 142 | 52 | 197 | 58 |
+| vi | 195 | 142 | 12 | 97 | 51 |
+
+### Canonical localization findings
+
+- Tracking/anime is the most consistent gap: 142 of 158 default keys are absent from most locale files (Portuguese files are missing 71; French 118; Arabic and most others 142). This includes provider, mapping, scrobble and anime-tracking UI copy. Keep this as one localization workstream; do not create per-screen duplicate findings.
+- Settings and Playback are also uneven. German is missing 520/892 settings keys and 203/340 playback keys; Hebrew 743/892 and 285/340; Norwegian 426/892 and 198/340; Turkish 388/892 and 197/340. Bulgarian and Greek have much stronger coverage in these groups. These are static key-presence counts, not a judgement of translation correctness.
+- Addons/plugins coverage is comparatively complete in Arabic, Czech, Greek, Spanish, French, Hungarian, Italian, Japanese, Dutch, Polish, Portuguese and Romanian (12 or fewer missing), but has larger gaps in German (62), Hebrew (65), Indonesian (61), Norwegian (62), Turkish (52), and Brazilian Portuguese (62).
+- Appearance/theme has 5–82 missing keys depending on locale. Several locales lack the newer card-depth, app-icon, navbar and Liquid Glass strings; keep these attached to the existing canonical localization gap.
+
+### Legacy Indonesian locale alias — NEEDS INVESTIGATION
+
+- AppLanguage exposes Indonesian as code id; it does not expose in. Both values-id/strings.xml and values-in/strings.xml exist and each contains 1,557 string keys. They are not exact duplicates: 13 key values differ.
+- In values-in, 12 download-setting entries (including labels for download mode, quality and status) contain Hindi text while the corresponding values-id entries are Indonesian. One Liquid Glass description differs between the two Indonesian variants.
+- Classification: **NEEDS INVESTIGATION / LEGACY LOCALE ALIAS**, not a confirmed duplicate and not safe to delete from this audit. Determine whether values-in is retained for deprecated device locale tags, generated compatibility, or is an orphan before any cleanup. Do not alter AppLanguage codes or locale files as part of settings IA without an explicit migration decision.
+
+**Decision:** carry the locale coverage table and the id/in alias discrepancy into the user's later settings plan. Prioritize a resource-backed translation pass for tracking/anime, playback and the large settings surfaces. Preserve the default English resource as the reference key set; add a translation-completeness check to CI or tests only after inspecting existing build conventions.
+
+**Verification:** static GitHub reads at application source HEAD 8a36dcede748ba6bb35d2a49c1ffd062bf7efbd0; all 23 locale string files and AppLanguage enum inspected. No translation edits, XML parser/build validation, app locale switching, fallback rendering, Android/iOS device verification, builds or tests performed. Protected main was rechecked and remains unchanged.
