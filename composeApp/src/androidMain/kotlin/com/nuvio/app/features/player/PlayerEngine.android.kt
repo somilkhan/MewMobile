@@ -1978,6 +1978,22 @@ private class NuvioLibmpvView(
         }.getOrElse { snapshots.lastGood() }
     }
 
+    private var cachedChapters: List<PlayerChapter> = emptyList()
+    private var cachedChaptersKey: String? = null
+
+    /** Chapters are listed by mpv once per loaded file, then cached until the path or duration changes. */
+    private fun chaptersFor(durationMs: Long): List<PlayerChapter> {
+        if (durationMs <= 0L) return emptyList()
+        val key = "${mpv.stringProperty("path")}|$durationMs"
+        if (key != cachedChaptersKey) {
+            cachedChaptersKey = key
+            cachedChapters = runCatching {
+                PlayerChapters.normalize(mpvChapters { property -> mpv.stringProperty(property) })
+            }.getOrDefault(emptyList())
+        }
+        return cachedChapters
+    }
+
     private fun readSnapshotNow(): PlayerPlaybackSnapshot {
         val paused = mpv.getPropertyBoolean("pause") ?: true
         val pausedForCache = mpv.getPropertyBoolean("paused-for-cache") ?: false
@@ -2027,6 +2043,7 @@ private class NuvioLibmpvView(
             audioChannels = mpv.getPropertyInt("audio-params/channel-count")?.takeIf { it > 0 },
             audioSampleRate = mpv.getPropertyInt("audio-params/samplerate")?.takeIf { it > 0 },
             hdrFormat = mpv.mpvHdrFormat(),
+            chapters = chaptersFor(durationMs),
         )
     }
 

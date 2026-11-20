@@ -19,6 +19,8 @@ import platform.Foundation.NSUserDefaults
 actual object PlayerSettingsStorage {
     private const val showLoadingOverlayKey = "show_loading_overlay"
     private const val pauseOverlayEnabledKey = "pause_overlay_enabled"
+    private const val stableOpeningOverlayEnabledKey = "stable_opening_overlay_enabled"
+    private const val chapterTitleEnabledKey = "chapter_title_enabled"
     private const val playerLiquidGlassEnabledKey = "player_liquid_glass_enabled"
     private const val skipBackwardSecondsKey = "player_skip_backward_seconds"
     private const val skipForwardSecondsKey = "player_skip_forward_seconds"
@@ -106,6 +108,8 @@ actual object PlayerSettingsStorage {
     private val syncKeys = listOf(
         showLoadingOverlayKey,
         pauseOverlayEnabledKey,
+        stableOpeningOverlayEnabledKey,
+        chapterTitleEnabledKey,
         playerLiquidGlassEnabledKey,
         skipBackwardSecondsKey,
         skipForwardSecondsKey,
@@ -223,6 +227,24 @@ actual object PlayerSettingsStorage {
     }
     actual fun savePauseOverlayEnabled(enabled: Boolean) {
         NSUserDefaults.standardUserDefaults.setBool(enabled, forKey = ProfileScopedKey.of(pauseOverlayEnabledKey))
+    }
+
+    actual fun loadStableOpeningOverlayEnabled(): Boolean? {
+        val defaults = NSUserDefaults.standardUserDefaults
+        val key = ProfileScopedKey.of(stableOpeningOverlayEnabledKey)
+        return if (defaults.objectForKey(key) != null) defaults.boolForKey(key) else null
+    }
+    actual fun saveStableOpeningOverlayEnabled(enabled: Boolean) {
+        NSUserDefaults.standardUserDefaults.setBool(enabled, forKey = ProfileScopedKey.of(stableOpeningOverlayEnabledKey))
+    }
+
+    actual fun loadChapterTitleEnabled(): Boolean? {
+        val defaults = NSUserDefaults.standardUserDefaults
+        val key = ProfileScopedKey.of(chapterTitleEnabledKey)
+        return if (defaults.objectForKey(key) != null) defaults.boolForKey(key) else null
+    }
+    actual fun saveChapterTitleEnabled(enabled: Boolean) {
+        NSUserDefaults.standardUserDefaults.setBool(enabled, forKey = ProfileScopedKey.of(chapterTitleEnabledKey))
     }
 
     actual fun loadPlayerLiquidGlassEnabled(): Boolean? {
@@ -1061,6 +1083,8 @@ actual object PlayerSettingsStorage {
     actual fun exportToSyncPayload(): JsonObject = buildJsonObject {
         loadShowLoadingOverlay()?.let { put(showLoadingOverlayKey, encodeSyncBoolean(it)) }
         loadPauseOverlayEnabled()?.let { put(pauseOverlayEnabledKey, encodeSyncBoolean(it)) }
+        loadStableOpeningOverlayEnabled()?.let { put(stableOpeningOverlayEnabledKey, encodeSyncBoolean(it)) }
+        loadChapterTitleEnabled()?.let { put(chapterTitleEnabledKey, encodeSyncBoolean(it)) }
         loadPlayerLiquidGlassEnabled()?.let { put(playerLiquidGlassEnabledKey, encodeSyncBoolean(it)) }
         loadSkipBackwardSeconds()?.let { put(skipBackwardSecondsKey, encodeSyncInt(it)) }
         loadSkipForwardSeconds()?.let { put(skipForwardSecondsKey, encodeSyncInt(it)) }
@@ -1151,6 +1175,8 @@ actual object PlayerSettingsStorage {
 
         payload.decodeSyncBoolean(showLoadingOverlayKey)?.let(::saveShowLoadingOverlay)
         payload.decodeSyncBoolean(pauseOverlayEnabledKey)?.let(::savePauseOverlayEnabled)
+        payload.decodeSyncBoolean(stableOpeningOverlayEnabledKey)?.let(::saveStableOpeningOverlayEnabled)
+        payload.decodeSyncBoolean(chapterTitleEnabledKey)?.let(::saveChapterTitleEnabled)
         payload.decodeSyncBoolean(playerLiquidGlassEnabledKey)?.let(::savePlayerLiquidGlassEnabled)
         payload.decodeSyncInt(skipBackwardSecondsKey)?.let(::saveSkipBackwardSeconds)
         payload.decodeSyncInt(skipForwardSecondsKey)?.let(::saveSkipForwardSeconds)

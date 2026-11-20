@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeContent
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
@@ -66,6 +67,7 @@ internal fun BoxScope.PlayerPlaybackOverlays(
     onDismissError: () -> Unit,
     onRetryError: () -> Unit,
 ) {
+    val stableOpeningOverlay = PlayerSettingsRepository.uiState.collectAsState().value.stableOpeningOverlayEnabled
     AnimatedVisibility(
         visible = playerControlsLocked && lockedOverlayVisible,
         enter = fadeIn(),
@@ -86,16 +88,29 @@ internal fun BoxScope.PlayerPlaybackOverlays(
         enter = fadeIn(),
         exit = fadeOut(),
     ) {
-        OpeningOverlay(
-            artwork = backdropArtwork,
-            logo = logo,
-            title = title,
-            onBack = onBackWithProgress,
-            horizontalSafePadding = horizontalSafePadding,
-            modifier = Modifier.fillMaxSize(),
-            message = p2pInitialLoadingMessage,
-            progress = p2pInitialLoadingProgress,
-        )
+        if (stableOpeningOverlay) {
+            StableOpeningOverlay(
+                artwork = backdropArtwork,
+                logo = logo,
+                title = title,
+                onBack = onBackWithProgress,
+                horizontalSafePadding = horizontalSafePadding,
+                modifier = Modifier.fillMaxSize(),
+                message = p2pInitialLoadingMessage,
+                progress = p2pInitialLoadingProgress,
+            )
+        } else {
+            OpeningOverlay(
+                artwork = backdropArtwork,
+                logo = logo,
+                title = title,
+                onBack = onBackWithProgress,
+                horizontalSafePadding = horizontalSafePadding,
+                modifier = Modifier.fillMaxSize(),
+                message = p2pInitialLoadingMessage,
+                progress = p2pInitialLoadingProgress,
+            )
+        }
     }
 
     P2pLoadingStatus(

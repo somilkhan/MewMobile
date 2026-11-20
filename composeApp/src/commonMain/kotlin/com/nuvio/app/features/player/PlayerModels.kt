@@ -250,6 +250,7 @@ data class PlayerPlaybackSnapshot(
     val audioChannels: Int? = null,
     val audioSampleRate: Int? = null,
     val hdrFormat: String? = null,
+    val chapters: List<PlayerChapter> = emptyList(),
 )
 
 data class PlayerNowPlayingInfo(

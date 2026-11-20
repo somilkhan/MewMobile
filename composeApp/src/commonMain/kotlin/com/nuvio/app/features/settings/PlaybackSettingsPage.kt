@@ -403,6 +403,22 @@ private fun PlaybackSettingsSection(
                 )
                 SettingsGroupDivider(isTablet = isTablet)
                 SettingsSwitchRow(
+                    title = stringResource(Res.string.settings_playback_stable_opening_overlay),
+                    description = stringResource(Res.string.settings_playback_stable_opening_overlay_description),
+                    checked = autoPlayPlayerSettings.stableOpeningOverlayEnabled,
+                    isTablet = isTablet,
+                    onCheckedChange = PlayerSettingsRepository::setStableOpeningOverlayEnabled,
+                )
+                SettingsGroupDivider(isTablet = isTablet)
+                SettingsSwitchRow(
+                    title = stringResource(Res.string.settings_playback_chapter_title),
+                    description = stringResource(Res.string.settings_playback_chapter_title_description),
+                    checked = autoPlayPlayerSettings.chapterTitleEnabled,
+                    isTablet = isTablet,
+                    onCheckedChange = PlayerSettingsRepository::setChapterTitleEnabled,
+                )
+                SettingsGroupDivider(isTablet = isTablet)
+                SettingsSwitchRow(
                     title = stringResource(Res.string.settings_playback_player_liquid_glass),
                     description = stringResource(Res.string.settings_playback_player_liquid_glass_description),
                     checked = autoPlayPlayerSettings.playerLiquidGlassEnabled,

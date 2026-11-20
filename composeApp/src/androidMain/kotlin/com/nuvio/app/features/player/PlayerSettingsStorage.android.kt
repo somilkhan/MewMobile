@@ -21,6 +21,8 @@ actual object PlayerSettingsStorage {
     private const val preferencesName = "nuvio_player_settings"
     private const val showLoadingOverlayKey = "show_loading_overlay"
     private const val pauseOverlayEnabledKey = "pause_overlay_enabled"
+    private const val stableOpeningOverlayEnabledKey = "stable_opening_overlay_enabled"
+    private const val chapterTitleEnabledKey = "chapter_title_enabled"
     private const val playerLiquidGlassEnabledKey = "player_liquid_glass_enabled"
     private const val skipBackwardSecondsKey = "player_skip_backward_seconds"
     private const val skipForwardSecondsKey = "player_skip_forward_seconds"
@@ -108,6 +110,8 @@ actual object PlayerSettingsStorage {
     private val syncKeys = listOf(
         showLoadingOverlayKey,
         pauseOverlayEnabledKey,
+        stableOpeningOverlayEnabledKey,
+        chapterTitleEnabledKey,
         playerLiquidGlassEnabledKey,
         skipBackwardSecondsKey,
         skipForwardSecondsKey,
@@ -235,6 +239,22 @@ actual object PlayerSettingsStorage {
     }
     actual fun savePauseOverlayEnabled(enabled: Boolean) {
         preferences?.edit()?.putBoolean(ProfileScopedKey.of(pauseOverlayEnabledKey), enabled)?.apply()
+    }
+
+    actual fun loadStableOpeningOverlayEnabled(): Boolean? = preferences?.let { prefs ->
+        val key = ProfileScopedKey.of(stableOpeningOverlayEnabledKey)
+        if (prefs.contains(key)) prefs.getBoolean(key, false) else null
+    }
+    actual fun saveStableOpeningOverlayEnabled(enabled: Boolean) {
+        preferences?.edit()?.putBoolean(ProfileScopedKey.of(stableOpeningOverlayEnabledKey), enabled)?.apply()
+    }
+
+    actual fun loadChapterTitleEnabled(): Boolean? = preferences?.let { prefs ->
+        val key = ProfileScopedKey.of(chapterTitleEnabledKey)
+        if (prefs.contains(key)) prefs.getBoolean(key, false) else null
+    }
+    actual fun saveChapterTitleEnabled(enabled: Boolean) {
+        preferences?.edit()?.putBoolean(ProfileScopedKey.of(chapterTitleEnabledKey), enabled)?.apply()
     }
 
     actual fun loadPlayerLiquidGlassEnabled(): Boolean? = preferences?.let { prefs ->
@@ -1311,6 +1331,8 @@ actual object PlayerSettingsStorage {
     actual fun exportToSyncPayload(): JsonObject = buildJsonObject {
         loadShowLoadingOverlay()?.let { put(showLoadingOverlayKey, encodeSyncBoolean(it)) }
         loadPauseOverlayEnabled()?.let { put(pauseOverlayEnabledKey, encodeSyncBoolean(it)) }
+        loadStableOpeningOverlayEnabled()?.let { put(stableOpeningOverlayEnabledKey, encodeSyncBoolean(it)) }
+        loadChapterTitleEnabled()?.let { put(chapterTitleEnabledKey, encodeSyncBoolean(it)) }
         loadPlayerLiquidGlassEnabled()?.let { put(playerLiquidGlassEnabledKey, encodeSyncBoolean(it)) }
         loadSkipBackwardSeconds()?.let { put(skipBackwardSecondsKey, encodeSyncInt(it)) }
         loadSkipForwardSeconds()?.let { put(skipForwardSecondsKey, encodeSyncInt(it)) }
@@ -1402,6 +1424,8 @@ actual object PlayerSettingsStorage {
 
         payload.decodeSyncBoolean(showLoadingOverlayKey)?.let(::saveShowLoadingOverlay)
         payload.decodeSyncBoolean(pauseOverlayEnabledKey)?.let(::savePauseOverlayEnabled)
+        payload.decodeSyncBoolean(stableOpeningOverlayEnabledKey)?.let(::saveStableOpeningOverlayEnabled)
+        payload.decodeSyncBoolean(chapterTitleEnabledKey)?.let(::saveChapterTitleEnabled)
         payload.decodeSyncBoolean(playerLiquidGlassEnabledKey)?.let(::savePlayerLiquidGlassEnabled)
         payload.decodeSyncInt(skipBackwardSecondsKey)?.let(::saveSkipBackwardSeconds)
         payload.decodeSyncInt(skipForwardSecondsKey)?.let(::saveSkipForwardSeconds)

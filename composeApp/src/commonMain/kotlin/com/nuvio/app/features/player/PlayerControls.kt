@@ -914,6 +914,11 @@ private fun ProgressControls(
     val audioPainter = appIconPainter(AppIconResource.PlayerAudioFilled)
 
     Column(modifier = modifier) {
+        PlayerChapterLabel(
+            chapters = playbackSnapshot.chapters,
+            positionMs = displayedPositionMs,
+            metrics = metrics,
+        )
         Box(
             modifier = Modifier
                 .fillMaxWidth()
