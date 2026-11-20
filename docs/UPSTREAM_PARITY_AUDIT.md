@@ -2481,3 +2481,34 @@ No other TRUE DUPLICATE was confirmed. Similar cards, source-set actuals, separa
 **Classification:** Mew source discovery vs upstream batch plan = **SHARED PATTERN / DIFFERENT SEMANTICS**; Android/iOS transfer engines = **INTENTIONAL PARALLEL / PLATFORM LIFECYCLE DIFFERENCES**; Mew profile-scoped download state = **KEEP**; upstream device-level preferences = **NEEDS PRODUCT DECISION**.
 
 **Verification:** static source reads only. No download, worker, queue, persistence or transfer code changed; no tests, builds, file I/O or device/network checks run.
+
+
+## Watched threshold and short-placeholder behavior comparison (2026-11-20 16:53:47 IST)
+
+**Target:** `Main-dev`  
+**Verified target HEAD before write:** `9bbe1459989e702320e755154dd9ce5baf4b84bb`  
+**Application-source baseline:** `8a36dcede748ba6bb35d2a49c1ffd062bf7efbd0`  
+**Previous audit document blob / write guard:** `e1ada6974a5795e4d01f922f81fcd68b2dd1e59f`  
+**Files inspected:** Mew `WatchingPolicies.kt`, `WatchingActions.kt`, `WatchedRepository.kt`, `WatchProgressRepository.kt`; upstream equivalents plus `WatchedThresholdSettings.kt` and Android/iOS storage actuals.
+
+### Confirmed behavior delta
+
+- Mew already owns the shared watch policy in `WatchingPolicies.kt`; its completion threshold is a fixed `0.90` fraction. `isProgressComplete()` accepts `isEnded` before checking duration, then marks complete at 90% for positive durations.
+- Upstream moves the threshold into `WatchedThresholdSettings`, with choices 80/85/90/95/99 and a default of 90. The setting is app-global/device-local in both inspected actuals (Android SharedPreferences, iOS NSUserDefaults; no profile-scoped key).
+- Upstream also adds `isShortPlaceholderDuration()`: positive durations from 1 ms through 120,999 ms are treated as error/placeholder clips. It blocks both progress storage and completion, including the `isEnded` path. Zero/negative duration is intentionally not classified as a short placeholder and continues through the normal policy.
+- Mew's `shouldStoreProgress()` currently stores any position at or above 1,000 ms without checking duration, and Mew has no equivalent short-placeholder guard in the inspected policy.
+- Mew's `WatchingActions.onProgressEntryUpdated()` converts completed progress into a watched mark; WatchedRepository then handles profile/source selection and provider/Nuvio sync. Manual poster/episode/season watched actions also clear progress and reconcile series state. A policy change therefore affects more than a player badge: it can change persisted watched markers and tracker sync.
+
+### Decision
+
+**ADAPT within Mew's existing WatchingPolicies owner; do not add a parallel watched/progress policy.**
+
+- Candidate A: configurable completion threshold using the upstream option set and a clearly defined app-global scope (or an explicitly approved Mew-specific scope). Reuse the current policy function so every caller observes the same value.
+- Candidate B: short-placeholder guard in both `shouldStoreProgress` and `isProgressComplete`, with exact boundary tests at 0, 1, 120,999, 121,000 ms and `isEnded=true`.
+- Before implementation, trace all Android/iOS player progress callbacks, external-player completion, manual watched actions, resume prompts, downloads/offline playback and each connected tracking provider. Verify whether any provider-specific completion threshold or remote progress source should override local policy.
+- Add regression tests for 80/85/90/95/99%, ended streams, unknown/zero duration, short placeholder clips, normal episodes, stale profile generations and provider sync side effects.
+- Keep the existing WatchedRepository and WatchProgressRepository separation, profile-scoped records, source selection and sync policies. Do not move watched/progress data to app-global storage merely because the threshold preference is device-global upstream.
+
+**Classification:** shared `WatchingPolicies` = **ALREADY IMPLEMENTED / SINGLE OWNER**; configurable threshold = **ADAPT**; short-placeholder guard = **ADAPT candidate**; watch/progress persistence and provider sync = **KEEP / REGRESSION-SENSITIVE**.
+
+**Verification:** static source reads only. No watch policy, preference, persistence, provider sync, tests, builds or playback behavior changed or run.
