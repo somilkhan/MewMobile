@@ -2189,3 +2189,33 @@ The default strings.xml contains 2,930 string entries. For a settings-relevant k
 **Classification:** Navigation 3 route stack vs SettingsScreen internal page state = **INTENTIONAL LAYERING / DIFFERENT MODES**, not duplicate; SettingsPageRoute pageName compatibility = **COMPATIBILITY CONTRACT**; static parent back = existing **CONFIRMED INTERNAL/TABLET LIMITATION**; AddonInstall deep link bypass risk = existing **CONFIRMED PRIVACY GAP / SHARED CALLER COVERAGE**; no new TRUE DUPLICATE.
 
 **Verification:** static GitHub source reads at application HEAD 8a36dcede748ba6bb35d2a49c1ffd062bf7efbd0. No code changes, route serialization tests, process recreation, device/simulator checks, builds or tests performed. Protected main rechecked and unchanged.
+
+
+## Tracking, Account, Profile and Diagnostics dialog interaction pass — 2026-11-20 16:30 IST
+
+**Target:** Main-dev  
+**Verified branch HEAD before write:** 6b88f6b7ce2112dcf64898cecc612a8f80da4342  
+**Previous audit document blob / write guard:** f8a1d3a69307d622c44d0cdcf94ed786959fadb1  
+**Application source audit HEAD:** 8a36dcede748ba6bb35d2a49c1ffd062bf7efbd0  
+**Files inspected:** TrackingProviderCards.kt, TrackingSettingsPage.kt, TrackingAdaptivePicker.kt, SimklSyncInfoDialog.kt, AccountSettingsPage.kt, ProfileEditScreen.kt, PinEntryDialog.kt, AdvancedSettingsPage.kt, SettingsSecretTextField.kt, AiAssistantSettingsPage.kt, MdbListSettingsPage.kt, TmdbSettingsPage.kt, DebridSettingsPage.kt.
+
+### Tracking and provider authorization
+- Trakt/Simkl/anime cards share TrackingConnectionCard with provider-specific copy/callbacks. Awaiting-approval exposes Resume and Cancel; connected state exposes Sync where supported and a destructive Disconnect confirmation. Browser-launch failure is surfaced inline. **SHARED PATTERN / DIFFERENT PROVIDER SEMANTICS**, not duplicate provider cards.
+- TrackingDisconnectDialog uses generic Disconnect action text and provider-specific confirmation title/body. Cancel/outside dismissal leave the connection intact; confirmation invokes the provider callback.
+- TrackingAdaptivePicker is shared: phone uses NuvioModalBottomSheet with animated dismissal; tablet uses BasicAlertDialog with explicit Close. Selection applies immediately and dismisses. The selected option is visually marked by a check icon through SettingsNavigationRow; explicit radio/selected accessibility semantics remain NOT VERIFIED on TalkBack/VoiceOver.
+- Simkl manual client ID uses SettingsSecretTextField and explicit Save. SimklSyncInfoDialog catches browser-open failures and displays an inline error.
+- No new tracking dialog duplicate or confirmed destructive-action defect.
+
+### Account and profile dialogs
+- Account sign-out requires confirmation and starts AuthRepository.signOut() after closing the modal. Account deletion has a busy state, blocks dismissal while deleting, and reports failure inline. Preserve guest-data cleanup; do not change sign-out wording until the anonymous-account flow is resolved.
+- Profile deletion requires confirmation. PIN setup/removal share PinEntryDialog; failed verification clears the entered PIN and shows retry/lockout messaging with haptic feedback. Profile GIF search handles loading, empty, no-results, not-configured and failure states; selection updates the draft avatar URL.
+- Profile save errors are inline. Delete, PIN setup/clear and GIF search are separate workflows; do not merge into one generic profile dialog. Focus restoration, keypad accessibility, long-name layout and in-flight cancellation remain NOT DEVICE VERIFIED. No new defect confirmed.
+
+### Diagnostics and integration credential visibility
+- Sentry enable/disable uses an explanatory confirmation dialog. Logs use a separate view dialog with Copy/Export. Log text has no bounded scroll container in the inspected source; long-log/narrow-screen layout is NEEDS DEVICE VERIFICATION, not a confirmed overflow.
+- AI Assistant, MDBList and TMDB API-key inputs use SettingsSecretTextField, which applies PasswordVisualTransformation and a show/hide control. The existing credential-visibility finding is limited to the Debrid API-key dialog and manifest-defined Plugin text fields.
+- Advanced Logs headings/descriptions and several actions remain hardcoded English; attach to the existing localization finding.
+
+**Classification:** Tracking cards = SHARED PATTERN / DIFFERENT SEMANTICS; adaptive picker = INTENTIONAL PLATFORM PRESENTATION; account/profile workflows = INTENTIONAL PARALLEL ACTION FLOWS; AI/TMDB/MDBList masking = ALREADY IMPLEMENTED; log layout = NEEDS DEVICE VERIFICATION. No new TRUE DUPLICATE or confirmed dialog defect.
+
+**Verification:** static source reads at application HEAD 8a36dcede748ba6bb35d2a49c1ffd062bf7efbd0. No provider auth, PIN attempts, Sentry toggle, log export, locale rendering, accessibility/device checks, builds or tests performed. Protected main rechecked and unchanged.
