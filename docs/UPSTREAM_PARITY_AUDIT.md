@@ -3241,3 +3241,27 @@ Before any Mew implementation, obtain and review the backend contract and decide
 **Classification:** local credential encryption = **CONFIRMED UPSTREAM IMPLEMENTATION**; cloud token portability = **CONFIRMED BY SOURCE AND TESTS**; remote security guarantees = **NEEDS INVESTIGATION / NOT VERIFIED**; direct port = **BLOCKED ON SECURITY REVIEW**.
 
 **Verification:** static source/test inspection only. No Supabase RPC execution, backend policy inspection, build, test run, or device check performed.
+
+
+## Imported stream-badge regex execution — cross-platform safety refinement (2026-11-20 IST)
+
+**Target:** `Main-dev`  
+**Verified branch HEAD before write:** `4e48bf416fcff0c01df951d6dd774871acec207e`  
+**Previous audit document blob / write guard:** `7b757bdfed04511ab25386bef83b8fe1207a5ba1`  
+**Application-source baseline:** `8a36dcede748ba6bb35d2a49c1ffd062bf7efbd0` (no app-source delta on Main-dev).  
+**Files inspected:** Mew `StreamBadgeRules.kt`, `StreamBadgeSettingsRepository.kt`; upstream `StreamBadgeRules.kt`, `BadgePattern.kt`, Android/iOS `BadgePattern` actuals.
+
+### Confirmed behavior and semantic comparison
+
+- Mew imports badge JSON from user-supplied `http://` or `https://` URLs, persists imported filter patterns, compiles enabled patterns with Kotlin `Regex`, then runs `containsMatchIn` against multiple stream metadata candidates (filenames, titles, descriptions, parsed metadata, source/addon names).
+- The inspected Mew matcher has no visible pattern-length/complexity limit, candidate-length bound, execution timeout, or guarded match call. Regex compilation errors are ignored, but a valid pathological pattern can still consume excessive CPU or exhaust the stack during matching. This is a conditional risk from a selected/imported feed, not evidence of an exploitable remote attack without user import/use.
+- Upstream has the same imported-pattern and matching model, but adds an expect/actual `BadgePattern`: Android catches `StackOverflowError` and returns false; iOS uses Foundation `NSRegularExpression` without an equivalent timeout or error/stack guard. Thus the Android wrapper is a partial crash guard, not a complete ReDoS control, and the iOS path remains unbounded in the inspected implementation.
+- The upstream common matcher also normalizes whitespace and adds grouped/two-phase player badge matching. Those are behavior changes, not security controls; do not conflate them with the platform wrapper.
+
+### Decision
+
+**ADAPT ONLY AFTER A CROSS-PLATFORM SAFETY DESIGN — do not copy the wrapper as a complete fix.** First define bounded input sizes and safe matching semantics that work on both Android/JVM and iOS/Native (or replace unrestricted regex with a constrained pattern language). Include tests for invalid patterns, catastrophic-backtracking patterns, long candidate strings, imported payload limits, and both platform actuals. A catch for `StackOverflowError` alone is insufficient and should not be treated as a CPU-time bound. Preserve existing badge schema, profile storage, grouping, and UI behavior when the safety design is approved.
+
+**Classification:** Mew and upstream imported regex execution = **SHARED PATTERN / DIFFERENT PLATFORM SEMANTICS**; upstream Android stack guard = **PARTIAL SAFETY IMPROVEMENT**; upstream iOS regex execution = **UNBOUNDED / NEEDS INVESTIGATION**; wholesale port = **SKIP** until cross-platform safety is addressed.
+
+**Verification:** static source inspection only. No adversarial regex was executed; no tests, builds, performance measurements, device or iOS simulator checks run. No application source changed.
