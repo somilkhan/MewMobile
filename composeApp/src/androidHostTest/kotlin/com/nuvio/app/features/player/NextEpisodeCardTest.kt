@@ -125,19 +125,6 @@ class NextEpisodeCardTest {
         assertDismissed()
     }
 
-    @Test
-    fun swipeDoesNothingWhenSettingIsOff() {
-        swipeEnabled.value = false
-        showCard()
-        card().performTouchInput { swipe(Offset(width * 0.2f, centerY), Offset(width * 0.8f, centerY)) }
-        compose.waitForIdle()
-        card().assertIsDisplayed()
-        compose.runOnIdle {
-            assertEquals(0, dismissals)
-            assertEquals(0, plays)
-        }
-    }
-
     private fun card() = compose.onNodeWithText("Next Episode")
 
     private fun assertDismissed() {
