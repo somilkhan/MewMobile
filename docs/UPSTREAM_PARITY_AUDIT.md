@@ -2661,3 +2661,23 @@ No other TRUE DUPLICATE was confirmed. Similar cards, source-set actuals, separa
 **Classification:** new catalog auto-selected after explicit all-off = **CONFIRMED SOURCE-LEVEL DEFAULTING GAP / ADAPT**; stale visible hero during pending refresh = **NEEDS INVESTIGATION / ADAPT candidate**; HomeCatalogSettingsRepository and HomeRepository = **KEEP / SINGLE OWNERS**.
 
 **Verification:** static source/commit inspection only. No Home UI, addon install, preference migration, cloud sync, tests, builds or device checks run.
+
+
+## Player-time title-logo fallback lookup comparison (2026-11-20 17:00:49 IST)
+
+**Target:** `Main-dev`  
+**Verified target HEAD before write:** `e712d1609ac931802488f7fd4d23c54365997156`  
+**Application-source baseline:** `8a36dcede748ba6bb35d2a49c1ffd062bf7efbd0`  
+**Previous audit document blob / write guard:** `e2b679325194b6a81b093d950a7c2b15c6ddbb02`  
+**Upstream commit inspected:** `3f9c50c122c9c1d63bf3f061e65bd2cb17967fb6`  
+**Files inspected:** upstream `StreamDestination.kt`, `PlayerScreen.kt`; Mew `PlayerScreen.kt`, `MetaDetailsRepository.kt`.
+
+- Upstream fills a missing player title logo in both StreamDestination and PlayerScreen: first use the launch logo, then cached metadata via `MetaDetailsRepository.peek()`, then a lightweight metadata lookup; the resolved logo is passed to player/loading UI and cached-stream paths. It skips unsupported types such as live TV/channel.
+- Mew's `PlayerScreen` currently forwards the supplied `logo` directly; no equivalent player-time logo lookup was found. Mew's existing `MetaDetailsRepository` already provides `peek()` and `fetchBase()` (base metadata without optional enrichment), so a second metadata repository is unnecessary.
+- Mew's content type identifiers and playback entry points differ from upstream. The upstream skip set (`tv`, `channel`) must not be copied without mapping Mew's actual canonical types and verifying parent metadata IDs for local downloads, direct links, movies, series and live channels.
+
+**Decision: ADAPT candidate.** Reuse `MetaDetailsRepository.peek/fetchBase` at the narrowest shared player-entry point. Avoid network lookup when a launch logo or cached logo exists; do not fetch optional enrichment solely for a logo; skip unsupported/live content types; guard asynchronous completion against player/metadata identity changes. Ensure the result reaches every playback path without duplicate lookups. Add tests for supplied/cached/missing logos, type exclusions, request cancellation and episode-vs-parent metadata IDs.
+
+**Classification:** metadata repository = **KEEP / SINGLE OWNER**; player-time logo fallback = **ADAPT**; no new metadata service or parallel cache.
+
+**Verification:** static source/commit inspection only. No playback route, network lookup, tests, builds or device checks run.
