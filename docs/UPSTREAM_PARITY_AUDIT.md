@@ -1697,3 +1697,36 @@ The existing canonical credential-visibility finding above now includes the Debr
 **Overall decision:** **SKIP wholesale port**. Selectively adapt concurrency/network policy only after explicit product approval and regression test plan; investigate download location and iOS background-download parity separately. No app source changes made.
 
 **Verification:** source comparison only; no download tasks, metered-network transitions, storage picker, external folder write, app-background/termination or iOS runtime tests were run.
+
+
+## Live TV settings and model parity — 2026-11-20 13:12:39 IST
+
+**Target:** `Main-dev`  
+**Verified source HEAD before write:** `ca4c18420f18999d43b7e0b724117749fbd789ea`  
+**Previous audit document blob / write guard:** `38c0dd3ba79f0c5925f9f7832b3388dfae7fae62`  
+**Files inspected:** Mew `LiveTvScreen.kt`, `LiveTvRepository.kt`, `LiveTvModels.kt`, `LiveTvStorage.kt`, Enhanced `LiveTvSettingsPage.kt`, and Enhanced `SettingsModels.kt`.
+
+### Current Mew behavior
+
+- Mew has one active Live TV source at a time: M3U URL, local M3U file, Stalker credentials or Xtream credentials. `LiveTvRepository` persists one source type/URL/local playlist payload and the Stalker/Xtream settings; the screen's gear opens an in-screen provider configuration surface.
+- Mew supports EPG parsing/loading from EPG URLs discovered in the active M3U source, cached EPG data and guide display. The inspected Mew settings screen does not expose a manual multi-source EPG manager or an EPG auto-detect preference.
+- Mew's existing `liveTvEnabled` flag in Nuvio Enhanced is the feature/visibility gate; `LiveTvRepository.setFeatureEnabled` responds to that gate. Do not add a second equivalent enable toggle.
+- Mew's Xtream/Stalker credential inputs are masked with `PasswordVisualTransformation`. Preserve this; do not regress secret handling when moving configuration UI.
+
+### Enhanced delta
+
+- Enhanced exposes a dedicated Live TV settings route and adds navigation visibility, reload channels/EPG actions, provider settings, multiple configurable M3U URL/local playlists with per-playlist enable/edit/remove, and manual EPG sources with per-source enable/remove plus auto-detect.
+- Enhanced `SettingsPage.LiveTv` is under Services → Integrations. For Mew IA, the natural home is Watch → Live TV because it is a playback destination, while credentials and source management remain within the Live TV workflow.
+- This is not a simple dialog/page duplicate: Mew's one-active-source model and Enhanced's multi-playlist model have different persistence and playback semantics. Mew does not currently contain `LiveTvPlaylist` / `LiveTvEpgSource` model collections in its inspected model.
+
+### Decisions
+
+- Existing Mew feature gate: **ALREADY IMPLEMENTED / DIFFERENT OWNER**; keep one toggle, move it from Enhanced to Watch → Live TV in the proposed IA without duplicating state.
+- Dedicated settings destination: **ADAPT** only if it improves navigation; preserve the existing in-screen gear as a compatibility entry to the same settings surface.
+- Multiple playlists: **NEEDS INVESTIGATION / FEATURE PARITY CANDIDATE**; requires a data-model/storage migration and source-selection policy, not a UI-only port.
+- Manual EPG source manager/auto-detect: **NEEDS INVESTIGATION / FEATURE PARITY CANDIDATE**; preserve current M3U-derived EPG behavior and cache semantics while comparing explicit source precedence and profile scope.
+- Reload controls: **ADAPT** only after confirming current Mew refresh lifecycle and loading cancellation; do not duplicate the existing refresh action.
+
+**Classification:** existing Mew single-source setup vs Enhanced playlist collection = **SHARED PATTERN / DIFFERENT SEMANTICS**; current feature gate vs upstream navigation visibility = **SAME USER-FACING PURPOSE / DIFFERENT STATE OWNER**. No TRUE DUPLICATE found.
+
+**Verification:** static source reads only. No M3U imports, EPG refresh, playlist migration, credentials, playback or device/iOS runtime checks were run.
