@@ -4,10 +4,10 @@
 
 ## Verified repository refs
 - Mew repository: `somilkhan/MewMobile`
-- Active target: `Main-dev` — latest verified HEAD before this handoff refresh: `0bcbf4f85a4ce4a6ac9efe9b27b7e09f8e7f1dff`. Application source audit baseline: `a7f066297ba000833a981b12f8b57c26ce833f7d`; GitHub compare confirms all commits since that baseline changed only `docs/UPSTREAM_PARITY_AUDIT.md`. Re-read the live ref at the start of the next session.
+- Active target: `Main-dev` — latest verified HEAD before this handoff refresh: `e04529427007fbd8aee0378f5ee47b26fab66c83`. Application source audit baseline: `a7f066297ba000833a981b12f8b57c26ce833f7d`; GitHub compare confirms all commits since that baseline changed only `docs/UPSTREAM_PARITY_AUDIT.md`. Re-read the live ref at the start of the next session.
 - Protected stable branch: `main` — `207ef8fa309b8061b73039b2d4e4bde4af65050e` (untouched)
 - Reference branch: `upstream-sync` — `af51bbbc13cdb315a88ef597eb4d2672a60335d5`
-- Mother upstream: `luqmanfadlli/NuvioMobile-Enhanced`, `enhanced` — `b23b28a878b78f5ef9252128b901155fee6eeea9`
+- Mother upstream: `luqmanfadlli/NuvioMobile-Enhanced`, `enhanced` — latest live ref checked `375d93d90864d6b0774d8ab6f58c72d63d10d2af` (newer than the previously audited `b23b28a878b78f5ef9252128b901155fee6eeea9`; delta review NOT RUN)
 - Audit file: `docs/UPSTREAM_PARITY_AUDIT.md`
 - No `MEW-CONTEXT-SNAPSHOT.md` or `CONTEXT-SNAPSHOT.md` exists in the current Main-dev tree.
 
@@ -1387,3 +1387,38 @@ The existing canonical credential-visibility finding above now includes the Debr
 - **Classification:** Library Health card vs system diagnostics = FALSE POSITIVE; Home Concierge vs Library Release Radar = SHARED DATA / DIFFERENT PRESENTATIONS; no new duplicate settings identified.
 
 **Verification:** static source inspection only; no source changes, builds/tests or device checks. This refinement supersedes the earlier NEEDS INVESTIGATION note for Library Health.
+
+
+## Settings search and navigation re-verification — 2026-11-20 12:08:00 IST
+
+**Target:** `Main-dev`  
+**Verified branch HEAD before write:** `e04529427007fbd8aee0378f5ee47b26fab66c83`  
+**Previous audit document blob / write guard:** `c14b1a610265d0d4cb08f4c3eb968c53865629ff`  
+**Application source baseline:** `a7f066297ba000833a981b12f8b57c26ce833f7d`; compare reports 17 commits ahead, 0 behind, with exactly one changed path: `docs/UPSTREAM_PARITY_AUDIT.md`. No application source changed since this baseline.  
+**Live refs rechecked:** `main` = `207ef8fa309b8061b73039b2d4e4bde4af65050e` (untouched); `upstream-sync` = `af51bbbc13cdb315a88ef597eb4d2672a60335d5`; mother upstream `enhanced` = `375d93d90864d6b0774d8ab6f58c72d63d10d2af`. Upstream advanced from the prior audit anchor; its new delta has NOT yet been compared.
+
+**Files re-read:** `SettingsSearch.kt`, `SettingsModels.kt`, `SettingsScreen.kt`, plus the full `docs/UPSTREAM_PARITY_AUDIT.md`.
+
+### Verified search behavior and category mapping
+
+- `SettingsSearchTarget` still supports page targets plus Downloads, Collections, Switch Profile and Check for Updates. There is no stable control-ID/scroll target. `addRow()` deliberately creates `SettingsSearchTarget.Page(page)`; a row-level search result therefore opens its owning page but does not reveal/focus the matched control. This confirms the existing canonical search discoverability finding; **no duplicate finding added**.
+- Search category labels are still sourced from the legacy `SettingsCategory.Account/General/Enhanced/About/Advanced` enum. Tracking search entries are explicitly categorized as Account, while the page model also assigns `SettingsPage.TraktAuthentication` to Account. This confirms the existing Tracking → Services mismatch in both navigation metadata and search metadata.
+- Search page/row entries for Plugins and CloudStream are conditional on `pluginsEnabled`; the runtime route also checks `isEnabledByPolicy()` and falls back to Addons content when disabled. Preserve this policy and compatibility behavior when changing categories or adding granular Playback pages.
+- The root search has dedicated utility targets for Downloads, Collections, profile switching and update checks. These are distinct from preference-page targets and must remain so during taxonomy changes.
+- The TMDB duplicate remains visible in the current search/control map: Content Discovery exposes the same enable state as the canonical TMDB page. Retain the already-recorded single canonical duplicate entry.
+
+### Verified navigation/restoration risk
+
+- Tablet navigation stores `selectedCategory` using `rememberSaveable` and immediately calls `SettingsCategory.valueOf(selectedCategory)`; it has no safe fallback for removed/renamed category strings. Existing names are Account, General, Enhanced, About and Advanced. This confirms the existing migration blocker: implement a legacy-name parser (including Enhanced) and tests before replacing category values.
+- `SettingsPage.previousPage()` is exactly the static `parentPage`. A contextual shortcut to TMDB from Content Discovery cannot return to its origin while the page parent remains Integrations. The existing route mismatch is therefore confirmed at the navigation-model level; any fix must preserve direct links and saved enum names.
+- Tablet inline navigation sets the selected category from `page.category`; a future page split must assign category and parent coherently, or the sidebar and Back header can disagree.
+
+### Classification / decisions
+
+- Search row → containing page: **CURRENT LIMITATION / ALREADY DOCUMENTED**, not a broken route and not an upstream parity gap (upstream also uses page targets).
+- Tracking in Account: **CONFIRMED TAXONOMY MISMATCH / ADAPT** to Services while retaining the `TraktAuthentication` route name.
+- Plugins/CloudStream no-op or Addons fallback across policy/source sets: **COMPATIBILITY SHIM / INTENTIONAL PLATFORM-FLAVOR IMPLEMENTATION**; preserve.
+- Downloads manager utility target vs future Downloads preferences page: **SHARED LABEL / DIFFERENT SEMANTICS**; do not merge.
+- Category restore via `valueOf`: **CONFIRMED COMPATIBILITY RISK**; safe legacy mapping is a precondition to category migration.
+
+**Verification:** GitHub source/document reads and commit comparison only. No application source changes, builds, tests, TalkBack/VoiceOver, Android device or iOS simulator checks. Upstream branch head was refreshed, but its delta audit remains open.
