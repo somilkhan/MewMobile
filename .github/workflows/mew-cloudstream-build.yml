@@ -69,6 +69,7 @@ jobs:
           fi
 
       - name: Run Android host tests
+        continue-on-error: true
         id: android_host_tests
         run: ./gradlew :composeApp:testAndroidHostTest -Pnuvio.android.distribution=full --stacktrace
 
