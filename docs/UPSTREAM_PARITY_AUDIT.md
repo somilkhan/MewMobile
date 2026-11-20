@@ -549,3 +549,46 @@ Inspected at the baseline SHA:
 - Source changes: **NONE**.
 - Build/tests/device verification: **NOT RUN**.
 - Next: inspect upstream root/settings navigation and complete Mew Playback plus content/integration control mapping, then continue dialogs/search/platform audit.
+
+
+## Settings audit findings — 2026-11-20 (continued)
+
+### Playback: confirmed hierarchy gap
+- Mew's `PlaybackSettingsPage.kt` is approximately 185 KB and currently renders **11 major sections** in one page: player controls, subtitle/audio selection, subtitle rendering/appearance, P2P, stream selection, stream auto-play, decoder, iOS audio/video output, skip segments and next-episode behavior.
+- The file also owns many dialog states and engine/platform conditionals. Examples include iOS-only external-player selection and iOS output controls, Android-only external subtitle forwarding/decoder/libass options, and P2P visibility policy. These conditions are behavior, not clutter; preserve them during any split.
+- Enhanced separates Playback into ten child destinations: Player, Stream Selection, Up Next, Skip Segments, Interface, Audio, Subtitles, Video, Buffer and P2P. Its `visiblePlaybackSections` explicitly hides Buffer on iOS and when libmpv is selected, and hides P2P when the feature is unavailable.
+- Decision: **ADAPT** the granular navigation and section ownership into Mew's existing `SettingsPage` model. Keep Mew's controls, repositories, engine semantics and platform gates; do not replace the 185 KB file with upstream implementations.
+
+### Mew Enhanced page: mixed-domain settings
+- `NuvioEnhancedSettingsPage.kt` is approximately 91 KB and contains its own internal category navigation (`New`, `All`, `Core`, `Home`, `Player`, `System`) plus many sections spanning home/hero, player tools, detail presentation, release radar, network, backup, downloads, discovery and diagnostics.
+- This page is a second navigation taxonomy inside the main settings taxonomy. It is a major source of discoverability fragmentation. Proposed direction: redistribute controls by user intent into Look/Home, Watch/Playback, Services/Integrations and System/Advanced while retaining a clearly named Mew-specific destination only for features that genuinely have no natural home.
+- Confirmed **TRUE DUPLICATE**: Parental Guide appears in both Playback → Player and Nuvio Enhanced → Player Tools. Both read `PlayerSettingsRepository.uiState.showParentalGuide` and write through `PlayerSettingsRepository.setShowParentalGuide`. Retain one canonical control under Playback → Player; preserve any required feature-announcement metadata during migration. Do not duplicate the stored preference or repository.
+- Other overlapping-looking controls (e.g. next-episode behavior, subtitle sync, memory-safe buffering and hero/detail settings) are **NEEDS INVESTIGATION** until state keys, callbacks and runtime effects are compared. Similar wording alone is not proof of duplication.
+
+### Existing NEW/highlight behavior — distinct semantics
+- Mew already has a compact `EnhancedNewBadge` visual using the accent color with low-opacity fill, thin accent border and label-small typography. This is a useful styling reference for the requested subtle `NEW` label.
+- Current Enhanced highlights are not version-expiring: `NuvioEnhancedSettingsUiState.isNew` checks `featureHighlightsEnabled` and `seenFeatureIds`; controls call `markFeatureSeen`, and users can mark all features seen. The set is persisted in the Enhanced settings payload through Android SharedPreferences and iOS NSUserDefaults using `ProfileScopedKey`.
+- The existing system also has a hardcoded `latestReleaseFeatureIds` / `previouslyReleasedFeatureIds` split. This is a feature-highlights/seen-state system, not the requested three-version expiry system.
+- Classification: **SHARED PATTERN / DIFFERENT SEMANTICS**. Reuse the small badge treatment where appropriate, but do not repurpose the profile-scoped seen-state behavior as the global release-expiry mechanism without an explicit migration design.
+
+### Search and navigation: confirmed discoverability gap
+- `SettingsSearchTarget` currently supports `Page`, Downloads, Collections, Switch Profile and Check for Updates. `SettingsSearchEntry` stores a section label, but `addRow` targets only `SettingsSearchTarget.Page(page)`.
+- Therefore, a result describing an individual setting can identify its page/section in text but cannot address a stable control ID or scroll/focus the exact row. Mobile routes the result to a page/callback; tablet opens the page inline. This is a confirmed page-level-only search behavior, not exact-setting deep linking.
+- Proposed adaptation: add stable setting/control IDs and a target that can open the owning page and reveal/scroll to the matching control, while preserving existing page-only targets and external callback routes. Validate policy gates before reveal and keep mobile/tablet behavior equivalent.
+- Preserve `SettingsPage` enum names used by `initialPageName` / `requestedPageName` and external navigation. Parent-page changes affect back navigation because `previousPage()` directly returns `parentPage`; route compatibility needs explicit coverage.
+
+### Version source for future NEW expiry
+- Gradle generates `AppVersionConfig.VERSION_NAME` and `VERSION_CODE` into common runtime config. The updater already has semantic-version parsing/comparison utilities and host tests.
+- Implementation should use explicit stable-ID metadata with an explicit last-visible release (e.g. introduced 0.5.2, visible through 0.5.4, hidden at 0.5.5), rather than assuming every release increments a patch number. Test skipped releases and unknown version values. Version/build metadata source and platform propagation still require a final implementation-stage verification.
+
+### Duplicate/platform disposition
+- Android and iOS Enhanced settings storage are **INTENTIONAL PARALLEL**: both persist the same profile-scoped payload through platform-native stores. Do not merge platform adapters.
+- Mobile and tablet settings navigation/rendering remain **INTENTIONAL PARALLEL**; align search targets and navigation semantics, but retain responsive presentation differences.
+- No additional duplicate is confirmed by this pass beyond the Parental Guide row. All other candidates remain unclassified until state/callback/runtime comparison is complete.
+
+### Status after this pass
+- Settings audit: **IN PROGRESS**; Playback, root categories, Enhanced settings and search architecture inspected.
+- Confirmed duplicate: **1** (Parental Guide control row).
+- App source changes: **NONE**.
+- Build/tests/device verification: **NOT RUN**.
+- Next: complete control inventories for Appearance/Layout, Content Discovery, Integrations/Tracking, Account/Profile, Notifications, About and Advanced; then inspect all dialog/sheet implementations and theme contrast behavior.
