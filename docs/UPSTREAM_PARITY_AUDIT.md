@@ -2238,3 +2238,22 @@ The default strings.xml contains 2,930 string entries. For a settings-relevant k
 **Classification:** phone/tablet icon picker = INTENTIONAL PLATFORM PRESENTATION; language/navbar selectors = SHARED SHEET PATTERN / DIFFERENT SETTINGS; backup preview/import = DISTINCT BACKUP WORKFLOWS; custom color canvas accessibility = NEEDS DEVICE VERIFICATION.
 
 **Verification:** static source reads at application HEAD 8a36dcede748ba6bb35d2a49c1ffd062bf7efbd0. No app icon changes, locale changes, backup import/export, color-picker interaction, accessibility/device checks, builds or tests performed. Protected main rechecked and unchanged.
+
+
+
+## Compose resource fallback behavior — documentation verified, runtime pending — 2026-11-20 16:32 IST
+
+**Target:** Main-dev  
+**Verified branch HEAD before write:** f412a58c44a186e06f9bb1c53a6d40078aef6d46  
+**Previous audit document blob / write guard:** 4716f13fdd858ca1b6594993d30ae87ef37a65c2  
+**Application source audit HEAD:** 8a36dcede748ba6bb35d2a49c1ffd062bf7efbd0  
+**Files inspected:** gradle/libs.versions.toml (Compose Multiplatform 1.12.0, Kotlin 2.4.10), default and all 23 localized strings.xml files, AppLanguage.kt.
+
+- JetBrains/Kotlin Multiplatform resource setup documentation states that when a resource with the requested qualifier is unavailable, the default resource without a qualifier is used. Therefore a missing key in values-xx/strings.xml should fall back to its corresponding default values/strings.xml entry rather than render blank, provided the default key exists. The default file was confirmed to contain all 2,930 base string entries used in the comparison.
+- Official references: https://kotlinlang.org/docs/multiplatform/compose-multiplatform-resources-setup.html (qualifier fallback); https://kotlinlang.org/docs/multiplatform/compose-localize-strings.html (localized resource directory/key workflow).
+- This corrects the earlier audit wording: fallback behavior is **DOCUMENTED EXPECTED BEHAVIOR**, not wholly unknown. Actual runtime rendering on this repository's Compose 1.12.0 Android/iOS targets, app-specific language override behavior, RTL direction, plural/placeholder formatting and layout overflow remain **NOT DEVICE VERIFIED**.
+- Missing localized keys remain translation coverage gaps, not missing base resources. Keep the 23-locale key-count matrix as the canonical static coverage inventory. Prioritize tracking/anime, settings and playback copy; do not add duplicate resource keys or remove legacy locale files without a migration review.
+
+**Classification:** missing localized key with default counterpart = **EXPECTED DEFAULT-RESOURCE FALLBACK / TRANSLATION GAP**, not a blank-string bug; values-in alias discrepancy remains separate NEEDS INVESTIGATION.
+
+**Verification:** repository version catalog and all locale XML files read at source HEAD 8a36dcede748ba6bb35d2a49c1ffd062bf7efbd0; official Kotlin Multiplatform docs checked. No build, app locale switching, RTL/locale rendering or device/simulator test performed. Protected main rechecked and unchanged.
