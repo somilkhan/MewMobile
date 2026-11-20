@@ -2541,3 +2541,21 @@ No other TRUE DUPLICATE was confirmed. Similar cards, source-set actuals, separa
 **Classification:** Mew pinned collections vs upstream row placement = **SHARED PATTERN / DIFFERENT SEMANTICS**; HomeCatalogSettingsRepository and sync service = **KEEP / SINGLE OWNER**; row placement and hidden-row disclosure = **ADAPT**; episode shuffle = **NEW FEATURE / NEEDS PRODUCT REVIEW**.
 
 **Verification:** static source reads and source-tree search only. No home UI, persistence, sync or shuffle code changed; no tests, builds or device checks run.
+
+
+## iOS bundled CJK subtitle-font optimization applicability check (2026-11-20 16:55:41 IST)
+
+**Target:** `Main-dev`  
+**Verified target HEAD before write:** `48c774739e20012f623424ba94b30fe258d765e2`  
+**Application-source baseline:** `8a36dcede748ba6bb35d2a49c1ffd062bf7efbd0`  
+**Previous audit document blob / write guard:** `ee712b0ea020fd9c290be9fe07f0371144a7ca43`  
+**Files inspected:** upstream commit `e5000dc8c91e2035b6154e8328f74e2e6eefa7d9` patch; Mew/upstream `PlayerEngine.ios.kt`, `MPVPlayerBridge.swift` and complete source-tree font asset inventories.
+
+- The upstream fix addresses a specific bundled iOS `NotoSans-Regular.ttf` / `subfont.ttf` CJK font (~16 MB) being pointed to from the MPV config directory and reloaded during subtitle switches. It copies the font into a dedicated caches directory and sets `config-dir` separately from `sub-fonts-dir`.
+- Mew's inspected iOS source tree does **not** contain the upstream `iosApp/iosApp/Resources/Fonts/NotoSans-Regular.ttf` or `subfont.ttf` assets, and its `MPVPlayerBridge.swift` does not contain the upstream `configureBundledSubtitleFont()` path. Mew passes the selected custom subtitle font directory from `PlayerEngine.ios.kt` when applying subtitle style.
+- Therefore this exact bundled-font patch is **not directly applicable** to Mew's current asset/runtime setup. Do not port the copy/cache helper or add a 16 MB bundled font as a speculative fix.
+- Keep the separately recorded iOS custom subtitle-font import validation/error-surfacing candidate. If runtime profiling later shows imported custom CJK fonts being reloaded on every switch, investigate that Mew-specific path with memory measurements and tests before changing it.
+
+**Decision:** **SKIP this exact upstream commit for Mew** (false-positive applicability at current source baseline); retain custom-font import/performance as a separate **NEEDS INVESTIGATION** item only if evidence appears.
+
+**Verification:** source/asset tree inspection only. No iOS build, simulator, memory profiling or subtitle playback test was run.
