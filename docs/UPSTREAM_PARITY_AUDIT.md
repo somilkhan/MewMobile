@@ -1550,3 +1550,30 @@ The existing canonical credential-visibility finding above now includes the Debr
 - Existing Advanced Logs and Plugin dialog localization findings remain separate canonical findings; this adds Playback-specific occurrences, not duplicate entries for those screens.
 
 **Decision:** ADAPT the existing localization helper for iOS decoder Off and move libmpv descriptions into string resources. No source edits made. Accessibility and runtime localization layout remain NOT VERIFIED on Android/iOS devices.
+
+
+## Notifications settings control-to-storage and platform audit — 2026-11-20 13:07:39 IST
+
+**Target:** `Main-dev`  
+**Verified source HEAD before write:** `96a943247cd6df7d2ed0cfd310686a35b7631e69`  
+**Previous audit document blob / write guard:** `8a3bd8585a2b2d29789ee42fbe0ac25ee40dd7ac`  
+**Files inspected:** `NotificationsSettingsPage.kt`, `EpisodeReleaseNotificationsRepository.kt`, `EpisodeReleaseNotificationsModels.kt`, common/Android/iOS notification platform and storage expect/actual files.
+
+### Canonical setting map
+
+- The only user preference currently exposed on the Notifications page is **Episode Release Alerts**. Its switch calls `EpisodeReleaseNotificationsRepository.setEnabled`; it is disabled while repository loading is active.
+- The repository requests platform notification authorization before enabling. Denial leaves the setting disabled, clears scheduled count, and exposes a localized permission message. If permission is later revoked externally, repository refresh clears pending schedules while retaining the user's enabled preference and reports the permission problem.
+- The test notification button is intentionally still available when permission is missing: its action requests authorization again and then sends a test notification. Do not disable it solely because `permissionGranted == false`.
+- Test target selection prefers a followed series, then falls back to the first library item. This is test-only behavior; it does not alter tracked-show eligibility.
+- Followed shows are reconciled from the active profile's Library state. The stored payload contains enabled state and followed-show metadata, including the date followed; episode requests are built from release dates not earlier than the followed date. Request IDs include profile identity.
+- `EpisodeReleaseNotificationsStorage` is profile-scoped on Android SharedPreferences and iOS NSUserDefaults. Platform scheduled-request identifiers are also profile-scoped. Android WorkManager and iOS UserNotifications implementations are **INTENTIONAL PARALLEL** actuals, not duplicate repositories. Preserve profile switching, cancellation and scheduled-ID bookkeeping.
+- The common platform contract also exposes `showCloudStreamPluginUpdates`; this is an automatic plugin-update notification path, not another user-facing preference on the current Notifications page. Do not add a second toggle without tracing its caller and product policy.
+
+### New localization follow-up
+
+- **CONFIRMED LOCALIZATION GAP:** Android and iOS `showCloudStreamPluginUpdates` actuals hardcode “CloudStream extensions updated” and their message/body formatting. Localize these through shared resources, preserving pluralization and the platform's notification-channel semantics. Episode-release notification channel title/description and episode bodies already use localized resources.
+- Existing Advanced Logs hardcoded copy is a separate canonical localization finding.
+
+**Classification:** Android/iOS storage and notification scheduling = **INTENTIONAL PARALLEL**; automatic CloudStream update notification vs episode-release alerts = **SHARED NOTIFICATION INFRASTRUCTURE / DIFFERENT SEMANTICS**. No duplicate setting identified.
+
+**Verification:** static source reads only. No notification permission prompts, background worker execution, iOS notification scheduling, app lifecycle or device tests were run.
