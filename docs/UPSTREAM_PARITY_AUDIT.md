@@ -1051,3 +1051,54 @@ This is the clearest current mapping from the audited Mew pages to upstream Enha
 **Planning implication:** the final Watch map must include Buffer, Up Next, Player/Interface and Subtitles as destinations for these existing controls. Do not create new controls or duplicate repository state. Keep the existing `PlayerSettingsRepository` and storage keys; this is a navigation/ownership mapping, not a storage migration.
 
 **Verification:** read-only source inspection; no source changes; builds/tests/device checks NOT RUN.
+
+
+
+## Nuvio Enhanced settings inventory and consolidation map — 2026-11-20 08:10:17 IST
+
+**Verified source ref:** application source baseline `a7f066297ba000833a981b12f8b57c26ce833f7d`; current branch HEAD before this doc write `33789b37f25d20e7d96d32457e2e803ff5fb1e19` (documentation-only commits since source baseline).  
+**Document write guard:** previous blob `ff111df0d25c0d306ce0b8104d3493079f54f277`.  
+**File inspected:** `NuvioEnhancedSettingsPage.kt`, including all section headings and visible switch/navigation row titles.
+
+### Current inventory
+
+The Nuvio Enhanced page contains 13 functional sections and at least 49 ordinary switch/navigation rows, plus dynamic provider lists, dialogs, platform-conditional actions and feature-policy gates. Its internal categories are `New`, `All`, `Core`, `Home`, `Player`, and `System`. This is a separate internal taxonomy layered on top of the outer Mew Settings categories; it should not remain a second disconnected settings destination after consolidation.
+
+### First-pass destination mapping (provisional, not implementation instructions)
+
+| Current section / control family | Proposed destination | Audit decision |
+|---|---|---|
+| Nuvio Experience: home features, quiet/home presentation, smart shelf | Look → Home | ADAPT; inspect each preference's effect and dependencies |
+| Smart Resume / next-episode progression | Watch → Up Next / Continue Watching | ADAPT; preserve playback and catalog semantics |
+| Continue Watching ready badge | Look → Home / Continue Watching | ADAPT |
+| Profile Stats | You → Profile | ADAPT; verify profile ownership and visibility |
+| Release Signals / Release Digest / Release Radar / Library-only Radar | Watch → Content Discovery (or a distinct discovery subpage) | NEEDS INVESTIGATION; inspect data source, user-facing surface and refresh behavior |
+| Library Health | System → Diagnostics or Watch → Library | NEEDS INVESTIGATION; determine whether it is a diagnostic or library preference |
+| Concierge | Services or Watch | NEEDS INVESTIGATION; inspect whether this is AI/service configuration or a viewing workflow |
+| Status Bar | Look → Interface | ADAPT; preserve Android/iOS and system-bar behavior |
+| Live TV | Watch → Live TV / Content Discovery | NEEDS INVESTIGATION; distinguish playback destination from service configuration |
+| Player Tools: source pinning and background stream prefetch | Watch → Stream Selection / Sources | ADAPT; preserve provider ordering, network use and policy gates |
+| Player status overlay / player clock | Watch → Player / Interface | ADAPT |
+| Subtitle Sync Menu / subtitle selector and audio selector style | Watch → Subtitles / Audio | ADAPT; preserve current feature IDs and seen state |
+| Random Next Episode / Next Episode Button | Watch → Up Next / Player Interface | ADAPT; distinguish episode-selection behavior from player control visibility |
+| Memory Safe Buffer | Watch → Buffer | ADAPT; Android-only, external-player and engine gates already documented |
+| Parental Guide | Watch → Player or Content Warnings | Keep one canonical control; existing TRUE DUPLICATE record remains authoritative |
+| Hero Experience and Detail Presentation (hero style, video preview, overview, detail header, Nuvio Read, trailer layout, download button placement) | Look → Home / Details | ADAPT; separate appearance preferences from actual trailer playback behavior |
+| Hero trailer playback and sound | Watch → Player / Preview Playback | ADAPT; preserve feature-policy and in-app playback capability checks |
+| Hero/detail ratings presentation | Look → Details | ADAPT; verify this is presentation-only and not a tracking/service preference |
+| Network: DNS-over-HTTPS provider | System → Network | ADAPT; preserve DNS-aware client routing and provider persistence |
+| Backup / Import / Copy / Paste | System → Backup | ADAPT; preserve profile backup schema, validation and failure feedback |
+| External download folder choose/change/remove | Watch → Downloads (preferences), not Downloads manager | ADAPT; Android-only today; iOS no-op/capability gap remains separately documented |
+| Feature Highlights toggle | System → About / What's New | NEEDS INVESTIGATION; keep separate from the new release-version-based NEW badge |
+| Diagnostics / last crash report | System → Diagnostics | ADAPT; preserve report availability policy and copy feedback |
+| Community links/footer | About / Community utility, not a preference row | Keep as utility destination/action |
+
+### Important consolidation constraints
+
+- The `New` internal category is driven by `NuvioEnhancedSettingsRepository.isNew(...)` and `markFeatureSeen(...)`; it is profile-scoped/dismissible feature-highlighting behavior. Preserve those feature IDs and semantics during moves. It is not the user's approved three-release NEW badge.
+- Current section headings are not reliable final category boundaries. Map each control by behavior, state owner, platform scope, policy and user workflow; do not move entire sections blindly.
+- A number of Enhanced controls read/write repositories other than `NuvioEnhancedSettingsRepository` (including `PlayerSettingsRepository`, `HomeCatalogSettingsRepository`, `MetaScreenSettingsRepository`, and `DnsOverHttpsSettingsRepository`). The visible page is a mixed settings hub, not one coherent persistence domain. Preserve the existing owner; do not create duplicate state or migrate keys just to reorganize navigation.
+- Keep utility links/actions (community links, backup file picker actions, crash-report copy) distinct from ordinary persisted preference rows.
+- Search metadata must move with each setting; current search targets often point to the whole Nuvio Enhanced page, and exact-control reveal is not implemented.
+
+**Status:** this is a first-pass inventory and destination proposal, not the final migration map. The concierge, library health, release/discovery and Live TV semantics still need caller/data-source review. No source changes; builds/tests/device checks NOT RUN.
