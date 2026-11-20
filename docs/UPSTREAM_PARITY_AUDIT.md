@@ -1961,3 +1961,44 @@ The existing canonical credential-visibility finding above now includes the Debr
 
 **Verification:** GitHub source reads at the recorded HEAD; compare confirms the only commit after the previously recorded HEAD changed this audit document. No builds, unit tests, locale switching, profile switching on device, Android device checks or iOS runtime checks were run.
 
+
+
+## Profile settings sync boundaries and independent sync pipeline — 2026-11-20 16:18 IST
+
+**Target:** `Main-dev`  
+**Verified branch HEAD before write:** `cc21dae63c4668b5e18aa687bd5f1213ca628d51`  
+**Previous audit document blob / write guard:** `5376d3c3fab6f0ef69d5705285352f38d24ba5ea`  
+**Application source audit HEAD:** `8a36dcede748ba6bb35d2a49c1ffd062bf7efbd0` (the commits after this source HEAD through the current branch HEAD are audit-document-only; re-check before implementation).  
+**Files inspected:** `core/sync/ProfileSettingsSync.kt`, `features/profiles/ProfileRepository.kt`, `core/storage/ProfileScopedKey.kt`, `features/library/LibraryDisplaySettings.kt`, `features/library/LibraryDisplaySettingsStorage.kt`, `features/tracking/TrackingSettings.kt`, `features/home/HomeCatalogSettingsRepository.kt`, `features/home/HomeCatalogSettingsSyncService.kt`, `features/anime/AnimeTrackingSettingsRepository.kt`, `features/anime/AnimeTrackingAuthStorage.kt`.
+
+### General profile-settings sync — explicit allowlist, not repository auto-discovery
+
+- `ProfileSettingsSync` owns a fixed set of 21 observed/exported feature groups. The export/apply contract is explicit in `MobileProfileSettingsBlob`; it is not derived from every repository that responds to `ProfileRepository.selectProfile()`.
+- The sync payload intentionally strips selected profile credentials before upload and preserves local credentials when applying a remote payload for player, debrid, TMDB, MDBList and AI assistant settings. Preserve this security boundary; do not replace the allowlist with broad storage serialization.
+- Global app language remains outside this profile payload; see the preceding canonical finding.
+- `TrackingSettingsRepository` is a facade/typealias over the existing `TraktSettingsRepository`, and the general profile payload already exports the Trakt settings payload. This is a **COMPATIBILITY FACADE / SHARED PERSISTENCE**, not a second tracking-settings store.
+- `LibraryDisplaySettingsRepository` has its own local storage adapter and reloads on profile changes, but its payload is absent from `ProfileSettingsSync`. The inspected code does not establish that it is meant to roam between devices. **NEEDS INVESTIGATION / PRODUCT DECISION:** decide whether library layout and sort are device-local presentation preferences or profile-cloud preferences before adding them to sync. Do not silently change sync behavior as part of category reorganization.
+- `AnimeTrackingSettingsRepository` registers as a `TrackingProfileStore` and persists provider preferences/mappings through `AnimeTrackingAuthStorage`; these settings are not in the general profile-settings blob. Verify the Android/iOS storage scope and any dedicated provider sync before treating this as a missing feature. **NEEDS INVESTIGATION**, not a confirmed sync defect.
+
+### Home catalog sync — separate intentional pipeline
+
+- Home catalog settings have a dedicated `HomeCatalogSettingsSyncService`, separate from the general `ProfileSettingsSync` blob. It uses its own pull/push RPCs, shared payload shape, legacy platform compatibility constants, initial-pull token keyed by user/profile, and a push gate that waits for initial pull completion.
+- The general profile blob does not contain the home catalog payload; this is **INTENTIONAL PARALLEL / DIFFERENT SYNC DOMAIN**, not a duplicate implementation. Do not merge the two sync services or remove legacy compatibility handling without auditing server RPC/schema behavior and cross-client migration.
+- Home catalog preferences include catalog ordering, enabled state, custom titles and hero-source controls. The current dedicated sync payload is narrower than the full local repository state; confirm field-by-field compatibility before extending it. No change recommended from this inspection alone.
+
+### Profile switch and concurrency boundary
+
+- `ProfileRepository.selectProfile()` fans out `onProfileChanged()` calls across feature repositories, then clears/reloads dependent caches. This lifecycle fan-out is distinct from cloud sync registration and should remain explicit until every repository has a verified lifecycle contract.
+- `ProfileSettingsSync.pull(profileId)` checks the active profile before and after the network fetch, then applies the remote blob through a sequence of repository/storage writes. The active-profile check occurs immediately before the multi-repository apply, not atomically with the entire apply sequence. **NEEDS INVESTIGATION:** determine whether profile switching can interleave with remote apply on real call paths; do not label it a confirmed race without lifecycle/coroutine evidence or a reproducer.
+- The sync observer debounces local state changes and rechecks the active profile around export/push. Preserve these guards and the remote-apply suppression signature when reorganizing settings.
+
+### Classification and decision
+
+- General profile settings blob vs dedicated home catalog sync: **INTENTIONAL PARALLEL / DIFFERENT SYNC DOMAINS**.
+- Tracking settings facade over Trakt repository: **COMPATIBILITY FACADE / SHARED PERSISTENCE**.
+- Library display preferences absent from cloud blob: **NEEDS INVESTIGATION / DEVICE-LOCAL VS PROFILE-CLOUD PRODUCT DECISION**.
+- Anime tracking preferences absent from general blob: **NEEDS INVESTIGATION**, verify platform storage and dedicated provider sync.
+- Remote blob apply vs concurrent profile switch: **NEEDS INVESTIGATION**, no confirmed defect.
+- No new TRUE DUPLICATE found.
+
+**Verification:** static GitHub source reads at the recorded application source HEAD; current branch and audit blob were rechecked immediately before this documentation write. No app source edits, database/RPC schema audit, build, tests, device profile switching or multi-device sync verification were performed.
