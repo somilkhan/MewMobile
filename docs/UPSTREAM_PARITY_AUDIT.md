@@ -741,3 +741,12 @@ Upstream has a common `DownloadsSettingsRepository` and Android/iOS storage/loca
 - Upstream Enhanced `SettingsSearch.kt` also models individual row results as `SettingsSearchTarget.Page(page)`; it does not currently deep-link to a specific control ID or scroll position.
 - Upstream does improve Playback discovery because each playback subsection is its own `SettingsPage`, and search results can target those granular pages. Mew's single Playback page prevents that level of destination precision today.
 - Therefore, exact-control deep linking is a **Mew UX improvement opportunity**, not a missing upstream feature. The first parity step is to adapt granular page destinations; exact control reveal can be added as a deliberate Mew enhancement if it can be made stable and accessible.
+
+
+## Saved category-state compatibility risk — 2026-11-20
+
+- Mew tablet settings stores the selected category as a string in `rememberSaveable` (`selectedCategory`) and immediately resolves it with `SettingsCategory.valueOf(selectedCategory)`.
+- Current stored names are `Account`, `General`, `Enhanced`, `About`, and `Advanced`. Renaming/replacing the enum without a compatibility mapper can make a restored old value throw instead of falling back safely.
+- Upstream Enhanced already has `settingsCategoryForName` mappings for old names (`Account` → You, `General` → Look, `About`/`Advanced` → System), but Mew's additional `Enhanced` value needs an explicit migration/fallback decision.
+- `SettingsPage` restoration is more defensive (`valueOf` wrapped in `runCatching` and fallback to Root); category restoration currently is not.
+- Requirement before category restructuring: add a safe parser/migration for every legacy category string, including `Enhanced`, and test valid current names, all legacy names, unknown names and process-restored state. Preserve existing `SettingsPage` enum names for external navigation/deep links; use compatibility shims for any page split/retirement.
