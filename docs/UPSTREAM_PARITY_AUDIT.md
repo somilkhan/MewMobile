@@ -2701,3 +2701,23 @@ No other TRUE DUPLICATE was confirmed. Similar cards, source-set actuals, separa
 **Classification:** end-time control and skip/next components = **ALREADY IMPLEMENTED / REUSE**; anchor-based non-overlap layout = **ADAPT**; upstream movie-recommendation card = **NOT APPLICABLE / SKIP** for this pass.
 
 **Verification:** static source/commit inspection only. No player UI, layout, accessibility, tests, builds or device checks run.
+
+
+## iOS MPV Metal backing-scale comparison (2026-11-20 17:02:44 IST)
+
+**Target:** `Main-dev`  
+**Verified target HEAD before write:** `310cdfb646f099b22ecebc90be32e6bb3dc3cade`  
+**Application-source baseline:** `8a36dcede748ba6bb35d2a49c1ffd062bf7efbd0`  
+**Previous audit document blob / write guard:** `604473e74848f3059c074100562aeb606a39a4d7`  
+**Upstream commit inspected:** `839cdcde3c5cb5124f2efb6ad5e3ff32b7549d6f`  
+**Files compared:** Mew/upstream `iosApp/iosApp/Player/MPVPlayerBridge.swift`.
+
+- Mew initializes `metalLayer.contentsScale` and computes `drawableSize` from `view.window?.screen.nativeScale ?? UIScreen.main.nativeScale` in `layoutMetalLayer()`.
+- Upstream replaces the native-scale-only calculation with `renderScale()`, resolving the active window screen (fallback to main screen) and returning `max(screen.scale, screen.nativeScale)`. It uses the same resolved scale for both layer contents scale and drawable size.
+- Mew's Metal layer and layout lifecycle differ from the current upstream bridge (Mew has its own `layoutMetalLayer()`, drawable-size tracking and render-context behavior). The scale correction itself is a small compatible candidate; do not replace the bridge.
+
+**Decision: ADAPT** the scale calculation in Mew's existing Metal-layer initialization/layout helper. Keep Mew's drawable-size change detection, swapchain update and subtitle/render lifecycle unchanged. Verify on iPhone/iPad, external display/windowed modes and any supported scaled-display configuration; check memory/performance and screenshot sharpness. This remains **NOT DEVICE VERIFIED** because no Apple device/simulator run was performed.
+
+**Classification:** Metal layer lifecycle = **KEEP / Mew-specific implementation**; nativeScale-only calculation = **ADAPT candidate**.
+
+**Verification:** static source/commit inspection only. No Swift change, iOS build, simulator, external display or playback test run.
