@@ -4,21 +4,21 @@
 
 ## Verified repository refs
 - Repository: `somilkhan/MewMobile`
-- Active target `Main-dev`: live branch HEAD `0ece7a5970b429217bfd3a74acff413dcf779045`.
-- Latest inspected application-source baseline: `8a36dcede748ba6bb35d2a49c1ffd062bf7efbd0`. GitHub compare confirms the 13 commits after that source baseline modify only `docs/UPSTREAM_PARITY_AUDIT.md`; no app source paths changed.
-- Current audit document blob: `02dc456bc53f32a23458b3d7e85e3b430e6c8602`.
+- Active target `Main-dev`: live branch HEAD `2b32900663f57fa61468c779602e0bb5b657a6da`.
+- Latest inspected application-source HEAD: `8a36dcede748ba6bb35d2a49c1ffd062bf7efbd0`. GitHub compare confirms the 14 commits after that source HEAD change only `docs/UPSTREAM_PARITY_AUDIT.md`; no application source paths changed.
+- Current audit document blob: `25ca32ca9037ceb72dccbd2823daba8b2957f3cc`.
 - Protected `main`: `207ef8fa309b8061b73039b2d4e4bde4af65050e` (unchanged).
-- `upstream-sync`: `af51bbbc13cdb315a88ef597eb4d2672a60335d5` (latest live check 2026-11-20 16:33 IST).
-- Mother upstream `luqmanfadlli/NuvioMobile-Enhanced:enhanced`: `3f9c50c122c9c1d63bf3f061e65bd2cb17967fb6` (latest live check 2026-11-20 16:33 IST). The latest upstream commit remains the player-logo lookup change outside settings IA; no newer settings route-tree delta was found.
+- `upstream-sync`: `af51bbbc13cdb315a88ef597eb4d2672a60335d5` (live ref rechecked 2026-11-20 16:34 IST).
+- Mother upstream `luqmanfadlli/NuvioMobile-Enhanced:enhanced`: `3f9c50c122c9c1d63bf3f061e65bd2cb17967fb6` (live ref rechecked 2026-11-20 16:34 IST). Latest upstream delta remains the player-logo lookup commit outside settings IA. Current route-tree differences are classified in the audit; upstream-only feature implementations remain separate parity work, not empty settings placeholders.
 - No `MEW-CONTEXT-SNAPSHOT.md` or `CONTEXT-SNAPSHOT.md` exists on `Main-dev`.
 
-## Current audit status — 2026-11-20 16:33 IST
-- **Progress estimate: ~96%; static audit remains IN PROGRESS pending final reconciliation.** This is a scope estimate, not a test-completion percentage.
-- Static coverage now includes settings hierarchy/control ownership, profile/persistence/sync boundaries, duplicate checks, Addons/Plugins/CloudStream, Tracking/provider flows, Account/Profile, Appearance/Backup, Notifications/Advanced, Playback/Debrid dialog contracts, route restoration/deep-link callers, and all 23 locale resource files.
-- Confirmed duplicate controls remain **2**: Parental Guide (Playback + Nuvio Enhanced) and TMDB enrichment toggle (Content Discovery + TMDB settings). No new TRUE DUPLICATE was confirmed in the later dialog, persistence or navigation passes.
-- The audit contains a canonical route/compatibility map, upstream TAKE/ADAPT/SKIP/ALREADY IMPLEMENTED/NEEDS INVESTIGATION decisions, localization key-coverage matrix, and current settings hierarchy proposal. The next static step is to reconcile these into one deduplicated decision matrix in this file only.
-- Runtime verification remains **NOT RUN**: Android device, iOS simulator/device, locale switching/fallback rendering, RTL/CJK/long-string layout, TalkBack/VoiceOver, keyboard/focus, process recreation and route serialization tests.
-- No application source changes, builds, tests, merges, promotions or releases have been made in this audit continuation. Do not create the separate settings plan MD; the user will create it after audit sign-off.
+## Current audit status — 2026-11-20 16:34 IST
+- **Static settings IA/source audit: COMPLETE.** This means source-tree, route, persistence, duplicate, dialog-contract, localization-key and upstream settings-route comparisons have been consolidated. It does not mean every upstream feature is implemented or that runtime/device behavior is verified.
+- Confirmed duplicate controls: **2** — Parental Guide (Playback + Nuvio Enhanced) and TMDB enrichment toggle (Content Discovery + TMDB settings). No new TRUE DUPLICATE was found in the final dialog/persistence/navigation passes.
+- Canonical decision matrix is appended near the end of this file. It records ADAPT, KEEP/ALREADY IMPLEMENTED/INTENTIONAL PARALLEL, NEEDS INVESTIGATION and SKIP decisions.
+- Runtime verification remains **NOT RUN**: Android device, iOS simulator/device, app process recreation, route serialization tests, locale switching/rendering, RTL/CJK/long-string layout, TalkBack/VoiceOver, keyboard/focus and profile/provider flows.
+- No application source changes, builds, tests, merges, promotions or releases were made during this audit continuation.
+- **Do not create the separate settings plan MD.** The user will create it after reviewing this audit. Do not implement app changes until the user explicitly approves that plan.
 
 ## Mandatory agent read-first and deduplication protocol (2026-11-20)
 
