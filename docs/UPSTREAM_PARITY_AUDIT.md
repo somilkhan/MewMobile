@@ -708,3 +708,29 @@ This map is provisional. Where a control spans two domains, choose one canonical
 - Confirmed theme contrast risk: **multiple primary/onPrimary palette pairs**, including custom accent.
 - No application source changes. Builds/tests/device verification: **NOT RUN**.
 - Next: complete remaining dialog/copy review and finalize the unified settings map and safe migration strategy before requesting implementation approval.
+
+
+## Downloads settings parity audit — 2026-11-20
+
+### Upstream capability inventory
+Upstream Enhanced's `DownloadsSettingsPage.kt` exposes:
+- Preferred download resolution.
+- Allow downloads over mobile data.
+- Show/hide download action.
+- Legacy download mode (Android-specific gate).
+- Download location selection/reset.
+- Per-category concurrency limits.
+
+Upstream has a common `DownloadsSettingsRepository` and Android/iOS storage/location-picker implementations.
+
+### Mew equivalent check
+- Mew's root Downloads destination opens `DownloadsScreen.kt`, a download manager (active, pending-source, completed movies/shows; pause/resume/retry/delete; open directory). It is **not** a download-settings page.
+- Mew has an episode-download flow sheet with a preferred-quality choice and batch source-selection behavior; this is flow-level behavior, not yet proven equivalent to upstream's global preferred-resolution setting.
+- Mew's Enhanced page exposes external-folder selection only on Android. `DownloadsExternalFolderPlatform.ios.kt` currently returns success(null) from `chooseFolder`, has no selected folder and no-op clear/profile callbacks. This is not equivalent to upstream's iOS document picker.
+- Mew's downloads storage includes profile-scoped download payload, external-folder URI and episode-download-settings payload. Preserve these keys and existing batch/download behavior; do not replace the repository/storage layer wholesale.
+- No Mew `DownloadsSettingsPage` / `DownloadsSettingsRepository` equivalent was found in the inspected tree.
+
+### Decision
+- Upstream Downloads settings: **ADAPT / NEEDS INVESTIGATION**. First map current Mew download defaults, per-batch settings, worker/coordinator concurrency, Android storage permissions and iOS private-storage behavior. Then decide which global controls are useful and safe to expose.
+- The root Downloads manager remains a utility destination, not a settings category. If global download preferences are introduced, give them a distinct Watch → Downloads settings destination rather than merging the manager screen with preferences.
+- iOS download-location selection is a separate platform capability candidate; upstream's document picker is evidence of an implementation path, not proof it is safe to port into Mew's storage architecture.
