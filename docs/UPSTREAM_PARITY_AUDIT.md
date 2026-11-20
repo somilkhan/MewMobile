@@ -2002,3 +2002,34 @@ The existing canonical credential-visibility finding above now includes the Debr
 - No new TRUE DUPLICATE found.
 
 **Verification:** static GitHub source reads at the recorded application source HEAD; current branch and audit blob were rechecked immediately before this documentation write. No app source edits, database/RPC schema audit, build, tests, device profile switching or multi-device sync verification were performed.
+
+
+## Profile-scoped local storage: anime tracking and library display — 2026-11-20 16:31 IST
+
+**Target:** `Main-dev`  
+**Verified branch HEAD before write:** `6854e339345cf8db6a28e4d7587532004d0754c3`  
+**Previous audit document blob / write guard:** `486e16173871ddcfdd5744bad37614a028410807`  
+**Files inspected:** `core/storage/ProfileScopedKey.kt`, `features/anime/AnimeTrackingSettingsRepository.kt`, `features/anime/AnimeTrackingAuthStorage.kt`, Android/iOS actual storage implementations, `features/library/LibraryDisplaySettings.kt`, Android/iOS library storage actuals, `features/profiles/ProfileRepository.kt`.
+
+### Anime tracking settings and credential storage
+
+- `AnimeTrackingSettingsRepository` implements `TrackingProfileStore`, registers with `TrackingProviderRegistry`, and reloads through the registry's profile-change lifecycle. Its preferences and manual media mappings are serialized into `AnimeTrackingAuthStorage.saveSettings()`.
+- Both Android and iOS store the settings and non-secret provider metadata under `ProfileScopedKey`, which appends the active profile ID. The preference/mapping payload is therefore profile-scoped locally.
+- Android encrypts provider secrets using AES/GCM with a key held in Android Keystore; iOS stores provider secrets in Keychain. This is an **INTENTIONAL PLATFORM IMPLEMENTATION** split, not duplicated code to consolidate.
+- Android profile removal clears the profile-scoped settings, metadata and provider secret keys. iOS removes the profile-scoped settings/metadata and profile-specific Keychain secrets. Preserve platform-specific secure storage and cleanup semantics.
+- The repository is not included in the general `ProfileSettingsSync` export/apply allowlist, and the inspected source tree contains no dedicated AnimeTracking settings sync service. **NEEDS INVESTIGATION / PRODUCT DECISION:** decide whether anime provider preferences and manual mappings are intentionally device-local or should roam with profile cloud settings. Do not sync access/refresh tokens, OAuth state or PKCE verifiers as part of this decision; credentials remain local secure-storage material.
+
+### Library display preferences
+
+- `LibraryDisplaySettingsRepository` stores layout mode and sort option as a serialized payload. Android SharedPreferences and iOS NSUserDefaults both use the same profile-scoped key contract.
+- `ProfileRepository.selectProfile()` explicitly invokes `LibraryDisplaySettingsRepository.onProfileChanged()`, confirming profile-specific local presentation state.
+- The payload is absent from the general profile cloud-settings blob. No dedicated library-display sync service was found in the inspected tree. **NEEDS INVESTIGATION / PRODUCT DECISION:** determine whether layout/sort should remain device-local per profile or sync across devices. Do not silently add it to cloud sync during settings IA work.
+
+### Duplicate / compatibility classification
+
+- Android SharedPreferences vs iOS NSUserDefaults/Keychain/Android Keystore: **INTENTIONAL PARALLEL** platform storage implementations.
+- Anime tracking preference repository vs general TrackingSettings facade: **SHARED PATTERN / DIFFERENT SEMANTICS**; anime provider-specific scrobble preferences and manual mappings are not the Trakt-backed library/watch-progress source preference facade.
+- ProfileScopedKey: **SHARED PATTERN**, one common key contract used by platform storage adapters.
+- No confirmed duplicate or sync defect identified.
+
+**Verification:** static GitHub reads at `6854e339345cf8db6a28e4d7587532004d0754c3`; Android/iOS storage actuals and profile lifecycle were inspected. No secrets were retrieved. No cloud schema/RPC behavior, live provider sync, build, tests, device profile deletion, or multi-device behavior was verified.
