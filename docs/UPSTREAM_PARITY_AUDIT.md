@@ -2867,3 +2867,54 @@ No other TRUE DUPLICATE was confirmed. Similar cards, source-set actuals, separa
 - Upstream's queued-download fix makes `Queued` items use the same Pause action as `Downloading`; Paused and Failed items can resume through the same transfer toggle.
 - **ADAPT candidate / product UX decision:** consider adding a pause action for Mew `Waiting` items and transition them to `Paused`, then preserve queue order and resume semantics. Do not rename `Waiting` to `Queued` or copy upstream's transfer state machine. Test pause/resume while another item is active, one-at-a-time queue progression, deletion of paused/waiting items, app restart and profile switch.
 - This is an extension of the existing canonical Downloads comparison above, not a separate queue architecture or duplicate coordinator.
+
+
+## Build toolchain, native submodules, Cast and CI parity pass (2026-11-20 17:12:37 IST)
+
+**Target:** `Main-dev`  
+**Verified target HEAD before write:** `dc7b5b805f05ede3c4f22cdb44a11075afdd1128`  
+**Application-source baseline:** `8a36dcede748ba6bb35d2a49c1ffd062bf7efbd0`  
+**Previous audit document blob / write guard:** `39b95e8a2e040696331c85679b2a379ce216e4cc`  
+**Files inspected:** both repositories' `gradle/libs.versions.toml`, Gradle wrapper properties, root/settings/composeApp/androidApp Gradle scripts, `.gitmodules`, source-tree inventories and CI workflow inventories; upstream `baselineprofile` and Cast implementation.
+
+### Toolchain/version deltas
+
+| Component | Mew Main-dev | Mother upstream enhanced | Decision |
+|---|---:|---:|---|
+| Kotlin | 2.4.10 | 2.4.10 | SAME |
+| AGP | 9.2.0 | 9.4.0 | NEEDS COMPATIBILITY TEST |
+| Gradle wrapper | 9.4.1 | 9.8.2 | NEEDS COMPATIBILITY TEST |
+| Compose Multiplatform | 1.12.0 stable | 1.13.0-beta01 | DO NOT TAKE BETA BLINDLY |
+| Coroutines | 1.10.2 | 1.10.2 | SAME |
+| Ktor | 3.4.1 | 3.4.1 | SAME |
+| Media3 | 1.8.0 | 1.8.0 | SAME |
+| MPV Android library | 0.1.12 | 0.2.1 | NATIVE API/ABI AUDIT REQUIRED |
+| Supabase | 3.4.1 | 3.4.1 | SAME |
+| Sentry | 8.47.0 | 8.47.0 | SAME |
+
+- Mew's root Gradle build has an explicit dependency-resolution rule forcing kotlinx-coroutines to 1.10.2 because Android Full CloudStream provider binaries call `BuildersKt.runBlockingK`. Upstream does not carry this Mew-specific guard. **Preserve it** unless every shipped CloudStream provider binary and source set is verified against a newer runtime.
+- Mew and upstream both have Android Full/Play Store and iOS Full/App Store source-set selection in `composeApp/build.gradle.kts`; this is not a new upstream architecture to port. Preserve Mew's default distribution and generated runtime-config values.
+- Mew's Android application ID is `com.mew.mobile`; upstream is `com.nuvio.media`. Mew's release signing includes its own keystore properties and legacy update-compatibility gate. Never copy upstream application IDs, signing, release metadata or publishing configuration.
+- Mew's generated runtime config includes Mew updater owner/repository and Mew app version/base-version settings. Keep those identities and endpoints Mew-owned.
+
+### Native submodule pins
+
+- Mew `MPVKit` submodule SHA: `d5cf091c80368bbbc1bbf2d195fbc55d926df888`.
+- Upstream `MPVKit` submodule SHA: `359a885342d4eeda757f8e1d2c24fb01fe6d39c2`.
+- Mew's `.gitmodules` points MPVKit to `NuvioMedia/MPVKit`, branch `Nuvio`; upstream points to `luqmanfadlli/MPVKit`, branch `nuvio-enhanced`. This is a native playback compatibility boundary. Do not update the submodule or copy Swift bridge changes without auditing both fork histories and Mew's C/Swift callsites.
+- `libass-android`, `vendor/TorrServer` and `vendor/quickjs-kt` submodule SHAs match between the inspected refs. Mew has no extra submodule replacement required from upstream.
+
+### Upstream-only platform/build capabilities
+
+- **Baseline Profile:** upstream adds a `:baselineprofile` module, Macrobenchmark/UIAutomator test and Android Baseline Profile Gradle plugin. Mew has no baselineprofile module. **ADAPT candidate** for cold-start/Home-scroll performance; it requires a working instrumented app, compatible emulator/device and measured profile generation. Do not add it as an unmeasured build-only dependency.
+- **Google Cast:** upstream adds `play-services-cast-framework`, `PlayerCastBridge.android.kt` and Cast options provider. Mew has no Cast bridge/provider in its source tree. **NEW ANDROID FEATURE / NEEDS PRODUCT REVIEW**. Before implementation, audit media headers/auth, receiver compatibility, audio/subtitle support, seek/progress sync, disconnect/session lifecycle, external player/P2P/debrid behavior and Play Services availability. Do not assume iOS parity.
+- **iOS CI:** Mew's workflow inventory contains Android release and maintenance workflows but no iOS test-build workflow. Upstream has an unsigned iOS test-build workflow using macOS/Xcode and its own dependency-preparation script. **ADAPT candidate** for Mew CI-only compilation validation after checking Mew's own MPVKit and NuvioEngine XCFramework inputs, memory requirements and secrets. No release signing or publishing should be introduced.
+- **Release workflows:** upstream's mobile-release/store-source workflows are coupled to its package identity, signing secrets, release tags, store source files and Nuvio release metadata. **SKIP wholesale port**. Mew's Android release workflow and updater identity remain authoritative.
+
+### Verification status
+
+- Static Gradle/workflow/submodule inspection only.
+- No Gradle task listing, dependency resolution, build, lint, baseline profile generation, Android Cast session, iOS build, CI workflow or release action was run.
+- Version updates, MPVKit changes, Baseline Profile, Cast and iOS CI remain **NOT IMPLEMENTED**.
+
+**Classification:** Mew Gradle coroutines compatibility rule = **KEEP**; MPVKit submodule = **INTENTIONAL PARALLEL / NATIVE COMPATIBILITY BOUNDARY**; Baseline Profile = **ADAPT**; Cast = **NEW FEATURE / NEEDS PRODUCT REVIEW**; iOS CI = **ADAPT candidate**; release workflow = **SKIP wholesale port**.
