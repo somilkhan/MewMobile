@@ -1498,3 +1498,30 @@ The existing canonical credential-visibility finding above now includes the Debr
 - Accessibility semantics (checkbox/radio state, focus return, keyboard behavior, touch target and screen-reader announcement) remain **NOT VERIFIED** without platform runtime testing.
 
 **Verification:** GitHub source reads only; no application source changes, tests, builds, TalkBack/VoiceOver or device checks. This is a behavior-contract audit, not an implementation.
+
+
+## Playback dialog commit, validation and dismissal audit — 2026-11-20 13:05:51 IST
+
+**Target:** `Main-dev`  
+**Verified source HEAD before write:** `d6da9153b95e217ec65542fcfacdef701d9862ee`  
+**Previous audit document blob / write guard:** `dd473260ab96fe7f4b2cdfb80f0fce142546987a`  
+**Files inspected:** `PlaybackSettingsPage.kt` (20 dialog call sites; detailed review of provider allowlists, regex editor, IntroDB key and threshold-mode picker); `SkipIntroRepository.kt`; `SkipIntroApi.kt`.
+
+### Verified dialog contracts
+
+- Provider allowlist selection is a staged draft, but **every dismissal path (outside tap, Back, or dialog close)** calls `onSelectionSaved` before dismissing. The UI explicitly displays “Save & close”; there is no Cancel action. Preserve this auto-save-on-close contract unless product UX is intentionally changed. Empty selection means “All”; selected names are intersected with currently available items before showing the dialog, preventing stale provider names from being selected.
+- Regex editor stages changes; presets only update the draft; Clear empties the draft; Save trims and validates regex syntax before invoking the parent save callback. Invalid syntax keeps the dialog open with a localized error. Empty regex is accepted and saved as no custom filter. Dismissal without Save discards the draft. Runtime matching semantics and catastrophic-regex/performance behavior were not tested.
+- IntroDB API key uses the shared `SettingsSecretTextField` (masked/reveal pattern), unlike the already-recorded unmasked Debrid/plugin credential surfaces. Save of a new non-empty key is blocked while `SkipIntroApi.verifyIntroDbApiKey` checks it; the API helper catches request failures and returns false. Cancel/outside/Back are blocked while verification is active. An unchanged key simply closes; blank key explicitly clears through the parent callback.
+- IntroDB key verification sends a POST to the configured IntroDB `/submit` endpoint with an empty JSON body and Bearer token; API helper treats 400 (auth passed but body invalid), 200 and 201 as valid, 401/403 as invalid, and all other/throwing outcomes as invalid. This is current behavior; no endpoint integration test was run.
+- Next Episode Threshold Mode commits immediately through the parent callback, which also closes the dialog. The helper's selected-state rendering and parent callback are consistent; no issue found.
+- Dialog count in `PlaybackSettingsPage.kt`: 20 `BasicAlertDialog` call sites. This count is a call-site inventory, not a complete accessibility/runtime verification.
+
+### Classification / remaining checks
+
+- Provider allowlist auto-save-on-dismiss: **INTENTIONAL INTERACTION CONTRACT**, not a missing Cancel bug; preserve “Save & close” explanation.
+- Regex draft/validation: **CURRENT BEHAVIOR VERIFIED**, runtime matching and pathological-pattern performance **NOT VERIFIED**.
+- IntroDB secret masking vs Debrid/plugin plain text: **SHARED PATTERN / DIFFERENT IMPLEMENTATION**; add IntroDB as a positive reference to the existing single canonical credential-visibility finding, not a duplicate issue.
+- Threshold-mode picker: **NO DEFECT FOUND**; immediate save and close are coherent.
+- Remaining Playback dialogs still need a complete per-control/copy/accessibility pass, including keyboard/focus and selected-state announcements. No TalkBack/VoiceOver/device verification.
+
+**Verification:** static GitHub source reads only; no source changes, tests, builds or device checks. `SkipIntroApi.verifyIntroDbApiKey` catches exceptions and maps them to false; this conclusion is based on the inspected helper source.
