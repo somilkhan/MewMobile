@@ -17,6 +17,12 @@ Reorganize Mew and upstream settings into one discoverable Mew settings experien
 ## NEW label rule
 A newly added setting/page gets a small, subtle **NEW** label for **three app releases/updates inclusive**. Example: introduced in 0.5.2 → show through 0.5.4 → hide from 0.5.5. Use explicit per-setting release metadata (`introducedInVersion` + `visibleThroughVersion` or equivalent), not update-count arithmetic. It must be app-global, not profile-scoped and not dismissible. The existing profile-scoped `seenFeatureIds` / release-highlights mechanism is a different feature and must not control this badge. Use the generated app version name as the installed-version source; version comparison must safely handle unknown/unparseable values and prerelease strings.
 
+## Additional settings mapping findings (verified at Main-dev 5d05e2a)
+- **Tracking category mismatch confirmed:** `SettingsPage.TraktAuthentication` is still categorized as Account and listed in the root Account section, while `TrackingSettingsPage` contains Trakt/Simkl provider cards, sync data-source choices, watch-progress source, discovery/recommendation options, and anime tracking. This is a Services concern, not account identity. Move its category/root placement to Services in the proposed IA, while retaining the enum route name and old saved-navigation compatibility.
+- **NEW badge version source confirmed:** Gradle generates `AppVersionConfig.VERSION_NAME` from `MARKETING_VERSION` in `iosApp/Configuration/Version.xcconfig`. `VersionUtils` is scoped to the updater and its parser extracts numeric semantic-version parts while ignoring prerelease suffixes; do not reuse it without dedicated prerelease/invalid-version tests. Keep badge expiry deterministic and based on the app's installed release version.
+- Search currently models row-level entries as `SettingsSearchTarget.Page`; selecting a control result opens the containing page rather than revealing/focusing the exact control. Treat this as a known discoverability limitation, not a broken route; exact-control reveal would require a separate scroll/focus target contract and must be audited against lazy-list state and platform behavior.
+
+
 ## Audit status
 - Read-only audit and documentation only. **No application source changes.**
 - Confirmed duplicate controls: **2** — Parental Guide (Playback + Nuvio Enhanced) and TMDB enrichment toggle (Content Discovery + TMDB settings).
