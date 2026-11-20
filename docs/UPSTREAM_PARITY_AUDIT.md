@@ -592,3 +592,34 @@ Inspected at the baseline SHA:
 - App source changes: **NONE**.
 - Build/tests/device verification: **NOT RUN**.
 - Next: complete control inventories for Appearance/Layout, Content Discovery, Integrations/Tracking, Account/Profile, Notifications, About and Advanced; then inspect all dialog/sheet implementations and theme contrast behavior.
+
+
+## Settings audit findings — dialogs, sheets and cross-links — 2026-11-20
+
+### Dialog/sheet consistency
+- Shared baseline: `core/ui/Dialog.kt` exposes `DialogSurface` with Mew/Nuvio theme tokens for dialog surface, text, shape, border, spacing and max width. `core/ui/BottomSheet.kt` similarly centralizes sheet colors, shape and drag-handle behavior.
+- **SHARED PATTERN / DIFFERENT SEMANTICS:** `StreamsSettingsPage.kt` has a private `SettingsDialogSurface` with similar token-based surface/title/padding behavior, but it is a content surface nested inside its own alert-dialog wrapper. Compare before consolidating; do not blindly replace.
+- Styling drift risk: `PlayerToolbarSettingsDialog.kt`, `SimklSyncInfoDialog.kt` and several `DebridSettingsPage.kt` dialogs use direct `MaterialTheme.colorScheme` values, hardcoded 20.dp padding and 20.dp rounded corners instead of the shared dialog tokens. The Material color scheme is app-themed, so this is **not yet a confirmed contrast bug**; verify light/dark/custom accent palettes, shape consistency, width, scroll constraints and action placement before changing.
+- Debrid has a local `DebridDialogSurface` reused by several template/selection dialogs. Keep its domain-specific input and selection behavior; only consolidate the visual shell if parity can be proven.
+- `TrackingAdaptivePicker` intentionally presents a dialog on tablet and a bottom sheet on phone. Preserve responsive presentation while ensuring the same title, subtitle, selected/unavailable state and dismiss behavior.
+- Android uses the Compose Material 3 sheet implementation; iOS uses a UIKit page sheet. These are **INTENTIONAL PARALLEL** platform implementations, not duplicates. iOS tracks one active native sheet and dismisses the previous one before presenting another; overlapping presentation/disposal ordering remains **NEEDS INVESTIGATION**.
+- Dialog content audit is not complete: titles, explanatory text, destructive wording, action labels, selected state, keyboard/focus, accessibility and dismiss behavior still need per-dialog review. No dialog visual or copy bug is declared confirmed in this pass.
+
+### Confirmed cross-link/back-navigation mismatch
+- Content Discovery conditionally shows a TMDB setup shortcut when no API key is configured and routes it to `SettingsPage.TmdbEnrichment`.
+- `SettingsPage.TmdbEnrichment.parentPage` is `Integrations`, and `previousPage()` returns the static parent. In the internal mobile/tablet settings navigation, opening this shortcut from Content Discovery can therefore make Back return to Integrations rather than the page the user came from.
+- Keep the TMDB settings destination canonical under Integrations/Services, but either remove the duplicate shortcut or support an explicit origin-aware return route. Do not change parent mappings without covering existing deep links and saved page names.
+
+### Appearance/Layout inventory — initial mapping
+- Appearance root currently groups Theme; Display (AMOLED, Liquid Glass, auto-hide, app icon, language, navigation style); Home links (Homescreen, Collections, Continue Watching, Poster Customization); Streams; and Detail Page.
+- Child pages already exist for Homescreen, Streams, Continue Watching, Poster Customization and Meta Screen. These mostly belong under Look/Layout; retain their distinct page ownership rather than flattening every control into one long page.
+- Some child pages contain behavior beyond pure appearance (e.g. Continue Watching visibility/up-next/sort behavior and home catalog/source selection). Split only where intent is genuinely different; do not scatter closely related controls across categories for theoretical purity.
+- Debrid is a large dedicated page (about 93 KB) with provider configuration, instant playback preparation, result management, filtering and formatting. It is a complex service configuration destination; retain it under Services/Integrations unless control-level mapping finds a strong reason to subdivide it.
+
+### Status after dialog/cross-link pass
+- Confirmed duplicate controls: **1** (Parental Guide).
+- Confirmed navigation mismatch: **1** (Content Discovery → TMDB setup shortcut uses Integrations as static parent).
+- Dialog theme/copy review: **IN PROGRESS**; visual drift candidates identified, no confirmed contrast failure.
+- Appearance/Layout and major integration page outlines inspected; control-level mapping still incomplete.
+- Source changes: **NONE**. Builds/tests/device checks: **NOT RUN**.
+- Next: finish Account/Profile, Tracking, Notifications, Advanced/About and remaining integration control mapping; audit every settings dialog and verify iOS-specific visibility/lifecycle.
