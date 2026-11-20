@@ -1422,3 +1422,38 @@ The existing canonical credential-visibility finding above now includes the Debr
 - Category restore via `valueOf`: **CONFIRMED COMPATIBILITY RISK**; safe legacy mapping is a precondition to category migration.
 
 **Verification:** GitHub source/document reads and commit comparison only. No application source changes, builds, tests, TalkBack/VoiceOver, Android device or iOS simulator checks. Upstream branch head was refreshed, but its delta audit remains open.
+
+
+## Fresh Enhanced delta — Home hero source selection and pending-state continuity — 2026-11-20 12:16:00 IST
+
+**Target:** `Main-dev`  
+**Verified source HEAD before write:** `337bb5c2b0d792155e1fc1fee7f3176735a7530f`  
+**Previous audit document blob / write guard:** `296d73907eb00f406ebb988beda28402b704ac38`  
+**Mew source files inspected:** `HomeCatalogSettingsRepository.kt`, `HomeRepository.kt`.  
+**Upstream range:** `b23b28a878b78f5ef9252128b901155fee6eeea9..375d93d90864d6b0774d8ab6f58c72d63d10d2af` (2 commits; compare lists exactly these two Home files).
+
+### Upstream commits and semantic comparison
+
+- `f326d11ecf88597597f2349ca384369b84169951` — `fix(home): pick default hero sources from the catalog order until the user chooses`.
+- `375d93d90864d6b0774d8ab6f58c72d63d10d2af` — `fix(home): replace startup hero items that do not come from the chosen hero sources`.
+
+**1) Explicit user choice marker — ADAPT**
+
+- Upstream adds nullable `heroSourcesChosen` to its stored Home catalog payload and a runtime boolean. It is set on the first explicit hero-source change, reset on profile change/reset, and inferred for old payloads from whether any non-collection hero source was already enabled.
+- Before an explicit choice, upstream chooses up to two enabled catalogs in catalog order; if none are enabled, it falls back to the first catalogs. After an explicit choice, it preserves that choice and does not automatically select newly appearing catalogs.
+- Mew's `normalizePreferences()` currently defaults missing catalog preferences to `heroSourceEnabled = true` until the two-source limit is reached. It does not store an explicit-choice marker. Consequently, after a user deliberately disables all selected hero sources, a newly discovered catalog can be auto-selected during normalization. The current default also chooses from catalog order without first preferring enabled catalogs.
+- **Decision: ADAPT** the explicit-choice state into Mew's existing `HomeCatalogSettingsRepository` payload and lifecycle. Preserve Mew's existing profile-scoped storage, legacy list/object payload decoding, catalog ordering, two-source limit, remote sync contract and existing reset semantics. The marker must be backward-compatible and must not be copied as a new sync field without proving cross-device semantics. Verify how old payloads with zero selected hero sources should be interpreted before finalizing migration behavior.
+
+**2) Pending hero continuity / chosen-source correctness — ADAPT**
+
+- Upstream passes `keepVisibleHeroWhilePending` and `heroSourcesResolved` into its publish path. While hero-source resolution is pending, it can retain the visible hero only when those items still belong to the selected source set (or no replacement candidates have arrived); once sources resolve it publishes from the chosen set.
+- Mew's `HomeRepository.publishCurrentState(isLoading, requestKey)` currently derives hero items directly from cached selected catalog sections and immediately publishes the result. It has no equivalent `heroSourcesResolved` or selected-source membership guard. Mew also has a distinct CloudStream fallback and collection-hero fallback; those must remain intact.
+- **Decision: ADAPT after focused lifecycle review.** Preserve Mew's CloudStream fallback, collection fallback, localized-artwork cache, request-generation guards and current source refresh behavior. Do not copy upstream's full HomeRepository implementation. Add tests for source change while loading, stale hero from a removed source, no available selected-source items, and fallback order.
+
+### Duplicate / ownership classification
+
+- `HomeCatalogSettingsRepository` and `HomeRepository` remain the existing canonical Mew owners. This is **ALREADY IMPLEMENTED BASE + REQUIRED ADAPTATION**, not a reason to add a parallel repository or settings control.
+- The upstream marker is a persistence-compatibility refinement, not a duplicate setting.
+- The pending-state guard is a shared Home rendering concern with Mew-specific fallback semantics; classify as **SHARED PATTERN / DIFFERENT SEMANTICS** and adapt behavior, not source files wholesale.
+
+**Verification:** upstream commit range and exact changed paths verified; Mew/upstream source bodies compared. No application source changes. Tests/build/device behavior NOT RUN. This candidate remains an audit/plan item only; implementation still requires the approved settings plan and explicit user authorization.
