@@ -1929,7 +1929,7 @@ The existing canonical credential-visibility finding above now includes the Debr
 **Target:** `Main-dev`  
 **Verified source HEAD before write:** `126546069ca2ad254fe00fdb7a5a085e10f38788`  
 **Previous audit document blob / write guard:** `d680a5542278231715c4740c710db9ce62c5bfe5`  
-**Files inspected:** `AppLanguage.kt`, `ThemeSettingsRepository.kt`, common `ThemeSettingsStorage.kt`, Android/iOS `ThemeSettingsStorage` actuals, `ProfileScopedKey.kt`, `ProfileRepository.kt`, Android/iOS `DeviceLanguagePreferences`, `PlayerLanguagePreferences.kt`, `PlayerLanguagePreferencesTest.kt`, `AppUrlBridge.kt`, `AppUrlBridgeTest.kt`, `SettingsScreen.kt`.
+**Files inspected:** `AppLanguage.kt`, `ThemeSettingsRepository.kt`, common `ThemeSettingsStorage.kt`, Android/iOS `ThemeSettingsStorage` actuals, `ProfileScopedKey.kt`, `ProfileRepository.kt`, Android/iOS `DeviceLanguagePreferences`, `PlayerLanguagePreferences.kt`, `PlayerLanguagePreferencesTest.kt`, `AppUrlBridge.kt`, `AppUrlBridgeTest.kt`, `SettingsScreen.kt`, `ProfileSettingsSync.kt`.
 
 ### Global app language vs profile-scoped appearance — CONFIRMED SEMANTIC BOUNDARY
 
