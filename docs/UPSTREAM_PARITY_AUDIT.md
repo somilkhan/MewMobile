@@ -2992,3 +2992,12 @@ No other TRUE DUPLICATE was confirmed. Similar cards, source-set actuals, separa
 
 **Decision: ADAPT directly** in Mew's existing DownloadsScreen. Keep the guard `onBackFromShow == null` so native Navigation 3 route back remains owned by the route stack. Add tests/manual checks for tablet/internal Back, native route Back, header Back, repeated show navigation and process restoration.
 **Classification:** Mew internal show-page system Back = **CONFIRMED NAVIGATION GAP / ADAPT**; PlatformBackHandler = **ALREADY IMPLEMENTED / REUSE**.
+
+
+### iOS dependency provisioning / unsigned IPA build addendum (2026-11-20 17:23:00 IST)
+
+- Mew's `composeApp/build.gradle.kts` expects `../nuvio-engine/platform/apple/NuvioEngine.xcframework`, but the inspected Mew tree has no `nuvio-engine` submodule or `scripts/prepare-ios-dependencies.sh` / `scripts/build-ios-ipa.sh`. A clean checkout therefore does not contain the referenced sibling XCFramework; iOS Full build requires external preparation not documented by an in-repo script.
+- Upstream's `prepare-ios-dependencies.sh` downloads Nuvio Engine Apple package v0.1.6, verifies a pinned SHA-256 checksum, validates the XCFramework/arm64 library, then installs it into the expected sibling path. Its `build-ios-ipa.sh` creates an unsigned IPA and validates app version, arm64, launch-screen plist, unsigned status, downloads widget and archive integrity. The workflow runs on macOS/Xcode 27 with high Kotlin/Native memory settings.
+- These scripts are useful CI patterns, but Mew uses a different MPVKit submodule fork/SHA and Mew bundle/version identity. Do not assume the upstream Nuvio Engine binary is ABI-compatible with Mew's MPVKit branch or copy its `nuvio-*-enhanced.ipa` naming/version checks unchanged.
+
+**Decision: ADAPT candidate for reproducible Mew iOS CI.** First verify the Nuvio Engine release's MPV/FFmpeg/libass ABI and headers against Mew's pinned MPVKit and `nuvioengine.def`; then add a Mew-owned version+checksum provisioning script and unsigned IPA validation workflow using Mew's `com.mew.mobile`, Mew version file and widget identity. Keep all signing secrets out of a test-build workflow. Until then, iOS Full build reproducibility is **NEEDS INVESTIGATION**; iOS build/tests remain NOT RUN.
