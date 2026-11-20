@@ -2123,3 +2123,37 @@ The default strings.xml contains 2,930 string entries. For a settings-relevant k
 **Decision:** carry the locale coverage table and the id/in alias discrepancy into the user's later settings plan. Prioritize a resource-backed translation pass for tracking/anime, playback and the large settings surfaces. Preserve the default English resource as the reference key set; add a translation-completeness check to CI or tests only after inspecting existing build conventions.
 
 **Verification:** static GitHub reads at application source HEAD 8a36dcede748ba6bb35d2a49c1ffd062bf7efbd0; all 23 locale string files and AppLanguage enum inspected. No translation edits, XML parser/build validation, app locale switching, fallback rendering, Android/iOS device verification, builds or tests performed. Protected main was rechecked and remains unchanged.
+
+## Plugin settings persistence and Addons / Plugins / CloudStream interaction-contract recheck — 2026-11-20 16:26 IST
+
+**Target:** Main-dev  
+**Verified branch HEAD before write:** 8ec8404a3b7de8c6ba818f9ce2c6648c3257ec5a  
+**Previous audit document blob / write guard:** 6dcd423f9b48f08284f34bab9c85a0b6e082d161  
+**Mew application source HEAD:** 8a36dcede748ba6bb35d2a49c1ffd062bf7efbd0  
+**Mother upstream enhanced HEAD:** 3f9c50c122c9c1d63bf3f061e65bd2cb17967fb6  
+**Files inspected:** Mew fullCommonMain PluginSettingsDialog.kt, PluginsSettingsScreen.kt, PluginRepository.kt, PluginRuntime.kt, Android/iOS PluginPlatform storage actuals, commonMain AddonsScreen.kt and AddonRepository.kt, CloudStreamSettingsSection.kt, PluginPersistenceTest.kt; matching upstream PluginSettingsDialog.kt, PluginRuntime.kt and Android/iOS PluginPlatform actuals.
+
+### Scraper configuration scope — matches upstream; do not re-key casually
+
+- Mew Android and iOS PluginStorage both store scraper configuration under settings_${scraperId}; neither includes active profile ID. PluginRuntime reads that same global key and passes its JSON map into scraper execution. The runtime API does not receive a profile ID for scraper configuration.
+- Plugin repository metadata and cached scraper source code are profile-scoped by profileId; scraper configuration is a separate app-global key. PluginPersistenceTest covers metadata/source-code persistence and migration, not per-profile settings isolation.
+- The current Enhanced upstream Android/iOS PluginStorage and PluginRuntime use the same settings_${scraperId} key and profile-independent runtime lookup. This is **ALREADY IMPLEMENTED / UPSTREAM PARITY** and **INTENTIONAL DIFFERENT PERSISTENCE SCOPE** inside the plugin subsystem, not a Mew-only regression or a confirmed duplicate.
+- Preserve this behavior during settings IA work. If product requirements later demand per-profile plugin configuration, treat it as a data migration and runtime-contract change: include profile ID in settings reads/writes, handle legacy global values, define copy/migration behavior and add cross-profile tests. Do not change it as incidental cleanup.
+
+### Plugin settings dialog interaction contract
+
+- PluginSettingsDialog parses layout JSON as an array and saved settings JSON as an object; either parse failure silently falls back to an empty structure. This remains the canonical **NEEDS INVESTIGATION** data-loss/diagnostic finding. Do not overwrite source payload merely by opening the dialog.
+- Text/select/toggle controls mutate an in-memory map. Cancel and Dialog onDismissRequest close without calling save; Save serializes the map to PluginStorage and then dismisses. No explicit schema validation or required-field enforcement is present in the inspected dialog.
+- The manifest isPassword flag is read for text fields but is not used to switch input transformation or reveal/hide behavior. This remains the existing canonical credential-visibility/security finding; do not create a duplicate record.
+- Dialog title suffix and Cancel/Save copy are hardcoded English in the existing implementation; attach to the canonical localization gap. The dialog is scrollable; runtime keyboard/focus, screen-reader labels, narrow-screen sizing and dismissal behavior remain NOT DEVICE VERIFIED.
+
+### Addons and CloudStream interaction contract
+
+- AddonsScreen uses one shared NuvioStatusModal state for Checking, Success and Error. While Checking, its confirm action is disabled by the busy-state guard; success/error close through the confirm action. Install remains delegated to AddonRepository.addAddon(). The missing upstream tracking-consent classification/confirmation is the already-recorded HIGH priority privacy finding; no second consent finding is created.
+- CloudStreamSettingsSection has no modal dialog family in the inspected screen. Repository add/edit/refresh/remove, search/filter and plugin install/bulk-install feedback are inline cards/messages. The security acknowledgement is a persistent explicit state; bulk install and per-plugin install actions are gated by securityWarningAccepted. Preserve these gates and the distinction from generic Addons/Plugins.
+- Addons, generic Plugins and CloudStream remain **INTENTIONAL PARALLEL / DIFFERENT SEMANTICS** (separate repository models, install/security/update lifecycles), not a consolidation target. Existing thin page wrappers remain compatibility/navigation layers.
+- No new TRUE DUPLICATE or new dialog defect was confirmed in this recheck. The existing JSON fallback, password visibility, hardcoded copy and addon tracking-consent findings remain canonical.
+
+**Classification:** global scraper settings vs profile-scoped plugin metadata/code = **INTENTIONAL DIFFERENT PERSISTENCE SCOPE / UPSTREAM PARITY**; PluginSettingsDialog = existing canonical validation/credential/localization findings; Addons vs Plugins vs CloudStream = **INTENTIONAL PARALLEL / DIFFERENT SEMANTICS**; no new duplicate.
+
+**Verification:** static GitHub source reads at Mew source HEAD 8a36dcede748ba6bb35d2a49c1ffd062bf7efbd0 and Enhanced HEAD 3f9c50c122c9c1d63bf3f061e65bd2cb17967fb6. No code changes, schema changes, runtime plugin execution, settings isolation tests, builds, tests or device checks performed. Protected main rechecked and unchanged.
