@@ -1,38 +1,45 @@
-# CURRENT HANDOFF — SETTINGS IA AUDIT (2026-11-20)
+# CURRENT HANDOFF — SETTINGS + BROADER UPSTREAM PARITY AUDIT (2026-11-20 17:28 IST)
 
-> Current source-of-truth for the settings audit. Older sections below are historical evidence; do not reuse their SHAs as live state. Every future agent must read this entire file before investigating or changing settings.
+> Canonical source-of-truth for the settings audit and the ongoing full upstream parity audit. Historical sections below are evidence, not live branch state. Every future agent must read this entire file before investigating or changing settings or upstream feature code.
 
-## Verified repository refs
-- Repository: `somilkhan/MewMobile`
-- Active target `Main-dev`: live branch HEAD `2b32900663f57fa61468c779602e0bb5b657a6da`.
-- Latest inspected application-source HEAD: `8a36dcede748ba6bb35d2a49c1ffd062bf7efbd0`. GitHub compare confirms the 14 commits after that source HEAD change only `docs/UPSTREAM_PARITY_AUDIT.md`; no application source paths changed.
-- Current audit document blob: `25ca32ca9037ceb72dccbd2823daba8b2957f3cc`.
+## Verified repository refs (2026-11-20 17:28 IST)
+
+- Repository: `somilkhan/MewMobile`.
+- Target `Main-dev` immediately before this documentation update: `e68128b6c7c40b276e28c3597ddb71f3b4a4bb6f`.
+- Latest inspected application-source baseline: `8a36dcede748ba6bb35d2a49c1ffd062bf7efbd0`. GitHub compare confirms **47 commits after this source baseline change only `docs/UPSTREAM_PARITY_AUDIT.md`**; no application-source paths changed.
+- Previous audit document blob / write guard for this handoff update: `022046f773c6204e85798e123f64afb4f078981c`.
 - Protected `main`: `207ef8fa309b8061b73039b2d4e4bde4af65050e` (unchanged).
-- `upstream-sync`: `af51bbbc13cdb315a88ef597eb4d2672a60335d5` (live ref rechecked 2026-11-20 16:34 IST).
-- Mother upstream `luqmanfadlli/NuvioMobile-Enhanced:enhanced`: `3f9c50c122c9c1d63bf3f061e65bd2cb17967fb6` (live ref rechecked 2026-11-20 16:34 IST). Latest upstream delta remains the player-logo lookup commit outside settings IA. Current route-tree differences are classified in the audit; upstream-only feature implementations remain separate parity work, not empty settings placeholders.
+- `upstream-sync`: `af51bbbc13cdb315a88ef597eb4d2672a60335d5`.
+- Mother upstream `luqmanfadlli/NuvioMobile-Enhanced:enhanced`: `3f9c50c122c9c1d63bf3f061e65bd2cb17967fb6`.
+- Upstream divergence: `upstream-sync` → `enhanced` compare is **69 commits ahead / 167 behind**, merge base `f4b7e55e31c2778827095dbdb246193e8675016f`, with **140 changed paths**. Histories are heavily divergent; wholesale merge is prohibited.
 - No `MEW-CONTEXT-SNAPSHOT.md` or `CONTEXT-SNAPSHOT.md` exists on `Main-dev`.
 
-## Current audit status — 2026-11-20 16:34 IST
-- **Static settings IA/source audit: COMPLETE.** This means source-tree, route, persistence, duplicate, dialog-contract, localization-key and upstream settings-route comparisons have been consolidated. It does not mean every upstream feature is implemented or that runtime/device behavior is verified.
-- Confirmed duplicate controls: **2** — Parental Guide (Playback + Nuvio Enhanced) and TMDB enrichment toggle (Content Discovery + TMDB settings). No new TRUE DUPLICATE was found in the final dialog/persistence/navigation passes.
-- Canonical decision matrix is appended near the end of this file. It records ADAPT, KEEP/ALREADY IMPLEMENTED/INTENTIONAL PARALLEL, NEEDS INVESTIGATION and SKIP decisions.
-- Runtime verification remains **NOT RUN**: Android device, iOS simulator/device, app process recreation, route serialization tests, locale switching/rendering, RTL/CJK/long-string layout, TalkBack/VoiceOver, keyboard/focus and profile/provider flows.
-- No application source changes, builds, tests, merges, promotions or releases were made during this audit continuation.
-- **Do not create the separate settings plan MD.** The user will create it after reviewing this audit. Do not implement app changes until the user explicitly approves that plan.
+## Current audit status — 2026-11-20 17:28 IST
+
+- **Static settings IA/source audit: COMPLETE.** The settings hierarchy, controls, persistence, duplicates, dialogs, localization keys, route/back behavior and upstream settings-route comparisons are consolidated below.
+- **Full upstream feature parity audit: IN PROGRESS.** All 69 upstream commit subjects and the 140-path compare set have been enumerated. High-impact feature groups have received source-level comparison, but not every changed path, caller, provider and platform behavior has been exhaustively audited. Do not call the full audit complete yet.
+- Broader source-review groups so far: Library filters; Smart Streams vs Mew AutoPlay and badge rules; Downloads queue/transfer/persistence; watched threshold; Home row placement/hero selection/sync; Trakt refresh; IMDb episode-rating alignment; TMDB cast filmography; Media Servers authentication/sync security; iOS MPV/subtitle/download/share-sheet/tab-bar behavior; Gradle/native submodules/Cast/Baseline Profile/CI; Android/iOS networking contract.
+- Confirmed settings duplicates remain **2**: Parental Guide (Playback + Nuvio Enhanced) and TMDB enrichment toggle (Content Discovery + TMDB settings).
+- High-priority findings documented include: addon tracking-consent gap; iOS raw HTTP redirect flag and response-size enforcement mismatches; imported stream-badge regex stack-overflow risk; iOS download move-only finalization; Media Server token-in-sync security contract. These are audit findings/candidates, not implemented fixes.
+- Already implemented in Mew and explicitly not to be duplicated: Home catalog preference preservation when remote sync arrives before catalog discovery; episode-card artwork fallback; existing AutoPlay source/regex/binge-group policy; existing Downloads source-discovery and transfer owners; existing Simkl auth client; existing share-sheet backup export.
+- Runtime/build verification remains **NOT RUN**: Android/iOS builds, automated tests, real-device playback/download/network checks, iOS simulator, route/process recreation, locale/RTL/accessibility and Cast/Media Server sessions.
+- Since the source baseline, **no application source has changed** in this audit continuation. Only this audit document has been updated. `main` and `upstream-sync` remain untouched. No builds, tests, merges, promotions or releases have been run.
+- **Do not create the separate settings plan MD.** The user will create it after reviewing the settings audit. Do not implement application-source changes until the user explicitly approves the plan/scope.
 
 ## Mandatory agent read-first and deduplication protocol (2026-11-20)
 
-**This is a required gate for every future agent/session working on settings.**
-1. Read this entire file from beginning to end before inspecting or changing settings code. Do not read only this handoff block or rely on chat summaries.
-2. Then verify the live `Main-dev` ref and inspect the exact source files/callers named by the latest findings. This document is the audit index, not a substitute for source verification.
-3. Search this document for the target setting, page, symbol, dialog, route, persistence key, and duplicate finding before starting an investigation. Reuse existing evidence; do not repeat completed investigations unless the source SHA changed or a specific contradiction/new caller requires re-verification.
-4. Maintain one canonical finding per behavior. If a new occurrence is found, append it to the existing finding instead of creating another copy. Record every candidate as TRUE DUPLICATE, INTENTIONAL PARALLEL, SHARED PATTERN / DIFFERENT SEMANTICS, COMPATIBILITY SHIM, FALSE POSITIVE, or NEEDS INVESTIGATION.
-5. Before changing code, map setting → visible control → caller/route → state/repository → platform storage → policy/visibility → tests. Similar names/files are not proof of duplicate behavior.
-6. Do not implement from this audit document alone. Re-read current source and get explicit user approval for application-source implementation.
-7. Every meaningful MD update must include an IST timestamp, target branch, verified source HEAD SHA, previous document blob SHA used as the write guard, scope/files inspected, findings added/changed, and verification status. Read the updated MD back and verify it.
-8. Never mark an audit item complete without source evidence. Mark unverified behavior/device checks explicitly as NOT VERIFIED or NOT RUN.
+**Required gate for every future agent/session working on settings or upstream parity.**
 
-This protocol exists to prevent duplicate implementations, repeated audits, conflicting handoffs, and loss of earlier findings.
+1. Read this entire file from beginning to end before investigating or changing settings or feature code. Do not rely only on this handoff block or chat summaries.
+2. Verify live `Main-dev`, `main`, `upstream-sync` and mother-upstream refs. Recheck the current source baseline and exact files/callers named by the latest findings.
+3. Search this document for the target feature, symbol, API, model, route, storage key, provider, platform source set and prior decision before starting a new investigation. Reuse existing evidence; repeat only if source SHA changed or a specific contradiction/new caller requires it.
+4. Maintain one canonical finding per behavior. Append evidence to the existing finding instead of creating duplicate findings. Classify candidates as TRUE DUPLICATE, INTENTIONAL PARALLEL, SHARED PATTERN / DIFFERENT SEMANTICS, COMPATIBILITY SHIM, FALSE POSITIVE, ALREADY IMPLEMENTED, TAKE, ADAPT, SKIP or NEEDS INVESTIGATION.
+5. Before implementation, map feature → entry point/caller/route → state/repository → platform/network/storage → policy/profile scope → error/lifecycle behavior → tests. Similar filenames or APIs are not proof of semantic equivalence.
+6. Do not implement from this audit document alone. Re-read current source, write a minimal plan and obtain explicit user approval for application-source changes.
+7. Every meaningful MD update must include an IST timestamp, target branch, verified source HEAD, previous document blob SHA used as write guard, scope/files inspected, findings added/changed and verification status. Read the updated MD back and verify it.
+8. Never mark an audit item complete without source evidence. Mark unverified runtime/device behavior and unrun tests explicitly as NOT VERIFIED / NOT RUN.
+
+This protocol exists to prevent duplicate implementations, repeated investigations, conflicting handoffs and loss of Mew-specific behavior.
 
 ## Playback settings audit continuation — 2026-11-20 08:08:27 IST
 
