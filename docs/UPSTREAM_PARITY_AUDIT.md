@@ -4,7 +4,7 @@
 
 ## Verified repository refs
 - Mew repository: `somilkhan/MewMobile`
-- Active target: `Main-dev` — `65a538031db528260f1347e31ba85c4d33dcd323`
+- Active target: `Main-dev` — `25aae1d1a4c7924d6c208758cac9d3f62d4d7802` (this documentation-only handoff commit; application source baseline immediately before it: `65a538031db528260f1347e31ba85c4d33dcd323`)
 - Protected stable branch: `main` — `207ef8fa309b8061b73039b2d4e4bde4af65050e` (untouched)
 - Reference branch: `upstream-sync` — `af51bbbc13cdb315a88ef597eb4d2672a60335d5`
 - Mother upstream: `luqmanfadlli/NuvioMobile-Enhanced`, `enhanced` — `b23b28a878b78f5ef9252128b901155fee6eeea9`
