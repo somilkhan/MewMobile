@@ -62,6 +62,7 @@ internal fun BoxScope.PlayerPlaybackOverlays(
     nextEpisodeAutoPlayCountdown: Int?,
     onPlayNextEpisode: () -> Unit,
     onDismissNextEpisode: () -> Unit,
+    nextEpisodeSwipeDismissEnabled: Boolean = false,
     errorMessage: String?,
     onDismissError: () -> Unit,
     onRetryError: () -> Unit,
@@ -153,6 +154,7 @@ internal fun BoxScope.PlayerPlaybackOverlays(
             autoPlayCountdownSec = nextEpisodeAutoPlayCountdown,
             onPlayNext = onPlayNextEpisode,
             onDismiss = onDismissNextEpisode,
+            swipeDismissEnabled = nextEpisodeSwipeDismissEnabled,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(end = sliderEdgePadding, bottom = overlayBottomPadding),

@@ -1083,6 +1083,8 @@
     <string name="settings_playback_selected_count">%1$d selected</string>
     <string name="settings_playback_player_liquid_glass">Liquid Glass player controls</string>
     <string name="settings_playback_player_liquid_glass_description">Use translucent glass surfaces on player controls. Video-frame capture is only active while this option is enabled and controls are visible.</string>
+    <string name="settings_playback_next_episode_swipe_dismiss">Swipe to dismiss next episode card</string>
+    <string name="settings_playback_next_episode_swipe_dismiss_description">Swipe the Next Episode card to the right, or press back, to hide it for this episode. Off by default.</string>
     <string name="compose_player_seek_back_seconds">Seek backward %1$d seconds</string>
     <string name="compose_player_seek_forward_seconds">Seek forward %1$d seconds</string>
     <string name="settings_playback_pause_overlay">Pause Overlay</string>

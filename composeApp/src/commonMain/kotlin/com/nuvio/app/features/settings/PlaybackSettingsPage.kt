@@ -411,6 +411,14 @@ private fun PlaybackSettingsSection(
                 )
                 SettingsGroupDivider(isTablet = isTablet)
                 SettingsSwitchRow(
+                    title = stringResource(Res.string.settings_playback_next_episode_swipe_dismiss),
+                    description = stringResource(Res.string.settings_playback_next_episode_swipe_dismiss_description),
+                    checked = autoPlayPlayerSettings.nextEpisodeSwipeDismissEnabled,
+                    isTablet = isTablet,
+                    onCheckedChange = PlayerSettingsRepository::setNextEpisodeSwipeDismissEnabled,
+                )
+                SettingsGroupDivider(isTablet = isTablet)
+                SettingsSwitchRow(
                     title = stringResource(Res.string.settings_playback_parental_guide),
                     description = stringResource(Res.string.settings_playback_parental_guide_description),
                     checked = autoPlayPlayerSettings.showParentalGuide,

@@ -20,6 +20,7 @@ actual object PlayerSettingsStorage {
     private const val showLoadingOverlayKey = "show_loading_overlay"
     private const val pauseOverlayEnabledKey = "pause_overlay_enabled"
     private const val playerLiquidGlassEnabledKey = "player_liquid_glass_enabled"
+    private const val nextEpisodeSwipeDismissEnabledKey = "next_episode_swipe_dismiss_enabled"
     private const val skipBackwardSecondsKey = "player_skip_backward_seconds"
     private const val skipForwardSecondsKey = "player_skip_forward_seconds"
     private const val toolbarLayoutKey = "player_toolbar_layout"
@@ -107,6 +108,7 @@ actual object PlayerSettingsStorage {
         showLoadingOverlayKey,
         pauseOverlayEnabledKey,
         playerLiquidGlassEnabledKey,
+        nextEpisodeSwipeDismissEnabledKey,
         skipBackwardSecondsKey,
         skipForwardSecondsKey,
         toolbarLayoutKey,
@@ -232,6 +234,15 @@ actual object PlayerSettingsStorage {
     }
     actual fun savePlayerLiquidGlassEnabled(enabled: Boolean) {
         NSUserDefaults.standardUserDefaults.setBool(enabled, forKey = ProfileScopedKey.of(playerLiquidGlassEnabledKey))
+    }
+
+    actual fun loadNextEpisodeSwipeDismissEnabled(): Boolean? {
+        val defaults = NSUserDefaults.standardUserDefaults
+        val key = ProfileScopedKey.of(nextEpisodeSwipeDismissEnabledKey)
+        return if (defaults.objectForKey(key) != null) defaults.boolForKey(key) else null
+    }
+    actual fun saveNextEpisodeSwipeDismissEnabled(enabled: Boolean) {
+        NSUserDefaults.standardUserDefaults.setBool(enabled, forKey = ProfileScopedKey.of(nextEpisodeSwipeDismissEnabledKey))
     }
 
     actual fun loadShowLoadingOverlay(): Boolean? {
@@ -1062,6 +1073,7 @@ actual object PlayerSettingsStorage {
         loadShowLoadingOverlay()?.let { put(showLoadingOverlayKey, encodeSyncBoolean(it)) }
         loadPauseOverlayEnabled()?.let { put(pauseOverlayEnabledKey, encodeSyncBoolean(it)) }
         loadPlayerLiquidGlassEnabled()?.let { put(playerLiquidGlassEnabledKey, encodeSyncBoolean(it)) }
+        loadNextEpisodeSwipeDismissEnabled()?.let { put(nextEpisodeSwipeDismissEnabledKey, encodeSyncBoolean(it)) }
         loadSkipBackwardSeconds()?.let { put(skipBackwardSecondsKey, encodeSyncInt(it)) }
         loadSkipForwardSeconds()?.let { put(skipForwardSecondsKey, encodeSyncInt(it)) }
         loadToolbarLayout()?.let { put(toolbarLayoutKey, encodeSyncString(it)) }
@@ -1152,6 +1164,7 @@ actual object PlayerSettingsStorage {
         payload.decodeSyncBoolean(showLoadingOverlayKey)?.let(::saveShowLoadingOverlay)
         payload.decodeSyncBoolean(pauseOverlayEnabledKey)?.let(::savePauseOverlayEnabled)
         payload.decodeSyncBoolean(playerLiquidGlassEnabledKey)?.let(::savePlayerLiquidGlassEnabled)
+        payload.decodeSyncBoolean(nextEpisodeSwipeDismissEnabledKey)?.let(::saveNextEpisodeSwipeDismissEnabled)
         payload.decodeSyncInt(skipBackwardSecondsKey)?.let(::saveSkipBackwardSeconds)
         payload.decodeSyncInt(skipForwardSecondsKey)?.let(::saveSkipForwardSeconds)
         payload.decodeSyncString(toolbarLayoutKey)?.let(::saveToolbarLayout)

@@ -22,6 +22,7 @@ actual object PlayerSettingsStorage {
     private const val showLoadingOverlayKey = "show_loading_overlay"
     private const val pauseOverlayEnabledKey = "pause_overlay_enabled"
     private const val playerLiquidGlassEnabledKey = "player_liquid_glass_enabled"
+    private const val nextEpisodeSwipeDismissEnabledKey = "next_episode_swipe_dismiss_enabled"
     private const val skipBackwardSecondsKey = "player_skip_backward_seconds"
     private const val skipForwardSecondsKey = "player_skip_forward_seconds"
     private const val toolbarLayoutKey = "player_toolbar_layout"
@@ -109,6 +110,7 @@ actual object PlayerSettingsStorage {
         showLoadingOverlayKey,
         pauseOverlayEnabledKey,
         playerLiquidGlassEnabledKey,
+        nextEpisodeSwipeDismissEnabledKey,
         skipBackwardSecondsKey,
         skipForwardSecondsKey,
         toolbarLayoutKey,
@@ -243,6 +245,14 @@ actual object PlayerSettingsStorage {
     }
     actual fun savePlayerLiquidGlassEnabled(enabled: Boolean) {
         preferences?.edit()?.putBoolean(ProfileScopedKey.of(playerLiquidGlassEnabledKey), enabled)?.apply()
+    }
+
+    actual fun loadNextEpisodeSwipeDismissEnabled(): Boolean? = preferences?.let { prefs ->
+        val key = ProfileScopedKey.of(nextEpisodeSwipeDismissEnabledKey)
+        if (prefs.contains(key)) prefs.getBoolean(key, false) else null
+    }
+    actual fun saveNextEpisodeSwipeDismissEnabled(enabled: Boolean) {
+        preferences?.edit()?.putBoolean(ProfileScopedKey.of(nextEpisodeSwipeDismissEnabledKey), enabled)?.apply()
     }
 
     actual fun loadShowLoadingOverlay(): Boolean? =

@@ -8,6 +8,8 @@ internal expect object PlayerSettingsStorage {
     fun savePauseOverlayEnabled(enabled: Boolean)
     fun loadPlayerLiquidGlassEnabled(): Boolean?
     fun savePlayerLiquidGlassEnabled(enabled: Boolean)
+    fun loadNextEpisodeSwipeDismissEnabled(): Boolean?
+    fun saveNextEpisodeSwipeDismissEnabled(enabled: Boolean)
     fun loadSkipBackwardSeconds(): Int?
     fun saveSkipBackwardSeconds(seconds: Int)
     fun loadSkipForwardSeconds(): Int?
