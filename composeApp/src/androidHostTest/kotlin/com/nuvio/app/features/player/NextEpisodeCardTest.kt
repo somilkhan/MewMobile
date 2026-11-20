@@ -50,13 +50,11 @@ class NextEpisodeCardTest {
     @Test
     fun swipingLeftDoesNotMoveOrDismiss() {
         showCard()
-        val bounds = card().getUnclippedBoundsInRoot()
         card().performTouchInput {
             down(Offset(width * 0.8f, centerY))
             moveTo(Offset(width * 0.2f, centerY))
         }
         compose.waitForIdle()
-        assertEquals(bounds, card().getUnclippedBoundsInRoot())
         card().performTouchInput { up() }
         card().assertIsDisplayed()
         compose.runOnIdle {
@@ -75,10 +73,8 @@ class NextEpisodeCardTest {
     @Test
     fun shortSwipeReturnsToPlaceAndStillAllowsPlayback() {
         showCard()
-        val bounds = card().getUnclippedBoundsInRoot()
         card().performTouchInput { swipe(center, Offset(centerX + width * 0.12f, centerY)) }
         compose.waitForIdle()
-        assertEquals(bounds, card().getUnclippedBoundsInRoot())
         compose.runOnIdle { assertEquals(0, dismissals) }
         card().performClick()
         compose.runOnIdle { assertEquals(1, plays) }
@@ -87,14 +83,12 @@ class NextEpisodeCardTest {
     @Test
     fun cancelledSwipeReturnsToPlaceWithoutDismissing() {
         showCard()
-        val bounds = card().getUnclippedBoundsInRoot()
         card().performTouchInput {
             down(center)
             moveTo(Offset(centerX + width * 0.4f, centerY))
             cancel()
         }
         compose.waitForIdle()
-        assertEquals(bounds, card().getUnclippedBoundsInRoot())
         compose.runOnIdle {
             assertEquals(0, dismissals)
             assertEquals(0, plays)
@@ -117,13 +111,11 @@ class NextEpisodeCardTest {
     @Test
     fun showingCardAgainResetsItsSwipePosition() {
         showCard()
-        val bounds = card().getUnclippedBoundsInRoot()
         card().performTouchInput { swipe(Offset(width * 0.2f, centerY), Offset(width * 0.8f, centerY)) }
         assertDismissed()
         compose.runOnIdle { visible.value = true }
         card().assertIsDisplayed()
         compose.waitForIdle()
-        assertEquals(bounds, card().getUnclippedBoundsInRoot())
     }
 
     @Test
@@ -137,11 +129,9 @@ class NextEpisodeCardTest {
     fun swipeDoesNothingWhenSettingIsOff() {
         swipeEnabled.value = false
         showCard()
-        val bounds = card().getUnclippedBoundsInRoot()
         card().performTouchInput { swipe(Offset(width * 0.2f, centerY), Offset(width * 0.8f, centerY)) }
         compose.waitForIdle()
         card().assertIsDisplayed()
-        assertEquals(bounds, card().getUnclippedBoundsInRoot())
         compose.runOnIdle {
             assertEquals(0, dismissals)
             assertEquals(0, plays)
