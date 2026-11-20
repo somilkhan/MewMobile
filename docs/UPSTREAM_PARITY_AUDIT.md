@@ -1344,7 +1344,7 @@ The existing canonical credential-visibility finding above now includes the Debr
 - `showContinueWatchingReadyBadge` is a Continue Watching presentation preference and belongs with Watch → Continue Watching, not Concierge configuration. It shares the Enhanced settings repository only because the current Enhanced page aggregates unrelated settings; this is **SHARED REPOSITORY / DIFFERENT SEMANTICS**, not duplicate state.
 - `smartShelvesEnabled` and `quietHomeModeEnabled` change Home composition/visibility. Place them under Look → Home Experience. Preserve the quiet-home dependency that disables Smart Shelves while quiet mode is enabled.
 - `releaseRadarDigestEnabled` controls digest presentation within the Home Release Radar surface (`HomeReleaseRadarSection(showDigest)`). It is not a separate notification subscription or standalone destination. Place under Look → Home Experience → Release Radar; retain its dependency on enhanced-home master enablement.
-- `libraryHealthEnabled` is currently exposed as a Premium Labs switch. The inspected UI evidence does not establish a separate Library Health settings page or service connection. **NEEDS INVESTIGATION:** inspect the runtime producer/caller and whether it renders a Home card, Library screen signal or diagnostics surface before assigning final destination. Do not place it in System → Diagnostics based on the label alone.
+- `libraryHealthEnabled` is exposed as a Premium Labs switch, but its runtime owner is confirmed: `LibraryEnhancedSections.kt` builds `LibraryHealthReport` from library items and Release Radar signals, then renders `LibraryHealthCard` only when `enhancedHomeFeaturesEnabled && libraryHealthEnabled`. **Decision: ADAPT to Watch → Library → Library Health** (or a Library presentation subsection), not System → Diagnostics and not Services. Preserve its current dependency on the enhanced-home master flag.
 - `releaseRadarLibraryOnly`, `releaseRadarWindowDays` and `releaseRadarContentFilter` are filters for the same Home Release Radar feed; the source page groups them under Release Radar. Place under Look → Home Experience → Release Radar, not general Content Discovery settings. Preserve allowed values, clamp (7..45 days), and category semantics.
 - The Release Radar digest counts (today/week/profile) are computed from the same list in `HomePremiumSections.kt`; do not create another digest model/page while reorganizing settings.
 
@@ -1361,3 +1361,16 @@ The existing canonical credential-visibility finding above now includes the Debr
 - The prior proposed destinations for Concierge, Release Digest and Live TV are refined by these caller findings. Library Health remains open until its runtime caller is identified.
 
 **Verification:** static source inspection only; no source changes, builds/tests, Android device or iOS simulator checks. Upstream tree/ref was verified, but upstream file-content comparison for this specific settings page was unavailable in the current fetch path; no claim of full upstream semantic diff is made.
+
+
+### Library caller verification refinement — 2026-11-20 10:22:00 IST
+
+**Additional files inspected:** `LibraryEnhancedSections.kt`, `HomePremiumModels.kt`, `HomePremiumSections.kt`.
+
+- Confirmed Library Health is a Library-screen presentation card, not an OS/app diagnostic. `LibraryEnhancedSections.kt` computes its report from current library items, filtered Release Radar signals and the current date; the card is gated by enhanced-home master enablement plus `libraryHealthEnabled`.
+- The same Library enhanced section renders `HomeReleaseRadarSection` and passes `releaseRadarDigestEnabled` as `showDigest`. Thus Release Radar filters and digest directly affect the Library surface. Concierge also consumes Release Radar-derived items on Home; this is shared underlying data with distinct presentations, not duplicate UI.
+- Refined placement: **Watch → Library** owns Library Health and Release Radar presentation/filter controls; **Look → Home Experience → Concierge** owns Concierge, Smart Resume, Profile Stats, Smart Shelves and Quiet Home behavior. Keep a single persisted value for each setting even where the data feeds more than one screen.
+- `showContinueWatchingReadyBadge` remains Watch → Continue Watching. `liveTvEnabled` remains Watch → Live TV.
+- **Classification:** Library Health card vs system diagnostics = FALSE POSITIVE; Home Concierge vs Library Release Radar = SHARED DATA / DIFFERENT PRESENTATIONS; no new duplicate settings identified.
+
+**Verification:** static source inspection only; no source changes, builds/tests or device checks. This refinement supersedes the earlier NEEDS INVESTIGATION note for Library Health.
