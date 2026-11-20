@@ -2577,3 +2577,28 @@ No other TRUE DUPLICATE was confirmed. Similar cards, source-set actuals, separa
 **Decision:** **SKIP this exact upstream fix for Mew** (different iOS subtitle rendering architecture). Keep the existing Mew subtitle-font import validation and playback-style regression candidates separate.
 
 **Verification:** static source comparison only. No iOS episode transition, subtitle style, build, simulator or device test performed.
+
+
+## Trakt library refresh queue safety comparison (2026-11-20 16:57:24 IST)
+
+**Target:** `Main-dev`  
+**Verified target HEAD before write:** `fcbd7bffa17dbbda9670f8142e4fb65347dd61bb`  
+**Application-source baseline:** `8a36dcede748ba6bb35d2a49c1ffd062bf7efbd0`  
+**Previous audit document blob / write guard:** `1ab53cac07ceb7ce9dfd734dddeb51e49a7f7109`  
+**Upstream commit inspected:** `1e41574929e2c85286d7b0eac4c0488a405f0088`  
+**Files compared:** Mew/upstream `TraktLibraryRepository.kt`.
+
+- Mew's `refresh(force)` acquires `refreshMutex` before checking cache age/loading state and keeps the mutex while fetching the snapshot. Concurrent `ensureFresh()` / forced refresh callers therefore wait on the mutex; cache deduplication happens only after each waiter acquires it.
+- Upstream adds a separate `refreshJobMutex` and a tracked `refreshJob`. If an automatic refresh is already active, another non-forced caller returns instead of queueing; forced callers join the existing job. A single `refreshOnce()` still owns the actual serialized work.
+- The upstream change addresses heap growth when an HTTP request remains suspended while many callers accumulate as mutex waiters. Mew's current source has the same basic waiter-queue shape, but this pass has not yet established whether Mew's HTTP transport enforces a sufficiently strict timeout or how many independent UI/background callers can trigger refresh concurrently.
+
+**Decision: ADAPT candidate / NEEDS INVESTIGATION — potential queue-growth risk, not yet a confirmed production bug.**
+
+1. Trace every Mew caller of `ensureFresh()`, `refreshNow()`, `getMembershipSnapshot()` and `preloadListTabsAsync()` on the current Main-dev source.
+2. Inspect `httpRequestRaw` transport timeout/cancellation behavior for Trakt calls; do not assume upstream's network conditions exactly match Mew.
+3. If the risk remains, adapt single-flight job ownership: automatic callers should not accumulate behind a long-running request; forced callers should join or intentionally supersede it. Preserve profile changes, cancellation, optimistic membership updates and error publication.
+4. Add tests for many concurrent automatic callers, force-vs-automatic behavior, hung/timeout requests, cancellation, profile switch during refresh and cache TTL behavior.
+
+**Classification:** Mew mutex serialization = **KEEP as single refresh owner**; upstream tracked refresh job = **ADAPT candidate**; unbounded waiter growth = **NEEDS INVESTIGATION**, not a confirmed bug until timeout and callsite audit completes.
+
+**Verification:** static source/commit inspection only. No Trakt API calls, concurrency tests, builds or device checks run.
