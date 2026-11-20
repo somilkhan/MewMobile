@@ -623,3 +623,45 @@ Inspected at the baseline SHA:
 - Appearance/Layout and major integration page outlines inspected; control-level mapping still incomplete.
 - Source changes: **NONE**. Builds/tests/device checks: **NOT RUN**.
 - Next: finish Account/Profile, Tracking, Notifications, Advanced/About and remaining integration control mapping; audit every settings dialog and verify iOS-specific visibility/lifecycle.
+
+
+## Settings audit findings — Account, Tracking and System — 2026-11-20
+
+### Account/Profile versus Services
+- The root Account section currently contains profile switching, Account, and Tracking. `SettingsPage.TraktAuthentication` is categorized as `SettingsCategory.Account`, despite its page containing Trakt/Simkl service connections and tracking-source configuration.
+- `TrackingSettingsPage.kt` includes tracking-service setup, Simkl manual client ID, anime-tracking display preference, library source selection, watch-progress source selection, Continue Watching window, Trakt comments, More Like This source, and anime ID preference (IMDb/MAL/Kitsu).
+- Decision: **ADAPT** into a Services/Tracking destination, separate from Account/Profile. Keep authentication/session actions and account deletion in You/Account. Preserve enum name `TraktAuthentication` for saved route compatibility unless a migration is proven safe.
+- `ProfileInsightsSettingsPage.kt` is a large profile-focused surface (overview, taste, favorite people and profile management actions). Treat as You/Profile rather than generic settings; complete its control/state inventory before moving anything.
+
+### Advanced/System versus profile settings
+- `AdvancedSettingsPage.kt` currently combines Remember Last Profile (a profile/startup preference), Sentry consent, runtime Logs (view/copy/export), and Continue Watching cache cleanup.
+- Recommended destinations: Remember Last Profile → You/Profile or Startup; Sentry and runtime logs → System/Diagnostics; cache cleanup → System/Storage or Continue Watching maintenance. Keep destructive/cache confirmation semantics and profile-scoped cache behavior.
+- The log section currently uses hardcoded English labels (Logs, View logs, Copy logs, Export logs) rather than localized string resources. This is a confirmed localization/copy consistency gap to include in the text audit.
+- Search inventory check: `no View Logs / Copy Logs / Export Logs search entries found` in `SettingsSearch.kt`.
+- Nuvio Enhanced separately includes Network, Backup/Import and Diagnostics sections. Map Network/Diagnostics/Backup into System rather than leaving them under a broad feature bucket.
+
+### Other page disposition
+- Notifications is focused: episode-release alert toggle plus a test-notification action. Keep under System/Notifications; preserve permission-denied and test-send states.
+- About currently owns Supporters/Contributors, Privacy Policy, Licenses/Attributions and Check for Updates. This is a coherent group; keep it distinct from Advanced/System.
+- Account page uses authentication state and feature-policy-gated account deletion. Keep deletion hidden unless policy permits and the account is authenticated.
+- Licenses/Attributions has grouped app/data/playback attributions and iOS-specific content. Retain platform-aware attribution rather than forcing Android-only entries onto iOS.
+
+### Updated proposed category map (still provisional)
+| Destination | Current Mew content to map |
+|---|---|
+| You / Account & Profiles | Account status, sign out/delete, profile switch/management, profile insights, favorite people, remember-last-profile |
+| Look / Appearance & Layout | Theme, accent, AMOLED, language, app icon, navigation, homescreen/layout, streams presentation, Continue Watching card presentation, poster and detail presentation |
+| Watch / Playback & Content | Playback subpages, downloads, content discovery, Addons, Plugins, CloudStream, Continue Watching behavior |
+| Services / Integrations & Tracking | Trakt, Simkl, anime tracking, TMDB, MDBList, Debrid, AI and other service connections |
+| System / Notifications, Diagnostics & Storage | Notifications, network/DNS, Sentry/logs, cache maintenance, backup/import, diagnostics |
+| About | Supporters, contributors, privacy, licenses/attributions, version/update information |
+
+This map is provisional. Where a control spans two domains, choose one canonical owner and use a contextual link only if back navigation remains correct.
+
+### Status after this pass
+- Confirmed duplicate controls: **1** (Parental Guide).
+- Confirmed navigation mismatch: **1** (Content Discovery → TMDB setup shortcut parent).
+- Confirmed localization gap: **1 group** (hardcoded Advanced Logs labels).
+- Tracking, Account/Profile, Notifications, Advanced and About page structures inspected.
+- Source changes: **NONE**. Builds/tests/device checks: **NOT RUN**.
+- Next: complete control-level audit of remaining Integrations and profile settings, inspect every dialog/copy path and theme contrast matrix, then finalize the hierarchy and migration plan.
