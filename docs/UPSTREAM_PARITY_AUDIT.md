@@ -1189,3 +1189,35 @@ The Nuvio Enhanced page contains 13 functional sections and at least 49 ordinary
 | TMDB enable switch on Content Discovery | Services → Metadata → TMDB | Existing TRUE DUPLICATE; do not add another duplicate record |
 
 **Verification:** source reads only; source diff since baseline is documentation-only; no app source changes; builds/tests/device checks NOT RUN. iOS actual files were located, but no iOS simulator/device behavior was verified.
+
+
+
+## Appearance / Look controls and selection-sheet audit — 2026-11-20 08:16:09 IST
+
+**Target:** `Main-dev`  
+**Verified branch HEAD before write:** `9d5959ebaf7b8648ac05df8313586c2fdf886c09`  
+**Application source baseline:** `a7f066297ba000833a981b12f8b57c26ce833f7d`; source compare remains documentation-only.  
+**Previous document blob / write guard:** `ef9c739e0dce387891b3352c66dddef51a16c7c0`.  
+**Files inspected:** `AppearanceSettingsPage.kt`, `ThemeSettingsRepository` call sites, `SettingsModels.kt`, plus navigation targets `HomescreenSettingsPage.kt`, `StreamsSettingsPage.kt`, `PosterCustomizationSettingsPage.kt`, `MetaScreenSettingsPage.kt`.
+
+### Appearance page breakdown
+
+- **Theme:** classic and enhanced palette selection plus custom theme with two persisted custom accent colors. Theme selection uses `ThemeSettingsRepository`; custom first/second colors are independently persisted. Preserve the two-color model and existing theme IDs; upstream's single/gradient editor is not a drop-in replacement. Existing theme contrast risk remains a central ThemeColors/Material color-scheme issue, not a reason to add per-screen overrides.
+- **Display:** AMOLED black; native Liquid Glass tab-bar enablement and auto-hide; app icon; app language; Android-only navigation-bar style.
+- Liquid Glass rows are hidden unless `liquidGlassNativeTabBarSupported`; auto-hide is disabled unless Liquid Glass is enabled. These are intentional capability/dependency gates, not missing controls.
+- App icon selection is disabled while an icon change is pending; opening the picker first clears the prior failure notice, and dismissal clears failure UI. Preserve pending/error behavior.
+- App language and navigation-bar style sheets apply the chosen value immediately, show a selected check with `cd_selected` accessibility text, and dismiss after selection. Both use `NuvioModalBottomSheet` and a scrollable `LazyColumn`.
+- Navigation-bar style is intentionally hidden on iOS. Do not treat this as a parity defect.
+- **Home / layout links:** Homescreen, Collections, Continue Watching, Poster Customization, Streams, and Meta Screen are navigation destinations, not settings duplicated in Appearance. Place them under Look → Layout (with distinct subpages) rather than retaining them as a second copy of controls on the Appearance page.
+- **Custom color editor:** preset swatches expose color names through semantics; selected swatches show a check. Saturation/value and hue pickers update colors live; hex input accepts up to seven characters and applies only parseable colors. Keyboard/focus and screen-reader operation of the custom picker still need accessibility verification; source inspection alone does not establish usability.
+
+### Dialog / component classifications
+
+- Language and navigation-style sheets are **SHARED PATTERN / DIFFERENT SEMANTICS**: common sheet/dismissal/selected-check pattern, different option sets and state. Reuse existing sheet primitives; do not add another picker abstraction.
+- Theme chips and custom accent controls are part of the same ThemeSettingsRepository domain, not duplicate theme persistence.
+- iOS hiding of navigation-bar style and capability-gated Liquid Glass are **INTENTIONAL PLATFORM/CAPABILITY SCOPE**.
+- No new TRUE DUPLICATE confirmed in this Appearance pass.
+
+**Planning note:** final Look hierarchy should distinguish Theme, Interface/Display, Home, Layout and Details. Keep theme editing centralized, move navigation destinations into subpages, and preserve current repository fields. Do not copy upstream theme persistence or collapse custom accent colors without a separately approved migration.
+
+**Verification:** source-level review only; no app source changes; no accessibility/device checks or builds/tests run.
