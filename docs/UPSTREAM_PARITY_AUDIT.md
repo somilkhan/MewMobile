@@ -1760,3 +1760,31 @@ The existing canonical credential-visibility finding above now includes the Debr
 **Classification:** route parent additions = **ADAPT**; upstream-only feature pages without Mew feature owners = **SKIP** for this task, not confirmed duplicate settings. This route-tree comparison is current to Enhanced `375d93d90864d6b0774d8ab6f58c72d63d10d2af`; a complete implementation/dependency audit of skipped upstream features is outside this settings IA scope.
 
 **Verification:** GitHub tree/source reads only; no feature source imported, no builds/tests/device checks.
+
+
+## Localization resource coverage spot-check — 2026-11-20 13:14:12 IST
+
+**Target:** `Main-dev`  
+**Verified source HEAD before write:** `9a2324151b781cbde602d2a26cde2caa709b8316`  
+**Previous audit document blob / write guard:** `e2e2281b333ca64cc6d2f4cb308e1575b0f555fa`  
+**Scope:** all 24 `commonMain/composeResources/values*/strings.xml` files (23 locale folders plus default `values`); selected existing settings resource keys checked for literal presence.
+
+### Key coverage results
+
+| Resource key | Files containing key |
+|---|---:|
+| `player_ios_hardware_decoder_off` | 17/24 |
+| `settings_playback_render_type` | 23/24 |
+| `settings_debrid_max_results` | 17/24 |
+| `settings_advanced_sentry_reports` | 12/24 |
+| `settings_notifications_episode_release_alerts` | 24/24 |
+
+- The missing-key sets for `player_ios_hardware_decoder_off` and `settings_debrid_max_results` match in this sample: `values-de`, `values-he`, `values-id`, `values-in`, `values-nb`, `values-pt-rBR`, `values-tr`.
+- `settings_playback_render_type` is missing from `values-he` only.
+- `settings_advanced_sentry_reports` appears in only half the resource files; verify whether this is intentionally inherited/fallback or untranslated before changing resource files.
+- Notifications Episode Release Alerts key is present in all 24 files; this is a positive coverage sample, not proof that the entire Notifications page is fully translated.
+- Upstream-only keys such as `live_tv_settings_epg_auto_title` and `downloads_allow_mobile_data_title` are not Mew resources and are not counted as Mew localization gaps.
+
+**Classification:** resource-key absence = **LOCALIZATION COVERAGE GAP / NEEDS FALLBACK VERIFICATION**; hardcoded English UI text remains a separate canonical issue. Do not add duplicate findings for each locale. The spot-check is not an exhaustive audit of every settings key or translation quality.
+
+**Verification:** GitHub source reads of all 24 resource files; no localization source changes, app rendering, locale switching or device tests.
