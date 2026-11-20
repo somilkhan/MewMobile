@@ -494,3 +494,58 @@ Comparison anchor: Enhanced `ae535226b1488a60d59613c1502fbb717cbb333f` → `a3e8
 - The log shows multiple successful CloudStream section payloads (including a 39-section CineStream response), while the UI exposes one Raw Catalog per extension. Investigate section-to-catalog mapping before changing plugin loading.
 - TMDB service HTTP 401 responses and plugin-runtime 404s from title/IMDb identifiers used as numeric TMDB IDs are separate failure classes. Normalize media identity and verify the v3-key/v4-token contract independently.
 - Repeated `valid session required for sync` responses indicate unauthenticated remote writes. Gate AddonRepository and WatchProgressRepository write paths on a validated non-anonymous session while retaining local state and retrying only when auth becomes valid.
+
+
+## Unified settings information-architecture audit — 2026-11-20
+
+### Verified baseline
+- Target branch: `Main-dev`, base SHA `69b4a96072b506f60dcbe538c5f6b71db3a4a464`.
+- Stable branch left untouched: `main` at `207ef8fa309b8061b73039b2d4e4bde4af65050e`.
+- Reference snapshot: `upstream-sync` at `af51bbbc13cdb315a88ef597eb4d2672a60335d5`.
+- Mother upstream: `luqmanfadlli/NuvioMobile-Enhanced`, `enhanced` at `b23b28a878b78f5ef9252128b901155fee6eeea9`.
+- No root `MEW-CONTEXT-SNAPSHOT.md` or `CONTEXT-SNAPSHOT.md` exists on this baseline. This audit is recorded in the existing parity document to avoid a duplicate handoff file.
+- Documentation-only update; no application source changes, builds, tests, or device checks.
+
+### User-approved objective
+Reorganize Mew and upstream-derived settings into one coherent Mew settings experience. This is an information-architecture/discoverability task, not a wholesale upstream UI replacement. Preserve Mew identity, Mew-specific features, stored preferences, profile scoping, platform behavior, feature-policy gates, and saved navigation compatibility.
+
+### New-setting indicator requirement
+- New settings/features display a small, restrained `NEW` label beside the relevant setting/page.
+- Lifetime: **3 app versions total**, counting the introduction version and the next two installed versions. Example: introduced in 0.5.2 → visible on 0.5.2, 0.5.3 and 0.5.4 → hidden from 0.5.5 onward.
+- Count installed app version changes, not app launches or elapsed time. If a user skips versions, the badge remains until the configured expiry version is installed.
+- Prefer centralized metadata keyed by stable setting IDs; avoid scattered hardcoded badges.
+- Inspect current version/build metadata and comparison semantics before implementation. Add boundary tests for introduction version, last visible version, expiry version, skipped versions and invalid/unknown version strings.
+- Apply consistently across mobile, tablet and iOS with accessible semantics and theme-safe contrast.
+
+### Confirmed Mew settings structure
+Inspected at the baseline SHA:
+- `SettingsModels.kt`, `SettingsRootPage.kt`, `SettingsSearch.kt`, `SettingsScreen.kt`, `AppearanceSettingsPage.kt`, and `AdvancedSettingsPage.kt`.
+- Current categories: `Account`, `General`, `Enhanced`, `About`, `Advanced`.
+- `SettingsPage` already models parent relationships, but many pages still share broad `General` categorization.
+- Appearance owns layout-related children (Streams, Continue Watching, Poster Customization, Homescreen, Meta Screen); Content Discovery owns Addons, Plugins and CloudStream; Integrations owns AI, TMDB, MDBList and Debrid.
+- Tracking retains enum name `TraktAuthentication` for saved navigation-state compatibility. Do not rename casually.
+- Root page is section-based and uses policy flags/callbacks. Search entries carry page/section/category context and route through page targets; audit each entry against actual control and policy visibility.
+- Mobile/tablet rendering paths coexist in `SettingsScreen.kt`; treat as intentional layout variants unless behavior comparison proves duplication.
+- Advanced currently groups startup, diagnostics/Sentry and runtime logs. Logs (view/copy/export) should be considered separately from ordinary preferences.
+
+### Initial information-architecture assessment
+- Upstream Enhanced categories `You`, `Look`, `Watch`, `Services`, `System` and granular Playback/Layout subpages are a useful reference.
+- **ADAPT**, do not wholesale-copy: Account/Profile → You; Appearance/Layout → Look; Playback/Downloads/Content Discovery → Watch; Integrations/Tracking → Services; Advanced/Notifications/About/diagnostics → System/About as semantically appropriate.
+- Mew-specific CloudStream, Nuvio Enhanced, AI, TMDB enrichment, MDBList, Simkl/Trakt, profile insights, custom theme/accent and diagnostics must be placed by user intent and dependencies.
+- Large Playback page is a strong candidate for modular subpages, but every control, callback, persistence owner, engine/platform condition and profile scope must be mapped first.
+- Existing mobile/tablet layouts and Android/iOS persistence implementations are likely intentional parallel implementations; verify equivalent semantics rather than merging source sets.
+
+### Work still required — audit only
+1. Complete a control-level inventory for Playback, Appearance/Layout, Content Discovery, Integrations/Tracking, Account/Profile, Notifications, Advanced, About and Mew Enhanced.
+2. Map each setting to current page/section, proposed category/subpage, upstream equivalent, persistence repository/key, profile scope, platform availability, feature-policy gate and search target.
+3. Audit dialogs/sheets for title, explanation, actions, cancel/dismiss behavior, selected state, theme tokens, contrast and platform parity.
+4. Verify search results target the correct page/section/control, hidden/disabled features are not surfaced incorrectly, and back navigation works on mobile/tablet.
+5. Classify similar implementations as TRUE DUPLICATE, INTENTIONAL PARALLEL, SHARED PATTERN / DIFFERENT SEMANTICS, COMPATIBILITY SHIM or FALSE POSITIVE.
+6. Verify version metadata and implement/test the three-version NEW badge only after the audit and separate implementation approval.
+7. Produce the proposed hierarchy and migration/compatibility plan. No application-source restructuring until separately approved.
+
+### Current status
+- Settings information-architecture audit: **IN PROGRESS**.
+- Source changes: **NONE**.
+- Build/tests/device verification: **NOT RUN**.
+- Next: inspect upstream root/settings navigation and complete Mew Playback plus content/integration control mapping, then continue dialogs/search/platform audit.
