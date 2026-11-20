@@ -2334,3 +2334,50 @@ No other TRUE DUPLICATE was confirmed. Similar cards, source-set actuals, separa
 - Builds, CI and device results must be run and reported separately. None of these verification steps were performed during this read-only audit.
 
 **Consolidation status:** canonical findings grouped; no new application source change. The user's separate settings plan MD is intentionally not created.
+
+
+## Broader upstream feature parity audit — first feature batch (2026-11-20 16:48:58 IST)
+
+**Target:** `Main-dev`  
+**Verified target HEAD before write:** `7891379ff8d41ab69d46164107816d6e5749597f`  
+**Application-source baseline:** `8a36dcede748ba6bb35d2a49c1ffd062bf7efbd0` (the commits after this baseline were documentation-only; no app-source paths changed)  
+**Upstream snapshot:** `upstream-sync` `af51bbbc13cdb315a88ef597eb4d2672a60335d5`  
+**Mother upstream:** `luqmanfadlli/NuvioMobile-Enhanced:enhanced` `3f9c50c122c9c1d63bf3f061e65bd2cb17967fb6`  
+**Previous audit document blob / write guard:** `abe3729753f7abadd4178d9d6315dad92ac6d532`  
+**Scope:** first broader feature-parity pass across Library, Streams, Downloads, Media Servers, watch thresholds and Home row placement. Static source/tree comparison only.
+
+### Branch divergence and audit boundary
+
+- Comparing the common-history refs reports **69 commits ahead on mother upstream and 167 commits ahead on the Mew/upstream-sync side**, with merge base `f4b7e55e31c2778827095dbdb246193e8675016f`. The comparison exposes 140 changed paths in the returned file list.
+- This is a heavily divergent history, not a safe merge candidate. Review behavior/file groups and preserve Mew-specific commits; never merge the branch histories wholesale.
+- Live refs were rechecked immediately before this document write. `main` remained `207ef8fa309b8061b73039b2d4e4bde4af65050e`.
+
+### First feature decisions
+
+| Upstream area | Mew evidence and semantic comparison | Initial decision |
+|---|---|---|
+| Library genre/year/watched filters | Upstream `LibraryScreen.kt` adds genre, year and watched filter state and applies it to visible library sections. Mew's `LibraryScreen.kt` has download-list All/Movies/Shows filters and sort/layout controls; Mew's `LibraryItem` already carries genres and the screen reads watched state for badges, but the main library has no matching genre/year/watched filter controls. | **ADAPT** the filter behavior using Mew's existing Library models, WatchedRepository and display settings. Do not add a second library repository. Decide separately whether filter selections remain screen-local or become persisted preferences. |
+| Smart Streams / device-aware ranking | Upstream adds a distinct SmartStream ranking/settings/device stack: instant availability, resolution/device decoder/HDR/memory suitability, preferred audio language, bitrate/data targets, filters and optional ranked auto-play. Mew has an established `StreamsRepository`, stream request-generation/lifecycle handling and `StreamSourcePreferencesRepository`, but no equivalent SmartStream module in its source tree. | **ADAPT / NEEDS INVESTIGATION.** Treat as a new ranking/presentation layer over Mew's stream lifecycle, not a replacement for StreamsRepository, provider loading, CloudStream, Debrid or existing source preferences. Audit cancellation, stale requests, fallback, external player, device capabilities and profile/global persistence before implementation. |
+| Media Servers (Plex, Silo, Emby/Jellyfin) | Mother upstream has a dedicated server subsystem (55 paths in the feature tree), including account clients, providers, catalog mapping, playback, watch state, sync, storage, settings sign-in flows and provider tests. Mew has no `features/servers/` source tree at this baseline. The earlier settings audit's SKIP applied only to settings IA/placeholders, not to full feature parity. | **NEEDS INVESTIGATION / PRODUCT SCOPE.** This is a substantial new integration, not a settings-only port. Audit provider/API licensing, auth/token storage, server discovery, LAN/WAN addresses, playback headers, catalog/watch sync, profile cleanup, privacy and iOS support before deciding TAKE/ADAPT/SKIP. |
+| Downloads redesign and transfer lifecycle | Upstream has a redesigned download UI, `BatchDownloadCoordinator`, queue/transfer worker and storage-stat components. Mew has a different pipeline: `EpisodeDownloadCoordinator`, `DownloadSourceResolver`, pending-source-search worker/notifications and choice sheet, its own `DownloadsRepository`, plus `DownloadsBatchFlowTest`. Both expose a Downloads screen but their queue and source-discovery lifecycles are not interchangeable. | **INTENTIONAL PARALLEL / DIFFERENT SEMANTICS.** Do not copy upstream coordinator, worker or repository wholesale. Continue a UI/UX and lifecycle comparison; adapt isolated display affordances only where they preserve Mew's pending-source, foreground-service, external-folder and iOS bookmark behavior. |
+| Watched threshold | Upstream adds `WatchedThresholdSettings` and Android/iOS storage actuals to control when playback counts as watched. Mew has separate WatchedRepository and WatchProgress domains but no equivalent threshold settings module in its source tree. | **ADAPT candidate / NEEDS INVESTIGATION.** Trace every playback completion, manual watched action, resume/progress write, Trakt/Simkl/AniList/MyAnimeList sync, profile and server path before adopting. Preserve current provider-specific policies and avoid UI-only preference. |
+| Home row pinning/hidden rows | Upstream adds pinned catalog rows and a hidden-rows section. Mew already has home/catalog preference ownership and a `HomePinnedCollectionOrderTest`; collection ordering is not proof of equivalent catalog-row placement or hidden-row behavior. | **NEEDS INVESTIGATION.** Compare row identity, catalog reorder, selected hero sources, collections, profile/global scope and cloud-sync contract. Do not duplicate existing collection pinning or accidentally sync device-local placement. |
+| Preferred audio stream ranking | Upstream adds preferred-audio-language ranking and later incorporates language into SmartStream scoring. Mew already stores preferred audio language in player preferences; no equivalent ranking behavior was established in this first pass. | **Fold into the Smart Streams audit**, not a separate implementation. Verify stream metadata language parsing and unknown-language fallback. |
+| Missing title-logo lookup | Latest upstream commit adds a playback-time title-logo lookup when metadata has no logo. Mew has existing metadata enrichment and player presentation paths, but the equivalent caller/lookup behavior has not yet been fully traced. | **NEEDS INVESTIGATION**, separate player-metadata candidate; not a settings task. |
+
+### Files and evidence inspected in this pass
+
+- Mew: `LibraryScreen.kt`, `LibraryModels.kt`, `LibraryRepository.kt`, `DownloadsScreen.kt`, `DownloadsRepository.kt`, `StreamsRepository.kt`, source-tree inventories and tests.
+- Mother upstream: corresponding Library/Downloads screens; `SmartStreamRanking.kt`, `SmartStreamSettings.kt`, `BatchDownloadCoordinator.kt`, `WatchedThresholdSettings.kt`, server subsystem tree and relevant commit/file comparison.
+- Source-tree counts are discovery evidence only; path presence/absence is not treated as proof of semantic equivalence.
+
+### Next audit batch
+
+1. Complete Smart Streams vs Mew stream loading, source ranking, playback fallback and device capability mapping.
+2. Compare Downloads transfer/queue state, persistence, Android workers, iOS file movement/bookmarks and UI behavior.
+3. Trace watched-threshold semantics through all watch/progress/provider callers.
+4. Inspect Home catalog row placement vs Mew collection ordering and sync.
+5. Continue Media Servers feasibility/security audit and player title-logo lookup.
+6. Continue remaining upstream-only commits and classify each affected behavior/file group.
+
+**Verification:** read-only GitHub source/tree/commit inspection. No application source changes, builds, tests, merges, promotions or releases. Android/iOS runtime and device checks remain **NOT RUN**.
