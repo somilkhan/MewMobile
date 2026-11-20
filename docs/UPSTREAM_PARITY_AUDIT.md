@@ -2859,3 +2859,11 @@ No other TRUE DUPLICATE was confirmed. Similar cards, source-set actuals, separa
 **Decisions:** episode artwork fallback = **ALREADY IMPLEMENTED**; MDBList progress runtime fix = **SKIP / NO EQUIVALENT Mew PROJECTION**. Do not add MDBList progress sync as an incidental fix; it is a separate provider/data-model feature decision.
 
 **Verification:** static source/tree comparison only. No image loading, MDBList API, watch-progress sync, tests, builds or device checks run.
+
+
+### Downloads queue-control addendum — queued/Waiting item pause parity (2026-11-20 17:09:07 IST)
+
+- Mew represents queued downloads as `DownloadStatus.Waiting`. `DownloadsScreen` displays a passive schedule icon for Waiting items; it exposes Pause only for Downloading items. `DownloadsRepository.pauseDownload()` returns unless the item is `Downloading`, so a Waiting item cannot be paused individually through the current UI or repository API.
+- Upstream's queued-download fix makes `Queued` items use the same Pause action as `Downloading`; Paused and Failed items can resume through the same transfer toggle.
+- **ADAPT candidate / product UX decision:** consider adding a pause action for Mew `Waiting` items and transition them to `Paused`, then preserve queue order and resume semantics. Do not rename `Waiting` to `Queued` or copy upstream's transfer state machine. Test pause/resume while another item is active, one-at-a-time queue progression, deletion of paused/waiting items, app restart and profile switch.
+- This is an extension of the existing canonical Downloads comparison above, not a separate queue architecture or duplicate coordinator.
