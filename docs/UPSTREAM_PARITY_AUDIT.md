@@ -3115,3 +3115,27 @@ No other TRUE DUPLICATE was confirmed. Similar cards, source-set actuals, separa
 **Classification:** Mew metadata cache/coordinator = **ALREADY IMPLEMENTED / REUSE**; playback logo fallback = **CONFIRMED PARITY GAP / ADAPT**; generic all-types lookup = **FALSE POSITIVE / DO NOT COPY**.
 
 **Verification:** static source/commit inspection only. No player, metadata, stream, UI, test or app source changes; no builds or runtime playback checks run.
+
+
+## Downloads custom-poster parity and applicability (2026-11-20 18:23:52 IST)
+
+**Upstream commit inspected:** `e00392db1fd39eba7df293ca50b5942a1e538a18` (`feat(downloads): follow library custom poster setting`).  
+**Target:** `Main-dev`; verified HEAD before write `22eb259cd1f44d7bc9861cbb319114b6fdc95361`.  
+**Previous audit document blob / write guard:** `eb2998ef45d4b1d42fd0b15da1107fc9204f2c94`.  
+**Files inspected:** upstream `DownloadArtwork.kt`, `CustomPosterUrlRepository.kt` and commit diff; Mew `DownloadsScreen.kt`, `DownloadsModels.kt`, `PosterCustomizationSettingsPage.kt`, `PosterCardStyleRepository.kt`, `LibrarySavedContent.kt` and source-tree search for custom poster URL owners.
+
+### Confirmed Mew/upstream difference
+
+- Upstream's `DownloadPoster` reads `CustomPosterUrlRepository.pattern` and `enabledScreens`, checks whether the Library screen is enabled, resolves the pattern using stable parent metadata IDs and content type, and falls back to the saved/original poster URL.
+- The upstream feature depends on a separate `core/poster/CustomPosterUrlRepository`, `CustomPosterUrlResolver`, `CustomPosterScreen` and platform storage/settings. Those owners are not present in Mew's current source tree.
+- Mew's `PosterCustomizationSettingsPage` and `PosterCardStyleRepository` customize card width, corner radius, landscape artwork mode, labels and visual depth. They do **not** define a custom poster URL/pattern feature. This is a name-level similarity only.
+- Mew's `DownloadItem` already stores `poster`, `background`, parent metadata ID/type and episode artwork. However, the current Mew `DownloadRow` renders title/status/progress/actions without a poster image; there is no Mew `DownloadPoster` equivalent to simply wire into the existing list.
+- The upstream commit changes the artwork component, not the download queue/transfer pipeline. Its custom-poster fallback is coupled to the upstream-only URL pattern feature.
+
+### Decision
+
+**SKIP this exact commit as a standalone port.** Do not treat Mew's card-style customization as equivalent to custom poster URLs and do not create a second poster customization repository. If custom poster URLs are later approved for Mew, audit the full upstream URL-pattern feature (resolver, supported ID formats, URL validation, screen scope, profile/device storage, cache behavior and fallback) as its own candidate; then reuse that single resolver in Library, Home, Details and Downloads. Separately, an artwork-bearing Downloads UI is a **NEW UI feature / product decision**, not a required part of this custom-poster commit.
+
+**Classification:** Mew card style vs upstream custom poster URL = **FALSE POSITIVE**; Mew DownloadItem poster metadata = **ALREADY IMPLEMENTED / NOT RENDERED IN CURRENT DOWNLOAD ROW**; custom poster URL resolver/repository = **UPSTREAM-ONLY FEATURE / SKIP until approved**.
+
+**Verification:** static source/commit inspection only. No download UI, poster setting, image resolver, persistence, tests or app source changed. No builds or runtime checks run.
