@@ -1525,3 +1525,28 @@ The existing canonical credential-visibility finding above now includes the Debr
 - Remaining Playback dialogs still need a complete per-control/copy/accessibility pass, including keyboard/focus and selected-state announcements. No TalkBack/VoiceOver/device verification.
 
 **Verification:** static GitHub source reads only; no source changes, tests, builds or device checks. `SkipIntroApi.verifyIntroDbApiKey` catches exceptions and maps them to false; this conclusion is based on the inspected helper source.
+
+
+## Playback selection-dialog and localization cross-check — 2026-11-20 13:05:51 IST
+
+**Target:** `Main-dev`  
+**Verified source HEAD before write:** `69e69d83419da255447b1c127de997816d666408`  
+**Previous audit document blob / write guard:** `b37867b768da1970a936a8fad7ddf15fd0b21e02`  
+**Files inspected:** `PlaybackSettingsPage.kt`, `PlayerModels.kt`, `IosVideoSettingsModal.kt`.
+
+### Selection behavior and common pattern
+
+- Player preference, external-player app, language, reuse-cache duration, decoder priority, playback engine, iOS enum, skip-seconds, hold-to-speed, libass render type, subtitle startup mode, subtitle font and subtitle color dialogs are immediate-selection patterns: parent callbacks update the setting and close the dialog. Their repeated selected-card UI is **SHARED PATTERN / DIFFERENT SEMANTICS**, not duplicate settings or duplicate dialog behavior.
+- `NextEpisodeThresholdModeDialog` also commits and closes through its parent callback; no defect found.
+- The generic enum picker name `IosEnumSelectionDialog` remains a naming mismatch because Android libmpv and P2P settings also use it. This is the existing shared-helper finding; do not create another picker.
+- Many custom pickers show selected state through a tinted Surface and check icon rather than explicit RadioButton/Checkbox controls. This remains an accessibility verification item, not a confirmed defect without TalkBack/VoiceOver testing.
+
+### New localization findings
+
+- **CONFIRMED LOCALIZATION GAP:** `AndroidLibmpvVideoOutput` stores user-facing English descriptions directly in `PlayerModels.kt` (“Modern libmpv renderer…” / “Compatibility renderer…”), and `PlaybackSettingsPage.kt` passes `it.description` straight into the generic enum dialog. These descriptions should be localized in the approved text pass. Keep the technical renderer identifiers/values stable.
+- **CONFIRMED LOCALIZATION CONSISTENCY BUG:** `IosHardwareDecoderMode.localizedLabel()` already maps the `Off` option to `Res.string.player_ios_hardware_decoder_off`, but the Playback settings dialog currently passes `it.label` instead of the existing localized helper. Reuse `localizedLabel()`; do not add a duplicate resource/helper.
+- `IosVideoOutputPreset.localizedLabel()` and `localizedDescription()` are already used by `IosVideoSettingsModal.kt`; preserve this implementation and avoid adding another localization path.
+- Technical labels such as ExoPlayer, libmpv, VideoToolbox, BT.709, Display P3 and codec/renderer identifiers should be reviewed for product terminology rather than mechanically translated. Do not treat every enum literal as a localization defect.
+- Existing Advanced Logs and Plugin dialog localization findings remain separate canonical findings; this adds Playback-specific occurrences, not duplicate entries for those screens.
+
+**Decision:** ADAPT the existing localization helper for iOS decoder Off and move libmpv descriptions into string resources. No source edits made. Accessibility and runtime localization layout remain NOT VERIFIED on Android/iOS devices.
