@@ -2381,3 +2381,36 @@ No other TRUE DUPLICATE was confirmed. Similar cards, source-set actuals, separa
 6. Continue remaining upstream-only commits and classify each affected behavior/file group.
 
 **Verification:** read-only GitHub source/tree/commit inspection. No application source changes, builds, tests, merges, promotions or releases. Android/iOS runtime and device checks remain **NOT RUN**.
+
+
+## Smart Streams semantic comparison — Mew AutoPlay compatibility (2026-11-20 16:50:39 IST)
+
+**Target:** `Main-dev`  
+**Verified target HEAD before write:** `f48579352809e358c602af795a3f5b39b5ab25ac`  
+**Application-source baseline:** `8a36dcede748ba6bb35d2a49c1ffd062bf7efbd0`  
+**Previous audit document blob / write guard:** `88c674b00cedc282179f1a3bd19c43c36dbbc3a0`  
+**Files inspected:** Mew `StreamsRepository.kt`, `StreamsScreen.kt`, `StreamModels.kt`, `StreamAutoPlaySelector.kt`, `StreamAutoPlayModels.kt`, `PlayerSettingsRepository.kt`, Android/iOS `PlayerDeviceStatus` actuals; upstream `SmartStreamRanking.kt`, `SmartStreamSettings.kt`, `SmartStreamQuality.kt`, `SmartStreamDevice.kt`, `SmartStreamControls.kt`.
+
+### Confirmed Mew behavior that Smart Streams must preserve
+
+- Mew already has a complete AutoPlay policy domain: `MANUAL`, `FIRST_STREAM`, `REGEX_MATCH`; source scope (`ALL_SOURCES`, installed addons only, enabled plugins only); addon/plugin allowlists; regex matching; persisted binge-group preference, filename and info-hash identity; and readiness checks for direct/debrid streams.
+- `StreamsRepository` owns request identity and cancellation: it reuses unchanged requests, increments `activeRequestGeneration`, cancels the prior job, rejects stale-generation results, and manages cache enrichment, timeout and manual-picker fallback. This is a regression-sensitive lifecycle contract.
+- AutoPlay is not simply “choose the highest-scoring stream”: it applies source eligibility and episode identity first, distinguishes ready vs pending Debrid candidates, and preserves existing selection order/policy.
+- Mew's `StreamItem` already carries structured `resolution`, `quality`, `hdr`, `codec`, cache status and local Debrid-resolution flags. Avoid parsing the same metadata into a second competing model when the existing structured fields are reliable; inspect provider population/normalization before relying on them.
+- Preferred and secondary audio language are already stored by `PlayerSettingsRepository`. Do not create another preference store for Smart Streams language ranking.
+- Mew's `PlayerDeviceStatus` abstraction currently exposes time, battery and network type; its Android/iOS actuals do not provide the upstream Smart device profile (display/video lines, decoder/HDR capability and memory tier). Upstream's `SmartStreamDevice` uses a separate capability model and memory information. Capability detection therefore needs a platform-specific audit, not a blind port.
+
+### Refined decision
+
+**ADAPT the ranking/filtering behavior; do not TAKE the upstream AutoPlay implementation wholesale.** A compatible design must:
+
+1. Keep Mew's AutoPlay mode, regex, addon/plugin source allowlists, binge-group identity, Debrid readiness, request-generation cancellation, timeout and manual fallback as the authoritative eligibility/lifecycle policy.
+2. Apply Smart ranking only to eligible candidates and define deterministic behavior for unknown resolution/codec/HDR/language/size/cache metadata.
+3. Reuse Mew's preferred/secondary audio-language settings and existing StreamItem fields where semantically valid; do not add duplicate persisted controls or models.
+4. Add or extend Android/iOS device-capability providers only after checking available APIs, permissions, fallback values and testability. Do not infer hardware decode support from screen resolution alone.
+5. Decide explicitly whether Smart ranking is a manual sort mode, an optional ranking assist within existing AutoPlay modes, or a new user-visible mode. Do not introduce a second independent AutoPlay toggle that conflicts with Mew's current settings.
+6. Add tests for stale requests, provider-order stability, source allowlists, regex, binge-group identity, pending/ready Debrid candidates, unknown metadata, preferred language and device-profile fallbacks.
+
+**Classification:** Mew AutoPlay vs upstream Smart AutoPlay = **SHARED PATTERN / DIFFERENT SEMANTICS**; Mew stream request lifecycle = **KEEP**; structured stream metadata and player language settings = **ALREADY IMPLEMENTED / REUSE**; Smart device profile and quality ranking = **ADAPT / NEEDS INVESTIGATION**.
+
+**Verification:** static source reads only. No ranking code, settings, models, tests, builds, playback or device behavior changed or run.
