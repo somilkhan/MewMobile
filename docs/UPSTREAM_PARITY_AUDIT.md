@@ -6,8 +6,8 @@
 - Mew repository: `somilkhan/MewMobile`
 - Active target: `Main-dev` — latest verified HEAD at 2026-11-20 15:27 IST: `32f4d90da93fa4b1cd4879e33f0fbfa6dedad3d3`. Application source audit baseline: `a7f066297ba000833a981b12f8b57c26ce833f7d`; live GitHub compare confirms all 37 commits since that baseline changed only `docs/UPSTREAM_PARITY_AUDIT.md`. Latest audit document blob SHA before this update: `af00c3758f9d43a54fd7edd13d41cf06ca298a26`. Re-read the live ref at the start of the next session.
 - Protected stable branch: `main` — `207ef8fa309b8061b73039b2d4e4bde4af65050e` (untouched)
-- Reference branch: `upstream-sync` — `af51bbbc13cdb315a88ef597eb4d2672a60335d5` (live ref rechecked 2026-11-20)
-- Mother upstream: `luqmanfadlli/NuvioMobile-Enhanced`, `enhanced` — live ref `3f9c50c122c9c1d63bf3f061e65bd2cb17967fb6`. The prior delta `b23b28a878b78f5ef9252128b901155fee6eeea9..375d93d90864d6b0774d8ab6f58c72d63d10d2af` (2 Home hero-source commits) is reviewed below. The new delta `375d93d90864d6b0774d8ab6f58c72d63d10d2af..3f9c50c122c9c1d63bf3f061e65bd2cb17967fb6` is one player-logo lookup commit, unrelated to settings IA; SKIP for this audit scope and retain as a separate player-parity candidate. Full current upstream settings-tree parity remains NOT COMPLETE.
+- Reference branch: `upstream-sync` — `af51bbbc13cdb315a88ef597eb4d2672a60335d5` (live ref rechecked 2026-11-20 16:14:00 IST)
+- Mother upstream: `luqmanfadlli/NuvioMobile-Enhanced`, `enhanced` — live ref `3f9c50c122c9c1d63bf3f061e65bd2cb17967fb6` (rechecked 2026-11-20 16:14:00 IST). The prior delta `b23b28a878b78f5ef9252128b901155fee6eeea9..375d93d90864d6b0774d8ab6f58c72d63d10d2af` (2 Home hero-source commits) is reviewed below. The new delta `375d93d90864d6b0774d8ab6f58c72d63d10d2af..3f9c50c122c9c1d63bf3f061e65bd2cb17967fb6` is one player-logo lookup commit, unrelated to settings IA; SKIP for this audit scope and retain as a separate player-parity candidate. Full current upstream settings-tree parity remains NOT COMPLETE.
 - Audit file: `docs/UPSTREAM_PARITY_AUDIT.md`
 - No `MEW-CONTEXT-SNAPSHOT.md` or `CONTEXT-SNAPSHOT.md` exists in the current Main-dev tree.
 
@@ -1923,3 +1923,41 @@ The existing canonical credential-visibility finding above now includes the Debr
 - No new TRUE DUPLICATE found.
 
 **Verification:** static source and route reads only. No source edits, builds/tests, locale switching, Android accessibility/device checks or iOS runtime checks.
+
+
+## App language, theme persistence and profile boundary — 2026-11-20 16:14:00 IST
+
+**Target:** `Main-dev`  
+**Verified source HEAD before write:** `126546069ca2ad254fe00fdb7a5a085e10f38788`  
+**Previous audit document blob / write guard:** `d680a5542278231715c4740c710db9ce62c5bfe5`  
+**Files inspected:** `AppLanguage.kt`, `ThemeSettingsRepository.kt`, common `ThemeSettingsStorage.kt`, Android/iOS `ThemeSettingsStorage` actuals, `ProfileScopedKey.kt`, `ProfileRepository.kt`, Android/iOS `DeviceLanguagePreferences`, `PlayerLanguagePreferences.kt`, `PlayerLanguagePreferencesTest.kt`, `AppUrlBridge.kt`, `AppUrlBridgeTest.kt`, `SettingsScreen.kt`.
+
+### Global app language vs profile-scoped appearance — CONFIRMED SEMANTIC BOUNDARY
+
+- `AppLanguage` exposes 23 selectable language codes plus `DEVICE`; `fromCode()` falls back to `DEVICE` for unknown/null values.
+- Theme, custom theme colors, AMOLED, Liquid Glass native tab bar, Liquid Glass auto-hide and navbar style are stored using `ProfileScopedKey.of(...)`. `ProfileRepository.selectProfile()` calls `ThemeSettingsRepository.onProfileChanged()`, which reloads these values for the newly active profile.
+- App language deliberately uses the unscoped `selected_app_language` key on both Android and iOS. Both platform actuals first read that global key, then fall back to the old profile-scoped key and migrate it to the global key. Changing profile therefore does not intentionally change the app language.
+- Android applies language through `AppCompatDelegate.setApplicationLocales`; iOS updates `AppleLanguages` in `NSUserDefaults`. These are **INTENTIONAL PARALLEL / PLATFORM IMPLEMENTATIONS**, not duplicate storage logic to consolidate into one platform implementation.
+- The theme sync payload exports profile-scoped appearance keys (theme, custom colors, AMOLED, Liquid Glass and navbar style), but does not export the global app-language key. This is consistent with the global/profile boundary; do not accidentally make app language profile-specific or sync it as a profile preference during settings IA work.
+- `ThemeSettingsRepository.clearLocalState()` resets in-memory defaults and native tab bridge state; profile switching instead reloads profile-scoped persisted values. Preserve the distinction between clearing state and switching profiles.
+
+### Player subtitle language — separate preference domain
+
+- `PlayerLanguagePreferences.kt` defines a much broader language option list and audio/subtitle sentinels (`default`, `device`, `original`, `none`, `forced`). Its device-language resolver has Android and iOS actuals and its normalization/filtering helpers have common unit tests.
+- This is **INTENTIONAL PARALLEL / DIFFERENT SEMANTICS**, not duplication of the 23-language app UI locale selector. App language controls interface localization; player preferences choose audio/subtitle tracks and filter addon subtitles. Do not merge their models or lists merely because both use language names/codes.
+
+### Navigation / test coverage boundary
+
+- `AppUrlBridgeTest` covers representative meta, addon-install, provider, reserved-auth and invalid Stremio deep-link parsing. `PlayerLanguagePreferencesTest` covers common language normalization and addon subtitle filtering.
+- These tests do not establish settings route restoration, contextual back behavior, saved category migration, or end-to-end deep-link navigation after app recreation. Keep the existing contextual-back and tablet category parser findings open; broader navigation restoration coverage remains **NEEDS INVESTIGATION**.
+- No evidence in this inspection establishes a dedicated `ThemeSettingsRepository` unit-test suite. Do not claim theme/profile persistence is tested merely because the player-language and deep-link helpers have tests.
+
+### Classification and decision
+
+- App locale vs player audio/subtitle language: **INTENTIONAL PARALLEL / DIFFERENT SEMANTICS**.
+- Android vs iOS language/storage actuals: **INTENTIONAL PARALLEL / PLATFORM IMPLEMENTATIONS**.
+- Profile-scoped appearance vs global app language: **SHARED SETTINGS REPOSITORY / DIFFERENT PERSISTENCE SCOPE**; preserve current semantics.
+- No new TRUE DUPLICATE found. No application source change recommended from this audit finding alone.
+
+**Verification:** GitHub source reads at the recorded HEAD; compare confirms the only commit after the previously recorded HEAD changed this audit document. No builds, unit tests, locale switching, profile switching on device, Android device checks or iOS runtime checks were run.
+
