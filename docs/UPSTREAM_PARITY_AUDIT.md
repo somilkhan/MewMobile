@@ -4,7 +4,7 @@
 
 ## Verified repository refs
 - Mew repository: `somilkhan/MewMobile`
-- Active target: `Main-dev` — latest verified HEAD before this handoff refresh: `d281eaa8e32fa6e59d2343bd8957f2d75a291aec`. Application source audit baseline: `a7f066297ba000833a981b12f8b57c26ce833f7d`; GitHub compare confirms all commits since that baseline changed only `docs/UPSTREAM_PARITY_AUDIT.md`. Re-read the live ref at the start of the next session.
+- Active target: `Main-dev` — latest verified HEAD before this handoff refresh: `961d59323452e16a9c403ae3f076b996d6546a5d`. Application source audit baseline: `a7f066297ba000833a981b12f8b57c26ce833f7d`; GitHub compare confirms all commits since that baseline changed only `docs/UPSTREAM_PARITY_AUDIT.md`. Re-read the live ref at the start of the next session.
 - Protected stable branch: `main` — `207ef8fa309b8061b73039b2d4e4bde4af65050e` (untouched)
 - Reference branch: `upstream-sync` — `af51bbbc13cdb315a88ef597eb4d2672a60335d5`
 - Mother upstream: `luqmanfadlli/NuvioMobile-Enhanced`, `enhanced` — `b23b28a878b78f5ef9252128b901155fee6eeea9`
@@ -1326,3 +1326,38 @@ The Nuvio Enhanced page contains 13 functional sections and at least 49 ordinary
 ### Credential visibility cross-check — 2026-11-20 08:20:32 IST
 
 The existing canonical credential-visibility finding above now includes the Debrid API-key dialog as a second confirmed occurrence. Comparison files: `DebridSettingsPage.kt`, `SettingsSecretTextField.kt`, `TmdbSettingsPage.kt`, `MdbListSettingsPage.kt`, `AiAssistantSettingsPage.kt`. TMDB/MDBList/AI already use masked input with a reveal/hide action; Debrid and manifest-defined plugin secrets do not. This is one shared behavior-class finding with two affected surfaces, not two independent duplicate records. Source inspection only; no source changes or runtime secret-display tests.
+
+
+## Mew Enhanced caller-level audit — Concierge, Release Radar, Library Health and Live TV — 2026-11-20 10:19:00 IST
+
+**Target:** `Main-dev`  
+**Verified source HEAD before write:** `961d59323452e16a9c403ae3f076b996d6546a5d`  
+**Application source baseline:** `a7f066297ba000833a981b12f8b57c26ce833f7d` (all changes since baseline remain documentation-only).  
+**Previous document blob / write guard:** `7dc3a42d6e9878597326e1a1ad2c690feb843fbf`.  
+**Upstream enhanced ref checked:** `luqmanfadlli/NuvioMobile-Enhanced` branch `enhanced`, `b23b28a878b78f5ef9252128b901155fee6eeea9`.  
+**Files inspected:** `NuvioEnhancedSettingsPage.kt`, `NuvioEnhancedSettingsRepository.kt`, `HomePremiumSections.kt`, `LiveTvScreen.kt`, `HomescreenSettingsPage.kt`.
+
+### Concierge and home experience
+
+- `nuvioConciergeEnabled` is a Home experience feature gate, not an external service connection or independent destination. It gates Concierge-dependent Smart Resume, Release Signals and Profile Stats rows in the Enhanced settings page. The actual UI surface is `HomeConciergeSection` in `HomePremiumSections.kt`. **Decision: ADAPT** its controls into Look → Home Experience (or Home → Concierge subsection); do not put it under Services.
+- `smartResumeEnabled`, `releaseRadarHomeSignalsEnabled` and `profileStatsEnabled` are dependent Home experience options. Keep their enablement relationship to `enhancedHomeFeaturesEnabled && nuvioConciergeEnabled`; do not show them as independent service integrations.
+- `showContinueWatchingReadyBadge` is a Continue Watching presentation preference and belongs with Watch → Continue Watching, not Concierge configuration. It shares the Enhanced settings repository only because the current Enhanced page aggregates unrelated settings; this is **SHARED REPOSITORY / DIFFERENT SEMANTICS**, not duplicate state.
+- `smartShelvesEnabled` and `quietHomeModeEnabled` change Home composition/visibility. Place them under Look → Home Experience. Preserve the quiet-home dependency that disables Smart Shelves while quiet mode is enabled.
+- `releaseRadarDigestEnabled` controls digest presentation within the Home Release Radar surface (`HomeReleaseRadarSection(showDigest)`). It is not a separate notification subscription or standalone destination. Place under Look → Home Experience → Release Radar; retain its dependency on enhanced-home master enablement.
+- `libraryHealthEnabled` is currently exposed as a Premium Labs switch. The inspected UI evidence does not establish a separate Library Health settings page or service connection. **NEEDS INVESTIGATION:** inspect the runtime producer/caller and whether it renders a Home card, Library screen signal or diagnostics surface before assigning final destination. Do not place it in System → Diagnostics based on the label alone.
+- `releaseRadarLibraryOnly`, `releaseRadarWindowDays` and `releaseRadarContentFilter` are filters for the same Home Release Radar feed; the source page groups them under Release Radar. Place under Look → Home Experience → Release Radar, not general Content Discovery settings. Preserve allowed values, clamp (7..45 days), and category semantics.
+- The Release Radar digest counts (today/week/profile) are computed from the same list in `HomePremiumSections.kt`; do not create another digest model/page while reorganizing settings.
+
+### Live TV
+
+- `liveTvEnabled` is a feature-visibility/availability switch under current Enhanced App Experience settings. Actual Live TV workflow lives in `LiveTvScreen.kt` and manages M3U, Stalker and Xtream sources, playlists, EPG, favorites and channel playback.
+- **Decision: ADAPT** the visibility switch to Watch → Live TV (or Watch → Content Sources → Live TV) near the destination it gates. Keep source credentials and playlist configuration within the Live TV screen workflow; do not create a second settings page duplicating those controls.
+- Live TV is an intentional distinct viewing/source workflow, not an Integrations provider card. Preserve profile-scoped storage and platform-specific file-picker/EPG implementations.
+
+### Duplicate and persistence guard
+
+- `NuvioEnhancedSettingsRepository` currently aggregates feature flags alongside `PlayerSettingsRepository`, `MetaScreenSettingsRepository` and other domain owners. Existing setter calls show several controls already write to those domain repositories (e.g. parental guide and detail-hero settings); preserve the domain owner rather than moving persistence into a new consolidated settings repository.
+- No new TRUE DUPLICATE was established in this pass. The Continue Watching ready badge and Home Concierge controls are separate semantics even though their controls share one source page. The Release Radar digest and filters share one feed but represent presentation vs filtering options, not duplicates.
+- The prior proposed destinations for Concierge, Release Digest and Live TV are refined by these caller findings. Library Health remains open until its runtime caller is identified.
+
+**Verification:** static source inspection only; no source changes, builds/tests, Android device or iOS simulator checks. Upstream tree/ref was verified, but upstream file-content comparison for this specific settings page was unavailable in the current fetch path; no claim of full upstream semantic diff is made.
