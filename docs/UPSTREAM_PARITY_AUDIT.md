@@ -674,3 +674,37 @@ This map is provisional. Where a control spans two domains, choose one canonical
 - Classification: **TRUE DUPLICATE** — same preference, same repository state, same setter and same enablement gate exposed on two pages.
 - Proposed canonical owner: Services → Integrations → TMDB. Replace the Content Discovery toggle with a single navigation row to TMDB settings (or remove it if a separate entry already exists), and make the missing-API-key shortcut route-aware so Back returns correctly.
 - Updated confirmed duplicate count: **2** — Parental Guide (Playback + Nuvio Enhanced) and TMDB enrichment enabled (Content Discovery + TMDB settings). No other exact shared setter was found in the inspected candidate page set; remaining apparent overlaps stay **NEEDS INVESTIGATION**.
+
+
+## Theme accent contrast audit — 2026-11-20
+
+### Confirmed contrast risk
+- `Theme.kt` maps `palette.secondary` to Material `primary` and `palette.onSecondary` to `onPrimary`. These foreground/background pairs are consumed by Material components when they render primary-filled surfaces.
+- WCAG relative-luminance contrast calculations on the current `ThemeColors.kt` palette values found multiple white-on-accent pairs below 4.5:1:
+  - Amber: **2.37:1**
+  - Lagoon: **2.49:1**
+  - Sunset: **2.80:1**
+  - Emerald: **3.30:1**
+  - Messenger: **3.44:1**
+  - Blossom: **3.53:1**
+  - Arctic Blue: **3.62:1**
+  - Ocean: **3.68:1**
+  - Crimson: **4.23:1**
+  - Amethyst: **4.23:1**
+- Some palettes already choose dark foregrounds and pass. This is not a claim that every use of the accent color is unreadable; it is a confirmed risk for text/icons rendered on primary/accent-filled surfaces.
+- Custom accent currently sets `onSecondary = Color.White`. `toAccessibleAccent()` only constrains luminance to 0.12–0.24; at the upper bound, white foreground contrast is about **3.62:1**, so the current adjustment does not guarantee 4.5:1.
+- No dedicated ThemeColors/contrast regression test file was found in the inspected test tree.
+
+### Recommended correction (not implemented)
+- Calculate foreground color from actual contrast against the resolved accent and select black or white based on the higher valid ratio; if neither meets the target, adjust the accent itself or use a safer accessible foreground/background pairing.
+- Apply this centrally in theme palette resolution so all Material components and Mew surfaces receive consistent values. Do not patch individual settings/dialog screens.
+- Add tests for every predefined palette and custom accent boundary cases, including dark/light foreground selection and minimum contrast.
+- Then visually verify accent chips, selected controls, badges, buttons, dialog actions, focus rings and navigation surfaces in Mew's supported theme set. Device rendering remains unverified.
+
+### Status after theme pass
+- Confirmed duplicate controls: **2** (Parental Guide; TMDB enrichment toggle).
+- Confirmed navigation mismatch: **1** (Content Discovery → TMDB shortcut parent).
+- Confirmed localization gap: **1 group** (Advanced Logs labels).
+- Confirmed theme contrast risk: **multiple primary/onPrimary palette pairs**, including custom accent.
+- No application source changes. Builds/tests/device verification: **NOT RUN**.
+- Next: complete remaining dialog/copy review and finalize the unified settings map and safe migration strategy before requesting implementation approval.
