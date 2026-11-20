@@ -1,15 +1,24 @@
 # CURRENT HANDOFF — SETTINGS IA AUDIT (2026-11-20)
 
-> This block is the current source-of-truth for the settings audit. Older sections below are historical evidence and may contain outdated branch/upstream metadata. Do not use old SHAs as current state.
+> Current source-of-truth for the settings audit. Older sections below are historical evidence; do not reuse their SHAs as live state. Every future agent must read this entire file before investigating or changing settings.
 
 ## Verified repository refs
-- Mew repository: `somilkhan/MewMobile`
-- Active target: `Main-dev` — latest verified application-source HEAD before the current docs-only audit updates (2026-11-20 16:14:47 IST): `8a36dcede748ba6bb35d2a49c1ffd062bf7efbd0`. Compare from the application source audit baseline `a7f066297ba000833a981b12f8b57c26ce833f7d` to that source HEAD reports 38 commits, all limited to `docs/UPSTREAM_PARITY_AUDIT.md`; no app source files changed in that interval. The current branch HEAD includes the subsequent audit-document-only commits; re-read the live ref and document blob before any next write.
-- Protected stable branch: `main` — `207ef8fa309b8061b73039b2d4e4bde4af65050e` (untouched)
-- Reference branch: `upstream-sync` — `af51bbbc13cdb315a88ef597eb4d2672a60335d5` (live ref rechecked 2026-11-20 16:14:00 IST)
-- Mother upstream: `luqmanfadlli/NuvioMobile-Enhanced`, `enhanced` — live ref `3f9c50c122c9c1d63bf3f061e65bd2cb17967fb6` (rechecked 2026-11-20 16:14:00 IST). The prior delta `b23b28a878b78f5ef9252128b901155fee6eeea9..375d93d90864d6b0774d8ab6f58c72d63d10d2af` (2 Home hero-source commits) is reviewed below. The new delta `375d93d90864d6b0774d8ab6f58c72d63d10d2af..3f9c50c122c9c1d63bf3f061e65bd2cb17967fb6` is one player-logo lookup commit, unrelated to settings IA; SKIP for this audit scope and retain as a separate player-parity candidate. Full current upstream settings-tree parity remains NOT COMPLETE.
-- Audit file: `docs/UPSTREAM_PARITY_AUDIT.md`
-- No `MEW-CONTEXT-SNAPSHOT.md` or `CONTEXT-SNAPSHOT.md` exists in the current Main-dev tree.
+- Repository: `somilkhan/MewMobile`
+- Active target `Main-dev`: live branch HEAD `0ece7a5970b429217bfd3a74acff413dcf779045`.
+- Latest inspected application-source baseline: `8a36dcede748ba6bb35d2a49c1ffd062bf7efbd0`. GitHub compare confirms the 13 commits after that source baseline modify only `docs/UPSTREAM_PARITY_AUDIT.md`; no app source paths changed.
+- Current audit document blob: `02dc456bc53f32a23458b3d7e85e3b430e6c8602`.
+- Protected `main`: `207ef8fa309b8061b73039b2d4e4bde4af65050e` (unchanged).
+- `upstream-sync`: `af51bbbc13cdb315a88ef597eb4d2672a60335d5` (latest live check 2026-11-20 16:33 IST).
+- Mother upstream `luqmanfadlli/NuvioMobile-Enhanced:enhanced`: `3f9c50c122c9c1d63bf3f061e65bd2cb17967fb6` (latest live check 2026-11-20 16:33 IST). The latest upstream commit remains the player-logo lookup change outside settings IA; no newer settings route-tree delta was found.
+- No `MEW-CONTEXT-SNAPSHOT.md` or `CONTEXT-SNAPSHOT.md` exists on `Main-dev`.
+
+## Current audit status — 2026-11-20 16:33 IST
+- **Progress estimate: ~96%; static audit remains IN PROGRESS pending final reconciliation.** This is a scope estimate, not a test-completion percentage.
+- Static coverage now includes settings hierarchy/control ownership, profile/persistence/sync boundaries, duplicate checks, Addons/Plugins/CloudStream, Tracking/provider flows, Account/Profile, Appearance/Backup, Notifications/Advanced, Playback/Debrid dialog contracts, route restoration/deep-link callers, and all 23 locale resource files.
+- Confirmed duplicate controls remain **2**: Parental Guide (Playback + Nuvio Enhanced) and TMDB enrichment toggle (Content Discovery + TMDB settings). No new TRUE DUPLICATE was confirmed in the later dialog, persistence or navigation passes.
+- The audit contains a canonical route/compatibility map, upstream TAKE/ADAPT/SKIP/ALREADY IMPLEMENTED/NEEDS INVESTIGATION decisions, localization key-coverage matrix, and current settings hierarchy proposal. The next static step is to reconcile these into one deduplicated decision matrix in this file only.
+- Runtime verification remains **NOT RUN**: Android device, iOS simulator/device, locale switching/fallback rendering, RTL/CJK/long-string layout, TalkBack/VoiceOver, keyboard/focus, process recreation and route serialization tests.
+- No application source changes, builds, tests, merges, promotions or releases have been made in this audit continuation. Do not create the separate settings plan MD; the user will create it after audit sign-off.
 
 ## Mandatory agent read-first and deduplication protocol (2026-11-20)
 
@@ -2257,3 +2266,71 @@ The default strings.xml contains 2,930 string entries. For a settings-relevant k
 **Classification:** missing localized key with default counterpart = **EXPECTED DEFAULT-RESOURCE FALLBACK / TRANSLATION GAP**, not a blank-string bug; values-in alias discrepancy remains separate NEEDS INVESTIGATION.
 
 **Verification:** repository version catalog and all locale XML files read at source HEAD 8a36dcede748ba6bb35d2a49c1ffd062bf7efbd0; official Kotlin Multiplatform docs checked. No build, app locale switching, RTL/locale rendering or device/simulator test performed. Protected main rechecked and unchanged.
+
+
+## Audit consolidation — canonical findings and decision matrix — 2026-11-20 16:33 IST
+
+**Target:** Main-dev  
+**Verified branch HEAD before write:** 0ece7a5970b429217bfd3a74acff413dcf779045  
+**Previous audit document blob / write guard:** 02dc456bc53f32a23458b3d7e85e3b430e6c8602  
+**Application source audit HEAD:** 8a36dcede748ba6bb35d2a49c1ffd062bf7efbd0  
+**Scope:** consolidate existing canonical findings only; no new application behavior proposed beyond decisions already recorded above.
+
+### Confirmed duplicates — exactly two
+| Finding | Classification | Required handling |
+|---|---|---|
+| Parental Guide control appears in Playback and Nuvio Enhanced | TRUE DUPLICATE | One canonical setting/control owner; preserve current behavior and all callers during UI move |
+| TMDB enrichment enabled toggle appears in Content Discovery and TMDB settings | TRUE DUPLICATE | One canonical setting/control owner; preserve API-key gating and enable-after-config flow |
+
+No other TRUE DUPLICATE was confirmed. Similar cards, source-set actuals, separate sync domains, and platform-specific sheets remain classified as intentional or semantically different in their canonical sections.
+
+### Confirmed ADAPT / fix candidates
+| Priority | Candidate | Evidence-based constraint |
+|---|---|---|
+| HIGH / privacy | Addon tracking-resource consent | Gate both AddonsScreen manual install and App.kt AddonInstall deep link through the same install transaction; bind consent to exact manifest and re-check profile/session/duplicates |
+| HIGH / security UX | Mask Debrid API-key and manifest-defined Plugin secret fields | Keep existing SettingsSecretTextField behavior for AI/TMDB/MDBList; do not broaden the finding to already-masked integrations |
+| HIGH / compatibility | Safe SettingsCategory legacy parser | Preserve Account, General, Enhanced, About, Advanced saved names before category migration |
+| MEDIUM / navigation | Contextual Back for Content Discovery → TMDB in internal/tablet mode | Preserve Navigation 3 app stack; native route mode already pushes SettingsPageRoute entries |
+| MEDIUM / navigation | Stable SettingsPageRoute pageName compatibility | Keep existing enum names or explicit aliases for saved route restoration |
+| MEDIUM / UX | Debrid per-resolution/per-quality picker titles | Use the correct title for each picker; do not alter selection/persistence semantics |
+| MEDIUM / localization | Translate settings/tracking/anime/playback/appearance copy | Default strings remain the reference; missing locale keys fall back to default resources according to Compose Multiplatform documentation |
+| MEDIUM / accessibility | Explicit selected/radio semantics for shared picker rows | Verify TalkBack/VoiceOver before changing shared SettingsNavigationRow contracts |
+| MEDIUM / parity | Validate iOS subtitle-font import content like Android | Confirm safe parser/API and renderer failure behavior before porting; preserve current font file references |
+| MEDIUM / UX | Surface subtitle-font import failures instead of silently discarding them | Preserve cancellation and profile references; do not delete font files without reference audit |
+| IA | Adapt You / Look / Watch / Services / System taxonomy | Preserve Mew identity, feature policy, storage scope, route names and platform-only options |
+| IA | Add Layout and About parents; split Playback into logical subpages | Reuse existing repositories and keys; do not create parallel state holders |
+| IA | Split Advanced Logs into a route only if useful | Keep RuntimeDiagnostics as the single diagnostics owner |
+| IA | Add subtle NEW badge with release metadata | Three app releases inclusive; app-global, non-dismissible; do not reuse profile-scoped seenFeatureIds |
+
+### KEEP / ALREADY IMPLEMENTED / INTENTIONAL PARALLEL
+- Android/iOS storage actuals for theme, player, P2P, anime tracking, library display and notifications are intentional platform implementations; preserve platform storage and cleanup behavior.
+- App language is global; appearance settings are profile-scoped. Player audio/subtitle language is a separate preference domain.
+- General ProfileSettingsSync uses an explicit allowlist and credential stripping/preservation; HomeCatalogSettingsSyncService remains a separate intentional sync domain.
+- Anime tracking and Library display settings are locally profile-scoped but absent from the general cloud blob; do not add them to cloud sync without product decisions.
+- Plugin scraper configuration is app-global under settings_${scraperId} in both Mew and Enhanced; plugin metadata/source code are profile-scoped. This matches upstream and must not be re-keyed incidentally.
+- Generic Addons, generic Plugins and CloudStream are intentional parallel systems with different install/security/update lifecycles.
+- Tracking provider cards share a component but retain provider-specific semantics; app locale and player track-language preferences remain separate.
+- Downloads manager is a utility route, not proof that upstream Downloads preferences should be imported.
+
+### NEEDS INVESTIGATION / PRODUCT DECISION
+- Whether Library layout/sort and Anime tracking preferences/mappings should remain device-local per profile or sync across devices; credentials/OAuth/PKCE material stays local secure storage.
+- Whether ProfileSettingsSync remote apply can interleave with profile switching; current source does not prove a race.
+- Private viewing mode requires tracing every history/scrobble/provider/analytics/profile write path before any UI toggle.
+- Anonymous guest-to-account wording requires an auth linking/upgrade and guest-data retention contract; do not copy upstream wording alone.
+- Malformed Plugin layout/settings JSON fallback needs schema/version/corrupt-storage analysis before adding recovery or rewriting payloads.
+- Legacy values-in locale alias: AppLanguage exposes id; values-in has 13 differing entries, including 12 Hindi download labels. Determine whether it is a deprecated locale alias or orphan before cleanup.
+- Android external download-folder chooser callsite/profile scope and iOS security-scoped bookmark/background NSURLSession semantics.
+- Upstream multiple IPTV playlists/manual EPG manager and other feature-level candidates remain separate data-model/provider audits, not settings-only ports.
+- Theme contrast white-on-accent risk, custom color accessibility, and runtime dialog/layout/focus behavior require tests/device evidence.
+
+### SKIP for this settings IA pass
+- Upstream-only Media Servers, OMDB, Discord RPC and What's New: no corresponding Mew feature owner found; do not add empty placeholders or infer features from branding assets.
+- Latest Enhanced player-logo lookup commit: outside settings IA; retain as a separate player metadata parity candidate.
+- Do not wholesale-copy upstream settings files, replace Mew provider IDs, merge intentional sync pipelines, or refactor platform actuals solely to reduce file count.
+
+### Required verification after the user approves implementation scope
+- Tests: legacy category/page-name parser and route restoration; internal/tablet contextual Back; Addon consent across manual and deep-link callers; NEW release-version comparison including prerelease/invalid values; plugin schema fallback and password masking; profile/global settings scope and sync boundaries; accessibility selected semantics.
+- Runtime: Android and iOS locale switching; RTL Arabic/Hebrew; CJK; long German strings; app process recreation; phone/tablet/TV layouts; keyboard/focus and screen-reader behavior; profile switch/delete; provider auth and Addon consent; iOS-specific sheets, font import and downloads.
+- Builds, CI and device results must be run and reported separately. None of these verification steps were performed during this read-only audit.
+
+**Consolidation status:** canonical findings grouped; no new application source change. The user's separate settings plan MD is intentionally not created.
