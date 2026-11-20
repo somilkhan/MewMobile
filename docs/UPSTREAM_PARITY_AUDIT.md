@@ -1470,3 +1470,31 @@ The existing canonical credential-visibility finding above now includes the Debr
 - This corrects the later inventory sentence that said Debrid had eight `BasicAlertDialog` calls. The earlier seven-call count was correct. The total dialog inventory remains a partial call-site count, not a complete state/copy/accessibility audit.
 - The API-key entry remains part of the existing canonical credential-visibility defect; do not add another issue. The wrong Max Results title remains the separate confirmed copy bug.
 - Source read only; no app source changes, tests, builds or device checks.
+
+
+## Debrid dialog behavior and dismissal audit — 2026-11-20 13:05:51 IST
+
+**Target:** `Main-dev`  
+**Verified source HEAD before write:** `902e546df95344fb0ead0c65f69c3ee1dbf63f4d`  
+**Previous audit document blob / write guard:** `9d61fa83395381b98df272173cca7ac524de6a13`  
+**Source file / blob:** `DebridSettingsPage.kt` / `30776a3b384f5cb888817cb5f8579bae033f6431`.  
+**Reviewed:** all seven Debrid dialog call sites; detailed template, picker, multi-choice, release-group, device authorization and API-key flows.
+
+### Confirmed interaction contracts (preserve)
+
+- **Single-choice / integer pickers:** selection commits immediately and dismisses. No separate Save is expected; do not convert these to draft/Save dialogs without a product reason.
+- **Multi-choice pickers:** selections are staged in a local draft; Save commits; Clear empties the draft but does not persist until Save; outside/back dismissal discards draft. Preferred lists intentionally normalize an empty saved list back to their default order, while required/excluded lists can remain empty. Preserve this per-field difference.
+- **Release-group editor:** edits a draft; Clear empties it; Save splits on newline/comma, trims whitespace, removes blanks and deduplicates. Dismissal without Save discards edits.
+- **Template editor:** Reset changes only the draft to the default; Save persists it; Cancel/outside/back discards the draft. Reset is not an immediate destructive action.
+- **Prepare-stream count:** option selection is immediate; warning text is shown in the dialog. No new issue confirmed in this pass.
+- **API-key editor:** Save validates the trimmed value before persistence; failed/blank validation shows a localized generic invalid-key message; Clear explicitly stores an empty credential and dismisses. Cancel/outside/back dismisses without saving the draft. The field is still plain text (already part of the canonical credential-visibility finding).
+- **Device authorization:** the pending session is persisted and reused on reopening; dismissal cancels the active composable polling effect but does not clear the pending session. Success/expiry/failure/unsupported/retry/disconnect clear the pending session as appropriate. This supports resumable device auth, but the visible Cancel label only closes the dialog; it does not cancel the pending authorization.
+
+### Copy / UX follow-up
+
+- **NEEDS COPY REVIEW:** the device authorization dialog's Cancel button preserves a pending session and polling can resume on reopen. Consider “Close” / “Continue later” wording or an explicit cancel-authorization action if true cancellation is desired. Do not clear the session silently; preserve current resumability unless a deliberate behavior change is approved.
+- No new state-loss or validation defect confirmed in the inspected picker/template flows.
+- Existing API-key masking and Max Results title findings remain canonical; not duplicated here.
+- Accessibility semantics (checkbox/radio state, focus return, keyboard behavior, touch target and screen-reader announcement) remain **NOT VERIFIED** without platform runtime testing.
+
+**Verification:** GitHub source reads only; no application source changes, tests, builds, TalkBack/VoiceOver or device checks. This is a behavior-contract audit, not an implementation.
