@@ -2955,3 +2955,21 @@ No other TRUE DUPLICATE was confirmed. Similar cards, source-set actuals, separa
 **Classification:** Android raw redirect handling = **KEEP**; iOS redirect flag = **CONFIRMED PLATFORM CONTRACT BUG / ADAPT**; iOS response cap = **CONFIRMED RESOURCE-LIMIT GAP / ADAPT**; DELETE body = **CONFIRMED PLATFORM MISMATCH / ADAPT**; cleartext policy = **NEEDS SECURITY REVIEW / PRODUCT COMPATIBILITY**; upstream ApiHttpClient = **REFERENCE PATTERN, NOT WHOLESALE REPLACEMENT**.
 
 **Verification:** static source inspection only. No HTTP requests, redirect tests, memory profiling, TLS tests, builds or device checks run.
+
+
+## Home catalog sync arrival-order parity — already implemented (2026-11-20 17:14:00 IST)
+
+**Upstream commit inspected:** `0b9d93599f7d7603e7814a99a70aa64d7c48e086`.
+- Mew's `HomeCatalogSettingsRepository.applyFromRemote()` already preserves local preference keys when `knownPreferenceKeys()` is empty (catalogs have not loaded yet), through `shouldPreservePreferenceAfterRemoteSync()`: `key !in remoteKeys && (knownKeys.isEmpty() || key in knownKeys || key.requiresExplicitSyncKey())`.
+- This matches the upstream fix for a remote sync arriving before catalog discovery. **ALREADY IMPLEMENTED**; do not port the upstream change or add another merge layer. Preserve the current sync origin/profile-generation and later catalog normalization behavior.
+
+## Download source timeout — shared CloudStream request cancellation addendum (2026-11-20 17:14:00 IST)
+
+**Upstream commit inspected:** `bdf078d1288dc0f5cf43c7c0d99aff379a34e4b5`.
+- Mew `DownloadSourceResolver.resolveProvidersWithProgress()` already bounds provider concurrency with a semaphore and wraps the aggregate search in `withTimeoutOrNull`; per-provider status is published as sources arrive. `resolveAutoForEpisodes()` also bounds concurrent episode resolution.
+- However, Mew `CloudStreamRepository.loadLinks()` deduplicates requests in a repository-owned `CoroutineScope(SupervisorJob() + Dispatchers.Default)` and stores a shared `Deferred` in `loadLinksRequests`. A caller timeout/cancellation while awaiting that shared deferred does not necessarily cancel the underlying provider job; it can continue in the repository scope until completion or profile cleanup. This is intentionally different from a per-batch child job.
+- Upstream's `StreamSourceLoader` moves provider loads into a dedicated scope and cancels that scope in `finally` after its result timeout. Blindly copying that behavior into Mew could break shared request deduplication or cancel work still needed by another caller.
+
+**Decision: NEEDS INVESTIGATION / ADAPT candidate.** Trace all CloudStream loadLinks callers and profile/session cancellation; verify whether a non-cooperative provider can accumulate long-lived requests after download-source timeouts. If confirmed, add provider-level hard deadlines and bounded in-flight request limits while preserving request coalescing for active consumers. Test timeout with a non-cooperative provider, two callers sharing one request, caller cancellation, profile switch, and repeated episode batches. Do not replace Mew's DownloadSourceResolver or CloudStreamRepository.
+
+**Classification:** bounded provider discovery = **ALREADY IMPLEMENTED**; CloudStream shared request lifetime = **NEEDS INVESTIGATION**; upstream isolated loader scope = **REFERENCE PATTERN / NOT A DIRECT PORT**.
