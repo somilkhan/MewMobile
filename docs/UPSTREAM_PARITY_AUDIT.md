@@ -2721,3 +2721,28 @@ No other TRUE DUPLICATE was confirmed. Similar cards, source-set actuals, separa
 **Classification:** Metal layer lifecycle = **KEEP / Mew-specific implementation**; nativeScale-only calculation = **ADAPT candidate**.
 
 **Verification:** static source/commit inspection only. No Swift change, iOS build, simulator, external display or playback test run.
+
+
+## iOS backup share-sheet lifecycle and iPad presentation (2026-11-20 17:03:46 IST)
+
+**Target:** `Main-dev`  
+**Verified target HEAD before write:** `87eda9fa9a5131d7c6d17b71b5c1a5f88785141b`  
+**Application-source baseline:** `8a36dcede748ba6bb35d2a49c1ffd062bf7efbd0`  
+**Previous audit document blob / write guard:** `91c4480394f0978c97b144bffd950d7249852761`  
+**Upstream commits inspected:** `875de58db03ab7bf390920e7ed27722e82f2ab71`, `d703ca48e5ade22ceaf424451ffba05efa94e670`  
+**Files inspected:** Mew `NuvioEnhancedBackupFileBridge.ios.kt`, `NuvioEnhancedSettingsPage.kt`; upstream `SettingsConfigFileLauncher.ios.kt`.
+
+- Mew already uses `UIActivityViewController` to share its temporary backup JSON, so the core share-sheet behavior is **ALREADY IMPLEMENTED**; do not add another export path or replace it with a different picker family.
+- Mew presents the activity controller without configuring `popoverPresentationController`. Upstream explicitly anchors the iPad popover to the presenter view's center and disables arrow directions. The missing anchor is a platform compatibility risk for iPad presentation and should be adapted.
+- Mew writes the backup to `NSTemporaryDirectory()` and returns success immediately after presenting the controller. It does not attach a completion handler to remove the temporary file after share/cancel. Upstream's share-sheet completion handler removes the temporary file and only invokes its saved callback when the user completes the activity.
+- Mew's UI currently shows a “backup file ready” toast on successful file creation/presentation. Preserve that meaning or update the callback contract deliberately; do not report that a destination save completed before the share sheet returns.
+
+**Decision: ADAPT the missing lifecycle/presentation safeguards** inside Mew's existing `NuvioEnhancedBackupFileBridge`:
+1. Set a valid popover source view/rect for iPad.
+2. Remove the temporary backup file in the activity completion handler on both success and cancellation.
+3. Decide whether callback success means “file prepared/presented” or “share activity completed”; keep toast wording aligned.
+4. Handle presenter dismissal/cancellation and ensure callback/delegate state is released exactly once.
+
+**Classification:** share-sheet export = **ALREADY IMPLEMENTED**; iPad popover anchor = **ADAPT**; temp-file cleanup/completion semantics = **ADAPT**; existing backup serialization/import validation = **KEEP**.
+
+**Verification:** static source inspection only. No iPad/iPhone simulator, share destination, cancellation, temp-file cleanup or build test run.
