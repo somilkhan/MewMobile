@@ -1664,3 +1664,36 @@ The existing canonical credential-visibility finding above now includes the Debr
 - Decision: **ADAPT** error presentation and investigate iOS validation as a separate implementation item; no new settings repository or font-picker abstraction.
 
 **Verification:** source inspection only; no real font imports, malformed-font tests, iOS simulator, Android device or rendering checks were run.
+
+
+## Upstream Downloads settings parity — 2026-11-20 13:11:47 IST
+
+**Target:** `Main-dev`  
+**Verified source HEAD before write:** `6076c51ac34fc3c2958b82d9251f0778bdb511d5`  
+**Previous audit document blob / write guard:** `82fb17ac44dbf646c6d8b6a7d96041b4dd38ab83`  
+**Upstream source files:** `DownloadsSettingsPage.kt`, `DownloadsSettingsRepository.kt`, `DownloadsSettingsStorage.android.kt`, `DownloadsSettingsStorage.ios.kt`, `DownloadsPlatformDownloader.ios.kt`, `DownloadsRepository.kt`.  
+**Mew source files:** `EpisodeDownloadFlowSheet.kt`, `DownloadSourceResolver.kt`, `DownloadsRepository.kt`, `DownloadsStorage.kt` and Android/iOS actuals for storage, external folder and platform downloader.
+
+### Semantic comparison
+
+| Upstream setting | Mew current behavior | Decision |
+|---|---|---|
+| Preferred resolution | Mew already has per-profile `EpisodeDownloadSettings.preferredQuality` (Best, 2160, 1080, 720, 480, 360) inside the batch flow sheet; used by source auto-selection. Upstream has a device-level 720/1080/2160 preference. | **SHARED PATTERN / DIFFERENT SCOPE** — retain Mew quality choices and profile semantics; do not add a second preferred-quality setting. |
+| Concurrency limits (total, concurrent shows, episodes/show) | Mew supports per-item `AllAtOnce` or `OneAtATime`; `AllAtOnce` starts each item immediately. Source discovery is bounded (4 providers, 3 episode selections), but active file transfers have no configurable global/show/episode cap in the inspected repository. | **ADAPT candidate** — add limits to the existing queue admission/promotion state machine only if approved; preserve per-item queueMode and pending source queue. Tests must cover simultaneous batches, resume, pause, replacement, profile switch and worker callbacks. |
+| Allow mobile data | Mew Android downloader has no metered-network guard in the inspected path. Mew iOS default NSURLSession config sets cellular, expensive and constrained network access to true. Upstream has a device-level allow-mobile-data setting and network guard. | **ADAPT candidate / HIGH REGRESSION RISK** — wire a device-level network policy into existing Android/iOS downloader and queue behavior. Do not silently change current always-allowed behavior; test transport changes, in-flight requests and resume semantics. |
+| Show download button | Mew exposes the Episode Download Flow from detail UI; no equivalent preference or visibility gate found in the inspected caller path. | **NEEDS PRODUCT DECISION** — if adopted, gate the existing detail action, do not add a second download entry point. |
+| Download location | Mew Android downloader can copy app-private completed files to an optional persisted tree URI; `DownloadsExternalFolderPlatform` has Android chooser/storage, but no chooser call site was found in the inspected settings/DownloadsScreen/flow. Mew iOS external-folder actual is a no-op and downloads into `Documents/nuvio_downloads`. Mew folder URI storage is profile-scoped. Upstream uses a device-level location URI and iOS security-scoped bookmarks. | **NEEDS INVESTIGATION** — locate/verify the Mew Android chooser caller and decide device vs profile scope before any UI port. iOS needs bookmark lifecycle, access renewal and file operations; never copy only the picker UI. |
+| iOS legacy downloads toggle | Mew iOS currently uses a default NSURLSession data-task implementation with app-level pause handling. Upstream defaults to a background NSURLSession download coordinator and exposes a legacy-mode toggle to select the older data-task path. | **NEEDS INVESTIGATION / iOS PARITY CANDIDATE** — compare background completion, resume data, app termination, subtitle sidecar fetch, progress and destination semantics. No iOS device/simulator verification available; do not port toggle or downloader wholesale. |
+
+### Storage / duplicate classification
+
+- Upstream download preferences are explicitly **device-level**, stored in Android SharedPreferences / iOS NSUserDefaults without profile keys.
+- Mew queue state, external folder URI and episode-download settings are stored through `DownloadsStorage` using `ProfileScopedKey` on both Android and iOS. Do not change that scope implicitly.
+- Mew `preferredQuality` is not a duplicate of upstream preferred resolution: it drives per-profile batch auto-selection with more granular values. QueueMode is also distinct from upstream concurrency limits: one-at-a-time vs all-at-once is a per-item batch policy, not a configurable global/show cap.
+- Mew's bounded source-discovery semaphores (4 providers / 3 episode selections) are not active download concurrency controls. Do not mistake them for equivalent settings.
+- Existing Mew batch-download implementation and tests remain canonical. Do not copy upstream `DownloadsRepository` or replace the existing coordinator.
+- Upstream iOS folder bookmarks and background download coordinator are separate platform capabilities, not duplicate Mew implementations.
+
+**Overall decision:** **SKIP wholesale port**. Selectively adapt concurrency/network policy only after explicit product approval and regression test plan; investigate download location and iOS background-download parity separately. No app source changes made.
+
+**Verification:** source comparison only; no download tasks, metered-network transitions, storage picker, external folder write, app-background/termination or iOS runtime tests were run.
