@@ -3265,3 +3265,25 @@ Before any Mew implementation, obtain and review the backend contract and decide
 **Classification:** Mew and upstream imported regex execution = **SHARED PATTERN / DIFFERENT PLATFORM SEMANTICS**; upstream Android stack guard = **PARTIAL SAFETY IMPROVEMENT**; upstream iOS regex execution = **UNBOUNDED / NEEDS INVESTIGATION**; wholesale port = **SKIP** until cross-platform safety is addressed.
 
 **Verification:** static source inspection only. No adversarial regex was executed; no tests, builds, performance measurements, device or iOS simulator checks run. No application source changed.
+
+
+### Playback TLS fallback — security severity refinement (2026-11-20 IST)
+
+**Target:** `Main-dev`  
+**Verified target HEAD before write:** `4da979d85996ba59f31158e301bcfcbca2e8e803`  
+**Previous audit document blob / write guard:** `0179cbde53eafefe376248156c3082a28f3b78e1`  
+**Mew source:** `composeApp/src/androidMain/kotlin/com/nuvio/app/features/player/PlayerPlaybackNetworking.kt` blob `ce4f205623349b2877d63858c3be5b956d999d58`.  
+**Upstream source:** same path at `enhanced`, blob `87e151db9e3c62199bfc0fdbca5b8e3f1a60f27a`.
+
+The prior networking note called `PlayerPlaybackNetworking.openConnection` a compatibility fallback requiring separate review. Direct source comparison confirms this is a **critical TLS-authentication weakness in both repositories**, not a new upstream enhancement to port:
+
+- Both implementations install an `X509TrustManager` whose `checkServerTrusted` accepts every certificate, and a `HostnameVerifier` that always returns true.
+- Both configure the same trust-all SSL context on the playback OkHttp client and on `HttpsURLConnection` in `openConnection`. This disables certificate-chain and hostname authentication for playback HTTPS requests.
+- Mew's playback client additionally uses `IPv4FirstDns(ConfiguredDnsOverHttps)`; upstream uses `IPv4FirstDns()`. This DNS difference does not restore TLS peer authentication.
+- The inspected helper also follows redirects. Any request headers/authorization supplied to playback must be assessed together with redirect behavior; do not assume credentials are safely scoped to the original host.
+
+**Security classification:** **CRITICAL / SHARED INSECURE LEGACY BEHAVIOR — NOT A TAKE CANDIDATE.** Do not copy or preserve this trust-all behavior merely for upstream parity. A remediation is a separate high-risk playback compatibility project: enumerate every caller and provider that depends on self-signed/invalid certificates, determine whether any narrowly scoped trust exception is truly required, retain normal platform trust and hostname verification by default, and add explicit tests for invalid chain, hostname mismatch, valid public certificates, redirects and provider compatibility. Never silently replace it during this audit; the user has not approved source changes.
+
+**Impact/risk:** HTTPS playback traffic can be intercepted by an on-path attacker without certificate/hostname validation; provider authorization or other request headers may be exposed depending on the caller and redirect behavior. The precise caller/header exposure matrix remains **NEEDS INVESTIGATION**; the trust bypass itself is directly confirmed by source.
+
+**Verification:** static source comparison only. No TLS interception, live network, playback compatibility, build, automated test or device test performed. No application source changed.
