@@ -1633,3 +1633,29 @@ The existing canonical credential-visibility finding above now includes the Debr
 10. Release metadata is compared against the installed `VERSION_NAME`, not a remote latest-release tag, build code, profile version or updater cache.
 
 **Status:** test design only; no comparator or tests implemented. This remains a plan prerequisite, not a new duplicate setting or existing feature.
+
+
+## Subtitle font import platform-parity and error handling — 2026-11-20 13:09:14 IST
+
+**Target:** `Main-dev`  
+**Verified source HEAD before write:** `c6b28b918f6af2169bf6f71eeec901819909f876`  
+**Previous audit document blob / write guard:** `328a93df34753ed01aec869bc34f3fe6c978ee17`  
+**Files inspected:** `SubtitleFontFileBridge.kt`, Android/iOS `SubtitleFontFileBridge` actuals, `PlaybackSettingsPage.kt` caller, `PlayerModels.kt`.
+
+### Confirmed behavior and gaps
+
+- Both platforms enforce the shared 30 MB import limit and save each font in a unique directory, avoiding renderer collisions between imports with the same embedded family.
+- Android reads the selected document and validates it with `Typeface.createFromFile` before accepting the path. iOS accepts `public.font` and broad `public.data` picker types, checks non-empty/size, but does not parse/validate that the bytes are a usable TTF/OTF font before storing the path. **NEEDS INVESTIGATION / PLATFORM PARITY GAP:** confirm renderer failure behavior on iOS and add equivalent validation if a safe cross-platform parser/native API is available.
+- Android derives the displayed font name from the embedded family when possible; iOS uses the selected filename. This is a presentation difference; preserve technical font file identity and avoid rewriting stored paths as part of settings IA.
+- The Playback page caller handles only `result.onSuccess`; it closes the font dialog for both success and failure and discards `result.exceptionOrNull()`. Thus oversized, unreadable, invalid or storage-failure errors from either platform have no user-facing feedback. **CONFIRMED ERROR-FEEDBACK GAP**; cancellation may close silently, but genuine import failures should be surfaced distinctly.
+- Clearing the custom font resets the active profile's family/name/path preference but does not delete the imported file. Do not add eager file deletion: a font path could still be referenced by another profile. Any cleanup requires reference tracking across profiles and migration-safe storage review.
+- Android uses app-internal files storage; iOS stores imports under Documents. This is an intentional platform storage difference unless lifecycle/backup behavior demonstrates a problem. The saved path is part of Player settings and must remain profile-scoped.
+
+### Classification / decision
+
+- Android/iOS font import actuals: **INTENTIONAL PARALLEL** with a **NEEDS INVESTIGATION** validation mismatch.
+- Ignored import failure result: **CONFIRMED UX ERROR-HANDLING GAP**, not a duplicate dialog.
+- Font file cleanup: **NEEDS INVESTIGATION**; do not delete files until cross-profile references are understood.
+- Decision: **ADAPT** error presentation and investigate iOS validation as a separate implementation item; no new settings repository or font-picker abstraction.
+
+**Verification:** source inspection only; no real font imports, malformed-font tests, iOS simulator, Android device or rendering checks were run.
