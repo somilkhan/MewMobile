@@ -1604,3 +1604,32 @@ The existing canonical credential-visibility finding above now includes the Debr
 **Classification:** Account auth vs Profiles = **DIFFERENT SEMANTICS**; Sentry Android/iOS implementations = **INTENTIONAL PLATFORM SCOPE**; clear-cache action vs persisted preferences = **FALSE POSITIVE** for duplicate setting. No new duplicate confirmed.
 
 **Verification:** static source reads only; no auth/account deletion requests, Sentry runtime initialization, profile switch, cache clearing, tests, builds or device checks were run.
+
+
+## NEW badge version-comparison test design — 2026-11-20 13:08:37 IST
+
+**Target:** `Main-dev`  
+**Verified source HEAD before write:** `ee7e61f0763630f9cc464f72c98e5b7aef51f1a2`  
+**Previous audit document blob / write guard:** `d9494f60eebb8500bc7305864627a1c2ca153eeb`  
+**Files inspected:** `composeApp/build.gradle.kts`, `AppUpdater.kt`, `AppUpdaterVersionUtilsTest.kt`; existing NEW-label rule above.
+
+### Source and compatibility findings
+
+- `composeApp/build.gradle.kts` generates `AppVersionConfig.VERSION_NAME` and `VERSION_CODE`; `VERSION_NAME` is sourced from `MARKETING_VERSION` in `iosApp/Configuration/Version.xcconfig`. This is the installed app version source for the badge.
+- Existing `VersionUtils` is private to the updater. Its semantic-version regex extracts numeric version parts and ignores prerelease suffixes; its current tests cover release/build-code ordering, not SemVer prerelease precedence or invalid inputs. **Do not reuse it** for NEW expiry without extending its contract and tests; prefer a small pure comparator scoped to the badge feature to avoid changing updater behavior.
+- Badge lifetime remains exactly three app releases inclusive, e.g. introduced in 0.5.2 → visible in 0.5.2, 0.5.3 and 0.5.4 → hidden from 0.5.5. Metadata is explicit and app-global; it is not dismissible and must not use profile-scoped `seenFeatureIds`.
+
+### Required unit-test matrix before implementation
+
+1. Inclusive lower and upper bounds: show at introduced version and visible-through version.
+2. Adjacent stable releases: show on the middle release; hide one release before and one after the interval.
+3. Patch/minor/major ordering: compare `0.5.9 < 0.5.10 < 0.6.0 < 1.0.0` numerically, not lexicographically.
+4. Prerelease ordering: `0.5.2-alpha.1 < 0.5.2-alpha.2 < 0.5.2-beta.1 < 0.5.2-rc.1 < 0.5.2`; numeric prerelease identifiers compare numerically (`rc.2 < rc.10`).
+5. Build metadata does not change precedence (`0.5.2+build.10` equals `0.5.2+build.11` for expiry).
+6. Unknown/blank/unparseable installed version fails closed (do not show stale badges); malformed metadata is rejected and does not crash settings rendering.
+7. Reversed interval (`visibleThroughVersion < introducedInVersion`) is rejected.
+8. App-global behavior: changing active profile does not alter badge visibility; restarting/reopening settings does not mark it seen or dismiss it.
+9. Multiple new settings: each stable setting ID resolves its own metadata; no badge leaks to unrelated rows or duplicate routes.
+10. Release metadata is compared against the installed `VERSION_NAME`, not a remote latest-release tag, build code, profile version or updater cache.
+
+**Status:** test design only; no comparator or tests implemented. This remains a plan prerequisite, not a new duplicate setting or existing feature.
