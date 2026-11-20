@@ -2786,3 +2786,30 @@ No other TRUE DUPLICATE was confirmed. Similar cards, source-set actuals, separa
 **Required tests/device checks:** move succeeds; move fails/copy succeeds; both fail; destination already exists; partial resume; low disk space; external folder access revoked; background session completes after app relaunch; cancellation and retry; verify file length/content before marking Completed. iOS device/simulator and external-provider tests are **NOT RUN**.
 
 **Classification:** Mew iOS background transfer lifecycle = **KEEP**; move-only finalization = **CONFIRMED RELIABILITY GAP / ADAPT**; upstream transfer engine = **DO NOT REPLACE**.
+
+
+## Custom poster URL patterns — new feature ownership and security review (2026-11-20 17:06:26 IST)
+
+**Target:** `Main-dev`  
+**Verified target HEAD before write:** `318fabc7474d40c1eb72fc719a2fab8cbc1f5d62`  
+**Application-source baseline:** `8a36dcede748ba6bb35d2a49c1ffd062bf7efbd0`  
+**Previous audit document blob / write guard:** `7e43e4a03c81a0672a46cda20fbd746972b9ee2e`  
+**Upstream files inspected:** `CustomPosterUrlRepository.kt`, `CustomPosterUrlResolver.kt`, `CustomPosterFallbackInterceptor.kt`, `CustomPosterScreen.kt`, storage actuals and downloads integration.  
+**Mew files inspected:** `PosterCardStyleRepository.kt`, Mew source-tree search for custom poster URL/repository/interceptor ownership and `DownloadsScreen.kt`.
+
+- Upstream has a full custom poster URL feature: configurable URL pattern, screen-level enablement (Home, Continue Watching, Collections, Library, Search, Details), placeholder resolver for Nuvio/IMDb/TMDB/TVDB/Kitsu/AniList/MAL/AniDB IDs and poster shape, RPDB-family ID fallback, resolver caching, and Coil fallback to the original poster if the custom URL fails.
+- Mew has `PosterCardStyleRepository` for card dimensions/corners/landscape/labels, but no matching `CustomPosterUrlRepository`, URL resolver, fallback interceptor or screen-selection model in its inspected source tree. These are different semantics; poster card styling is not custom artwork substitution.
+- Upstream's `feat(downloads): follow library custom poster setting` is a downstream integration of this broader custom-poster feature, not a standalone Downloads fix. Mew Downloads currently displays its stored poster snapshots and has no custom poster URL owner to reuse.
+
+**Decision: NEW FEATURE / NEEDS PRODUCT REVIEW**, not a direct TAKE of the Downloads commit. If approved, audit the full custom-poster subsystem first and integrate through one shared poster resolver used by Home, Library, Details, Continue Watching, Collections, Search and Downloads. Do not add a Downloads-only URL rewrite.
+
+**Security/compatibility gates before implementation:**
+1. Validate URL schemes, malformed placeholders, host/redirect behavior and image-loader request policy; avoid leaking sensitive identifiers or headers to arbitrary endpoints.
+2. Preserve original artwork fallback and cache-key correctness when the pattern or enabled-screen set changes.
+3. Define profile scope and sync policy; do not assume upstream storage scope without inspecting its actuals and Mew profile lifecycle.
+4. Verify anime/alternate IDs, local downloads, server items, missing IDs and poster/landscape/square shapes.
+5. Add resolver/fallback/cache/profile-switch tests and verify all image surfaces to avoid duplicate per-screen implementations.
+
+**Classification:** Mew PosterCardStyleRepository = **INTENTIONAL PARALLEL / DIFFERENT SEMANTICS**; custom poster URL replacement = **NEW FEATURE / NEEDS PRODUCT REVIEW**; downloads custom-poster integration = **BLOCKED ON SHARED FEATURE OWNER**.
+
+**Verification:** static source/tree inspection only. No custom URL, network/image loading, profile storage, downloads UI, tests, builds or device checks run.
