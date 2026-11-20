@@ -4,7 +4,7 @@
 
 ## Verified repository refs
 - Mew repository: `somilkhan/MewMobile`
-- Active target: `Main-dev` — latest verified HEAD before this handoff refresh: `fa85f0e5b00dde0e6448b5fcd00800b929dcd3df`. Application source audit baseline: `a7f066297ba000833a981b12f8b57c26ce833f7d`; GitHub compare confirms all commits since that baseline changed only `docs/UPSTREAM_PARITY_AUDIT.md`. Re-read the live ref at the start of the next session.
+- Active target: `Main-dev` — latest verified HEAD before this handoff refresh: `d281eaa8e32fa6e59d2343bd8957f2d75a291aec`. Application source audit baseline: `a7f066297ba000833a981b12f8b57c26ce833f7d`; GitHub compare confirms all commits since that baseline changed only `docs/UPSTREAM_PARITY_AUDIT.md`. Re-read the live ref at the start of the next session.
 - Protected stable branch: `main` — `207ef8fa309b8061b73039b2d4e4bde4af65050e` (untouched)
 - Reference branch: `upstream-sync` — `af51bbbc13cdb315a88ef597eb4d2672a60335d5`
 - Mother upstream: `luqmanfadlli/NuvioMobile-Enhanced`, `enhanced` — `b23b28a878b78f5ef9252128b901155fee6eeea9`
@@ -92,6 +92,17 @@ The current Mew Playback route is one page and one large composable column, with
 - Accessibility follow-up: custom SettingsSwitchRow / picker selected-state semantics need TalkBack/VoiceOver verification; this is NEEDS ACCESSIBILITY VERIFICATION, not a confirmed defect.
 - Remaining audit: delegated Addons content and detailed Enhanced feature callsites; complete dialog inventory/copy/accessibility/dismissal pass; full search-entry ↔ visible-control ↔ persistence map; localization sweep; navigation/back/tablet restoration compatibility map; NEW badge comparator test design.
 - Source changes: NONE. Builds/tests/device checks: NOT RUN.
+
+## Latest audit continuation — 2026-11-20 08:20:32 IST
+
+- Target: `Main-dev`; verified HEAD before this refresh: `d281eaa8e32fa6e59d2343bd8957f2d75a291aec`.
+- Application source baseline: `a7f066297ba000833a981b12f8b57c26ce833f7d`; compare confirms all commits since baseline changed only this audit MD.
+- Previous document blob / write guard: `37cf4c204b93c887bb2b826af3654cca32c8fc9a`.
+- `main` rechecked: `207ef8fa309b8061b73039b2d4e4bde4af65050e` (untouched).
+- New confirmed issues: Plugin manifest password fields are not masked; Debrid API-key dialog is also unmasked (one canonical credential-visibility finding with two affected surfaces); Debrid per-resolution/per-quality pickers show the wrong “Max Results” dialog title.
+- New consolidation: split Debrid provider setup into Services → Debrid and its result filtering/formatting into Watch → Stream Selection while retaining one repository/state owner.
+- Audit source changes: NONE. Builds/tests/device checks: NOT RUN.
+- Remaining: complete Enhanced caller/data-source mapping; inspect all remaining dialog states/copy/validation/dismissal; finish control/search/persistence coverage; localization sweep; verify accessibility roles/selected states; route/back/tablet restoration migration map; final deduplicated migration matrix.
 
 ## User-approved objective
 Reorganize Mew and upstream settings into one discoverable Mew settings experience. Use upstream Enhanced's five-category model as a starting point, not a wholesale copy. Preserve Mew identity, features, profiles, persisted preferences, Android/iOS differences, navigation behavior, and policy gates.
