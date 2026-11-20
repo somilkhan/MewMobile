@@ -2512,3 +2512,32 @@ No other TRUE DUPLICATE was confirmed. Similar cards, source-set actuals, separa
 **Classification:** shared `WatchingPolicies` = **ALREADY IMPLEMENTED / SINGLE OWNER**; configurable threshold = **ADAPT**; short-placeholder guard = **ADAPT candidate**; watch/progress persistence and provider sync = **KEEP / REGRESSION-SENSITIVE**.
 
 **Verification:** static source reads only. No watch policy, preference, persistence, provider sync, tests, builds or playback behavior changed or run.
+
+
+## Home row placement, hidden rows and episode shuffle comparison (2026-11-20 16:54:55 IST)
+
+**Target:** `Main-dev`  
+**Verified target HEAD before write:** `b196d9e7fd36bd8d696f528339409de11e0653aa`  
+**Application-source baseline:** `8a36dcede748ba6bb35d2a49c1ffd062bf7efbd0`  
+**Previous audit document blob / write guard:** `b26ae4e01edb7eb703736ab4d601573e88d2b0e5`  
+**Files inspected:** Mew/upstream `HomeCatalogSettingsRepository.kt`, `HomeCatalogSettingsSyncService.kt`, `HomeScreen.kt`, `HomescreenSettingsPage.kt`; Mew `HomePinnedCollectionOrderTest.kt`; upstream `HomeEpisodeShuffle.kt` and associated source-tree inventory.
+
+### Row placement and hidden rows
+
+- Mew already has a single `HomeCatalogSettingsRepository` owner for catalog ordering, enabled/hidden state, custom titles, hero-source selection and collection ordering. Its `HomeCatalogSettingsItem.isPinnedToTop` is derived from collection metadata; the Mew regression test explicitly covers **pinned collections** remaining first after manual reorder.
+- Mew's persisted home preference model does not contain a general catalog `rowPlacement` field. Its settings screen has no collapsible hidden-rows section; disabled items are excluded from the visible Home rows.
+- Upstream adds `HomeCatalogRowPlacement` (`NORMAL`, `PINNED_TOP`, `PINNED_BOTTOM`) for catalog rows and collections, preserves collection pinning, and adds a collapsible Hidden Rows section to Homescreen settings. Reordering is constrained within placement groups.
+- Upstream's row-placement setter uses `pushRemote = false`, and the shared sync payload does not serialize `rowPlacement`. This is deliberately device-local. Mew's existing home catalog sync is profile-scoped and syncs catalog ordering/enabled/title/hero-related preferences through its own service; do not accidentally add device-local row placement to that cloud payload.
+
+**Decision: ADAPT.** Extend the existing Mew HomeCatalogSettingsRepository and Homescreen settings UI if approved; do not create another home settings store. Preserve the existing collection `isPinnedToTop` source and migrate only with explicit compatibility mapping. Add top/bottom placement, hidden-row disclosure and within-group reorder tests. Keep new row placement local/device-only unless product explicitly chooses otherwise.
+
+### Home episode shuffle
+
+- Upstream adds `HomeEpisodeShuffle.kt` integration backed by a separate `features/shuffle` repository/profile model. It selects eligible episodes for Home continue-watching using per-profile settings, watched state, progress, metadata and visit/session context.
+- No corresponding `features/shuffle` implementation exists in Mew's inspected source tree. Mew's Home screen already has its own Continue Watching, upcoming and hidden-content projection logic; this is not an equivalent shuffle feature.
+
+**Decision: NEEDS PRODUCT REVIEW / ADAPT candidate.** Treat episode shuffle as a new feature, not a duplicate of Mew's continue-watching rows. Before implementation, inspect the complete upstream shuffle domain (profile settings, persistence, watched inclusion, repeat/avoid history, release eligibility, resume precedence, UI entry points and tests) and map it onto Mew's WatchProgress/Watched sources. Preserve Mew's profile-generation and provider-owned history behavior; do not add a second watch-progress store.
+
+**Classification:** Mew pinned collections vs upstream row placement = **SHARED PATTERN / DIFFERENT SEMANTICS**; HomeCatalogSettingsRepository and sync service = **KEEP / SINGLE OWNER**; row placement and hidden-row disclosure = **ADAPT**; episode shuffle = **NEW FEATURE / NEEDS PRODUCT REVIEW**.
+
+**Verification:** static source reads and source-tree search only. No home UI, persistence, sync or shuffle code changed; no tests, builds or device checks run.
