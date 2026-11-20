@@ -2448,3 +2448,36 @@ No other TRUE DUPLICATE was confirmed. Similar cards, source-set actuals, separa
 **Correction to prior settings-only SKIP:** Media Servers remain SKIP only as empty settings placeholders in the settings IA pass. For full feature parity they are an upstream-only feature candidate requiring product approval and this security audit; no final TAKE/ADAPT decision is made.
 
 **Verification:** read-only upstream source inspection. No server feature or credentials were added to Mew; no app source changes, tests, builds or runtime/network/device checks performed.
+
+
+## Downloads transfer and persistence semantic comparison (2026-11-20 16:52:35 IST)
+
+**Target:** `Main-dev`  
+**Verified target HEAD before write:** `02de2bae702e99cd492bdd44779be93dc48b3c23`  
+**Application-source baseline:** `8a36dcede748ba6bb35d2a49c1ffd062bf7efbd0`  
+**Previous audit document blob / write guard:** `4c9cca84dbb2cd574ebb36fbe8d6e2b08723b5e6`  
+**Files inspected:** Mew `DownloadsModels.kt`, `DownloadSourceResolver.kt`, `EpisodeDownloadFlowSheet.kt`, `DownloadsStorage.kt` and Android/iOS actuals, `DownloadsPlatformDownloader.android.kt`, `DownloadsForegroundService.kt`; upstream `BatchDownloadCoordinator.kt`, `DownloadsSettingsRepository.kt`, `AndroidDownloadScheduler.kt`, `AndroidDownloadTransfer.kt`, `DownloadsTransferWorker.kt`, iOS `DownloadsPlatformDownloader.ios.kt`.
+
+### Confirmed semantic differences
+
+- Mew's `DownloadSourceResolver.kt` contains `EpisodeDownloadCoordinator` with `enqueue`, `enqueueAuto` and `retryPending`; it resolves addon, plugin, CloudStream and Debrid source candidates and manages pending source searches. Mew also has `PendingEpisodeDownload` state, retry/expiry/attempt metadata, manual-choice prompting and Android background pending-search notification/worker paths.
+- Upstream's `BatchDownloadCoordinator` is a season/episode planning state machine: it tracks planned episode states, season selection, select-unwatched, source-selection progression, per-episode stream overrides and queue-plan results. This is not the same responsibility as Mew's source-discovery coordinator. The shared “batch download” label is not proof of a duplicate.
+- Mew's Android file transfer uses its shared OkHttp client, temporary `.part` file, byte-range resume, retry policy, external-folder handling and a foreground service/wake lock. Mew's iOS implementation uses a background `NSURLSession` coordinator and has security-scoped folder access/bookmark behavior in its platform layer.
+- Upstream Android transfer has a separate persisted transfer store and scheduler using JobScheduler on newer Android and WorkManager fallback, with generation checks and a transfer worker. Upstream iOS has a background-session path plus a separate legacy direct-to-folder mode.
+- **Persistence scope differs:** Mew's Android and iOS `DownloadsStorage` actuals apply `ProfileScopedKey` to the download payload, external-folder URI and episode-download settings. Upstream `DownloadsSettingsRepository` explicitly describes its preferences (mobile-data allowance, download location, preferred resolution, concurrency and legacy iOS mode) as device-level and not synced across profiles/devices. Changing Mew's scope to upstream's device-global scope would alter existing profile behavior.
+- Both implementations handle redirects in their download transport. Preserve Mew's existing shared-client/DNS/security policy and explicitly audit redirect target validation and credential-header forwarding before any transfer changes.
+
+### Decision
+
+**KEEP Mew's current download architecture; ADAPT only isolated UX/settings behavior after product and platform review.** Do not copy upstream `BatchDownloadCoordinator`, Android scheduler/store/worker or iOS legacy mode as replacements. Preserve Mew's pending source-search lifecycle, profile-scoped state, external folder handling, Android foreground-service behavior and iOS background-session/bookmark contract.
+
+### Follow-up questions for the implementation plan
+
+1. Should download settings remain profile-scoped in Mew, or should any specific preference (for example mobile-data permission) become device-global? Do not migrate the whole settings object implicitly.
+2. Should Mew expose upstream-style preferred resolution, concurrency limits or watched-count summaries? Map them to existing Mew settings and download queue behavior before adding controls.
+3. Is upstream's iOS legacy direct-write mode needed for a Mew-specific failure case? Compare security-scoped bookmark lifetime, move-vs-copy behavior, background completion and data-loss recovery first.
+4. Audit source URL redirects and sensitive source headers across addon/plugin/CloudStream/Debrid downloads; test host changes, range resume, 401/403/416, interrupted responses, external-folder failure and cancellation.
+
+**Classification:** Mew source discovery vs upstream batch plan = **SHARED PATTERN / DIFFERENT SEMANTICS**; Android/iOS transfer engines = **INTENTIONAL PARALLEL / PLATFORM LIFECYCLE DIFFERENCES**; Mew profile-scoped download state = **KEEP**; upstream device-level preferences = **NEEDS PRODUCT DECISION**.
+
+**Verification:** static source reads only. No download, worker, queue, persistence or transfer code changed; no tests, builds, file I/O or device/network checks run.
