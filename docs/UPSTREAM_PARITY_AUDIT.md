@@ -1457,3 +1457,16 @@ The existing canonical credential-visibility finding above now includes the Debr
 - The pending-state guard is a shared Home rendering concern with Mew-specific fallback semantics; classify as **SHARED PATTERN / DIFFERENT SEMANTICS** and adapt behavior, not source files wholesale.
 
 **Verification:** upstream commit range and exact changed paths verified; Mew/upstream source bodies compared. No application source changes. Tests/build/device behavior NOT RUN. This candidate remains an audit/plan item only; implementation still requires the approved settings plan and explicit user authorization.
+
+
+## Debrid dialog inventory count reconciliation — 2026-11-20 12:20:00 IST
+
+**Target:** `Main-dev`; verified HEAD before write `8b991059e6d2fd67d37757ab07dbf8832e1145d3`.  
+**Previous audit document blob / write guard:** `27857d3f6325329eb82c42dde77852eab2d20ae8`.  
+**Source:** `DebridSettingsPage.kt`, current blob `30776a3b384f5cb888817cb5f8579bae033f6431`.
+
+- Recounted actual `BasicAlertDialog` call sites: **7**, at lines 619, 705, 1076, 1110, 1163, 1572 and 1774.
+- Their roles are: prepare-count selection; multiline template/text editor; single-choice picker; multi-choice picker; release-group text-list editor; device authorization/connect/disconnect; API-key entry/validation.
+- This corrects the later inventory sentence that said Debrid had eight `BasicAlertDialog` calls. The earlier seven-call count was correct. The total dialog inventory remains a partial call-site count, not a complete state/copy/accessibility audit.
+- The API-key entry remains part of the existing canonical credential-visibility defect; do not add another issue. The wrong Max Results title remains the separate confirmed copy bug.
+- Source read only; no app source changes, tests, builds or device checks.
