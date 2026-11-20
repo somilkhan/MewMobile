@@ -1730,3 +1730,33 @@ The existing canonical credential-visibility finding above now includes the Debr
 **Classification:** existing Mew single-source setup vs Enhanced playlist collection = **SHARED PATTERN / DIFFERENT SEMANTICS**; current feature gate vs upstream navigation visibility = **SAME USER-FACING PURPOSE / DIFFERENT STATE OWNER**. No TRUE DUPLICATE found.
 
 **Verification:** static source reads only. No M3U imports, EPG refresh, playlist migration, credentials, playback or device/iOS runtime checks were run.
+
+
+## Current Enhanced route-tree delta — 2026-11-20 13:12:59 IST
+
+**Target:** `Main-dev`  
+**Verified source HEAD before write:** `4baac9058c1199ed232c7a49676331c1d6354475`  
+**Previous audit document blob / write guard:** `529fc9d3335bddb8326cc321dd42d98961eef352`  
+**Files compared:** current Enhanced and Mew `SettingsModels.kt` / `SettingsRootPage.kt`; upstream route page files for Media Servers, OMDB, Discord RPC, Live TV and What's New; Mew repository tree search for corresponding feature paths.
+
+### Route hierarchy to adapt
+
+- Enhanced categories are You, Look, Watch, Services, System. Mew categories remain Account, General, Enhanced, About, Advanced. Adopt the five-category taxonomy as an IA proposal, but map old category names with a safe parser before any persisted tablet category migration.
+- Enhanced introduces a Layout parent for Homescreen, Streams, Continue Watching, Poster Customization and Meta Screen. Mew currently places those pages under Appearance. **ADAPT** the parent route, preserve existing child page enum names and saved state.
+- Enhanced introduces an About parent for Supporters, Licenses and What's New. Mew has Supporters/Licenses routes directly under Root and no What's New feature implementation in the source tree. **ADAPT** About grouping for existing Mew pages; **SKIP** adding a What's New route until its data/content and release-highlight relationship are designed.
+- Enhanced splits Playback into Player, Stream Selection, Up Next, Skip Segments, Interface, Audio, Subtitles, Video, Buffer and P2P subpages. Mew currently has one Playback page with those sections. **ADAPT** page structure using Mew's existing PlayerSettingsRepository/P2P owners; preserve platform gates, route names and all keys.
+- Enhanced nests Addons/Plugins/Media Servers under Content Discovery. Mew has Addons/Plugins/CloudStream; CloudStream remains a distinct Mew integration. No Mew Media Server provider/repository code found.
+- Enhanced adds Debug Logs as an Advanced child; Mew already has logs inside Advanced. **ADAPT** only as a route split over the existing diagnostics owner.
+- Enhanced has a Downloads settings route. Mew's Downloads manager is a utility screen and download preferences are partly embedded in EpisodeDownloadFlowSheet; see the dedicated semantic comparison above. Do not conflate the manager route with preferences.
+
+### Upstream-only feature routes absent from Mew source tree
+
+- **Media Servers (Plex/Jellyfin-style provider repository and per-server settings): SKIP for this settings IA pass.** No corresponding Mew feature/repository/model path was found. Feature parity requires a separate provider/auth/security audit.
+- **OMDB integration settings: SKIP for this IA pass.** No Mew OMDB page/repository/model path found; do not insert an empty placeholder into Integrations.
+- **Discord RPC: SKIP for this IA pass.** Mew has a Discord brand asset but no RPC feature/repository path. Do not infer feature presence from the asset.
+- **What's New: SKIP for this IA pass.** Enhanced has a dedicated repository/screen; Mew has no corresponding feature path. Do not repurpose the NEW badge or profile-scoped release-highlight mechanism as a substitute.
+- **Live TV:** Mew already has a full single-source workflow and an Enhanced feature gate; its settings/model differences are documented in the Live TV parity section above. Do not treat it as a missing feature or duplicate.
+
+**Classification:** route parent additions = **ADAPT**; upstream-only feature pages without Mew feature owners = **SKIP** for this task, not confirmed duplicate settings. This route-tree comparison is current to Enhanced `375d93d90864d6b0774d8ab6f58c72d63d10d2af`; a complete implementation/dependency audit of skipped upstream features is outside this settings IA scope.
+
+**Verification:** GitHub tree/source reads only; no feature source imported, no builds/tests/device checks.
