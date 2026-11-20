@@ -771,3 +771,67 @@ Use upstream Enhanced's five top-level categories as the baseline: **You, Look, 
 - Exact duplicates confirmed remain **2**: Parental Guide and TMDB enrichment toggle.
 - Home/Hero and Meta Screen settings are currently split across separate pages but use different settings/callbacks; classify as **SHARED PATTERN / DIFFERENT SEMANTICS**, not duplicates.
 - Keep the Enhanced page as a compatibility destination while its controls are redistributed. Preserve external page names and saved state until route migration is verified.
+
+
+## Proposed destination/page hierarchy — working draft — 2026-11-20
+
+This is the clearest current mapping from the audited Mew pages to upstream Enhanced's five categories. It remains an audit proposal; no application code has been changed.
+
+- **You**
+  - Account
+  - Profiles / Profile Insights / Favorite People
+  - Profile/startup preferences (including Remember Last Profile)
+- **Look**
+  - Appearance (theme, accent, AMOLED, app icon, language, navigation)
+  - Layout
+    - Homescreen
+    - Streams presentation
+    - Continue Watching presentation
+    - Poster Customization
+    - Meta Screen / Details
+- **Watch**
+  - Playback
+    - Player
+    - Stream Selection
+    - Up Next
+    - Skip Segments
+    - Interface
+    - Audio
+    - Subtitles
+    - Video / Decoder
+    - Buffer
+    - P2P (only when supported)
+  - Downloads preferences (separate from the Downloads manager screen)
+  - Content Discovery
+    - Addons
+    - Plugins (policy-gated)
+    - CloudStream (policy-gated)
+- **Services**
+  - Integrations
+    - AI Assistant
+    - TMDB
+    - MDBList
+    - Debrid
+  - Tracking
+    - Trakt
+    - Simkl
+    - Anime tracking and source preferences
+- **System**
+  - Notifications
+  - Network / DNS
+  - Diagnostics / Logs / Sentry
+  - Storage / Cache maintenance
+  - Backup / Import
+  - About
+    - Supporters / Contributors
+    - Licenses / Attributions
+    - Privacy / Version information
+
+### Page-model changes implied by this draft
+- Add a Layout parent page and place existing layout child pages under it; keep Appearance focused on theme/display.
+- Add an About parent page under System and place Supporters/Contributors and Licenses/Attributions beneath it.
+- Add focused Playback subpages while keeping the existing `Playback` enum as a compatibility entry/landing route.
+- Add a Downloads preferences page only after Mew's existing download flow/storage behavior is mapped. Keep the existing Downloads manager route distinct.
+- Reclassify Tracking under Services; retain `TraktAuthentication` as a legacy page name/route if required.
+- Keep `NuvioEnhanced` as a compatibility destination during redistribution. Move its controls to their canonical domain pages; do not leave a second parallel category taxonomy.
+- Preserve old category names through a safe migration mapper and old page names through compatibility routing. Never assume renaming an enum is a harmless cosmetic change.
