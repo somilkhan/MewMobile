@@ -1278,3 +1278,19 @@ The Nuvio Enhanced page contains 13 functional sections and at least 49 ordinary
 - CloudStream's security-warning acceptance must remain a gate. App-store source-set actuals remain no-op as previously documented.
 
 **Verification:** source inspection only; no source changes, builds, tests, credential runtime tests or device checks. This adds no duplicate record.
+
+
+## Debrid page subcategory split — 2026-11-20 08:18:51 IST
+
+**Branch:** `Main-dev`; verified HEAD `fac907367a8f6118adee7feab69e4a495490c0d7`.  
+**Source baseline:** `a7f066297ba000833a981b12f8b57c26ce833f7d`.  
+**Previous document blob / write guard:** `945744b954a7b3a6f54893c9f602a1d4673f9556`.  
+**File inspected:** `DebridSettingsPage.kt` (124 referenced localized resources) and `DebridSettingsRepository.kt`.
+
+- Current Debrid page combines service setup and stream-selection behavior in one destination.
+- **Services → Debrid:** provider credentials/device authorization, enable state, resolver selection, cloud-library enablement.
+- **Watch → Stream Selection:** instant-playback preparation and stream count; result management (max results, sorting, per-resolution/per-quality limits, size range); advanced matching rules (preferred/required/excluded resolutions, quality, visual/audio tags, channels, encodes, languages and release groups); name/description templates.
+- These are not duplicate settings. They share `DebridSettingsRepository` and `DebridSettingsStorage`; split navigation/UI only and preserve all existing keys, profile scope, sync payload fields, provider authorization lifecycle and formatting defaults.
+- Keep the existing template reset dialog and learn-more external link attached to the formatting group. Validate reset confirmation/copy and long rule lists during the dialog pass.
+
+**Decision:** ADAPT into Services → Debrid and Watch → Stream Selection subgroups; no repository split or second copy of stream preferences. **Verification:** source inspection only; no code changes/builds/tests/device checks.
