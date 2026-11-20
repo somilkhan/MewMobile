@@ -1102,3 +1102,23 @@ The Nuvio Enhanced page contains 13 functional sections and at least 49 ordinary
 - Search metadata must move with each setting; current search targets often point to the whole Nuvio Enhanced page, and exact-control reveal is not implemented.
 
 **Status:** this is a first-pass inventory and destination proposal, not the final migration map. The concierge, library health, release/discovery and Live TV semantics still need caller/data-source review. No source changes; builds/tests/device checks NOT RUN.
+
+
+
+## Account, Profile, Notifications and Advanced control audit — 2026-11-20 08:10:56 IST
+
+**Verified source baseline:** `a7f066297ba000833a981b12f8b57c26ce833f7d`; branch HEAD before this doc write `b92c18405761c5a0d382e9d971238d7444dbd9d5`.  
+**Document write guard:** `325cda25ab8c12d7b12b24c8294568768fcb69b3`.  
+**Files inspected:** `AccountSettingsPage.kt`, `ProfileInsightsSettingsPage.kt`, `AdvancedSettingsPage.kt`, `NotificationsSettingsPage.kt`, `SettingsModels.kt`, `SettingsScreen.kt`.
+
+- **Account:** authentication status/email, sign-out and optional account deletion are grouped in one page. Delete is gated by `AppFeaturePolicy.accountDeletionEnabled` and authenticated state. Sign-out and deletion use separate confirmation modals; deletion exposes a busy state, blocks dismissal while active, and reports failure inline. This is correctly mapped to You → Account; preserve destructive confirmation and policy behavior.
+- **Profile Insights:** the large profile dashboard contains overview/taste insights, watch progress, library and favorite-person surfaces. It is not simply an account-preferences form. Keep it as a distinct You → Profile Insights destination; favorite people remains a child route. Preserve active-profile scoping and callbacks into details/continue-watching.
+- **Advanced:** currently mixes startup preference (remember last profile), Sentry consent, runtime diagnostics/logs, and Continue Watching cache clear. Candidate split is System → Startup, Diagnostics and Storage/Cache. Do not merge the cache action with the Downloads manager or profile settings.
+- **Notifications:** episode-release alerts preference and a separate test-notification action/card. The test action is enabled only when a valid target exists and sending/loading state permits; status/error/permission messages are shown. Keep it under System → Notifications and preserve permission/status feedback.
+- **Theme contrast impact expanded:** Notifications' test button explicitly uses `MaterialTheme.colorScheme.primary` with `onPrimary`, so the previously documented low-contrast palette pairs affect this surface too. Add it to the same canonical central contrast fix/test list; do not create a separate per-screen color patch.
+- **Logs localization finding is already canonical:** Advanced → Logs still has hardcoded English section/row/dialog text. Do not duplicate the finding; include its localization and export-feedback requirements in the existing Advanced Logs item.
+- **Profile Insights and Account use distinct page semantics:** do not treat their repeated profile/account references or favorite-person links as duplicate settings controls.
+
+**Classification:** Account page grouping = ALREADY LOGICAL; Profile Insights dashboard = INTENTIONAL PARALLEL destination from Account preferences; Advanced multi-domain page = ADAPT into System subpages; Notifications test action = utility action within Notifications, not a persisted preference; contrast issue = existing central theme defect with one additional confirmed consumer.
+
+**Verification:** source reads only; no application source changes; builds/tests/device checks NOT RUN.
