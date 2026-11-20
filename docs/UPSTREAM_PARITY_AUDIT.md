@@ -1577,3 +1577,30 @@ The existing canonical credential-visibility finding above now includes the Debr
 **Classification:** Android/iOS storage and notification scheduling = **INTENTIONAL PARALLEL**; automatic CloudStream update notification vs episode-release alerts = **SHARED NOTIFICATION INFRASTRUCTURE / DIFFERENT SEMANTICS**. No duplicate setting identified.
 
 **Verification:** static source reads only. No notification permission prompts, background worker execution, iOS notification scheduling, app lifecycle or device tests were run.
+
+
+## Account and Advanced settings persistence map — 2026-11-20 13:08:06 IST
+
+**Target:** `Main-dev`  
+**Verified source HEAD before write:** `91c1ce508392cd0d00ba1ca2c4c8bf484bf04610`  
+**Previous audit document blob / write guard:** `f3cb52d7a53a9fd2774025cd0c074b0ed449e788`  
+**Files inspected:** `AccountSettingsPage.kt`, `AuthRepository.kt`, `AdvancedSettingsPage.kt`, `ProfileRepository.kt`, `SentrySettingsRepository.kt`, `SentrySettingsStorage.kt` and Android/iOS actuals.
+
+### Account
+
+- Account page exposes auth status/email, Sign Out, and conditional Delete Account.
+- Delete Account is shown only when `AppFeaturePolicy.accountDeletionEnabled` and the current auth state is authenticated. Confirmation is required; the dialog blocks dismissal while deletion is in progress.
+- Sign Out confirms, then calls `AuthRepository.signOut()`. The repository attempts remote sign-out (except anonymous sessions), falls back to clearing the Supabase session on remote failure, wipes local account data and clears the local data-owner marker; it then publishes Unauthenticated. A failure is still surfaced after cleanup attempts. Preserve this local-data cleanup and fallback behavior; do not turn sign-out into a profile-only action.
+- Delete Account invokes the `delete-account` Supabase function, signs out, and then wipes local data / clears owner state. Failure is exposed in the page. Keep the feature-policy gate and confirmation.
+- Account is a user/auth identity surface; Profiles and Profile Insights remain separate profile-management/analytics surfaces. No duplicate account/profile control found in this pass.
+
+### Advanced
+
+- **Remember Last Profile** writes through `ProfileRepository.setRememberLastProfileEnabled` into the stored profile payload's user-level preference; it is not scoped to the active profile. Keep under You/Profiles or You/Startup, not System.
+- **Sentry Reports** exists only when `SentrySettingsRepository.isSupported`. Android reports support and stores the preference in app SharedPreferences; iOS reports unsupported and hides the control. The value is app-global (not ProfileScopedKey). The switch opens a confirmation/explanation dialog and only writes on confirm. This is **INTENTIONAL PLATFORM SCOPE**, not a missing iOS toggle or duplicate.
+- **Logs** is diagnostics content and remains System → Diagnostics. Its hardcoded English labels/dialog actions are already the canonical Advanced Logs localization finding; do not duplicate it.
+- **Clear Continue Watching Cache** clears the active profile's `ContinueWatchingEnrichmentCache`, then requests a local clear and forced server snapshot refresh through `WatchProgressRepository`. It is an action, not a persistent setting; retain a completion state and do not move it into a profile preference list.
+
+**Classification:** Account auth vs Profiles = **DIFFERENT SEMANTICS**; Sentry Android/iOS implementations = **INTENTIONAL PLATFORM SCOPE**; clear-cache action vs persisted preferences = **FALSE POSITIVE** for duplicate setting. No new duplicate confirmed.
+
+**Verification:** static source reads only; no auth/account deletion requests, Sentry runtime initialization, profile switch, cache clearing, tests, builds or device checks were run.
