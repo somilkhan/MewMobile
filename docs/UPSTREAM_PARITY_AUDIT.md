@@ -11,6 +11,63 @@
 - Audit file: `docs/UPSTREAM_PARITY_AUDIT.md`
 - No `MEW-CONTEXT-SNAPSHOT.md` or `CONTEXT-SNAPSHOT.md` exists in the current Main-dev tree.
 
+## Mandatory agent read-first and deduplication protocol (2026-11-20)
+
+**This is a required gate for every future agent/session working on settings.**
+1. Read this entire file from beginning to end before inspecting or changing settings code. Do not read only this handoff block or rely on chat summaries.
+2. Then verify the live `Main-dev` ref and inspect the exact source files/callers named by the latest findings. This document is the audit index, not a substitute for source verification.
+3. Search this document for the target setting, page, symbol, dialog, route, persistence key, and duplicate finding before starting an investigation. Reuse existing evidence; do not repeat completed investigations unless the source SHA changed or a specific contradiction/new caller requires re-verification.
+4. Maintain one canonical finding per behavior. If a new occurrence is found, append it to the existing finding instead of creating another copy. Record every candidate as TRUE DUPLICATE, INTENTIONAL PARALLEL, SHARED PATTERN / DIFFERENT SEMANTICS, COMPATIBILITY SHIM, FALSE POSITIVE, or NEEDS INVESTIGATION.
+5. Before changing code, map setting → visible control → caller/route → state/repository → platform storage → policy/visibility → tests. Similar names/files are not proof of duplicate behavior.
+6. Do not implement from this audit document alone. Re-read current source and get explicit user approval for application-source implementation.
+7. Every meaningful MD update must include an IST timestamp, target branch, verified source HEAD SHA, previous document blob SHA used as the write guard, scope/files inspected, findings added/changed, and verification status. Read the updated MD back and verify it.
+8. Never mark an audit item complete without source evidence. Mark unverified behavior/device checks explicitly as NOT VERIFIED or NOT RUN.
+
+This protocol exists to prevent duplicate implementations, repeated audits, conflicting handoffs, and loss of earlier findings.
+
+## Playback settings audit continuation — 2026-11-20 08:08:27 IST
+
+**Verified source ref:** `Main-dev` at `a7f066297ba000833a981b12f8b57c26ce833f7d`  
+**Document write guard:** previous `docs/UPSTREAM_PARITY_AUDIT.md` blob `c383d67f44c22a65f8afc1ed30b8073b402f9024`  
+**Files inspected:** `PlaybackSettingsPage.kt`, `SettingsModels.kt`, `PlayerSettingsRepository.kt`, common/Android/iOS `PlayerSettingsStorage`, Android/iOS `P2pSettingsStorage`.
+
+### Confirmed playback IA mapping (audit only; not implemented)
+
+The current Mew Playback route is one page and one large composable column, with these independent sections:
+- Player / interface: loading and pause overlays, Player Liquid Glass, parental guide, internal/external player preference, touch gestures, remembered brightness, hold-to-speed, skip durations, toolbar layout.
+- Audio: preferred and secondary audio language.
+- Subtitles: preferred/secondary language, forced/preferred-only filters, addon subtitle startup mode, AutoSync controls.
+- Subtitle rendering: font size/family/import, vertical offset, bold, text/background/outline colors and outline width, Android libass controls.
+- P2P: enable/consent, hide stats, torrent profile, cache size and clear-cache action; section is gated by `P2pSettingsRepository.isVisible`.
+- Stream selection: reuse-last-link and cache duration; auto-play mode, regex, timeout, source scope, addon/plugin allowlists.
+- Decoder/video: Android engine, libmpv output/hardware/YUV options, ExoPlayer decoder priority, DV7 mapping and tunneling; section is Android-only and options are disabled for external player or incompatible engine.
+- iOS output: audio output, hardware decoder, extended dynamic range, colorspace hint, target primaries and transfer; iOS-only.
+- Skip segments: intro/outro/recap, Anime Skip client ID, IntroDB submission/API key.
+- Up Next: auto-next, fallback, binge-group preference/reuse, threshold mode and threshold values.
+
+**Recommended planning map:** adapt upstream's modular Playback navigation rather than wholesale-copying its files. Split into Player/Interface, Audio, Subtitles, Video/Decoder (platform-specific controls retained), Stream Selection, Skip Segments, Up Next, and P2P where enabled. Keep iOS output options in the appropriate Video/Audio subpages. This is an IA proposal only; final placement should be checked against upstream's current page tree and the completed full-control map.
+
+### Persistence and platform findings
+
+- Playback controls read/write through the shared `PlayerSettingsRepository` and `PlayerSettingsStorage` expect/actual contract. Android uses SharedPreferences and iOS uses NSUserDefaults; both use `ProfileScopedKey`. Classify these as **INTENTIONAL PARALLEL** platform implementations, not duplicate repositories. Preserve profile scoping and existing keys during any UI/page split.
+- P2P preferences are separate from PlayerSettings: `P2pSettingsStorage.android.kt` and `P2pSettingsStorage.ios.kt` both use `ProfileScopedKey`; this is also **INTENTIONAL PARALLEL**. P2P clear-cache is an action with live playback/cache-state gating, not a normal persisted preference.
+- External-player selection disables relevant internal player, audio and subtitle controls; Android exposes subtitle-forwarding/skip-segment options, while iOS exposes an external-player app selector. Preserve these conditional rules and stored values; do not infer that hidden/disabled means deleted.
+- Android decoder controls are hidden on iOS; iOS audio/video output controls are shown only on iOS. This is **INTENTIONAL PLATFORM SCOPE**, not duplicate/missing functionality.
+- The generic enum picker is named `IosEnumSelectionDialog` but is also used for Android libmpv and P2P options. This is a **SHARED PATTERN / DIFFERENT SEMANTICS** naming mismatch; rename/reuse only if a later implementation plan warrants it. Do not create a second generic enum dialog.
+- The player-selection dialogs repeat a common selected-card visual pattern, but options and behavior differ. Classify as **SHARED PATTERN / DIFFERENT SEMANTICS**, not confirmed duplicate controls. Accessibility selected/radio semantics and keyboard/focus behavior still need review.
+
+### Open items (do not mark as bugs without further evidence)
+
+- Complete the per-control map against search entries, settings storage keys, runtime callers and tests; especially distinguish settings-page controls from player-overlay/quick-settings controls.
+- Investigate repository state fields that are not visibly rendered in this page (e.g. memory-safe buffer, volume boost, resize mode, and some iOS video controls). They may be owned by player UI/overlay surfaces; do not add new settings rows until callers are mapped.
+- Review every Playback dialog for selection semantics, focus/keyboard behavior, scroll limits, dismissal and error handling. Most selection dialogs apply immediately and dismiss; preserve that interaction unless a concrete usability problem is found.
+- The page is currently composed as one LazyList item containing a large Column. Record this as a structural/performance review point; actual scrolling/performance impact is **NOT DEVICE VERIFIED**.
+- Previously recorded Parental Guide duplication is not a new finding here; retain the existing canonical duplicate record. Do not add a second duplicate entry.
+
+**Classification summary:** Android/iOS storage pairs = INTENTIONAL PARALLEL; generic enum picker = SHARED PATTERN / DIFFERENT SEMANTICS; selected-card dialog implementations = SHARED PATTERN / DIFFERENT SEMANTICS; page-level modularization = ADAPT; hidden model fields = NEEDS INVESTIGATION. No new TRUE DUPLICATE confirmed in this continuation.
+
+**Verification:** source/document reads only; no application source changes; builds/tests/device checks NOT RUN. Main-dev was verified at `a7f066297ba000833a981b12f8b57c26ce833f7d` immediately before this documentation write. `main` was not written.
+
 ## User-approved objective
 Reorganize Mew and upstream settings into one discoverable Mew settings experience. Use upstream Enhanced's five-category model as a starting point, not a wholesale copy. Preserve Mew identity, features, profiles, persisted preferences, Android/iOS differences, navigation behavior, and policy gates.
 
