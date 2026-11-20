@@ -2602,3 +2602,32 @@ No other TRUE DUPLICATE was confirmed. Similar cards, source-set actuals, separa
 **Classification:** Mew mutex serialization = **KEEP as single refresh owner**; upstream tracked refresh job = **ADAPT candidate**; unbounded waiter growth = **NEEDS INVESTIGATION**, not a confirmed bug until timeout and callsite audit completes.
 
 **Verification:** static source/commit inspection only. No Trakt API calls, concurrency tests, builds or device checks run.
+
+
+## Episode-rating alignment and cast filmography parity (2026-11-20 16:58:31 IST)
+
+**Target:** `Main-dev`  
+**Verified target HEAD before write:** `233c5eb9c6e4ea3ae5d598ea52d51cae638fb6be`  
+**Application-source baseline:** `8a36dcede748ba6bb35d2a49c1ffd062bf7efbd0`  
+**Previous audit document blob / write guard:** `edaa16e1128ae5ef8d453bb962300594d760e073`  
+**Upstream commits inspected:** `97fbfa90565125859f973feff7a5740e8e647928`, `547972efd9fbfbde60e06cf83ae9e2d0c97fd8f4`.
+
+### Episode ratings mapped to addon episode numbering
+
+- Mew's `ImdbEpisodeRatingsRepository` converts external ratings directly into a `(season, episode) -> rating` map using the provider's numbering. `MetaDetailsScreen` displays those ratings against addon-provided `MetaVideo.season/episode` values. No `EpisodeRatingsAlignment` helper or addon-air-date input was found in Mew.
+- Upstream adds `AddonEpisodeAirDate` / `ExternalEpisodeRating` models and aligns external ratings to addon numbering when season sets differ: same-season layouts keep provider numbering; otherwise aired episode totals are paired in airing order when counts match, or grouped by air date (including a one-day tolerance) when counts differ. Season-zero specials retain their original numbering. The repository now caches external episode records rather than a pre-mapped number map.
+- This specifically addresses anime/addon catalogs that collapse multiple provider seasons into fewer addon seasons. It is not safe to remap all series indiscriminately.
+
+**Decision: ADAPT** in the existing `ImdbEpisodeRatingsRepository` and details screen. Preserve current cache/in-flight deduplication and IMDb-primary/TMDB-fallback behavior. Add upstream's alignment algorithm only when season sets differ; keep specials stable. Tests should cover same season layouts, merged seasons, equal/different aired totals, missing/invalid dates, future episodes, specials, duplicate numbers, missing ratings and empty addon metadata. Review whether TMDB-native episode ratings need separate handling; do not silently remap those through the IMDb provider path.
+
+### Cast filmography talk-show guest filtering
+
+- Mew's `TmdbMetadataService.mapPersonTvCreditsFromCast()` currently keeps TV cast credits when a poster/backdrop exists, sorts by vote average and maps them into filmography. Its `TmdbPersonCreditCast` DTO does not parse `genre_ids`; there is no Talk-show guest filter.
+- Upstream parses `genre_ids` and filters TMDB Talk genre ID 10767 from cast filmography unless the character/credit string identifies the person as a host/co-host. Crew credits remain a separate mapping path.
+- This prevents guest appearances on talk shows from displacing actual film/series credits while retaining hosts.
+
+**Decision: ADAPT** the focused filter in Mew's existing `TmdbMetadataService`; add `genre_ids` to the DTO and unit tests for guest, host, co-host, null character, non-talk genres and missing genre IDs. Keep movie credits and crew credits unchanged. Confirm TMDB's genre/character data shape before shipping.
+
+**Classification:** episode ratings direct numbering = **CURRENT LIMITATION / ADAPT**; existing ratings cache and fallback = **KEEP**; cast filmography filter = **ADAPT**; no new repository or parallel metadata service required.
+
+**Verification:** static source and upstream commit/test inspection only. No API calls, metadata UI checks, tests, builds or device checks run.
