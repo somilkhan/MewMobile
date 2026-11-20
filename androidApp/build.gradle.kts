@@ -56,7 +56,21 @@ android {
     compileSdk = libs.versions.android.compileSdk.get().toInt()
     compileSdkMinor = libs.versions.android.compileSdkMinor.get().toInt()
 
+val debugStoreFile = envOrLocalProperty("MEW_DEBUG_KEYSTORE_FILE")?.let(::file)
+val debugStorePassword = envOrLocalProperty("MEW_DEBUG_KEYSTORE_PASSWORD")
+val debugKeyAlias = envOrLocalProperty("MEW_DEBUG_KEY_ALIAS")
+val debugKeyPassword = envOrLocalProperty("MEW_DEBUG_KEY_PASSWORD")
+
     signingConfigs {
+        create("debugMew") {
+            if (debugStoreFile != null && debugStorePassword != null && debugKeyAlias != null && debugKeyPassword != null && debugStoreFile.exists()) {
+                storeFile = debugStoreFile
+                storePassword = debugStorePassword
+                keyAlias = debugKeyAlias
+                keyPassword = debugKeyPassword
+            }
+        }
+
         create("release") {
             if (releaseKeystore != null && releaseStorePassword != null && releaseKeyAlias != null && releaseKeyPassword != null) {
                 storeFile = releaseKeystore
@@ -130,6 +144,12 @@ android {
     }
 
     buildTypes {
+        getByName("debug") {
+            if (debugStoreFile != null && debugStorePassword != null && debugKeyAlias != null && debugKeyPassword != null && debugStoreFile.exists()) {
+                signingConfig = signingConfigs.getByName("debugMew")
+            }
+        }
+
         getByName("release") {
             val minifyRelease = providers.gradleProperty("releaseMinifyEnabled")
                 .map(String::toBooleanStrict)
