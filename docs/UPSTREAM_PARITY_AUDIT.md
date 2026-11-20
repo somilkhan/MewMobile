@@ -1,29 +1,30 @@
-# CURRENT HANDOFF — SETTINGS + FULL UPSTREAM PARITY AUDIT (2026-11-20 18:29 IST)
+# CURRENT HANDOFF — SETTINGS + FULL UPSTREAM PARITY AUDIT (2026-11-20 18:32 IST)
 
-> Canonical source of truth for settings and full upstream parity. Every future agent must read this entire file from beginning to end before investigating or changing settings or upstream feature code. Search the prior findings before every new audit so existing work is not repeated and duplicate implementations are not introduced.
+> Canonical source of truth for settings and full upstream parity. Every future agent must read this entire file from beginning to end before investigating or changing settings or upstream feature code. Search prior findings before every new audit so existing work is not repeated and duplicate implementations are not introduced.
 
-## Verified repository refs (2026-11-20 18:29 IST)
+## Verified repository refs (2026-11-20 18:32 IST)
 
 - Repository: `somilkhan/MewMobile`.
-- Target `Main-dev` immediately before this documentation update: `a1ab20db30e6aa89cdf383e09c1f7fd0632bc7d0`.
-- Application-source baseline: `8a36dcede748ba6bb35d2a49c1ffd062bf7efbd0`. GitHub compare confirms **52 commits after this source baseline change only `docs/UPSTREAM_PARITY_AUDIT.md`**; no application-source paths changed.
-- Previous audit document blob / write guard: `1598c51f70f337c44dd3111e9be4776fa19b9bfa`.
+- Target `Main-dev` immediately before this documentation update: `b314aa85b3b4b3eb2f180d2de4c9a05e2e6cc522`.
+- Application-source baseline: `8a36dcede748ba6bb35d2a49c1ffd062bf7efbd0`. GitHub compare confirms **54 commits after this source baseline change only `docs/UPSTREAM_PARITY_AUDIT.md`**; no application-source paths changed.
+- Previous audit document blob / write guard: `9296f1d349f499f244d5e0b2255545f6bf546c06`.
 - Protected `main`: `207ef8fa309b8061b73039b2d4e4bde4af65050e` (unchanged).
 - `upstream-sync`: `af51bbbc13cdb315a88ef597eb4d2672a60335d5`.
 - Mother upstream `luqmanfadlli/NuvioMobile-Enhanced:enhanced`: `3f9c50c122c9c1d63bf3f061e65bd2cb17967fb6`.
 - Upstream divergence: `upstream-sync` → `enhanced` compare is **69 commits ahead / 167 behind**, merge base `f4b7e55e31c2778827095dbdb246193e8675016f`, with **140 changed paths**. Histories are heavily divergent; wholesale merge is prohibited.
-- No `MEW-CONTEXT-SNAPSHOT.md` or `CONTEXT-SNAPSHOT.md` exists on `Main-dev`.
+- GitHub default branch is `main`. No `MEW-CONTEXT-SNAPSHOT.md` or `CONTEXT-SNAPSHOT.md` exists on `Main-dev`.
 
-## Current audit status — 2026-11-20 18:29 IST
+## Current audit status — 2026-11-20 18:32 IST
 
 - **Static settings IA/source audit: COMPLETE.** Settings hierarchy, controls, persistence, duplicates, dialogs, localization keys, route/back behavior and upstream settings-route comparisons are consolidated below.
 - **Full upstream feature parity audit: IN PROGRESS.** All 69 upstream commit subjects and the 140-path compare set are enumerated. High-impact groups have source-level comparisons, but not every changed path, caller, provider and platform behavior has been exhaustively audited. Do not call the full audit complete.
-- Source-review groups: Library filters; Smart Streams vs Mew AutoPlay/device metadata and badge safety; Downloads queue/transfer/persistence/iOS finalization; watched threshold; Home row placement/hero sources/sync; Trakt refresh/profile isolation; IMDb episode-rating alignment; TMDB cast filmography; Media Servers authentication/sync security; playback title-logo fallback; iOS MPV/subtitle/download/share-sheet/tab-bar behavior; Gradle/native submodules/Cast/Baseline Profile/CI; Android/iOS networking contract.
-- New decisions/findings in the latest continuation:
+- Source-review groups: Library filters; Smart Streams vs Mew AutoPlay/device metadata and badge safety; Downloads queue/transfer/persistence/iOS finalization; watched threshold; Home row placement/hero sources/sync; Trakt refresh/profile isolation; IMDb episode-rating alignment; TMDB cast filmography; Media Servers authentication/sync security; playback title-logo fallback; iOS MPV/subtitle/download/share-sheet/tab-bar behavior; iOS sideload distribution; Gradle/native submodules/Cast/Baseline Profile/CI; Android/iOS networking contract.
+- Latest decisions/findings:
   - Home catalog hide/show, reorder and collection pinning already exist; optional catalog pin-top/bottom and hidden-row grouping are selective adaptations.
   - Playback title-logo fallback is an adaptation using Mew's existing metadata cache/coordinator.
   - Custom poster URL integration is **SKIP** as a standalone port; Mew's poster customization is card styling, not a custom URL-pattern feature.
-  - Trakt refresh single-flight is an adaptation candidate; deeper tracing found an unwired Trakt library profile lifecycle and a cross-profile stale-write risk because storage resolves the active profile at completion. The upstream queue commit does not fix this.
+  - Trakt refresh single-flight is an adaptation candidate; tracing found an unwired Trakt library profile lifecycle and a cross-profile stale-write risk because storage resolves the active profile at completion. The upstream queue commit does not fix this.
+  - Mew already produces an optional unsigned iOS IPA artifact. An AltStore/SideStore source feed is a **new distribution feature / product decision**; upstream's direct-push workflow would target Mew's protected default branch `main`, so do not copy it.
 - Confirmed settings duplicates remain **2**: Parental Guide (Playback + Nuvio Enhanced) and TMDB enrichment toggle (Content Discovery + TMDB settings).
 - High-priority findings documented include: addon tracking-consent gap; iOS raw HTTP redirect and response-size enforcement mismatches; imported stream-badge regex stack-overflow risk; iOS download move-only finalization; Media Server token-in-sync security contract; Trakt library profile lifecycle/cross-profile stale-write risk.
 - Already implemented in Mew and not to be duplicated: Home catalog preference preservation when remote sync arrives before catalogs load; episode-card artwork fallback; AutoPlay source/regex/binge-group policy; Downloads source-discovery and transfer owners; Simkl auth client; share-sheet backup export; metadata request cache/coordinator.
