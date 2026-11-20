@@ -1134,3 +1134,58 @@ The Nuvio Enhanced page contains 13 functional sections and at least 49 ordinary
 **Classification:** Account page grouping = ALREADY LOGICAL; Profile Insights dashboard = INTENTIONAL PARALLEL destination from Account preferences; Advanced multi-domain page = ADAPT into System subpages; Notifications test action = utility action within Notifications, not a persisted preference; contrast issue = existing central theme defect with one additional confirmed consumer.
 
 **Verification:** source reads only; no application source changes; builds/tests/device checks NOT RUN.
+
+
+
+## Integrations, Tracking, Content Discovery and source-set audit — 2026-11-20 08:15:04 IST
+
+**Target:** `Main-dev`  
+**Verified branch HEAD before this documentation write:** `8f5820b4d03900f138946ae568493e428a35e303`  
+**Application source baseline:** `a7f066297ba000833a981b12f8b57c26ce833f7d`; GitHub compare confirms the five intervening commits changed only `docs/UPSTREAM_PARITY_AUDIT.md`.  
+**Previous document blob / write guard:** `54812ba9037a1be905cfe6a3be5b495bc0fc48b2`.  
+**Files inspected:** `IntegrationsSettingsPage.kt`, `TrackingSettingsPage.kt`, `TrackingProviderCards.kt`, `ContentDiscoverySettingsPage.kt`, `TmdbSettingsPage.kt`, `MdbListSettingsPage.kt`, `DebridSettingsPage.kt`, `AiAssistantSettingsPage.kt`, `AddonsSettingsPage.kt`, Plugins/CloudStream expect/actual pages, `SettingsModels.kt`, `SettingsSearch.kt`, `SettingsScreen.kt`, and Trakt/TMDB/MDBList/Debrid/AI settings repositories/storage contracts.
+
+### Integrations → Services mapping
+
+- The existing Integrations root is a navigation-only hub with four distinct service pages: AI Assistant, TMDB Enrichment, MDBList Ratings, and Debrid. Map these to **Services → AI**, **Services → Metadata (TMDB/MDBList)**, and **Services → Debrid**. Do not collapse the service pages into one giant form.
+- AI Assistant owns provider selection, enable/web-search switches, provider-specific API keys and model names through `AiAssistantSettingsRepository`. Its Android storage uses `ProfileScopedKey`; preserve per-profile values and key ownership. Web-search toggle is not equivalent to an app-wide search preference.
+- TMDB owns API key, enable state, language/title-language, trailer/artwork/details/credits/episode/release/collection modules. `TmdbSettingsRepository` invalidates metadata and notifies Home on relevant changes. Keep the existing repository and invalidation behavior.
+- MDBList owns a separate API key, enable state and independent rating-provider switches. API-key changes clear MDBList metadata cache. It is a separate service from TMDB, not a duplicate despite similar credential/module UI.
+- Debrid owns provider credentials, resolver selection, cloud-library enablement, instant-playback preparation limits, stream result/sort/quality/HDR/Dolby Vision/codec filters and display templates. This is not merely a provider connection toggle; keep it as a dedicated Services destination or a clearly structured Debrid subpage group.
+- TMDB, MDBList, Debrid and AI have separate repository/storage contracts and profile-change reload paths. Their similar credential controls are **SHARED PATTERN / DIFFERENT SEMANTICS**, not evidence for merging persistence or provider models. Android storage uses profile-scoped keys; platform actuals exist. Preserve sync payload contracts where present (TMDB/MDBList/Debrid).
+- The existing TMDB enable switch also appears in Content Discovery and is the already-confirmed **TRUE DUPLICATE** recorded in the canonical duplicate inventory. Do not create a second duplicate finding. If consolidation removes the shortcut, keep the one canonical toggle and a navigation link to TMDB configuration; if both remain, they must be intentionally presented as one shared state/control, not two independent switches.
+
+### Tracking → Services mapping
+
+- Tracking page has provider connection cards for Trakt, Simkl, AniList and MyAnimeList; additional conditional Simkl manual-client-ID entry; data-source choices for Library and Watch Progress; Trakt-only viewing/discovery controls (continue-watching cap, comments, More Like This source); anime ID preference; and anime tracking presentation toggle.
+- The four provider cards share visual/card patterns but have different authentication, sync and data semantics. Classify as **INTENTIONAL PARALLEL provider integrations** with **SHARED PATTERN / DIFFERENT SEMANTICS** presentation—not duplicate provider implementations. Preserve each provider's independent auth, sync, error and loading states.
+- Tracking data-source controls use connected-provider availability and effective fallback calculations. Selecting Watch Progress calls `WatchProgressSourceCoordinator.selectSource(profileId = ProfileRepository.activeProfileId, ...)`; refresh failures have an inline retry action. Preserve active-profile scoping, fallback messaging and asynchronous refresh lifecycle.
+- Trakt viewing/discovery options are only shown while Trakt is connected. Simkl manual client ID is conditionally shown when credentials are not configured or a manual ID exists. Anime ID options are shown when Simkl is connected. These are intentional visibility gates; moving rows must preserve them.
+- Anime pencil visibility is stored through `MetaScreenSettingsRepository`, even though its UI currently appears under Tracking. It controls a Meta Screen presentation affordance, not provider authentication. **ADAPT** it to Look → Details / Meta Screen, while keeping the existing repository/key and avoiding a second toggle.
+- `TraktSettingsRepository` persists a combined settings payload and reloads on profile change; Android/iOS storage implementations use `ProfileScopedKey`. Keep the route enum name `TraktAuthentication` for saved-navigation compatibility, but its new category should be Services → Tracking. The earlier category mismatch finding remains canonical.
+- Search currently gives Tracking a legacy Account category/root page placement. Update search category, root placement and the same route's category together when implementation is approved; do not rename the enum route or invalidate saved navigation.
+
+### Addons, Plugins and CloudStream source-set findings
+
+- `AddonsSettingsPage.kt` delegates to `AddonsSettingsPageContent`; it is an adapter, not a second independent Addons implementation. Audit the delegated content owner before editing its controls.
+- Plugins and CloudStream settings use common expect declarations with actuals in `fullCommonMain`, `androidPlaystore` and `iosAppStore`. Full source sets delegate to the plugin settings content / CloudStream section; Play Store and iOS App Store actuals are no-op. These are **INTENTIONAL PARALLEL / PLATFORM-FLAVOR IMPLEMENTATIONS**, not duplicate screens.
+- Both entries are gated by `AppFeaturePolicy.pluginsEnabled`; search receives the same policy input. When policy disables the route, SettingsScreen falls back from Plugins/CloudStream page rendering to Addons content as a compatibility shim. Preserve the policy and fallback semantics or replace them with an explicit safe redirect only after direct-route/saved-state tests.
+- CloudStream entry is also disabled when TMDB enrichment is enabled in the Content Discovery page. Preserve and explain this interaction; do not silently remove it while reorganizing categories.
+- Content Discovery is a source/addon hub, not the same as the Integrations hub. Proposed placement: Watch → Content Discovery, with Addons and policy-permitted Plugins/CloudStream as children. TMDB configuration belongs under Services, with only one canonical enable control.
+
+### Consolidation decisions
+
+| Existing control/page | Proposed destination | Decision |
+|---|---|---|
+| AI Assistant | Services → AI | ADAPT; preserve provider keys/models and profile scope |
+| TMDB | Services → Metadata → TMDB | ADAPT; keep one enable control; preserve invalidation |
+| MDBList | Services → Metadata → MDBList | ADAPT; distinct provider/cache |
+| Debrid | Services → Debrid | ADAPT; retain resolver/stream preferences and sync schema |
+| Trakt / Simkl / AniList / MyAnimeList | Services → Tracking | ADAPT; independent providers, shared card pattern |
+| Tracking library/watch-progress source | Services → Tracking → Data Sources | ADAPT; preserve coordinator/fallback behavior |
+| Anime pencil toggle | Look → Details / Meta Screen | ADAPT; existing MetaScreenSettingsRepository owner |
+| Addons | Watch → Content Discovery → Addons | ADAPT; inspect delegated content owner |
+| Plugins / CloudStream | Watch → Content Discovery | ADAPT; preserve source-set actuals, policy gate and fallback |
+| TMDB enable switch on Content Discovery | Services → Metadata → TMDB | Existing TRUE DUPLICATE; do not add another duplicate record |
+
+**Verification:** source reads only; source diff since baseline is documentation-only; no app source changes; builds/tests/device checks NOT RUN. iOS actual files were located, but no iOS simulator/device behavior was verified.
