@@ -750,3 +750,24 @@ Upstream has a common `DownloadsSettingsRepository` and Android/iOS storage/loca
 - Upstream Enhanced already has `settingsCategoryForName` mappings for old names (`Account` → You, `General` → Look, `About`/`Advanced` → System), but Mew's additional `Enhanced` value needs an explicit migration/fallback decision.
 - `SettingsPage` restoration is more defensive (`valueOf` wrapped in `runCatching` and fallback to Root); category restoration currently is not.
 - Requirement before category restructuring: add a safe parser/migration for every legacy category string, including `Enhanced`, and test valid current names, all legacy names, unknown names and process-restored state. Preserve existing `SettingsPage` enum names for external navigation/deep links; use compatibility shims for any page split/retirement.
+
+
+## Mew Enhanced cross-domain redistribution map — 2026-11-20
+
+### Proposed five-category structure
+Use upstream Enhanced's five top-level categories as the baseline: **You, Look, Watch, Services, System**. Keep About as a destination under System (with Supporters/Contributors and Licenses/Attributions beneath it), rather than creating a sixth top-level category. This is a proposal pending the complete control inventory.
+
+### Mew Enhanced settings that belong with existing domain pages
+- **Player Tools → Watch / Playback:** Mew Enhanced currently contains subtitle sync menu, subtitle/audio selector style, player clock overlay, random next episode, next-episode button, Android memory-safe buffer, source pinning, background prefetch and player status overlay. These are mostly player-domain settings; place them in the relevant Playback subpages, retaining their Mew-specific state/repositories and feature gates.
+- **Home/Hero Experience → Look / Homescreen:** `HomeCatalogSettingsRepository` owns hero auto-scroll and motion preview in Nuvio Enhanced, while the Homescreen page owns hero visibility, catalog type, unreleased content, catalog underline and hero source selection. These are **SHARED PATTERN / DIFFERENT SEMANTICS** under one screen domain, not proven duplicate controls. Consolidate discoverability on Homescreen without merging distinct state.
+- **Detail Presentation / Details Experience → Look / Meta Screen:** Nuvio Enhanced exposes episode-card style, show-download action, trailer playback/sound and episode ratings through `MetaScreenSettingsRepository`; the Meta Screen page currently exposes background mode, tab layout, blur-unwatched and section ordering. These are separate controls for the same destination. Group them under one Details/Meta Screen destination; do not create duplicate setters.
+- **Release Radar / Discovery → Watch / Content Discovery:** group user-facing discovery filters and release signals with content discovery, while keeping profile-only or system maintenance controls in their proper destinations.
+- **Network → System / Network:** DNS-over-HTTPS provider and diagnostics-related network configuration should not be buried in a general Enhanced page.
+- **Backup/Import → System / Backup:** keep import/export validation, file handling, profile scope and backup compatibility intact.
+- **Downloads external folder → Watch / Downloads:** this is download configuration, distinct from the Downloads manager screen. Keep the Android-only capability gate until iOS support is deliberately implemented.
+- **Diagnostics → System / Diagnostics:** copy diagnostics and last-crash report actions should be grouped with Sentry/runtime logs, but their different data sources and side effects must be retained.
+
+### Duplicate audit refinement
+- Exact duplicates confirmed remain **2**: Parental Guide and TMDB enrichment toggle.
+- Home/Hero and Meta Screen settings are currently split across separate pages but use different settings/callbacks; classify as **SHARED PATTERN / DIFFERENT SEMANTICS**, not duplicates.
+- Keep the Enhanced page as a compatibility destination while its controls are redistributed. Preserve external page names and saved state until route migration is verified.
