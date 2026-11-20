@@ -68,7 +68,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.nuvio.media"
+        applicationId = "com.mew.mobile"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = releaseAppVersionCode
@@ -219,7 +219,7 @@ val rust = tasks.register<CargoNdkBuild>("buildRust") {
 
 androidComponents {
     onVariants(selector().withBuildType("debug")) { variant ->
-        variant.applicationId.set("com.nuviodebug.com")
+        variant.applicationId.set("com.mew.mobile.debug")
     }
     onVariants { variant ->
         variant.sources.jniLibs?.addGeneratedSourceDirectory(rust, CargoNdkBuild::jniLibs)
