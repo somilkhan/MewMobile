@@ -665,3 +665,12 @@ This map is provisional. Where a control spans two domains, choose one canonical
 - Tracking, Account/Profile, Notifications, Advanced and About page structures inspected.
 - Source changes: **NONE**. Builds/tests/device checks: **NOT RUN**.
 - Next: complete control-level audit of remaining Integrations and profile settings, inspect every dialog/copy path and theme contrast matrix, then finalize the hierarchy and migration plan.
+
+
+## Additional confirmed duplicate — TMDB enrichment toggle — 2026-11-20
+
+- `ContentDiscoverySettingsPage.kt` renders `settings_tmdb_enable_enrichment` and receives `TmdbSettingsRepository::setEnabled` from `SettingsScreen.kt`.
+- `TmdbSettingsPage.kt` renders the same title/description, reads `settings.enabled`, applies the same `settings.hasApiKey` gate and calls `TmdbSettingsRepository::setEnabled`.
+- Classification: **TRUE DUPLICATE** — same preference, same repository state, same setter and same enablement gate exposed on two pages.
+- Proposed canonical owner: Services → Integrations → TMDB. Replace the Content Discovery toggle with a single navigation row to TMDB settings (or remove it if a separate entry already exists), and make the missing-API-key shortcut route-aware so Back returns correctly.
+- Updated confirmed duplicate count: **2** — Parental Guide (Playback + Nuvio Enhanced) and TMDB enrichment enabled (Content Discovery + TMDB settings). No other exact shared setter was found in the inspected candidate page set; remaining apparent overlaps stay **NEEDS INVESTIGATION**.
