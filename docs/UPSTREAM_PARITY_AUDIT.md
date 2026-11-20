@@ -4,7 +4,7 @@
 
 ## Verified repository refs
 - Mew repository: `somilkhan/MewMobile`
-- Active target: `Main-dev` — latest verified HEAD before this handoff refresh: `961d59323452e16a9c403ae3f076b996d6546a5d`. Application source audit baseline: `a7f066297ba000833a981b12f8b57c26ce833f7d`; GitHub compare confirms all commits since that baseline changed only `docs/UPSTREAM_PARITY_AUDIT.md`. Re-read the live ref at the start of the next session.
+- Active target: `Main-dev` — latest verified HEAD before this handoff refresh: `0bcbf4f85a4ce4a6ac9efe9b27b7e09f8e7f1dff`. Application source audit baseline: `a7f066297ba000833a981b12f8b57c26ce833f7d`; GitHub compare confirms all commits since that baseline changed only `docs/UPSTREAM_PARITY_AUDIT.md`. Re-read the live ref at the start of the next session.
 - Protected stable branch: `main` — `207ef8fa309b8061b73039b2d4e4bde4af65050e` (untouched)
 - Reference branch: `upstream-sync` — `af51bbbc13cdb315a88ef597eb4d2672a60335d5`
 - Mother upstream: `luqmanfadlli/NuvioMobile-Enhanced`, `enhanced` — `b23b28a878b78f5ef9252128b901155fee6eeea9`
@@ -103,6 +103,19 @@ The current Mew Playback route is one page and one large composable column, with
 - New consolidation: split Debrid provider setup into Services → Debrid and its result filtering/formatting into Watch → Stream Selection while retaining one repository/state owner.
 - Audit source changes: NONE. Builds/tests/device checks: NOT RUN.
 - Remaining: complete Enhanced caller/data-source mapping; inspect all remaining dialog states/copy/validation/dismissal; finish control/search/persistence coverage; localization sweep; verify accessibility roles/selected states; route/back/tablet restoration migration map; final deduplicated migration matrix.
+
+
+
+## Latest audit continuation — 2026-11-20 10:22:00 IST
+
+- Target: `Main-dev`; verified HEAD before this handoff refresh: `0bcbf4f85a4ce4a6ac9efe9b27b7e09f8e7f1dff`.
+- Previous document blob / write guard: `f7e96deb9c454d332dca37cf7afb1dd2c32fc595`.
+- Application source baseline: `a7f066297ba000833a981b12f8b57c26ce833f7d`; compare confirms only `docs/UPSTREAM_PARITY_AUDIT.md` changed since baseline.
+- Protected `main`: `207ef8fa309b8061b73039b2d4e4bde4af65050e` (unchanged).
+- New verified mapping: Concierge/Smart Resume/Profile Stats/Smart Shelves/Quiet Home → Look → Home Experience; Release Radar filters/digest and Library Health → Watch → Library; Continue Watching ready badge → Watch → Continue Watching; Live TV visibility → Watch → Live TV.
+- Library Health is now confirmed as a Library presentation card, not System diagnostics. Home Concierge and Library Release Radar share underlying signal data but are distinct presentations; no duplicate settings found.
+- Source changes: NONE. Builds/tests/device checks: NOT RUN.
+- Remaining audit: finish detailed settings control → search index → navigation route → repository/storage → feature-policy map; inspect all remaining dialog dismissal/validation/accessibility behavior; complete localization sweep; verify back-stack/tablet restoration and persisted category migration; then produce the final deduplicated settings migration plan. Do not implement until the audit and plan are complete and the user approves.
 
 ## User-approved objective
 Reorganize Mew and upstream settings into one discoverable Mew settings experience. Use upstream Enhanced's five-category model as a starting point, not a wholesale copy. Preserve Mew identity, features, profiles, persisted preferences, Android/iOS differences, navigation behavior, and policy gates.
