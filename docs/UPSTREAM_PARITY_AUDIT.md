@@ -1,3 +1,58 @@
+# CURRENT HANDOFF — SETTINGS IA AUDIT (2026-11-20)
+
+> This block is the current source-of-truth for the settings audit. Older sections below are historical evidence and may contain outdated branch/upstream metadata. Do not use old SHAs as current state.
+
+## Verified repository refs
+- Mew repository: `somilkhan/MewMobile`
+- Active target: `Main-dev` — `65a538031db528260f1347e31ba85c4d33dcd323`
+- Protected stable branch: `main` — `207ef8fa309b8061b73039b2d4e4bde4af65050e` (untouched)
+- Reference branch: `upstream-sync` — `af51bbbc13cdb315a88ef597eb4d2672a60335d5`
+- Mother upstream: `luqmanfadlli/NuvioMobile-Enhanced`, `enhanced` — `b23b28a878b78f5ef9252128b901155fee6eeea9`
+- Audit file: `docs/UPSTREAM_PARITY_AUDIT.md`
+- No `MEW-CONTEXT-SNAPSHOT.md` or `CONTEXT-SNAPSHOT.md` exists in the current Main-dev tree.
+
+## User-approved objective
+Reorganize Mew and upstream settings into one discoverable Mew settings experience. Use upstream Enhanced's five-category model as a starting point, not a wholesale copy. Preserve Mew identity, features, profiles, persisted preferences, Android/iOS differences, navigation behavior, and policy gates.
+
+## NEW label rule
+A newly added setting/page gets a small, subtle **NEW** label for **three app releases/updates inclusive**. Example: introduced in 0.5.2 → show through 0.5.4 → hide from 0.5.5. Use explicit per-setting release metadata (`introducedInVersion` + `visibleThroughVersion` or equivalent), not update-count arithmetic. It must be app-global, not profile-scoped and not dismissible. The existing profile-scoped `seenFeatureIds` / release-highlights mechanism is a different feature and must not control this badge. Use the generated app version name as the installed-version source; version comparison must safely handle unknown/unparseable values and prerelease strings.
+
+## Audit status
+- Read-only audit and documentation only. **No application source changes.**
+- Confirmed duplicate controls: **2** — Parental Guide (Playback + Nuvio Enhanced) and TMDB enrichment toggle (Content Discovery + TMDB settings).
+- Confirmed navigation mismatch: **1** — Content Discovery → TMDB setup shortcut routes to a page whose static parent is Integrations; Back can return to the wrong place.
+- Confirmed theme contrast risk: multiple white-on-accent `primary/onPrimary` pairs fall below 4.5:1 (e.g. Amber 2.37:1, Lagoon 2.49:1, Sunset 2.80:1); custom accent also hardcodes white foreground. P2P consent and Enhanced backup buttons consume this pair.
+- Confirmed localization gap: Advanced → Logs labels/descriptions/actions are hardcoded English.
+- Settings category restoration risk: tablet `selectedCategory` is restored via `SettingsCategory.valueOf`; add safe legacy mapping for Account, General, Enhanced, About and Advanced before changing category names.
+- Downloads manager is a utility screen, not upstream Downloads preferences. Mew has batch download flow/storage; do not import upstream Downloads settings or iOS folder picker without mapping current storage/worker semantics.
+- Dialog inventory is partial: at least 40 BasicAlertDialog, 2 Material AlertDialog, 2 NuvioStatusModal, 6 bottom-sheet call sites. Per-dialog copy/state/accessibility review is not complete.
+- Search currently targets pages; upstream also does not deep-link individual controls. Granular playback subpages are the parity improvement; exact-control reveal would be a separate Mew enhancement.
+- Platform variants (Android Material sheets, iOS UIKit sheets, iOS-only playback settings, engine/P2P/policy gates) must be preserved. iOS simulator/device verification not run.
+
+## Proposed hierarchy (not implemented)
+- **You:** Account, Profiles, Profile Insights, Favorite People, profile/startup preferences.
+- **Look:** Appearance; Layout (Homescreen, Streams presentation, Continue Watching presentation, Poster Customization, Meta Screen/Details).
+- **Watch:** Playback subpages (Player, Stream Selection, Up Next, Skip Segments, Interface, Audio, Subtitles, Video/Decoder, Buffer, P2P when supported); Downloads preferences only if separately justified; Content Discovery (Addons, Plugins/CloudStream when policy permits).
+- **Services:** Integrations (AI, TMDB, MDBList, Debrid); Tracking (Trakt, Simkl, anime tracking).
+- **System:** Notifications, Network/DNS, Diagnostics/Logs/Sentry, Storage/Cache, Backup/Import, About (Supporters, Licenses/Attributions, Privacy/version).
+- Keep Downloads manager and Watch Party as utility shortcuts, not settings preferences.
+- Keep NuvioEnhanced and old SettingsPage/category names as compatibility routes until migration and saved-state behavior are tested.
+
+## Next audit work
+1. Finish control-level mapping of remaining integration/profile settings and all search entries to their visible controls, persistence owners, policies and platform visibility.
+2. Complete per-dialog review: titles, explanatory copy, actions, validation, destructive/loading/selected states, focus, accessibility, scroll and dismissal.
+3. Inspect version comparison helper for prerelease correctness; design NEW registry and tests (implementation requires separate approval).
+4. Produce final migration plan for page/category compatibility and route-aware Back behavior.
+5. Only after audit sign-off and explicit implementation approval, change app source. Then run targeted tests/builds and report iOS/device checks separately.
+
+## Verification status
+- Builds/tests: **NOT RUN** for this audit continuation.
+- Android/iOS device or simulator: **NOT RUN**.
+- No merges, promotions or releases.
+- Reverify all branch SHAs before any future write.
+
+---
+
 # MewMobile Upstream Parity Audit
 
 > **Authoritative current state — 2026-10-30:** This document contains historical audit sections below; older branch heads and status statements are not current. Use this block and the final dated sections for present status. Current upstreams are Nuvio Mobile `cmp-rewrite` `53869a0279c59abdef23da2962eb2a1c80e6caa5` and Nuvio Enhanced `enhanced` `781157e0033db40361b662525b06126e184ffd1c`. PR [#38](https://github.com/somilkhan/MewMobile/pull/38) remains draft and unmerged. Phase 5 is **NOT READY**: candidate CI must pass for the exact current head, an installable APK must be built and verified at the Phase 5 gate, and physical-device verification remains pending.
