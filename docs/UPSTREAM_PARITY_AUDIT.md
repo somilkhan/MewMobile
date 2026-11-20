@@ -2813,3 +2813,32 @@ No other TRUE DUPLICATE was confirmed. Similar cards, source-set actuals, separa
 **Classification:** Mew PosterCardStyleRepository = **INTENTIONAL PARALLEL / DIFFERENT SEMANTICS**; custom poster URL replacement = **NEW FEATURE / NEEDS PRODUCT REVIEW**; downloads custom-poster integration = **BLOCKED ON SHARED FEATURE OWNER**.
 
 **Verification:** static source/tree inspection only. No custom URL, network/image loading, profile storage, downloads UI, tests, builds or device checks run.
+
+
+## Simkl More Like This source and player recommendation parity (2026-11-20 17:06:26 IST)
+
+**Target:** `Main-dev`  
+**Verified target HEAD before write:** `b7f30fc55a33632b70725984d8a52ea690d28da4`  
+**Application-source baseline:** `8a36dcede748ba6bb35d2a49c1ffd062bf7efbd0`  
+**Previous audit document blob / write guard:** `3e9a29bb82a1c502bd50ea1d3cd0706d74f80176`  
+**Upstream commits inspected:** `db2251fe99e7865e179db9b8ef5f53004432ea9a`, `b6ae11b8be1d2b6ff702ca8163143e06c5902810`, `07de5b27795d2fe236ca917dc5608a594947b9d0`  
+**Files inspected:** Mew `MetaDetailsRepository.kt`, `TrackingSettings.kt`, `TraktSettingsRepository.kt`, `SimklApiClient.kt`, player runtime effects/UI; upstream `MetaDetailsRepository.kt`, `SimklRelatedRepository.kt`, player recommendation state/effects.
+
+### Simkl as a related-title source
+
+- Mew's `MoreLikeThisSourcePreference` currently has only `TRAKT` and `TMDB`. `MetaDetailsRepository.applyMoreLikeThisSource()` requests Trakt when selected/authenticated; if Trakt returns an empty list it returns empty recommendations rather than trying the TMDB fallback. Otherwise it uses addon-provided TMDB-related metadata when TMDB is enabled.
+- Mew already owns a shared `SimklApiClient` with authentication, retry policy, response-size limits and typed request/response handling. However, Mew has no `SimklRelatedRepository` or related-title mapping/cache in the inspected source tree.
+- Upstream adds Simkl ID resolution through Simkl's `/search/id` API, provider-specific related-title endpoints and a cache. If Simkl returns no related titles, its metadata flow continues to Trakt and then TMDB rather than publishing an empty result immediately.
+
+**Decision: ADAPT candidate / PRODUCT DECISION.** If Simkl is added as a selectable More Like This source, reuse Mew's SimklApiClient and existing provider auth/transport; add one shared related-title repository and tests for ID resolution, movie/show/anime type selection, empty/error fallback, cache expiry and profile changes. Decide whether the preference means “strict source” or “preferred source with fallback”; do not silently change the current Trakt/TMDB selection contract.
+
+### End-of-movie recommendations
+
+- Upstream also adds a player-specific preferred-source lookup and `playerMoreLikeThis` state for end-of-movie recommendation cards.
+- Mew's inspected player runtime currently loads player metadata videos and has no equivalent playerMoreLikeThis state or end-of-movie recommendation-card path. This is not a direct bug fix to port; it depends on a separate player recommendations feature decision.
+
+**Decision:** Simkl related titles = **ADAPT candidate**; upstream end-of-movie recommendation state/card = **NEW FEATURE / NEEDS PRODUCT REVIEW**, not a direct port.
+
+**Classification:** Simkl auth/client = **ALREADY IMPLEMENTED / REUSE**; Simkl related-title repository = **NEW PROVIDER CAPABILITY / ADAPT**; current Trakt/TMDB source preference = **KEEP until fallback semantics are approved**; player recommendation card = **NOT IMPLEMENTED IN MEW / SEPARATE FEATURE**.
+
+**Verification:** static source/commit inspection only. No Simkl API calls, recommendations UI, tests, builds or device checks run.
