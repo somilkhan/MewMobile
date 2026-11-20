@@ -3287,3 +3287,28 @@ The prior networking note called `PlayerPlaybackNetworking.openConnection` a com
 **Impact/risk:** HTTPS playback traffic can be intercepted by an on-path attacker without certificate/hostname validation; provider authorization or other request headers may be exposed depending on the caller and redirect behavior. The precise caller/header exposure matrix remains **NEEDS INVESTIGATION**; the trust bypass itself is directly confirmed by source.
 
 **Verification:** static source comparison only. No TLS interception, live network, playback compatibility, build, automated test or device test performed. No application source changed.
+
+
+## Playback TLS fallback — Authorization redirect re-injection risk (2026-11-20 IST)
+
+**Target:** `Main-dev`  
+**Verified target HEAD before write:** `48ebf4197a9ab68947f80d814b6d022340956dde`  
+**Previous audit document blob / write guard:** `eea8748d914c7cdb12b1fa4dcd9732e617534906`  
+**Mew source:** `composeApp/src/androidMain/kotlin/com/nuvio/app/features/player/PlayerPlaybackNetworking.kt`, blob `ce4f205623349b2877d63858c3be5b956d999d58`.  
+**Upstream source:** same path at `enhanced`, blob `87e151db9e3c62199bfc0fdbca5b8e3f1a60f27a`.
+
+### Additional code-level finding
+
+- `createHttpDataSourceFactory(defaultHeaders)` preserves a supplied `Authorization` header and captures its value in a **network interceptor**.
+- That interceptor adds the captured authorization value whenever the current request has no `Authorization` header.
+- The client also follows redirects. OkHttp's redirect follow-up handling removes sensitive authorization when redirecting to a different origin; because this custom interceptor runs at the network-exchange layer and re-adds the captured value to requests missing the header, it creates a **cross-origin Authorization re-injection risk** for requests using this factory with an Authorization default header.
+- This is conditional: the exact exposure depends on whether callers supply Authorization and whether the provider endpoint redirects across origins. The caller/provider matrix has **not yet been enumerated**, and no redirect was executed in this audit.
+- The same interceptor and redirect configuration are present in the inspected upstream file. This is shared legacy behavior, not a new upstream delta.
+
+### Decision / required follow-up
+
+**CRITICAL SECURITY REVIEW — do not port or preserve by assumption.** Before remediation, enumerate every factory caller and record whether it supplies Authorization, the initial host, known redirect/CDN hosts and whether credentials are intended for those hosts. Prefer origin-scoped authorization (or a redirect policy that refuses cross-origin redirects when credentials are present); do not blindly re-add credentials after OkHttp has deliberately stripped them. Test same-origin redirects, cross-origin redirects, HTTP↔HTTPS redirects, absent/present Authorization, and provider compatibility. Review `openConnection` separately; its `HttpURLConnection` redirect/header behavior is not established by this source inspection.
+
+**Classification:** custom Authorization network interceptor + automatic redirects = **SHARED INSECURE LEGACY BEHAVIOR / CONDITIONAL CREDENTIAL-LEAK RISK**; upstream = **SAME RISK / NOT A TAKE CANDIDATE**.
+
+**Verification:** static Mew/upstream source comparison only. GitHub code search returned no call-site matches in the connected index, so the complete caller/provider exposure matrix remains **NEEDS INVESTIGATION**. No redirect, live network, TLS interception, tests, build or device verification performed. No application source changed.
