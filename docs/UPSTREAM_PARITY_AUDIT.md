@@ -3185,3 +3185,32 @@ No other TRUE DUPLICATE was confirmed. Similar cards, source-set actuals, separa
 **Classification:** upstream tracked refresh job = **ADAPT**; Mew TraktProgressRepository request-generation/single-flight = **ALREADY IMPLEMENTED / REUSE**; Trakt library lifecycle dispatch = **CONFIRMED WIRING GAP**; dynamic active-profile storage write = **CROSS-PROFILE STALE-WRITE RISK**; repeated preload queue = **ADDITIONAL UNADDRESSED PATH**.
 
 **Verification:** static source/call-graph inspection only. No Trakt refresh, registry, storage, profile or auth code changed; no tests/builds/network or multi-profile runtime checks run.
+
+
+## iOS AltStore/SideStore stable + beta source automation applicability (2026-11-20 18:31:43 IST)
+
+**Upstream commits inspected:** `66ca8379e73b0b37c76a39ebff0ea3ee0f794990` (add beta sideload source) and `62fcd6b9bc340997ffe3c0f6d7890a01c7307267` (manual source updates).  
+**Target:** `Main-dev`; verified HEAD before write `29cf08625b92457ded0f59a936ae5057c7fad0ba`.  
+**Previous audit document blob / write guard:** `e941334e044a8e5cb8c41358db55d58d978af800`.  
+**Files inspected:** upstream `android-release.yml`, `update-store-source.yml`, `store-beta.json` and commit diffs; Mew `.github/workflows/android-release.yml`, workflow tree, `README.md`, `iosApp/iosApp.xcodeproj/project.pbxproj`, `iosApp/Configuration/Version.xcconfig`, `scripts/release-metadata.sh`, `composeApp/build.gradle.kts`.
+
+### Mew current release/distribution behavior
+
+- Mew already has an optional `include_ios` input in its release workflow. It builds an **unsigned Full iOS IPA**, verifies the embedded app version against release metadata, and uploads the IPA as a GitHub Actions artifact. This is not an AltStore/SideStore source feed.
+- The current README describes Mew as an Android app and links Android GitHub Releases; it does not document an iOS sideload source.
+- Mew's iOS app bundle identifier is `com.mew.mobile` (the Downloads widget uses `com.mew.mobile.DownloadsWidgetExtension`). Upstream's source manifest uses `com.nuvio.media`, upstream app branding, icon, website and release history; that JSON is not reusable for Mew.
+- Mew has no `store.json`, `store-beta.json`, `update-store-source.yml` or `scripts/update-store-source.py` in the inspected tree.
+- Repository default branch is **`main`**. Upstream's source updater sets `RELEASE_BRANCH` to `github.event.repository.default_branch` and directly pushes the updated source JSON to that branch using `GITHUB_TOKEN`.
+
+### Decision
+
+**NEEDS PRODUCT / RELEASE DECISION — not a direct parity port.** The existing unsigned IPA artifact means Mew could technically add a Mew-owned AltStore/SideStore source feed, but that is a new distribution surface, not an app feature already missing from the runtime.
+
+- Do not copy upstream `store-beta.json`: it contains Nuvio bundle IDs, branding, URLs, icons, release history, IPA links and checksums.
+- Do not copy the automatic direct-push workflow. In Mew it would target the protected default branch `main`, conflicting with the branch policy and requiring an unapproved protected-branch write.
+- If Mew later approves an iOS source feed, create Mew-specific stable/beta manifests from verified Mew IPA artifacts and checksums; validate bundle ID, version/build, minimum OS, release URL, source schema and signing/install behavior. Prefer a reviewed PR or approved non-protected update branch over direct push to `main`.
+- Keep the existing optional IPA artifact path unchanged until the product owner explicitly approves the distribution design. No release, upload or source publication is authorized by this audit.
+
+**Classification:** unsigned iOS IPA artifact = **ALREADY IMPLEMENTED**; AltStore/SideStore source feed = **NEW DISTRIBUTION FEATURE / NEEDS PRODUCT DECISION**; upstream Nuvio source JSON = **FALSE POSITIVE / DO NOT COPY**; default-branch auto-push = **INCOMPATIBLE WITH MEW BRANCH POLICY / SKIP**.
+
+**Verification:** static workflow/manifest/tree inspection only. No workflow, release metadata, IPA, source manifest or app source changed; no IPA build, release, upload, signing, source update or iOS install test run.
