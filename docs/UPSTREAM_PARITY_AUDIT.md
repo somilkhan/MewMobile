@@ -4,10 +4,10 @@
 
 ## Verified repository refs
 - Mew repository: `somilkhan/MewMobile`
-- Active target: `Main-dev` — latest verified HEAD before this handoff refresh: `e04529427007fbd8aee0378f5ee47b26fab66c83`. Application source audit baseline: `a7f066297ba000833a981b12f8b57c26ce833f7d`; GitHub compare confirms all commits since that baseline changed only `docs/UPSTREAM_PARITY_AUDIT.md`. Re-read the live ref at the start of the next session.
+- Active target: `Main-dev` — latest verified HEAD at 2026-11-20 13:09:45 IST: `2c1ffdc88bf100ece1d3b2c722209a2c479b11b1`. Application source audit baseline: `a7f066297ba000833a981b12f8b57c26ce833f7d`; live GitHub compare confirms all commits since that baseline changed only `docs/UPSTREAM_PARITY_AUDIT.md`. Latest audit document blob SHA: `6c5df9efa35c4335986495a99fde9b7126ca3964`. Re-read the live ref at the start of the next session.
 - Protected stable branch: `main` — `207ef8fa309b8061b73039b2d4e4bde4af65050e` (untouched)
-- Reference branch: `upstream-sync` — `af51bbbc13cdb315a88ef597eb4d2672a60335d5`
-- Mother upstream: `luqmanfadlli/NuvioMobile-Enhanced`, `enhanced` — latest live ref checked `375d93d90864d6b0774d8ab6f58c72d63d10d2af` (newer than the previously audited `b23b28a878b78f5ef9252128b901155fee6eeea9`; delta review NOT RUN)
+- Reference branch: `upstream-sync` — `af51bbbc13cdb315a88ef597eb4d2672a60335d5` (live ref rechecked 2026-11-20)
+- Mother upstream: `luqmanfadlli/NuvioMobile-Enhanced`, `enhanced` — live ref `375d93d90864d6b0774d8ab6f58c72d63d10d2af`. The delta `b23b28a878b78f5ef9252128b901155fee6eeea9..375d93d90864d6b0774d8ab6f58c72d63d10d2af` was reviewed: 2 commits, both Home hero-source behavior fixes; decisions and Mew semantic comparison are recorded below. Full current upstream settings-tree parity remains NOT COMPLETE.
 - Audit file: `docs/UPSTREAM_PARITY_AUDIT.md`
 - No `MEW-CONTEXT-SNAPSHOT.md` or `CONTEXT-SNAPSHOT.md` exists in the current Main-dev tree.
 
@@ -129,16 +129,20 @@ A newly added setting/page gets a small, subtle **NEW** label for **three app re
 - Search currently models row-level entries as `SettingsSearchTarget.Page`; selecting a control result opens the containing page rather than revealing/focusing the exact control. Treat this as a known discoverability limitation, not a broken route; exact-control reveal would require a separate scroll/focus target contract and must be audited against lazy-list state and platform behavior.
 
 
-## Audit status
-- Read-only audit and documentation only. **No application source changes.**
-- Confirmed duplicate controls: **2** — Parental Guide (Playback + Nuvio Enhanced) and TMDB enrichment toggle (Content Discovery + TMDB settings).
-- Confirmed navigation mismatch: **1** — Content Discovery → TMDB setup shortcut routes to a page whose static parent is Integrations; Back can return to the wrong place.
-- Confirmed theme contrast risk: multiple white-on-accent `primary/onPrimary` pairs fall below 4.5:1 (e.g. Amber 2.37:1, Lagoon 2.49:1, Sunset 2.80:1); custom accent also hardcodes white foreground. P2P consent and Enhanced backup buttons consume this pair.
-- Confirmed localization gap: Advanced → Logs labels/descriptions/actions are hardcoded English.
-- Settings category restoration risk: tablet `selectedCategory` is restored via `SettingsCategory.valueOf`; add safe legacy mapping for Account, General, Enhanced, About and Advanced before changing category names.
-- Downloads manager is a utility screen, not upstream Downloads preferences. Mew has batch download flow/storage; do not import upstream Downloads settings or iOS folder picker without mapping current storage/worker semantics.
-- Dialog inventory is partial: at least 40 BasicAlertDialog, 2 Material AlertDialog, 2 NuvioStatusModal, 6 bottom-sheet call sites. Per-dialog copy/state/accessibility review is not complete.
-- Search currently targets pages; upstream also does not deep-link individual controls. Granular playback subpages are the parity improvement; exact-control reveal would be a separate Mew enhancement.
+## Audit status — refreshed 2026-11-20 13:09:45 IST
+- **Progress estimate: ~82%; audit remains IN PROGRESS.** Read-only audit/documentation only; no application source changes.
+- Confirmed duplicate controls remain **2** — Parental Guide (Playback + Nuvio Enhanced) and TMDB enrichment toggle (Content Discovery + TMDB settings). No new true duplicate confirmed in this continuation.
+- Confirmed navigation mismatch remains **1** — Content Discovery → TMDB setup shortcut has a static Integrations parent, so Back can return to the wrong place.
+- Confirmed theme contrast risk remains: white-on-accent `primary/onPrimary` pairs fall below 4.5:1 for several palettes; custom accent also hardcodes white foreground.
+- Localization gaps now tracked: Advanced Logs; Plugin dialog static copy; Playback libmpv descriptions and iOS decoder Off label; CloudStream plugin-update notification copy. Keep each affected surface attached to its canonical localization finding; no duplicate issue records.
+- Confirmed dialog/UX findings: Debrid API key and manifest-defined plugin secrets are unmasked (one canonical credential finding); Debrid per-resolution/per-quality pickers use the wrong title; device-auth Cancel closes but preserves a pending session; subtitle-font import failures are silently discarded; iOS font import does not validate file content like Android.
+- Playback and Debrid dialog bodies have had a static interaction-contract pass. Runtime accessibility/focus/keyboard and actual platform behavior remain NOT VERIFIED.
+- Notifications: Episode Release Alerts are profile-scoped; Android/iOS storage and scheduling are intentional parallel actuals. Sentry is app-global and Android-only. Account sign-out wipes local account data after attempting remote sign-out/fallback; preserve.
+- Settings category restoration risk remains: tablet `selectedCategory` uses `SettingsCategory.valueOf`; add a safe legacy parser for Account, General, Enhanced, About and Advanced before category migration.
+- Downloads manager remains a utility screen, not upstream Downloads preferences. Do not import upstream Downloads settings or iOS folder picker without mapping current storage/worker semantics.
+- Search still targets containing pages, not exact controls. Keep utility targets (Downloads, Collections, Switch Profile, Check for Updates) distinct.
+- NEW badge rule and comparator test matrix are recorded. Existing updater VersionUtils ignores prerelease precedence; do not reuse without a separate tested contract.
+- Subtitle font file cleanup must not delete files until cross-profile references are understood.
 - Platform variants (Android Material sheets, iOS UIKit sheets, iOS-only playback settings, engine/P2P/policy gates) must be preserved. iOS simulator/device verification not run.
 
 ## Proposed hierarchy (not implemented)
@@ -151,11 +155,12 @@ A newly added setting/page gets a small, subtle **NEW** label for **three app re
 - Keep NuvioEnhanced and old SettingsPage/category names as compatibility routes until migration and saved-state behavior are tested.
 
 ## Next audit work
-1. Finish control-level mapping of remaining integration/profile settings and all search entries to their visible controls, persistence owners, policies and platform visibility.
-2. Complete per-dialog review: titles, explanatory copy, actions, validation, destructive/loading/selected states, focus, accessibility, scroll and dismissal.
-3. Inspect version comparison helper for prerelease correctness; design NEW registry and tests (implementation requires separate approval).
-4. Produce final migration plan for page/category compatibility and route-aware Back behavior.
-5. Only after audit sign-off and explicit implementation approval, change app source. Then run targeted tests/builds and report iOS/device checks separately.
+1. Finish the remaining page/control → search entry → route → state/repository → storage/sync → policy/platform mapping for Appearance, Addons, Plugins/CloudStream, Integrations, Tracking, profiles and About.
+2. Complete remaining dialog review outside the Playback and Debrid passes: Addons install, Plugins/CloudStream schema-driven dialogs, Integrations/provider auth, Tracking sync/adaptive picker, Sentry, account and profile sheets. Check copy, validation, cancellation, error recovery and accessibility.
+3. Finish localization audit across settings UI and the 24 locale resource directories; identify missing/English strings without assuming every technical enum literal should translate.
+4. Finish navigation/back-stack/tablet restoration compatibility matrix, including legacy category parsing, contextual parent routes, deep links and state restoration for granular Playback subpages.
+5. Compare current upstream Enhanced settings tree and relevant caller/persistence behavior beyond the already-reviewed 2-commit Home delta. Do not claim full parity from that narrow delta review.
+6. Consolidate all findings into the final deduplicated migration matrix. Only after audit sign-off, create the separate plan MD; do not implement app source until the user approves that plan.
 
 ## Verification status
 - Builds/tests: **NOT RUN** for this audit continuation.
