@@ -4,7 +4,7 @@
 
 ## Verified repository refs
 - Mew repository: `somilkhan/MewMobile`
-- Active target: `Main-dev` — latest verified HEAD at 2026-11-20 13:13:24 IST: `bfff9fee228b373602795e26a7bb0600aa16704f`. Application source audit baseline: `a7f066297ba000833a981b12f8b57c26ce833f7d`; live GitHub compare confirms all commits since that baseline changed only `docs/UPSTREAM_PARITY_AUDIT.md`. Latest audit document blob SHA: `7cc9111e4a9882773a845ed1f5dc516eb11f09ea`. Re-read the live ref at the start of the next session.
+- Active target: `Main-dev` — latest verified HEAD at 2026-11-20 13:15:18 IST: `a8f5fa707f1f3995315c288181e0f1b3a461b144`. Application source audit baseline: `a7f066297ba000833a981b12f8b57c26ce833f7d`; live GitHub compare confirms all commits since that baseline changed only `docs/UPSTREAM_PARITY_AUDIT.md`. Latest audit document blob SHA: `36f457e55bd421f9c80a163e19840d4027ef7506`. Re-read the live ref at the start of the next session.
 - Protected stable branch: `main` — `207ef8fa309b8061b73039b2d4e4bde4af65050e` (untouched)
 - Reference branch: `upstream-sync` — `af51bbbc13cdb315a88ef597eb4d2672a60335d5` (live ref rechecked 2026-11-20)
 - Mother upstream: `luqmanfadlli/NuvioMobile-Enhanced`, `enhanced` — live ref `375d93d90864d6b0774d8ab6f58c72d63d10d2af`. The delta `b23b28a878b78f5ef9252128b901155fee6eeea9..375d93d90864d6b0774d8ab6f58c72d63d10d2af` was reviewed: 2 commits, both Home hero-source behavior fixes; decisions and Mew semantic comparison are recorded below. Full current upstream settings-tree parity remains NOT COMPLETE.
@@ -129,8 +129,8 @@ A newly added setting/page gets a small, subtle **NEW** label for **three app re
 - Search currently models row-level entries as `SettingsSearchTarget.Page`; selecting a control result opens the containing page rather than revealing/focusing the exact control. Treat this as a known discoverability limitation, not a broken route; exact-control reveal would require a separate scroll/focus target contract and must be audited against lazy-list state and platform behavior.
 
 
-## Audit status — refreshed 2026-11-20 13:13:24 IST
-- **Progress estimate: ~85%; audit remains IN PROGRESS.** Read-only audit/documentation only; no application source changes.
+## Audit status — refreshed 2026-11-20 13:15:18 IST
+- **Progress estimate: ~87%; audit remains IN PROGRESS.** Read-only audit/documentation only; no application source changes.
 - Confirmed duplicate controls remain **2** — Parental Guide (Playback + Nuvio Enhanced) and TMDB enrichment toggle (Content Discovery + TMDB settings). No new true duplicate confirmed in this continuation.
 - Confirmed navigation mismatch remains **1** — Content Discovery → TMDB setup shortcut has a static Integrations parent, so Back can return to the wrong place.
 - Confirmed theme contrast risk remains: white-on-accent `primary/onPrimary` pairs fall below 4.5:1 for several palettes; custom accent also hardcodes white foreground.
