@@ -2842,3 +2842,20 @@ No other TRUE DUPLICATE was confirmed. Similar cards, source-set actuals, separa
 **Classification:** Simkl auth/client = **ALREADY IMPLEMENTED / REUSE**; Simkl related-title repository = **NEW PROVIDER CAPABILITY / ADAPT**; current Trakt/TMDB source preference = **KEEP until fallback semantics are approved**; player recommendation card = **NOT IMPLEMENTED IN MEW / SEPARATE FEATURE**.
 
 **Verification:** static source/commit inspection only. No Simkl API calls, recommendations UI, tests, builds or device checks run.
+
+
+## Episode artwork fallback and MDBList progress commit applicability (2026-11-20 17:09:07 IST)
+
+**Target:** `Main-dev`  
+**Verified target HEAD before write:** `1d1b85e70438526dbd59c25b91d004c5109c2ea2`  
+**Application-source baseline:** `8a36dcede748ba6bb35d2a49c1ffd062bf7efbd0`  
+**Previous audit document blob / write guard:** `67146cad8900e466559c3d19e8775a3b8d621e35`  
+**Upstream commits inspected:** `b4e446451f32edbdf8b1bf288d1a7a8a2bf10e03`, `a65cd8b2e42d7170d47cace44e5ebd6f03a053eb`  
+**Files compared:** Mew/upstream `DetailSeriesContent.kt`; Mew MDBList source-tree inventory and `MdbListMetadataService.kt`.
+
+- **Episode artwork fallback is ALREADY IMPLEMENTED in Mew.** Mew's `DetailSeriesContent.kt` already uses `rememberEpisodeImageState(thumbnail, fallbackImage)` in both horizontal and list episode cards, swaps to series artwork on Coil image error, and resets the failure state when the primary/fallback URL changes. Do not port the upstream helper again or create a second fallback state holder.
+- The upstream MDBList commit fixes a different subsystem: its `MdbListProgressProjection` maps MDBList playback records into WatchProgress and was incorrectly using show-level runtime as an episode duration. Mew has no `MdbListProgressProjection` or MDBList watch-progress sync pipeline in the inspected tree; Mew MDBList currently owns metadata enrichment/settings only. The upstream bug is therefore **NOT APPLICABLE** to Mew's current feature set.
+
+**Decisions:** episode artwork fallback = **ALREADY IMPLEMENTED**; MDBList progress runtime fix = **SKIP / NO EQUIVALENT Mew PROJECTION**. Do not add MDBList progress sync as an incidental fix; it is a separate provider/data-model feature decision.
+
+**Verification:** static source/tree comparison only. No image loading, MDBList API, watch-progress sync, tests, builds or device checks run.
