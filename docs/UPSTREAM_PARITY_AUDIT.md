@@ -4,7 +4,7 @@
 
 ## Verified repository refs
 - Mew repository: `somilkhan/MewMobile`
-- Active target: `Main-dev` — latest verified HEAD before this handoff refresh: `866341338fe02fc56aedf6dae8fb43de04631242`. Application source audit baseline: `a7f066297ba000833a981b12f8b57c26ce833f7d`; all subsequent commits in this audit continuation were documentation-only. Re-read the live ref at the start of the next session.
+- Active target: `Main-dev` — latest verified HEAD before this handoff refresh: `fa85f0e5b00dde0e6448b5fcd00800b929dcd3df`. Application source audit baseline: `a7f066297ba000833a981b12f8b57c26ce833f7d`; GitHub compare confirms all commits since that baseline changed only `docs/UPSTREAM_PARITY_AUDIT.md`. Re-read the live ref at the start of the next session.
 - Protected stable branch: `main` — `207ef8fa309b8061b73039b2d4e4bde4af65050e` (untouched)
 - Reference branch: `upstream-sync` — `af51bbbc13cdb315a88ef597eb4d2672a60335d5`
 - Mother upstream: `luqmanfadlli/NuvioMobile-Enhanced`, `enhanced` — `b23b28a878b78f5ef9252128b901155fee6eeea9`
@@ -79,6 +79,19 @@ The current Mew Playback route is one page and one large composable column, with
 - Remaining: full control/search/persistence mapping for Appearance, Addons, Plugins, CloudStream, Integrations and Tracking; complete dialog copy/state/accessibility audit; localization sweep; route/back and tablet restoration migration map.
 - Source changes: NONE. Builds/tests/device verification: NOT RUN.
 - Mandatory read-first/deduplication protocol is active. Every next agent must read this complete document before investigating or implementing.
+
+## Latest audit continuation — 2026-11-20 08:17:03 IST
+
+- Target branch: `Main-dev`
+- Verified branch HEAD before this handoff refresh: `fa85f0e5b00dde0e6448b5fcd00800b929dcd3df`
+- Application source baseline: `a7f066297ba000833a981b12f8b57c26ce833f7d`
+- Previous audit document blob / write guard: `0a9617f9f109c8fdc895fe98f73a33270a623261`
+- Protected `main` rechecked: `207ef8fa309b8061b73039b2d4e4bde4af65050e` (unchanged).
+- New coverage: Integrations/Tracking/Content Discovery mapping; provider storage ownership; Plugins/CloudStream source-set variants; Appearance theme/display/layout controls; adaptive tracking picker; shared settings-row accessibility review.
+- Confirmed: provider integrations remain separate state domains; tracking provider cards are intentional parallel providers; Plugins/CloudStream source-set actuals are intentional platform-flavor implementations; no new duplicate finding was added. Existing TMDB duplicate remains canonical.
+- Accessibility follow-up: custom SettingsSwitchRow / picker selected-state semantics need TalkBack/VoiceOver verification; this is NEEDS ACCESSIBILITY VERIFICATION, not a confirmed defect.
+- Remaining audit: delegated Addons content and detailed Enhanced feature callsites; complete dialog inventory/copy/accessibility/dismissal pass; full search-entry ↔ visible-control ↔ persistence map; localization sweep; navigation/back/tablet restoration compatibility map; NEW badge comparator test design.
+- Source changes: NONE. Builds/tests/device checks: NOT RUN.
 
 ## User-approved objective
 Reorganize Mew and upstream settings into one discoverable Mew settings experience. Use upstream Enhanced's five-category model as a starting point, not a wholesale copy. Preserve Mew identity, features, profiles, persisted preferences, Android/iOS differences, navigation behavior, and policy gates.
