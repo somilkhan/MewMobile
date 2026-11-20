@@ -835,3 +835,34 @@ This is the clearest current mapping from the audited Mew pages to upstream Enha
 - Reclassify Tracking under Services; retain `TraktAuthentication` as a legacy page name/route if required.
 - Keep `NuvioEnhanced` as a compatibility destination during redistribution. Move its controls to their canonical domain pages; do not leave a second parallel category taxonomy.
 - Preserve old category names through a safe migration mapper and old page names through compatibility routing. Never assume renaming an enum is a harmless cosmetic change.
+
+
+## Settings dialog inventory — 2026-11-20
+
+### Inventory from inspected call sites
+- At least **40 BasicAlertDialog** call sites across Playback, Streams, Continue Watching, Debrid, Player Toolbar, Simkl info, Tracking picker, Tracking provider disconnect, Advanced, Supporters/Contributors and the Playback-triggered P2P consent dialog.
+- **2 Material AlertDialog** call sites in Nuvio Enhanced backup export/import.
+- **2 NuvioStatusModal** confirmation flows in Account (sign-out and delete-account).
+- **6 NuvioModalBottomSheet** call sites across Appearance, Poster Customization, Profile Insights and Tracking picker.
+- This is a call-site inventory, not a completed state-by-state visual/copy test.
+
+### Visual patterns to consolidate carefully
+- Playback alone owns **20** BasicAlertDialog calls. Most use the same hand-built Surface (Material `surface`, 20.dp corners, 20.dp padding, 12.dp spacing), but do not use the shared `DialogSurface` token wrapper.
+- Debrid has eight BasicAlertDialog calls and its own reusable `DebridDialogSurface`; Supporters uses a different 24.dp/24.dp surface; P2P consent uses a 24.dp surface with animated background; Advanced uses token-based custom surfaces; Nuvio Enhanced uses standard Material AlertDialog; Streams has a private token-based surface.
+- This is a **SHARED PATTERN / DIFFERENT SEMANTICS** finding, not a reason to collapse all dialog content into one abstraction. Centralize surface tokens/shape/width/action primitives where possible, but preserve each dialog's selection, input, consent, destructive, loading, scroll and dismiss behavior.
+- The responsive Tracking picker (tablet dialog, phone sheet) and native iOS sheet are intentional platform/layout variants. Verify equivalent semantics, not identical presentation.
+
+### Copy audit
+- Hardcoded English text remains confirmed in Advanced → Logs: section title, row titles/descriptions and Copy/Export action labels. Move these to localized resources when implementation is approved.
+- The other inspected dialog titles and explanatory copy predominantly use string resources; complete review of every option label, validation error, disabled reason, destructive confirmation and accessibility description is still pending.
+
+### Contrast tie-in
+- The P2P consent dialog's Enable button uses Material `primary` as its filled container and default `onPrimary` content color. This directly exercises the low-contrast palette pairs calculated in the theme audit.
+- Nuvio Enhanced backup dialogs also use default Material AlertDialog buttons, which consume the same theme primary/onPrimary pair.
+- Therefore the accent contrast issue is an actual affected-surface risk, not merely a theoretical palette calculation. Fix the foreground/background pairing centrally and add component-level contrast tests.
+
+### Status
+- Dialog inventory: **PARTIAL — call sites counted; per-dialog state/copy/accessibility review remains**.
+- Confirmed localization gap: Advanced Logs.
+- Confirmed accent contrast impact: P2P Enable and Enhanced backup dialog buttons use primary/onPrimary.
+- Source changes: **NONE**. Builds/tests/device checks: **NOT RUN**.
