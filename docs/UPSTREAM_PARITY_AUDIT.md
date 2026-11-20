@@ -2559,3 +2559,21 @@ No other TRUE DUPLICATE was confirmed. Similar cards, source-set actuals, separa
 **Decision:** **SKIP this exact upstream commit for Mew** (false-positive applicability at current source baseline); retain custom-font import/performance as a separate **NEEDS INVESTIGATION** item only if evidence appears.
 
 **Verification:** source/asset tree inspection only. No iOS build, simulator, memory profiling or subtitle playback test was run.
+
+
+## iOS styled-subtitle episode-transition fix applicability check (2026-11-20 16:56:41 IST)
+
+**Target:** `Main-dev`  
+**Verified target HEAD before write:** `3668d03709e160323ba9f1590ce410dc38aea382`  
+**Application-source baseline:** `8a36dcede748ba6bb35d2a49c1ffd062bf7efbd0`  
+**Previous audit document blob / write guard:** `a63d221b8674a6cf2a67097de7e4748a6ce9d2c8`  
+**Upstream commit inspected:** `c5298633914d967792c79351754ba47d54dfd242`  
+**Files compared:** Mew/upstream `PlayerEngine.ios.kt`, Mew `MPVPlayerBridge.swift`.
+
+- The upstream fix changes the lifecycle of a Compose-managed styled subtitle text overlay: keep `subtitleText` state across `sourceUrl` changes, then explicitly clear it in `LaunchedEffect(sourceUrl)`. This prevents the styled overlay's state from being recreated/reset incorrectly while switching episodes.
+- Mew's inspected iOS player does not contain this `subtitleText` state, `setSubtitleTextHandler` bridge callback or `StyledSubtitleOverlay` path. Mew applies subtitle styling through MPV's native subtitle style APIs; its Swift bridge has no equivalent styled text overlay implementation at this baseline.
+- This is therefore not a matching Mew defect or a safe two-line port. Do not add an unused state/overlay path or refactor Mew's native subtitle renderer to imitate upstream.
+
+**Decision:** **SKIP this exact upstream fix for Mew** (different iOS subtitle rendering architecture). Keep the existing Mew subtitle-font import validation and playback-style regression candidates separate.
+
+**Verification:** static source comparison only. No iOS episode transition, subtitle style, build, simulator or device test performed.
