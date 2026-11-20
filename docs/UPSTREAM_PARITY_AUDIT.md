@@ -3215,3 +3215,29 @@ No other TRUE DUPLICATE was confirmed. Similar cards, source-set actuals, separa
 **Classification:** unsigned iOS IPA artifact = **ALREADY IMPLEMENTED**; AltStore/SideStore source feed = **NEW DISTRIBUTION FEATURE / NEEDS PRODUCT DECISION**; upstream Nuvio source JSON = **FALSE POSITIVE / DO NOT COPY**; default-branch auto-push = **INCOMPATIBLE WITH MEW BRANCH POLICY / SKIP**.
 
 **Verification:** static workflow/manifest/tree inspection only. No workflow, release metadata, IPA, source manifest or app source changed; no IPA build, release, upload, signing, source update or iOS install test run.
+
+
+## Media Server credential-sync contract — source evidence refinement (2026-11-20 IST)
+
+**Target:** `Main-dev`  
+**Verified branch HEAD before write:** `f5732962c7b23315b9b3dc0933122db4b5bc6dca`  
+**Previous audit document blob / write guard:** `b7b97a4615ce448f14f33f82c93852d13766ffc7`  
+**Upstream source:** `luqmanfadlli/NuvioMobile-Enhanced:enhanced` at `3f9c50c122c9c1d63bf3f061e65bd2cb17967fb6`.  
+**Files inspected:** `core/sync/MediaServerSync.kt`, `features/servers/ServerSync.kt`, `ServerRepository.kt`, Android/iOS `ServerStorage` actuals, `ServerSyncTest.kt`, `ServerTokenRenewalTest.kt`.
+
+### Confirmed data path
+
+- `ServerRepository.syncSnapshot(profileId)` reads each local credential, applies provider `tokenForAccount()` where applicable, then creates `SyncedServer` records. `SyncedServer` serializes a `token` property; `toSyncPayload()` serializes the complete record, including that property.
+- `MediaServerSync.push()` sends `allowed.servers.toSyncPayload()` to the Supabase RPC `sync_push_media_servers`; `pull()` retrieves `SupabaseMediaServers` through `sync_pull_media_servers`. The sync path requires a non-anonymous authenticated session and the requested profile to still be active. Local sync snapshots and apply operations also guard the loaded profile/version.
+- Android local credential storage is AES/GCM encrypted with an Android Keystore key and key-specific AAD. iOS uses Keychain generic-password items with `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`. These protect local-at-rest storage; they do **not** establish remote-at-rest or in-transit protection.
+- Tests explicitly assert that the sync payload contains the `token` field, that local changes are queued with token values, and that a remote token can be applied back into local credential storage. This is intentional credential portability, not metadata-only sync.
+
+### Security decision / unresolved evidence
+
+**NEEDS SECURITY REVIEW — do not port or enable by assumption.** The application source proves that provider credentials (or provider-defined account copies) are included in Supabase RPC payloads. The inspected upstream tree did not expose the SQL definitions/migrations for these RPCs, so this pass cannot verify database RLS policies, per-user/per-profile authorization, server-side encryption, logs/backup handling, retention, deletion/export semantics, or the exact Supabase transport/configuration in production. Do not claim those controls are present or absent without the backend source/configuration.
+
+Before any Mew implementation, obtain and review the backend contract and decide whether credential sync is acceptable at all versus device re-linking. If retained, require least-privilege RPC authorization, strict owner/profile binding on both pull and push, no token logging, documented encryption/retention/deletion, provider-specific token minimization/rotation semantics, and profile/account-switch race tests. Preserve the existing Android Keystore/iOS Keychain boundaries and never move raw credentials into ordinary settings/profile JSON. No Mew source code changed.
+
+**Classification:** local credential encryption = **CONFIRMED UPSTREAM IMPLEMENTATION**; cloud token portability = **CONFIRMED BY SOURCE AND TESTS**; remote security guarantees = **NEEDS INVESTIGATION / NOT VERIFIED**; direct port = **BLOCKED ON SECURITY REVIEW**.
+
+**Verification:** static source/test inspection only. No Supabase RPC execution, backend policy inspection, build, test run, or device check performed.
