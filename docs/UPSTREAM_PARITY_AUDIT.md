@@ -4,7 +4,7 @@
 
 ## Verified repository refs
 - Mew repository: `somilkhan/MewMobile`
-- Active target: `Main-dev` — re-read the live branch ref at the start of the next session (this handoff only changes documentation; application source baseline before the documentation-only updates: `65a538031db528260f1347e31ba85c4d33dcd323`).
+- Active target: `Main-dev` — latest verified HEAD before this handoff refresh: `866341338fe02fc56aedf6dae8fb43de04631242`. Application source audit baseline: `a7f066297ba000833a981b12f8b57c26ce833f7d`; all subsequent commits in this audit continuation were documentation-only. Re-read the live ref at the start of the next session.
 - Protected stable branch: `main` — `207ef8fa309b8061b73039b2d4e4bde4af65050e` (untouched)
 - Reference branch: `upstream-sync` — `af51bbbc13cdb315a88ef597eb4d2672a60335d5`
 - Mother upstream: `luqmanfadlli/NuvioMobile-Enhanced`, `enhanced` — `b23b28a878b78f5ef9252128b901155fee6eeea9`
@@ -67,6 +67,18 @@ The current Mew Playback route is one page and one large composable column, with
 **Classification summary:** Android/iOS storage pairs = INTENTIONAL PARALLEL; generic enum picker = SHARED PATTERN / DIFFERENT SEMANTICS; selected-card dialog implementations = SHARED PATTERN / DIFFERENT SEMANTICS; page-level modularization = ADAPT; hidden model fields = NEEDS INVESTIGATION. No new TRUE DUPLICATE confirmed in this continuation.
 
 **Verification:** source/document reads only; no application source changes; builds/tests/device checks NOT RUN. Main-dev was verified at `a7f066297ba000833a981b12f8b57c26ce833f7d` immediately before this documentation write. `main` was not written.
+
+## Latest audit refresh — 2026-11-20 08:11:36 IST
+
+- Target branch: `Main-dev`
+- Verified branch HEAD before this refresh: `866341338fe02fc56aedf6dae8fb43de04631242`
+- Application source baseline inspected: `a7f066297ba000833a981b12f8b57c26ce833f7d`
+- Previous audit document blob/write guard: `710cb34ee47b3cf1ce215272d141ffcfa07aa38c`
+- Protected `main` rechecked: `207ef8fa309b8061b73039b2d4e4bde4af65050e` (unchanged)
+- New audit coverage: Playback sections/dialog patterns and platform storage; four playback-related settings misplaced in Nuvio Enhanced; first-pass mapping of all 13 Enhanced sections; Account/Profile Insights/Advanced/Notifications.
+- Remaining: full control/search/persistence mapping for Appearance, Addons, Plugins, CloudStream, Integrations and Tracking; complete dialog copy/state/accessibility audit; localization sweep; route/back and tablet restoration migration map.
+- Source changes: NONE. Builds/tests/device verification: NOT RUN.
+- Mandatory read-first/deduplication protocol is active. Every next agent must read this complete document before investigating or implementing.
 
 ## User-approved objective
 Reorganize Mew and upstream settings into one discoverable Mew settings experience. Use upstream Enhanced's five-category model as a starting point, not a wholesale copy. Preserve Mew identity, features, profiles, persisted preferences, Android/iOS differences, navigation behavior, and policy gates.
