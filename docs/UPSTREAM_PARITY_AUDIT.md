@@ -2219,3 +2219,22 @@ The default strings.xml contains 2,930 string entries. For a settings-relevant k
 **Classification:** Tracking cards = SHARED PATTERN / DIFFERENT SEMANTICS; adaptive picker = INTENTIONAL PLATFORM PRESENTATION; account/profile workflows = INTENTIONAL PARALLEL ACTION FLOWS; AI/TMDB/MDBList masking = ALREADY IMPLEMENTED; log layout = NEEDS DEVICE VERIFICATION. No new TRUE DUPLICATE or confirmed dialog defect.
 
 **Verification:** static source reads at application HEAD 8a36dcede748ba6bb35d2a49c1ffd062bf7efbd0. No provider auth, PIN attempts, Sentry toggle, log export, locale rendering, accessibility/device checks, builds or tests performed. Protected main rechecked and unchanged.
+
+
+
+## Appearance and Enhanced backup dialogs — static interaction pass — 2026-11-20 16:32 IST
+
+**Target:** Main-dev  
+**Verified branch HEAD before write:** 7a21bb7dcca3703ad95ffea8ca887b4b0b64fc93  
+**Previous audit document blob / write guard:** 298cb8875eaca16341bbaaf9129c134ba48077aa  
+**Application source audit HEAD:** 8a36dcede748ba6bb35d2a49c1ffd062bf7efbd0  
+**Files inspected:** AppearanceSettingsPage.kt, AppIconPicker.kt, NuvioEnhancedSettingsPage.kt, AppIconRepository.kt, AppIconPlatform actuals.
+
+- Appearance language and navbar-style sheets apply the selected option immediately, show a selected check with localized accessibility description, and dismiss through the shared animated sheet helper. AppIconPicker uses phone sheet/tablet dialog presentation, exposes selected semantics, disables choices while a change is pending, surfaces change failure, and requires a confirmation modal on Android where the platform requires it.
+- Custom accent controls are a pointer-driven HSV canvas with hex parsing; keyboard/screen-reader equivalent control and actual narrow-screen interaction remain NOT DEVICE VERIFIED. Keep this attached to the existing shared settings accessibility/runtime review; no new confirmed defect.
+- Nuvio Enhanced backup export, copy, file import and paste-import are separate entry paths. Backup preview is scrollable; paste import validates through ProfileSettingsSync.importBackupJson, shows an inline error, and clears the draft on successful import or dismissal. File import/export failures are surfaced through toast feedback. Preserve the credential-stripping/local-credential-preservation contract in ProfileSettingsSync; do not implement a second backup store.
+- App icon selection, language selection, navbar style selection and backup/import are distinct actions, not duplicate settings dialogs. No new TRUE DUPLICATE or confirmed modal defect found.
+
+**Classification:** phone/tablet icon picker = INTENTIONAL PLATFORM PRESENTATION; language/navbar selectors = SHARED SHEET PATTERN / DIFFERENT SETTINGS; backup preview/import = DISTINCT BACKUP WORKFLOWS; custom color canvas accessibility = NEEDS DEVICE VERIFICATION.
+
+**Verification:** static source reads at application HEAD 8a36dcede748ba6bb35d2a49c1ffd062bf7efbd0. No app icon changes, locale changes, backup import/export, color-picker interaction, accessibility/device checks, builds or tests performed. Protected main rechecked and unchanged.
