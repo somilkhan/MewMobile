@@ -1031,3 +1031,23 @@ This is the clearest current mapping from the audited Mew pages to upstream Enha
 ### Final audit scope note
 - Settings architecture and many major controls have been inspected, but the audit is **not complete** until every remaining dialog state, localization string, search entry, platform-specific control and persistence owner is mapped.
 - No source implementation, build, tests or device verification has been performed.
+
+
+
+## Playback controls currently misplaced in Nuvio Enhanced — 2026-11-20 08:09:44 IST
+
+**Verified source ref:** `Main-dev` source baseline `a7f066297ba000833a981b12f8b57c26ce833f7d` (the intervening `46705168d8700b6c769e0ffbd534f0a078b80ce7` commit updated this audit document only).  
+**Document write guard:** previous blob `573cfe5d961f9ccf0adb415c05f4199c7cf6c090`.  
+**Files inspected:** `NuvioEnhancedSettingsPage.kt`, `SettingsSearch.kt`, `PlaybackSettingsPage.kt`, `PlayerSettingsRepository.kt`, `SettingsModels.kt`.
+
+- **Android Memory Safe Buffer** is displayed inside Nuvio Enhanced → App Experience, but its state belongs to `PlayerSettingsRepository`; it is Android-only and disabled when external playback is active or Libmpv is selected. It is a Watch → Buffer / Playback Buffer candidate, not a generic Enhanced app-experience preference. Preserve the engine/player gates.
+- **Random Next Episode** is displayed inside Nuvio Enhanced → Player Tools and persists through `PlayerSettingsRepository`; it is gated by `enhancedHomeFeaturesEnabled`. It belongs with Watch → Up Next / episode progression, not the generic Enhanced bucket.
+- **Player Clock / End Time overlay** is displayed inside Nuvio Enhanced → Player Tools and uses `PlayerSettingsRepository`; it is a Watch → Player / Interface candidate.
+- **Subtitle Sync Menu** is displayed inside Nuvio Enhanced and uses `PlayerSettingsRepository`; it is a Watch → Subtitles candidate.
+- These are **MISPLACED SETTINGS / ADAPT**, not duplicate implementations. They are not currently duplicated as visible rows in `PlaybackSettingsPage.kt`. The already documented Parental Guide duplicate remains the sole playback duplicate in this group; do not add a second duplicate finding.
+- Search metadata currently routes Random Next Episode to Nuvio Enhanced. The inspected search inventory did not show entries for Subtitle Sync Menu or Player Clock / End Time; verify the complete search inventory and desired inclusion before adding entries. The Memory Safe Buffer search entry is already present and points to Nuvio Enhanced. Update search targets/category metadata together with any approved page move.
+- Nuvio Enhanced feature-highlighting/seen behavior is attached to these rows. Moving controls must preserve their current feature IDs and seen-state behavior unless a separately approved migration changes that contract. Do not reuse this profile-scoped seen state for the requested release-based NEW badge.
+
+**Planning implication:** the final Watch map must include Buffer, Up Next, Player/Interface and Subtitles as destinations for these existing controls. Do not create new controls or duplicate repository state. Keep the existing `PlayerSettingsRepository` and storage keys; this is a navigation/ownership mapping, not a storage migration.
+
+**Verification:** read-only source inspection; no source changes; builds/tests/device checks NOT RUN.
