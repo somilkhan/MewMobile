@@ -2157,3 +2157,35 @@ The default strings.xml contains 2,930 string entries. For a settings-relevant k
 **Classification:** global scraper settings vs profile-scoped plugin metadata/code = **INTENTIONAL DIFFERENT PERSISTENCE SCOPE / UPSTREAM PARITY**; PluginSettingsDialog = existing canonical validation/credential/localization findings; Addons vs Plugins vs CloudStream = **INTENTIONAL PARALLEL / DIFFERENT SEMANTICS**; no new duplicate.
 
 **Verification:** static GitHub source reads at Mew source HEAD 8a36dcede748ba6bb35d2a49c1ffd062bf7efbd0 and Enhanced HEAD 3f9c50c122c9c1d63bf3f061e65bd2cb17967fb6. No code changes, schema changes, runtime plugin execution, settings isolation tests, builds, tests or device checks performed. Protected main rechecked and unchanged.
+
+## Settings route restoration and add-on deep-link consent caller recheck — 2026-11-20 16:29 IST
+
+**Target:** Main-dev  
+**Verified branch HEAD before write:** 367daf7ce5db493e9624766a5f6683f7e2f6006e  
+**Previous audit document blob / write guard:** 828c59bf871ed3ec402cbfd98cf07f7e107653d7  
+**Application source audit HEAD:** 8a36dcede748ba6bb35d2a49c1ffd062bf7efbd0  
+**Files inspected:** App.kt, RootTabHost.kt, navigation/Routes.kt, navigation/NuvioNavigator.kt, features/settings/SettingsScreen.kt, features/settings/SettingsModels.kt, core/deeplink/AppUrlBridge.kt and AppDeepLinkRepository callsites, AddonsScreen.kt, AddonRepository.kt.
+
+### Navigation restoration and handoff — static behavior clarified
+
+- MainAppContent creates the Navigation 3 back stack with rememberNavBackStack(navigationSavedStateConfiguration, initialRoute). SettingsPageRoute is serializable and explicitly registered in the NavKey polymorphic serializers module. NavDisplay uses rememberSaveableStateHolderNavEntryDecorator, so each route entry owns saveable Compose state while it remains in the back stack.
+- SettingsPageRoute stores pageName as a String, not a SettingsPage enum. The entry passes it to SettingsScreen(initialPageName); unknown/renamed values are defensively mapped to Root. Preserve old SettingsPage enum names or add explicit aliases/migration before renaming pages/categories, otherwise restored old route entries can silently land on Root.
+- Native-navigation mode pushes each SettingsPageRoute and SettingsScreen delegates Back to the guarded app navigator callback. In the non-native/tablet in-screen mode, page changes remain internal and Back uses SettingsPage.previousPage() static parentPage. Therefore the previously recorded Content Discovery → TMDB contextual-back mismatch is specifically an internal/tablet navigation limitation; do not replace the app-level Navigation 3 stack or create another navigator to fix it.
+- RootTabHost wraps tab state in a SaveableStateProvider and keys the host by profileId. This makes tab UI state profile-bound and resets it when profileId changes; treat that as existing lifecycle behavior, not a duplicate settings stack. Tablet selectedCategory still has the separately recorded unsafe valueOf migration risk.
+- AppDeepLinkRepository handles AddonInstall by selecting the Settings tab, navigating to AddonsSettingsRoute, then directly calling AddonRepository.addAddon(manifestUrl) and showing a toast. The AddonsScreen also calls AddonRepository.addAddon(requestedUrl). This is an additional concrete caller of the same install transaction.
+
+### Addon consent finding — callsite coverage expanded
+
+- The confirmed missing tracking-resource consent gate affects both the AddonsScreen manual-add path and the App.kt AddonInstall deep-link path. A UI-only consent dialog added inside AddonsScreen would leave the deep-link path unprotected.
+- **Implementation constraint for the later approved plan:** centralize consent-required classification/result and exact-manifest acceptance in the shared install transaction or a shared coordinator used by every caller. The deep-link path must pause and request consent rather than silently installing; preserve profile/session/duplicate checks and do not mark the deep link consumed before the consent decision and install outcome are safely handled.
+- This is an extension of the existing canonical HIGH priority privacy finding, not a second addon-consent issue.
+
+### Test coverage status
+
+- Static route registration and saveable route-entry behavior are confirmed by source inspection. No test covers SettingsPageRoute serialization/restoration, invalid legacy page names, tablet category restoration, native vs tablet Back behavior, or AddonInstall deep-link consent routing.
+- AppUrlBridge parser tests establish parsing only; they do not establish the end-to-end AppDeepLinkRepository → route → install UI/consent flow. Add route serialization/legacy alias and consent caller tests to the eventual implementation plan.
+- **Runtime status:** process recreation, native iOS SwiftUI navigation handoff, Android back handling, tablet/TV restoration, RTL/locale rendering and actual device behavior remain NOT VERIFIED.
+
+**Classification:** Navigation 3 route stack vs SettingsScreen internal page state = **INTENTIONAL LAYERING / DIFFERENT MODES**, not duplicate; SettingsPageRoute pageName compatibility = **COMPATIBILITY CONTRACT**; static parent back = existing **CONFIRMED INTERNAL/TABLET LIMITATION**; AddonInstall deep link bypass risk = existing **CONFIRMED PRIVACY GAP / SHARED CALLER COVERAGE**; no new TRUE DUPLICATE.
+
+**Verification:** static GitHub source reads at application HEAD 8a36dcede748ba6bb35d2a49c1ffd062bf7efbd0. No code changes, route serialization tests, process recreation, device/simulator checks, builds or tests performed. Protected main rechecked and unchanged.
