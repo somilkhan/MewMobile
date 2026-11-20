@@ -2746,3 +2746,23 @@ No other TRUE DUPLICATE was confirmed. Similar cards, source-set actuals, separa
 **Classification:** share-sheet export = **ALREADY IMPLEMENTED**; iPad popover anchor = **ADAPT**; temp-file cleanup/completion semantics = **ADAPT**; existing backup serialization/import validation = **KEEP**.
 
 **Verification:** static source inspection only. No iPad/iPhone simulator, share destination, cancellation, temp-file cleanup or build test run.
+
+
+## iOS floating/native tab-bar blur fix applicability (2026-11-20 17:03:46 IST)
+
+**Target:** `Main-dev`  
+**Verified target HEAD before write:** `41b469c22630422076fc32c50aff0a5f2916c990`  
+**Application-source baseline:** `8a36dcede748ba6bb35d2a49c1ffd062bf7efbd0`  
+**Previous audit document blob / write guard:** `8c050020076daf6cf77b5027956296a37b039bc2`  
+**Upstream commit inspected:** `c314dd48d622de249eebbea7e531e3f7b2e506d4`  
+**Files compared:** Mew/upstream `iosApp/iosApp/ContentView.swift`.
+
+- Upstream's fix targets SwiftUI/native tab navigation: clear `UITabBarAppearance` background/effect and the tab item's own appearance, hide iOS 26 bottom scroll-edge effects, and apply SwiftUI `toolbarBackground(.hidden, for: .tabBar)`. It preserves the floating tab pill.
+- Mew uses a custom UIKit `UITabBar` inside `RootComposeViewController`, with its own visibility/profile-touch overlay and native-tab configuration. `applyNativeTabBarAppearance()` updates item colors but starts from a copy of the default appearance; it does not explicitly clear the background effect/color. Mew does not use the same SwiftUI `NativeNavContentView` structure as upstream.
+- The UIKit transparent-background portion may be relevant, but applying the full upstream patch could remove an intentionally designed material or conflict with Mew's custom native-tab lifecycle and Liquid Glass settings.
+
+**Decision: NEEDS DEVICE INVESTIGATION / ADAPT candidate.** Inspect Mew's actual iOS tab appearance in Static, Auto-hide and Morphed modes on iOS 26; determine whether a full-width blur band is present and whether the floating pill remains intact. If confirmed, adapt the UIKit appearance and bottom-edge effect only in Mew's custom tab-bar owner. Do not copy upstream SwiftUI modifiers or replace Mew's tab navigation architecture.
+
+**Classification:** Mew custom UIKit tab bar vs upstream SwiftUI/native tab integration = **INTENTIONAL PARALLEL / DIFFERENT ARCHITECTURE**; transparent background behavior = **NEEDS DEVICE VERIFICATION**.
+
+**Verification:** static source comparison only. No iOS simulator/device, Liquid Glass mode, tab visibility, scroll-edge or accessibility test run.
