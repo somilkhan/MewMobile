@@ -1259,3 +1259,22 @@ The Nuvio Enhanced page contains 13 functional sections and at least 49 ordinary
 - The picker uses shared Nuvio dialog tokens on tablet and shared bottom-sheet primitives on mobile. It is a useful reference pattern for other settings pickers; do not create a second adaptive picker abstraction.
 
 **Verification:** static source inspection only; TalkBack/VoiceOver, keyboard/focus, device and simulator checks NOT RUN. No source changes.
+
+
+## Addons / Plugins dialog findings — 2026-11-20 08:18:04 IST
+
+**Branch:** `Main-dev`; verified HEAD `9dec2c844102258484e7bff84000cfe03ad78e90`.  
+**Source baseline:** `a7f066297ba000833a981b12f8b57c26ce833f7d` (compare confirms only this MD changed since baseline).  
+**Write guard:** prior doc blob `a61400c65238ee6fbb96acb6ff6bd661bb509e84`.  
+**Inspected:** `AddonsScreen.kt`, `PluginsSettingsScreen.kt`, `PluginSettingsDialog.kt`, `CloudStreamSettingsSection.kt`, `Components.kt`.
+
+- Addons settings route and standalone Addons screen both render the same `AddonsSettingsPageContent` owner. This is a shared entry point, not duplicate UI logic. It owns add/install, overview, refresh, enable/disable, ordering, configure URL, delete and version-change dismissal.
+- Addon install uses one localized `NuvioStatusModal` for Checking/Success/Error; busy state prevents dismissal. Preserve repository validation and per-addon lifecycle.
+- **CONFIRMED SECURITY UX DEFECT:** `PluginSettingsDialog` reads manifest `isPassword`, but never uses it. It renders the value through `NuvioInputField`; that shared primitive has no password/visual-transformation argument and renders a plain `OutlinedTextField`. Manifest fields marked `isPassword: true` therefore appear as ordinary visible text. A future approved fix should add secure input support or a secure variant, optionally reveal/hide, preserve existing JSON keys, and avoid logging values.
+- **CONFIRMED LOCALIZATION GAP:** plugin dialog title suffix `Settings`, fallback `Select option`, and `Cancel` / `Save` are hardcoded English. Static copy should use localized resources; manifest labels/descriptions remain dynamic external content.
+- Plugin dialog uses Material `Dialog` + `Card` and Material primary/secondary colors rather than shared Nuvio dialog tokens. Classify as **SHARED PATTERN / DIFFERENT SEMANTICS with visual drift**; adapt the surface without changing schema-driven fields or save/cancel behavior.
+- Malformed `layoutJson` and stored JSON fall back to empty arrays/objects. This avoids a crash but can silently show an empty form; mark **NEEDS INVESTIGATION** before deciding whether visible error feedback is compatible.
+- CloudStream is a separate repository/catalog management workflow (repository add/edit, search/filter, install/update/bulk install, pinning, auto-updates and security-warning acceptance). Keep it distinct from Addons and Plugins; these are **INTENTIONAL PARALLEL ecosystems** with different models/lifecycles.
+- CloudStream's security-warning acceptance must remain a gate. App-store source-set actuals remain no-op as previously documented.
+
+**Verification:** source inspection only; no source changes, builds, tests, credential runtime tests or device checks. This adds no duplicate record.
