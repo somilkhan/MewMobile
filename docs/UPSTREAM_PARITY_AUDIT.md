@@ -734,3 +734,10 @@ Upstream has a common `DownloadsSettingsRepository` and Android/iOS storage/loca
 - Upstream Downloads settings: **ADAPT / NEEDS INVESTIGATION**. First map current Mew download defaults, per-batch settings, worker/coordinator concurrency, Android storage permissions and iOS private-storage behavior. Then decide which global controls are useful and safe to expose.
 - The root Downloads manager remains a utility destination, not a settings category. If global download preferences are introduced, give them a distinct Watch → Downloads settings destination rather than merging the manager screen with preferences.
 - iOS download-location selection is a separate platform capability candidate; upstream's document picker is evidence of an implementation path, not proof it is safe to port into Mew's storage architecture.
+
+
+## Upstream search behavior comparison — 2026-11-20
+
+- Upstream Enhanced `SettingsSearch.kt` also models individual row results as `SettingsSearchTarget.Page(page)`; it does not currently deep-link to a specific control ID or scroll position.
+- Upstream does improve Playback discovery because each playback subsection is its own `SettingsPage`, and search results can target those granular pages. Mew's single Playback page prevents that level of destination precision today.
+- Therefore, exact-control deep linking is a **Mew UX improvement opportunity**, not a missing upstream feature. The first parity step is to adapt granular page destinations; exact control reveal can be added as a deliberate Mew enhancement if it can be made stable and accessible.
