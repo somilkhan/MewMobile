@@ -2631,3 +2631,33 @@ No other TRUE DUPLICATE was confirmed. Similar cards, source-set actuals, separa
 **Classification:** episode ratings direct numbering = **CURRENT LIMITATION / ADAPT**; existing ratings cache and fallback = **KEEP**; cast filmography filter = **ADAPT**; no new repository or parallel metadata service required.
 
 **Verification:** static source and upstream commit/test inspection only. No API calls, metadata UI checks, tests, builds or device checks run.
+
+
+## Home hero-source selection and stale-startup item parity (2026-11-20 17:00:00 IST)
+
+**Target:** `Main-dev`  
+**Verified target HEAD before write:** `6b569fccfb291bf5f7ee908b5ea662d3b76232c2`  
+**Application-source baseline:** `8a36dcede748ba6bb35d2a49c1ffd062bf7efbd0`  
+**Previous audit document blob / write guard:** `ac692142c3e162ea9f27786d2e3394b922e23640`  
+**Upstream commits inspected:** `f326d11ecf88597597f2349ca384369b84169951`, `375d93d90864d6b0774d8ab6f58c72d63d10d2af`  
+**Files compared:** Mew/upstream `HomeCatalogSettingsRepository.kt`, `HomeRepository.kt`.
+
+### Default hero-source selection
+
+- Mew's `normalizePreferences()` defaults a newly discovered catalog to `heroSourceEnabled=true` while fewer than two sources are selected. There is no `heroSourcesChosen` marker in Mew's stored settings payload or repository state.
+- If a user explicitly turns off all hero sources, the persisted rows can all be false. When a new catalog is discovered, its missing preference is treated as a default-true source and can become selected automatically. This means a new addon/catalog can override the user's explicit empty selection.
+- Upstream adds a persisted `heroSourcesChosen` flag. Until the user first changes hero-source selection, defaults are selected from enabled catalogs in catalog order; after the first explicit choice (including disabling a source), later catalog additions do not silently reselect defaults.
+
+**Decision: ADAPT.** Add an explicit-choice marker to Mew's existing HomeCatalogSettingsRepository and local stored payload. Keep its current two-source limit and catalog-order behavior. Decide deliberately whether the marker belongs in profile cloud sync; do not add it to the shared sync schema by accident. Add tests for first install, explicit all-off, one/two chosen sources, newly added catalog, reorder, remote pull and legacy payload migration.
+
+### Startup hero items from stale sources
+
+- Upstream's HomeRepository fix separates `heroSourceItems` from the randomized display list and retains previously visible hero items during a pending refresh only when those items still belong to the selected source set.
+- Mew's HomeRepository builds catalog hero items from current `heroSourceEnabled` preferences and has a keep-visible/refresh lifecycle, but the inspected publish path has no equivalent `visibleHeroItems.allComeFrom(heroSourceItems)` guard. This is a candidate stale-hero transition issue; exact timing must be confirmed through state/lifecycle tests.
+- Mew also has CloudStream and collection hero fallbacks that differ from upstream's catalog-only hero source list. Preserve those Mew-specific fallbacks when adapting the source-membership guard.
+
+**Decision: ADAPT candidate.** Add a source-membership guard to Mew's existing hero publication flow only after testing source changes while provider refresh is pending. Do not remove CloudStream/collection fallback or change hero randomization unnecessarily.
+
+**Classification:** new catalog auto-selected after explicit all-off = **CONFIRMED SOURCE-LEVEL DEFAULTING GAP / ADAPT**; stale visible hero during pending refresh = **NEEDS INVESTIGATION / ADAPT candidate**; HomeCatalogSettingsRepository and HomeRepository = **KEEP / SINGLE OWNERS**.
+
+**Verification:** static source/commit inspection only. No Home UI, addon install, preference migration, cloud sync, tests, builds or device checks run.
