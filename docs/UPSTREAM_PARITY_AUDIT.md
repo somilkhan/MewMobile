@@ -2033,3 +2033,38 @@ The existing canonical credential-visibility finding above now includes the Debr
 - No confirmed duplicate or sync defect identified.
 
 **Verification:** static GitHub reads at `6854e339345cf8db6a28e4d7587532004d0754c3`; Android/iOS storage actuals and profile lifecycle were inspected. No secrets were retrieved. No cloud schema/RPC behavior, live provider sync, build, tests, device profile deletion, or multi-device behavior was verified.
+
+
+## Settings navigation restoration and profile-sync concurrency recheck — 2026-11-20 16:23 IST
+
+**Target:** Main-dev  
+**Verified branch HEAD before write:** 73f81d4efd127484e83dab932ab52ea8d45b32ba  
+**Previous audit document blob / write guard:** 067a76fbdebc85a9bc48d55fb55a2b0734954567  
+**Application source audit HEAD:** 8a36dcede748ba6bb35d2a49c1ffd062bf7efbd0 (the current Main-dev tip is docs-only after this source baseline).  
+**Files inspected:** features/settings/SettingsScreen.kt, features/settings/SettingsModels.kt, navigation/NuvioNavigator.kt, core/sync/ProfileSettingsSync.kt, features/profiles/ProfileRepository.kt, commonTest/features/profiles/ProfileSelectionRoutingTest.kt, and the commonTest tree inventory.
+
+### Settings navigation state and restoration
+
+- SettingsScreen parses initialPageName and its saveable currentPage using runCatching { SettingsPage.valueOf(...) }, falls back to Root for unknown or policy-disabled pages, and keys the saved page state by initialPageName. Keep this defensive behavior and preserve enum route names while reorganizing the visible taxonomy.
+- SettingsPage.previousPage() is still a direct read of the enum static parentPage. It cannot retain the page from which a shortcut opened a destination. This re-confirms the existing canonical Content Discovery → TMDB contextual-back mismatch; no second back-stack implementation or new duplicate route was found.
+- NuvioNavigator owns the app-level Navigation 3 back stack and delegates root back to its external callback when the stack has one entry. The settings screen internal page state and the app-level route stack are separate layers with an explicit external-navigation handoff. **COMPATIBILITY CONTRACT:** retain that handoff; do not replace it with a second navigator or assume that changing SettingsPage parents alone updates app-level routes.
+- Tablet/TV sidebar category state remains rememberSaveable as a category-name string and is immediately decoded with SettingsCategory.valueOf(selectedCategory). Unknown/renamed persisted names can throw before the existing page fallback is reached. This re-confirms the canonical category-migration risk. Add a safe parser/mapping for legacy Account, General, Enhanced, About and Advanced names before changing category identifiers.
+- TraktAuthentication remains categorized as Account in the enum, although the Tracking page owns provider cards, sync source selection and tracking preferences. Keep the previously recorded Services placement recommendation; retain the enum route name for saved-state compatibility.
+
+### Test coverage and verification boundary
+
+- The inspected commonTest tree contains no settings-navigation test for saved page restoration, unknown page/category values, contextual back, requested-page handoff, or tablet category migration.
+- ProfileSelectionRoutingTest tests profile-card selection callbacks only; it does not test settings routes or settings restoration. Existing deep-link parser tests likewise do not prove settings navigation after app recreation.
+- **Decision:** add pure parser/legacy-name tests and route/back restoration tests in the eventual implementation plan. Runtime process recreation, Android back handling, tablet layout and iOS navigation remain **NOT DEVICE VERIFIED**.
+- Compose resource default-locale fallback and translated text rendering remain **NOT VERIFIED**; static key coverage does not establish runtime fallback or layout quality. Keep this as a release verification task, not a claim of missing default strings.
+
+### Profile settings sync apply vs profile switch — race status refined
+
+- ProfileSettingsSync.pull(profileId) is serialized with its own syncMutex; it checks the active profile before export, after network fetch and immediately before applying the remote payload.
+- applyRemoteBlob() is synchronous and performs sequential storage/repository writes without a suspension point in the inspected implementation. ProfileRepository.selectProfile() does not acquire the sync mutex and synchronously fans out profile-change callbacks.
+- **NEEDS INVESTIGATION, not a confirmed race:** the current source does not prove that profile selection can interleave with the non-suspending apply on the same dispatcher, nor does it prove all callers use one dispatcher. Do not label this a data-corruption bug or add locking without tracing actual pull launch/call contexts and demonstrating an interleaving. Preserve the active-profile guards and sync mutex.
+- No new duplicate implementation found. Settings internal navigation vs app Navigation 3 is an intentional layered handoff, not duplicate navigation.
+
+**Classification:** static parent/contextual back = existing CONFIRMED NAVIGATION LIMITATION; tablet category decoding = existing CONFIRMED COMPATIBILITY RISK; settings navigation test coverage = TEST GAP / NEEDS VERIFICATION; sync apply/profile switch = NEEDS INVESTIGATION; app navigator handoff = INTENTIONAL LAYERING.
+
+**Verification:** GitHub source reads at application HEAD 8a36dcede748ba6bb35d2a49c1ffd062bf7efbd0; live Main-dev and main refs checked before this write. No app source changes, builds, tests, Android/iOS runtime checks or locale-rendering checks performed.
