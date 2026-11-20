@@ -3083,3 +3083,35 @@ No other TRUE DUPLICATE was confirmed. Similar cards, source-set actuals, separa
 **Tests required before implementation:** ordering with top/normal/bottom groups; collection-pinned rows remain top; hidden rows can be restored; drag cannot cross placement groups; reset defaults; old JSON without placement defaults NORMAL; unknown placement defaults NORMAL; remote sync preserves local placement; remote payload with missing catalogs preserves unknown/explicit preferences; profile switch isolates row placement; HomeRepository section ordering and hero-source behavior remain unchanged.
 
 **Verification:** read-only static source comparison. No Home UI, settings, sync schema, preference model, repository, tests or app source changed. No tests/builds/runtime checks run.
+
+
+## Playback title-logo fallback lookup (2026-11-20 18:21:54 IST)
+
+**Upstream commit inspected:** `3f9c50c122c9c1d63bf3f061e65bd2cb17967fb6` (`fix(streams): look up the title logo when playback starts without one`).  
+**Target:** `Main-dev`; verified HEAD before write `ee1770428071b11e7359392240542a11ecda4e4f`.  
+**Previous audit document blob / write guard:** `7a1c88931ad39f0511cd30b26c566f9c2bb68dda`.  
+**Files inspected:** upstream `StreamDestination.kt` and `PlayerScreen.kt` diff; Mew `App.kt` StreamRoute/PlayerRoute callers, `PlayerScreen.kt`, `PlayerScreenArgs.kt`, `PlayerScreenContent.kt`, `StreamLaunchStore.kt`, `MetaDetailsRepository.kt`, `MetadataRequestCoordinator.kt`.
+
+### Existing Mew architecture
+
+- Mew passes `logo` through `StreamLaunch` / `PlayerLaunch` to `PlayerScreen`; current `PlayerScreen` forwards it unchanged into `PlayerScreenArgs`. No playback-entry logo fallback was found in this path.
+- Mew already has `MetaDetailsRepository.peek(type,id)` for synchronous cached metadata and `fetchBase(type,id)` for a base-only lookup without optional TMDB/MDBList/Trakt enrichment. The base fetch is cached/coalesced through the existing `MetadataRequestCoordinator` and generation-aware cache.
+- Mew's `App.kt` StreamRoute already uses `peek` and `fetchBase` to resolve missing episode video IDs, so a logo lookup can reuse the existing metadata owner rather than introduce a second network client or metadata cache.
+- Playback metadata types are not all ordinary catalog metadata: Mew launches `live-tv`, `shared-stream` and Cloud Library items in addition to movie/series/anime content. A generic lookup for every `parentMetaType` would issue invalid/unnecessary requests for some launch types.
+- Mew's player screen also observes `MetaDetailsRepository.uiState`; that state is a shared current-screen projection, not a new player-specific metadata cache. Do not rely on unrelated current detail-screen state for a logo.
+
+### Upstream behavior and port constraints
+
+- Upstream resolves an existing launch logo first, then cached metadata via `peek`, then asynchronously calls `fetchLightweight` only when still missing. It uses the resolved logo for the loading screen and all player launch variants.
+- Upstream skips lookup for `tv` and `channel` types. Mew's type vocabulary differs, so those literal exclusions must not be copied without mapping Mew's actual launch types.
+- Mew equivalent should use `MetaDetailsRepository.fetchBase` (not full `fetch`) and preserve its shared request coalescing/cache. Only attempt lookup when logo is blank, metadata type/id is supported and stable, and the player is not a live/channel/shared-stream/unsupported Cloud Library route. Keep the original logo if lookup fails, is cancelled, or returns blank.
+- Ensure the resolved logo is propagated consistently to the initial loading state, internal player, next-episode transition, external-player request and any resumed/alternate launch path. Avoid starting a second lookup from both StreamRoute and PlayerScreen for the same launch; choose one owner or share one result.
+- Do not block playback readiness on logo lookup. Keep a bounded/failure-tolerant background request and ensure a late result cannot update a different player launch after route reuse or profile switch.
+
+### Decision
+
+**ADAPT candidate — low-risk UI improvement using existing metadata infrastructure.** Not a duplicate metadata repository. Reuse `peek` + `fetchBase`; add a Mew-specific supported-type predicate and one lookup owner. Verify all playback launch variants, live TV/shared stream/Cloud Library exclusions, empty/invalid IDs, cached logo, failed lookup, cancellation, route changes and no extra request when logo is already supplied.
+
+**Classification:** Mew metadata cache/coordinator = **ALREADY IMPLEMENTED / REUSE**; playback logo fallback = **CONFIRMED PARITY GAP / ADAPT**; generic all-types lookup = **FALSE POSITIVE / DO NOT COPY**.
+
+**Verification:** static source/commit inspection only. No player, metadata, stream, UI, test or app source changes; no builds or runtime playback checks run.
