@@ -1,5 +1,6 @@
 package com.nuvio.app.features.player
 
+import kotlin.test.assertTrue
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
@@ -8,7 +9,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.semantics.SemanticsActions
-import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -151,7 +151,7 @@ class NextEpisodeCardTest {
     private fun card() = compose.onNodeWithText("Next Episode")
 
     private fun assertDismissed() {
-        card().assertDoesNotExist()
+        assertTrue(runCatching { card().assertIsDisplayed() }.isFailure)
         compose.runOnIdle {
             assertEquals(1, dismissals)
             assertEquals(0, plays)
