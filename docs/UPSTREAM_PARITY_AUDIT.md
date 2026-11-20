@@ -4,7 +4,7 @@
 
 ## Verified repository refs
 - Mew repository: `somilkhan/MewMobile`
-- Active target: `Main-dev` — latest verified HEAD at 2026-11-20 15:27 IST: `a0f1dc0d1d1f9df1e7832604681baac5c6ddfe57`. Application source audit baseline: `a7f066297ba000833a981b12f8b57c26ce833f7d`; live GitHub compare confirms all 36 commits since that baseline changed only `docs/UPSTREAM_PARITY_AUDIT.md`. Latest audit document blob SHA before this update: `5279070fcab6855e59b8257f37112b723ebbddd2`. Re-read the live ref at the start of the next session.
+- Active target: `Main-dev` — latest verified HEAD at 2026-11-20 15:27 IST: `32f4d90da93fa4b1cd4879e33f0fbfa6dedad3d3`. Application source audit baseline: `a7f066297ba000833a981b12f8b57c26ce833f7d`; live GitHub compare confirms all 37 commits since that baseline changed only `docs/UPSTREAM_PARITY_AUDIT.md`. Latest audit document blob SHA before this update: `af00c3758f9d43a54fd7edd13d41cf06ca298a26`. Re-read the live ref at the start of the next session.
 - Protected stable branch: `main` — `207ef8fa309b8061b73039b2d4e4bde4af65050e` (untouched)
 - Reference branch: `upstream-sync` — `af51bbbc13cdb315a88ef597eb4d2672a60335d5` (live ref rechecked 2026-11-20)
 - Mother upstream: `luqmanfadlli/NuvioMobile-Enhanced`, `enhanced` — live ref `3f9c50c122c9c1d63bf3f061e65bd2cb17967fb6`. The prior delta `b23b28a878b78f5ef9252128b901155fee6eeea9..375d93d90864d6b0774d8ab6f58c72d63d10d2af` (2 Home hero-source commits) is reviewed below. The new delta `375d93d90864d6b0774d8ab6f58c72d63d10d2af..3f9c50c122c9c1d63bf3f061e65bd2cb17967fb6` is one player-logo lookup commit, unrelated to settings IA; SKIP for this audit scope and retain as a separate player-parity candidate. Full current upstream settings-tree parity remains NOT COMPLETE.
@@ -1880,3 +1880,46 @@ The existing canonical credential-visibility finding above now includes the Debr
 - No application source changes. Builds, tests, Android device checks and iOS simulator/device checks are **NOT RUN** in this audit continuation.
 
 **Verification:** source-only GitHub reads and branch/commit comparisons. No app code or protected branch modified.
+
+
+## Plugin / CloudStream dialogs and localization refinement — 2026-11-20 15:27 IST
+
+**Target:** `Main-dev`  
+**Verified source HEAD before write:** `32f4d90da93fa4b1cd4879e33f0fbfa6dedad3d3`  
+**Previous audit document blob / write guard:** `af00c3758f9d43a54fd7edd13d41cf06ca298a26`  
+**Files inspected:** `fullCommonMain/.../PluginSettingsDialog.kt`, `PluginsSettingsScreen.kt`, `CloudStreamSettingsSection.kt`, `PluginRepository.kt`; common `PluginModels.kt`, `PluginRepository.kt`, `SettingsScreen.kt`, `SettingsModels.kt`, `Routes.kt`, `NuvioNavigator.kt`; source-set wrappers under commonMain/androidPlaystore/iosAppStore.
+
+### Plugin settings dialog — existing canonical findings re-confirmed
+
+- The actual dialog is in `fullCommonMain`; commonMain and store-specific `PluginsSettingsPage.kt` files are thin route/screen wrappers. These are **COMPATIBILITY SHIMS / INTENTIONAL SOURCE-SET SPLITS**, not duplicate implementations. Keep one shared dialog/content owner and preserve platform feature-policy fallbacks.
+- `PluginSettingsDialog` reads manifest `isPassword` but does not apply password transformation or reveal/hide semantics to the input. This is another confirmation of the existing canonical credential-visibility finding; do not create another issue.
+- The dialog title suffix and Save/fallback labels are hardcoded English. Keep these attached to the existing canonical localization gap.
+- Malformed layout JSON falls back to an empty array; malformed saved settings JSON falls back to an empty object. The user receives no parse/error indication. This confirms the existing **NEEDS INVESTIGATION** finding; determine whether the plugin schema is invalid, storage is corrupt or a version migration is required before deciding whether empty defaults are safe. Do not silently overwrite the original payload on dialog open.
+- Plugin settings are saved through the existing `PluginStorage.saveScraperSettings` call. Preserve existing JSON keys/types and profile/source-set storage behavior; do not introduce a parallel settings store.
+
+### CloudStream settings — security gate and locale coverage
+
+- CloudStream settings are implemented in `fullCommonMain/CloudStreamSettingsSection.kt`; the shared `CloudStreamRepository` API owns state and exposes `acceptSecurityWarning()`. The section hides the warning after acceptance and gates bulk installation on `securityWarningAccepted`; per-plugin install paths also retain their security/compatibility gates. Preserve these safeguards.
+- The settings section's `CloudStreamSettingsCopy` is a hand-authored copy table selected by `selectedAppLanguage == TURKISH`. It supplies English for every other app language and Turkish only for Turkish. This includes repository controls, search/filter labels, bulk-install feedback, package verification, compatibility errors and security-warning copy.
+- **Localization gap refinement:** add the entire CloudStream settings copy table to the existing canonical localization workstream. Do not create one issue per string. Replace with resource-backed translations as a dedicated localization task; preserve technical security wording and ensure warnings remain visible in every locale.
+- No CloudStream modal-dialog family was found in the inspected settings section; most configuration and feedback are inline cards/messages. Do not invent a dialog consolidation task for this screen.
+- CloudStream's separate repository/package model, security acknowledgement, package verification, platform compatibility and auto-update lifecycle remain distinct from generic Addons/Plugins. **INTENTIONAL PARALLEL / DIFFERENT SEMANTICS**; do not merge the surfaces or bypass the warning.
+
+### Navigation compatibility re-check
+
+- `SettingsScreen` safely handles unknown `initialPageName`, saved `currentPage` and requested page names with `runCatching { SettingsPage.valueOf(...) }` and Root fallback/rejection.
+- Tablet-only `selectedCategory` remains different: `SettingsCategory.valueOf(selectedCategory)` is called without a safe fallback. This confirms the existing category migration risk; preserve legacy names Account, General, Enhanced, About and Advanced through a tested parser before replacing the taxonomy.
+- `SettingsPage.previousPage()` remains a static `parentPage`; the previously recorded Content Discovery → TMDB shortcut still cannot express a contextual origin. No second navigation bug or duplicate route was established in this re-check.
+- `SettingsPageRoute` stores a page name string; retain existing enum names and external route behavior while reorganizing the page tree. `NuvioNavigator`'s external-back handoff is a navigation compatibility contract, not a second settings stack.
+
+### Classification and status
+
+- Plugin wrappers: **COMPATIBILITY SHIMS / INTENTIONAL PARALLEL**.
+- Plugin password field: **CONFIRMED SECURITY GAP**, already part of canonical credential finding.
+- Plugin JSON fallback: **NEEDS INVESTIGATION**, existing canonical finding.
+- CloudStream vs generic Addons/Plugins: **INTENTIONAL PARALLEL / DIFFERENT SEMANTICS**.
+- CloudStream locale table: **LOCALIZATION COVERAGE GAP**, append to existing localization workstream.
+- Tablet category parser: **CONFIRMED COMPATIBILITY RISK**, existing canonical finding.
+- No new TRUE DUPLICATE found.
+
+**Verification:** static source and route reads only. No source edits, builds/tests, locale switching, Android accessibility/device checks or iOS runtime checks.
