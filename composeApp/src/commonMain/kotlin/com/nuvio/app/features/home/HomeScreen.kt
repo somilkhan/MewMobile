@@ -148,7 +148,6 @@ fun HomeScreen(
     LaunchedEffect(Unit) {
         AddonRepository.initialize()
         CloudStreamRepository.initialize()
-        CloudStreamRepository.checkForUpdates()
         CollectionRepository.initialize()
         ContinueWatchingPreferencesRepository.ensureLoaded()
         WatchedRepository.ensureLoaded()
@@ -179,7 +178,9 @@ fun HomeScreen(
         }
     }
 
-    LaunchedEffect(addonSignals.metaProviderReadinessKey, cloudStreamUiState.registryRevision) {
+    ScreenActivityEffect(addonSignals.metaProviderReadinessKey, cloudStreamUiState.registryRevision) { active ->
+        if (!active) return@ScreenActivityEffect
+        CloudStreamRepository.checkForUpdates()
         HomeRepository.refresh(AddonRepository.uiState.value.addons.enabledAddons())
     }
     val homeUiState by HomeRepository.uiState.collectAsStateWithLifecycle()
