@@ -108,3 +108,26 @@ Do not replace these files wholesale. Their target and source SHAs differ, and t
 8. Inspect final diff and workflow results. No merge/promotion to `Main-dev` or `main` without separate approval.
 
 **Current status:** Branch published; source audit started; no application source changes; implementation not yet started.
+
+
+## 8. Implementation progress — common foundation
+
+- Date/time: 22 November 2026, 01:47 IST
+- Source: `Main-dev` at `4e98931537192e20a85fd2a248de590676aa9643`
+- Target branch head before this update: `b7169c7141d0f916ccc269531e834137d1d1ef2a`
+- Ported in two small commits, preserving the existing target history:
+  - `8d963db5d513a3fea9afcab8403cb506a1297b8c` — common models, URL/parser logic, package inspection, SHA-256 helper, compatibility resolver, and four common tests.
+  - `b7169c7141d0f916ccc269531e834137d1d1ef2a` — common provider/repository contracts, route ID adapter, home section helpers, search route index, and adapter test.
+- Added 10 commonMain source files and 5 commonTest files. These are exact source-branch blob copies; no target-specific changes have been made inside those copied files yet.
+- Verification: branch ref updates succeeded. File-level build/tests are **NOT RUN**; GitHub remote editing does not provide a local Gradle checkout or test execution.
+
+## 9. Target model/call-site compatibility findings
+
+- Target `HomeModels.MetaPreview` has additional poster/runtime/status/rating fields. The copied CloudStream adapter only sets fields common to both models; keep the target-only fields intact.
+- Target `MetaDetails`/ `MetaVideo` have additional IDs, ratings, season poster, and enrichment fields. The copied adapter uses a compatible subset; do not replace these target models.
+- Target `StreamItem` has additional YouTube/server/debrid fields. The copied adapter only populates existing common fields; preserve all target-only playback semantics.
+- Target `CatalogTarget` includes `MoreLikeThis` and `Server`, but does not include `CloudStream`; target `CatalogTargetKind` also lacks `CLOUDSTREAM`.
+- Target `CatalogRepository` has an exhaustive `when (request.target)` handling Addon, CollectionSource, MoreLikeThis, Server and Library. Source `Main-dev` adds a CloudStream case. **ADAPT manually**: add the CloudStream target and catalog loading case without removing or rewriting the target's MoreLikeThis/Server paths.
+- Source and target `StreamModels`/ `HomeModels`/ `MetaDetailsModels` are not identical. Similar type names are not grounds for copying those files.
+
+**Next implementation unit:** adapt `CatalogTarget` and `CatalogRepository`, then Home/Search/Details/Streams callers and profile lifecycle. Keep target-only catalog/server/player behavior.
