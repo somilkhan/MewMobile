@@ -2388,6 +2388,7 @@
     <string name="theme_blossom">ブロッサム</string>
     <string name="theme_lagoon">ラグーン</string>
     <string name="theme_sunset">サンセット</string>
+    <string name="theme_custom">カスタム</string>
     <string name="settings_appearance_theme_classic">クラシックテーマ</string>
     <string name="settings_appearance_theme_enhanced">拡張テーマ</string>
     <string name="settings_appearance_theme_custom_first">1色目</string>
