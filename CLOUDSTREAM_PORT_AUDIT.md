@@ -142,3 +142,24 @@ Do not replace these files wholesale. Their target and source SHAs differ, and t
 - This was a manual adaptation, not a wholesale copy of the source `CatalogRepository.kt`.
 - Tests/build: **NOT RUN**. A catalog-selection regression test is still required.
 - Next: Home provider/catalog integration and profile-aware selected-provider persistence; then Search, Details, Streams, settings/navigation, platform runtime and build wiring.
+
+
+## 11. Implementation progress — Home/Search/profile integration
+
+- Target branch head before this documentation update: `16a048de58f1615a3581e99d69d86d5260b018bd`
+- Commits:
+  - `2ee68f49954764095066791d3177686a006fde9a` — added selected CloudStream provider ID to the existing Home catalog settings payload/state and profile-reset paths.
+  - `aa98035c4460031b37a71321e00b00435f3fcbb8` — added CloudStream fallback shelves and provider selection to HomeRepository while retaining target snapshot, server catalog, poster, and collection-hero behavior.
+  - `0eafeaee60c96dae06e655c4a76d92905322d3f8` — added CloudStream provider search sections to SearchRepository; providers are queried only when CloudStream discovery is allowed and query length is at least three characters.
+  - `16a048de58f1615a3581e99d69d86d5260b018bd` — wired ProfileRepository profile changes to CloudStreamRepository.onProfileChanged().
+- The profile hook closes the previously identified lifecycle gap once the platform repository actuals are present.
+- End-to-end status: **INCOMPLETE**. MetaDetailsRepository and StreamsRepository still need CloudStream route/detail/link integration; App/navigation/settings and platform runtime/build wiring are also pending. SearchScreen still needs to observe CloudStream registry changes so visible search can refresh when providers change.
+- Target-specific server, collection, snapshot, custom-poster, and player fields were preserved; no shared Home/Stream model was replaced.
+- Tests/build/device checks: **NOT RUN**.
+
+## 12. Current implementation state
+
+- Ported/added: common CloudStream domain foundation, parser/package checks, provider contract, Nuvio adapter, catalog target/loading, Home fallback discovery, Search provider results, selected Home provider persistence, profile lifecycle call.
+- Still absent: platform actuals/storage, Android Full runtime and compatibility shims, iOS Full reviewed adapter implementation, Play Store/App Store stubs, binary runtime AAR, Gradle dependency/ProGuard integration, settings route/UI, Details and Streams integration, localization, and regression tests for target-specific integrations.
+- Do not treat this branch as buildable or feature-complete yet. The current work is an intermediate port state.
+- Immediate next steps: adapt MetaDetailsRepository and StreamsRepository without replacing their server/debrid/player behavior; then add platform source files and distribution/build wiring. Resolve the missing-hash verification policy and DEX documentation conflict before enabling downloaded Android DEX execution.
