@@ -4,7 +4,6 @@ import co.touchlab.kermit.Logger
 import com.nuvio.app.features.addons.httpGetBytesWithHeaders
 import com.nuvio.app.features.addons.httpGetText
 import com.nuvio.app.features.addons.httpRequestRaw
-import com.nuvio.app.features.plugins.currentEpochMillis
 import com.nuvio.app.features.profiles.ProfileRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -35,6 +34,8 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
 actual object CloudStreamRepository {
+    private fun currentEpochMillis(): Long = kotlin.time.Clock.System.now().toEpochMilliseconds()
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val log = Logger.withTag("CloudStreamRepo")
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
