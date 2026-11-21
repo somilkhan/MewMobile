@@ -3,6 +3,10 @@ package com.nuvio.app.features.details
 import co.touchlab.kermit.Logger
 import com.nuvio.app.core.logging.InAppLogger
 import com.nuvio.app.features.addons.AddonManifest
+import com.nuvio.app.features.cloudstream.CloudStreamRepository
+import com.nuvio.app.features.cloudstream.isCloudStreamDiscoveryAllowed
+import com.nuvio.app.features.cloudstream.parseCloudStreamRouteId
+import com.nuvio.app.features.cloudstream.toMetaDetails
 import com.nuvio.app.features.addons.AddonRepository
 import com.nuvio.app.features.addons.buildAddonResourceUrl
 import com.nuvio.app.features.addons.enabledAddons
@@ -60,12 +64,24 @@ object MetaDetailsRepository {
     private val _uiState = MutableStateFlow(MetaDetailsUiState())
     val uiState: StateFlow<MetaDetailsUiState> = _uiState.asStateFlow()
     private var activeRequestKey: String? = null
+    private var activeCloudStreamJob: Job? = null
     private val cachedMetaByRequestKey = mutableMapOf<String, CachedMetaEntry>()
 
     fun load(type: String, id: String) {
         log.d { "load() called — type=$type id=$id" }
         InAppLogger.info("Metadata/MetaDetailsRepository", "Loading meta type=$type id=$id")
         val requestKey = "$type:$id"
+        activeCloudStreamJob?.cancel()
+        activeCloudStreamJob = null
+        parseCloudStreamRouteId(id)?.let { route ->
+            if (!isCloudStreamRouteAllowed()) {
+                activeRequestKey = requestKey
+                _uiState.value = MetaDetailsUiState(errorMessage = "CloudStream detail could not be loaded")
+            } else {
+                loadCloudStream(requestKey, route)
+            }
+            return
+        }
         ServerItemRef.parse(id)?.let { ref ->
             loadServerMeta(requestKey, ref)
             return
@@ -239,6 +255,8 @@ object MetaDetailsRepository {
 
     fun clear() {
         activeRequestKey = null
+        activeCloudStreamJob?.cancel()
+        activeCloudStreamJob = null
         cachedMetaByRequestKey.clear()
         _uiState.value = MetaDetailsUiState()
     }
@@ -258,6 +276,18 @@ object MetaDetailsRepository {
                 .onFailure { if (it is CancellationException) throw it }
                 .getOrNull()
                 ?.also { if (cacheResult) cachedMetaByRequestKey[requestKey] = CachedMetaEntry(baseMeta = it) }
+        }
+
+        parseCloudStreamRouteId(id)?.let { route ->
+            if (!isCloudStreamRouteAllowed()) return null
+            CloudStreamRepository.initialize()
+            val meta = withTimeoutOrNull(CLOUDSTREAM_DETAIL_TIMEOUT_MS) {
+                CloudStreamRepository.load(route.providerId, route.data).getOrNull()?.toMetaDetails()
+            }
+            if (meta != null && cacheResult) {
+                cachedMetaByRequestKey[requestKey] = CachedMetaEntry(baseMeta = meta)
+            }
+            return meta
         }
 
         val metaLookupId = resolveMetaLookupId(itemId = id, itemType = type)
@@ -366,6 +396,57 @@ object MetaDetailsRepository {
     private const val MIN_BACKGROUND_BACKOFF_MS = 30_000L
     private const val MAX_BACKGROUND_BACKOFF_MS = 15L * 60_000L
 
+    private fun isCloudStreamRouteAllowed(): Boolean {
+        TmdbSettingsRepository.ensureLoaded()
+        return isCloudStreamDiscoveryAllowed(TmdbSettingsRepository.snapshot().enabled)
+    }
+
+    private fun loadCloudStream(
+        requestKey: String,
+        route: com.nuvio.app.features.cloudstream.CloudStreamRouteData,
+    ) {
+        cachedMetaByRequestKey[requestKey]?.let { cached ->
+            activeRequestKey = requestKey
+            _uiState.value = MetaDetailsUiState(meta = cached.baseMeta.withUnreleasedFilter())
+            return
+        }
+        if (_uiState.value.isLoading && activeRequestKey == requestKey) return
+
+        activeRequestKey = requestKey
+        CloudStreamRepository.initialize()
+        _uiState.value = MetaDetailsUiState(isLoading = true)
+        val job = scope.launch {
+            try {
+                val meta = withTimeoutOrNull(CLOUDSTREAM_DETAIL_TIMEOUT_MS) {
+                    CloudStreamRepository.load(route.providerId, route.data)
+                        .getOrNull()
+                        ?.toMetaDetails()
+                }
+                if (activeRequestKey != requestKey) return@launch
+                if (meta != null) {
+                    cachedMetaByRequestKey[requestKey] = CachedMetaEntry(baseMeta = meta)
+                    _uiState.value = MetaDetailsUiState(meta = meta.withUnreleasedFilter())
+                } else {
+                    _uiState.value = MetaDetailsUiState(
+                        errorMessage = "CloudStream detail could not be loaded",
+                    )
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Throwable) {
+                log.e(error) { "CloudStream detail failed provider=${route.providerId}" }
+                if (activeRequestKey == requestKey) {
+                    _uiState.value = MetaDetailsUiState(
+                        errorMessage = error.message ?: "CloudStream detail could not be loaded",
+                    )
+                }
+            } finally {
+                if (activeRequestKey == requestKey) activeCloudStreamJob = null
+            }
+        }
+        activeCloudStreamJob = job
+    }
+
     private fun loadServerMeta(requestKey: String, ref: ServerItemRef) {
         if (_uiState.value.isLoading && activeRequestKey == requestKey) return
         activeRequestKey = requestKey
@@ -398,6 +479,7 @@ object MetaDetailsRepository {
     }
 
     private const val FETCH_TIMEOUT_MS = 5_000L
+private const val CLOUDSTREAM_DETAIL_TIMEOUT_MS = 120_000L
     private const val ADDON_META_TIMEOUT_MS = 10_000L
     private const val METADATA_PROVIDER_READY_TIMEOUT_MS = 10_000L
     private const val TMDB_ENRICH_TIMEOUT_MS = 5_000L
