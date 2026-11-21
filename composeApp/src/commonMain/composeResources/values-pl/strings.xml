@@ -43,9 +43,6 @@
     <string name="addons_error_enter_url">Wprowadź URL dodatku.</string>
     <string name="addons_input_placeholder">URL dodatku</string>
     <string name="addons_install_button">Zainstaluj dodatek</string>
-    <string name="addons_tracking_consent_title">Dodatek śledzący</string>
-    <string name="addons_tracking_consent_body">%1$s to dodatek śledzący. Nuvio będzie wysyłać do niego Twoją aktywność: co odtwarzasz, wstrzymujesz i zatrzymujesz wraz z pozycją odtwarzania, co dodajesz do biblioteki lub z niej usuwasz oraz co oznaczasz jako obejrzane lub nieobejrzane. Te dane opuszczają Nuvio i trafiają do twórcy dodatku oraz serwisu, z którym się łączy.</string>
-    <string name="addons_tracking_consent_checkbox">Zgadzam się na udostępnianie temu dodatkowi mojej aktywności oglądania i biblioteki</string>
     <string name="addons_loading_manifest_details">Ładowanie szczegółów manifestu...</string>
     <string name="addons_modal_checking_message">Walidacja URL manifestu i ładowanie szczegółów dodatku przed instalacją.</string>
     <string name="addons_modal_checking_title">Sprawdzanie dodatku</string>
@@ -332,8 +329,8 @@
     <string name="compose_player_color">Kolor</string>
     <string name="compose_player_currently_playing">Aktualnie odtwarzane</string>
     <string name="compose_player_episode_code_episode_only">E%1$d</string>
-    <string name="compose_player_episode_code_full">S%1$d E%2$d</string>
-    <string name="compose_player_episode_title_format">S%1$d E%2$d • %3$s</string>
+    <string name="compose_player_episode_code_full">S%1$dE%2$d</string>
+    <string name="compose_player_episode_title_format">S%1$dE%2$d • %3$s</string>
     <string name="compose_player_episodes">Odcinki</string>
     <string name="compose_player_font_size">Rozmiar czcionki</string>
     <string name="compose_player_font_size_value">%1$dsp</string>
@@ -564,7 +561,6 @@
     <string name="settings_poster_custom">Niestandardowy</string>
     <string name="settings_poster_description">Dostosuj szerokość i zaokrąglenie rogów kart plakatów w całej aplikacji.</string>
     <string name="settings_poster_hide_labels">Ukryj etykiety</string>
-    <string name="settings_poster_always_show_landscape_clearlogo">Zawsze tło z logo dla poziomych plakatów</string>
     <string name="settings_poster_landscape_mode">Tryb poziomy dla plakatów na półce</string>
     <string name="settings_poster_live_preview">Podgląd na żywo</string>
     <string name="settings_poster_option_with_value">%1$s (%2$s)</string>
@@ -582,22 +578,6 @@
     <string name="settings_poster_width_dense">Gęsty</string>
     <string name="settings_poster_width_large">Duży</string>
     <string name="settings_poster_width_standard">Standardowy</string>
-    <!-- Custom Poster URL -->
-    <string name="settings_custom_poster_title">NIESTANDARDOWE ŹRÓDŁO PLAKATÓW</string>
-    <string name="settings_custom_poster_description">Podaj wzorzec URL z zewnętrznego serwisu. Jeśli symbol zastępczy nie ma wartości dla danego tytułu, zostanie użyty oryginalny plakat.</string>
-    <string name="settings_custom_poster_placeholder">https://example.com/poster?id={id}&amp;id_type={id_type}&amp;type={type}</string>
-    <string name="settings_custom_poster_active">Niestandardowe źródło plakatów aktywne</string>
-    <string name="settings_custom_poster_none">Brak skonfigurowanego wzorca</string>
-    <string name="settings_custom_poster_save">Zapisz</string>
-    <string name="settings_custom_poster_clear">Wyczyść</string>
-    <!-- Custom Poster URL - Screen Toggles -->
-    <string name="settings_custom_poster_apply_to">Stosuj niestandardowe plakaty w</string>
-    <string name="settings_custom_poster_screen_home">Strona główna</string>
-    <string name="settings_custom_poster_screen_continue_watching">Kontynuuj oglądanie</string>
-    <string name="settings_custom_poster_screen_collections">Kolekcje</string>
-    <string name="settings_custom_poster_screen_library">Biblioteka</string>
-    <string name="settings_custom_poster_screen_search">Wyszukiwanie</string>
-    <string name="settings_custom_poster_screen_details">Strona szczegółów</string>
     <string name="settings_show_secret">Pokaż wartość</string>
     <string name="settings_continue_watching_resume_prompt_description">Pokaż okno kontynuowania od miejsca, w którym skończyłeś, po otwarciu aplikacji po wyjściu z odtwarzacza.</string>
     <string name="settings_continue_watching_resume_prompt_title">Monit o wznowienie przy uruchomieniu</string>
@@ -613,14 +593,6 @@
     <string name="settings_continue_watching_sort_mode_streaming_desc">Wydane najpierw, nadchodzące na końcu</string>
     <string name="settings_continue_watching_sort_mode_split_upcoming">Oddzielny rząd Nadchodzące</string>
     <string name="settings_continue_watching_sort_mode_split_upcoming_desc">Przenieś niewydane odcinki do oddzielnego rzędu Nadchodzące</string>
-    <string name="settings_continue_watching_click_action_title">Po wybraniu</string>
-    <string name="settings_continue_watching_click_action_description">Co otwiera się po wybraniu elementu Kontynuuj oglądanie</string>
-    <string name="settings_continue_watching_click_action_stream">Otwórz strumień</string>
-    <string name="settings_continue_watching_click_action_stream_desc">Wybierz źródło lub wznów odtwarzanie</string>
-    <string name="settings_continue_watching_click_action_details">Otwórz szczegóły</string>
-    <string name="settings_continue_watching_click_action_details_desc">Otwórz stronę szczegółów tytułu</string>
-    <string name="settings_continue_watching_click_action_details_upcoming">Szczegóły tylko dla nadchodzących</string>
-    <string name="settings_continue_watching_click_action_details_upcoming_desc">Szczegóły dla odcinków, które jeszcze nie wyszły, strumień dla pozostałych</string>
     <string name="upcoming_section_title">Nadchodzące</string>
     <string name="settings_continue_watching_section_card_style">STYL KARTY</string>
     <string name="settings_continue_watching_section_on_launch">PRZY URUCHOMIENIU</string>
@@ -850,8 +822,6 @@
     <string name="settings_playback_prefer_binge_group_description">Przy automatycznym odtwarzaniu preferuj strumień z tej samej grupy binge co bieżący.</string>
     <string name="settings_playback_reuse_binge_group">Ponownie użyj grupy binge</string>
     <string name="settings_playback_reuse_binge_group_description">Zapamiętaj i ponownie użyj ostatniej grupy binge między sesjami (Kontynuuj oglądanie, Szczegóły itp.).</string>
-    <string name="settings_playback_preload_next_episode">Wstępne ładowanie źródeł następnego odcinka</string>
-    <string name="settings_playback_preload_next_episode_description">Rozpocznij wyszukiwanie źródeł w tle zanim pojawi się przycisk następnego odcinka.</string>
     <string name="settings_playback_preferred_audio_language">Preferowany język audio</string>
     <string name="settings_playback_preferred_subtitle_language">Preferowany język napisów</string>
     <string name="settings_playback_presets">Szablony</string>
@@ -872,15 +842,11 @@
     <string name="settings_playback_regex_preset_quality_720p_smaller">720p / Mniejsze</string>
     <string name="settings_playback_regex_preset_web_sources">Źródła WEB</string>
     <string name="settings_playback_render_type">Typ renderowania</string>
-    <string name="settings_playback_render_scale">Rozdzielczość renderowania napisów</string>
-    <string name="settings_playback_render_scale_description">Niższa rozdzielczość poprawia wydajność przy ciężkim typesettingu kosztem ostrości</string>
-    <string name="settings_playback_render_mode">Tryb renderowania ASS</string>
-    <string name="settings_playback_render_mode_description">Sposób rysowania napisów ASS/SSA na wideo</string>
-    <string name="settings_playback_render_mode_tunneled">Tunelowane odtwarzanie omija pipeline efektów wideo. Nakładka jest używana automatycznie.</string>
-    <string name="settings_playback_render_mode_video_effect">Efekt wideo</string>
-    <string name="settings_playback_render_mode_video_effect_description">Rysuje napisy bezpośrednio na każdej klatce wideo. Idealnie dokładny timing na każdym sprzęcie. Treści HDR są konwertowane do SDR.</string>
-    <string name="settings_playback_render_mode_overlay">Nakładka</string>
-    <string name="settings_playback_render_mode_overlay_description">Renderuje napisy na osobnej warstwie. Zachowuje wyjście HDR. Timing napisów może nie być idealnie dokładny na niektórych urządzeniach.</string>
+    <string name="settings_playback_render_type_cues">Standardowy (Cues)</string>
+    <string name="settings_playback_render_type_effects_canvas">Effects Canvas</string>
+    <string name="settings_playback_render_type_effects_opengl">Effects OpenGL</string>
+    <string name="settings_playback_render_type_overlay_canvas">Overlay Canvas</string>
+    <string name="settings_playback_render_type_overlay_opengl">Overlay OpenGL</string>
     <string name="settings_playback_reuse_last_link">Użyj ponownie ostatniego linku</string>
     <string name="settings_playback_reuse_last_link_description">Automatycznie odtwórz ostatni działający strumień dla tego samego filmu/odcinka, gdy pamięć podręczna jest nadal ważna.</string>
     <string name="settings_playback_secondary_audio_language">Drugorzędny język audio</string>
@@ -930,12 +896,6 @@
     <string name="settings_playback_stream_selection_mode_regex_description">Automatycznie wybierz strumień pasujący do wzorca regex.</string>
     <string name="settings_playback_stream_timeout">Limit czasu strumienia</string>
     <string name="settings_playback_stream_timeout_description">Jak długo czekać na strumienie przed automatycznym wyborem.</string>
-    <string name="settings_playback_fallback_next_source">Przejdź do kolejnego pasującego źródła przy błędzie</string>
-    <string name="settings_playback_fallback_next_source_description">Jeśli automatycznie wybrane źródło zgłosi błąd lub nie uruchomi się na czas, po cichu spróbuj kolejnych pasujących źródeł.</string>
-    <string name="settings_playback_fallback_max_sources">Źródła do sprawdzenia przy błędzie</string>
-    <string name="settings_playback_fallback_startup_timeout">Czas na uruchomienie źródła</string>
-    <string name="settings_playback_fallback_next_source_blocked_by_engine_switch">Wyłącz automatyczną zmianę silnika po błędzie odtwarzania, aby tego użyć.</string>
-    <string name="player_error_source_startup_timeout">Źródło nie uruchomiło się w ciągu %1$d sekund.</string>
     <string name="settings_playback_threshold_minutes">Minuty przed końcem</string>
     <string name="settings_playback_threshold_mode">Tryb progu</string>
     <string name="settings_playback_threshold_mode_minutes_before_end">Minuty przed końcem</string>
@@ -948,8 +908,11 @@
     <string name="settings_playback_timeout_unlimited">Bez limitu</string>
     <string name="settings_playback_tunneled_playback">Odtwarzanie tunelowane</string>
     <string name="settings_playback_tunneled_playback_description">Włącz odtwarzanie tunelowane dla niższego opóźnienia synchronizacji audio/wideo.</string>
+    <string name="settings_tmdb_add_api_key_first">Dodaj własny klucz API TMDB poniżej przed włączeniem wzbogacania.</string>
+    <string name="settings_tmdb_api_key_label">Klucz API TMDB</string>
     <string name="settings_tmdb_enable_enrichment">Włącz wzbogacanie TMDB</string>
-    <string name="settings_tmdb_enable_enrichment_description">Używaj TMDB jako źródła metadanych do uzupełniania danych z dodatków</string>
+    <string name="settings_tmdb_enable_enrichment_description">Użyj klucza API TMDB, aby wzbogacić metadane dodatków na ekranie szczegółów, gdy dostępne jest ID TMDB lub IMDb.</string>
+    <string name="settings_tmdb_enter_api_key">Wprowadź klucz API TMDB v3.</string>
     <string name="settings_tmdb_language_code_label">Kod języka</string>
     <string name="settings_tmdb_module_artwork">Grafiki</string>
     <string name="settings_tmdb_module_artwork_description">Zastąp tło, plakat i logo grafikami TMDB.</string>
@@ -973,6 +936,7 @@
     <string name="settings_tmdb_module_season_posters_description">Użyj plakatów sezonów TMDB w selektorze sezonów na ekranie metadanych dla seriali.</string>
     <string name="settings_tmdb_module_trailers">Zwiastuny</string>
     <string name="settings_tmdb_module_trailers_description">Pobierz i pokaż sekcję zwiastunów TMDB na stronach szczegółów.</string>
+    <string name="settings_tmdb_personal_api_key">Osobisty klucz API</string>
     <string name="settings_tmdb_preferred_language">Preferowany język</string>
     <string name="settings_tmdb_preferred_language_description">Ustaw kod języka TMDB używany do zlokalizowanych metadanych, na przykład `en`, `en-US` lub `pt-BR`.</string>
     <string name="settings_tmdb_original_title_language">Język oryginalny</string>
@@ -1036,7 +1000,7 @@
     <string name="theme_white">Biały</string>
     <string name="player_next_episode">Następny odcinek</string>
     <string name="player_next_episode_finding_source">Szukanie źródła…</string>
-    <string name="player_next_episode_playing_via_countdown">Odtwarzanie przez %1$s za %2$ds…</string>
+    <string name="player_next_episode_playing_via_countdown">Odtwarzanie przez %1$s za %2$d…</string>
     <string name="player_next_episode_thumbnail">Miniatura następnego odcinka</string>
     <string name="player_next_episode_unaired">Niewyemitowany</string>
     <string name="player_skip">Pomiń</string>
@@ -1259,7 +1223,7 @@
     <string name="streams_empty_no_streams_message">Żaden z zainstalowanych dodatków nie zwrócił strumieni dla tego tytułu.</string>
     <string name="streams_episode_badge">S%1$d E%2$d</string>
     <string name="streams_episode_fallback_title">Odcinek</string>
-    <string name="streams_episode_title_with_name">S%1$d E%2$d - %3$s</string>
+    <string name="streams_episode_title_with_name">S%1$dE%2$d - %3$s</string>
     <string name="streams_fetching">Pobieranie…</string>
     <string name="streams_finding_source">Szukanie źródła…</string>
     <string name="streams_loading_subtitles">Pobieranie napisów z dodatków…</string>
@@ -1309,7 +1273,7 @@
     <string name="auth_sign_up_failed">Rejestracja nie powiodła się</string>
     <string name="catalog_load_failed">Nie można załadować elementów katalogu.</string>
     <string name="continue_watching_up_next">Następny</string>
-    <string name="continue_watching_up_next_episode">Następny • S%1$d E%2$d</string>
+    <string name="continue_watching_up_next_episode">Następny • S%1$dE%2$d</string>
     <string name="detail_logo_content_description">Logo %1$s</string>
     <string name="details_comments_load_failed">Nie udało się załadować komentarzy</string>
     <string name="details_load_failed_all_addons">Nie można załadować szczegółów z żadnego dodatku.</string>
@@ -1335,13 +1299,6 @@
     <string name="notifications_test_send_failed">Nie udało się wysłać powiadomienia testowego.</string>
     <string name="notifications_test_sent_for">Wysłano powiadomienie testowe dla %1$s.</string>
     <string name="player_unable_to_play_stream">Nie można odtworzyć tego strumienia.</string>
-    <string name="player_error_stream_expired">Link do streamu wygasł. Spróbuj innego źródła.</string>
-    <string name="player_error_stream_removed">Link do streamu wygasł lub został usunięty. Spróbuj innego źródła.</string>
-    <string name="player_error_stream_rate_limited">Zbyt wiele żądań do źródła streamu. Poczekaj chwilę i spróbuj ponownie.</string>
-    <string name="player_error_stream_unavailable">Serwer streamu jest obecnie niedostępny. Spróbuj innego źródła.</string>
-    <string name="player_error_stream_blocked">Źródło streamu jest zablokowane lub ograniczone. Spróbuj innego źródła.</string>
-    <string name="player_error_source_invalid_content">Błąd źródła: Źródło streamu zwróciło nieprawidłową lub nieodtwarzalną zawartość. Link mógł wygasnąć lub serwer zwrócił stronę błędu zamiast wideo.\n\nSpróbuj innego źródła. [%1$s]</string>
-    <string name="player_error_unsupported_format">Ten stream używa formatu, którego Twoje urządzenie może nie obsługiwać. Spróbuj innego źródła. [%1$s]</string>
     <string name="profile_pin_changed_requires_refresh">PIN tego profilu został zmieniony. Połącz się raz, aby odświeżyć blokadę na tym urządzeniu.</string>
     <string name="profile_pin_clear_failed">Nie można usunąć blokady PIN. Spróbuj ponownie.</string>
     <string name="profile_pin_clear_requires_internet">Połącz się z internetem, aby usunąć blokadę PIN.</string>
@@ -1569,6 +1526,7 @@
     <string name="collections_editor_watch_region_placeholder">US, KR, JP, IN</string>
     <string name="collections_folder_trakt_movie_list">Lista filmów Trakt</string>
     <string name="collections_folder_trakt_series_list">Lista seriali Trakt</string>
+    <string name="collections_tmdb_api_key_required">Dodaj klucz API TMDB w Ustawieniach, aby korzystać ze źródeł TMDB.</string>
     <string name="collections_tmdb_collection_not_found">Nie znaleziono kolekcji TMDB</string>
     <string name="collections_tmdb_company_not_found">Nie znaleziono firmy TMDB</string>
     <string name="collections_tmdb_discover_no_data">TMDB Odkrywaj nie zwrócił danych</string>
@@ -1600,7 +1558,6 @@
     <string name="compose_settings_root_streams_description">Wyświetlanie wyników źródeł i reguły badge URL.</string>
     <string name="detail_more_like_this_powered_by_tmdb">Napędzane przez TMDB</string>
     <string name="detail_more_like_this_powered_by_trakt">Napędzane przez Trakt</string>
-    <string name="detail_more_like_this_powered_by_simkl">Napędzane przez Simkl</string>
     <string name="details_actions_menu_label">Więcej akcji</string>
     <string name="details_comments_trakt_load_failed_with_code">Nie udało się załadować komentarzy Trakt (%1$d)</string>
     <string name="details_runtime_hours_minutes">%1$dh %2$dm</string>
@@ -1642,7 +1599,7 @@
     <string name="player_ios_preset_compatibility_label">Kompatybilność</string>
     <string name="player_ios_preset_custom_desc">Użyj własnych zaawansowanych wartości poniżej.</string>
     <string name="player_ios_preset_custom_label">Własne</string>
-    <string name="player_ios_preset_native_edr_desc">Najlepsze dla iPhone'ów i iPadów z obsługą HDR.</string>
+    <string name="player_ios_preset_native_edr_desc">Najlepsze dla iPhone\'ów i iPadów z obsługą HDR.</string>
     <string name="player_ios_preset_native_edr_label">Natywne EDR</string>
     <string name="player_ios_preset_sdr_tone_mapped_desc">Bardziej przewidywalne biele i czernie na wyjściu SDR.</string>
     <string name="player_ios_preset_sdr_tone_mapped_label">Mapowanie tonalne SDR</string>
@@ -1650,7 +1607,7 @@
     <string name="player_torrent_connecting_peers">Łączenie z peerami…</string>
     <string name="player_torrent_peer_info">%1$d seedów · %2$d peerów</string>
     <string name="player_torrent_starting_engine">Uruchamianie silnika P2P…</string>
-    <string name="player_torrent_stats">%1$d peerów · %2$d seedów · %3$d%</string>
+    <string name="player_torrent_stats">%1$d peerów · %2$d seedów · %3$d%%</string>
     <string name="player_torrent_status">%1$s · %2$s</string>
     <string name="player_video_settings_brightness">Jasność</string>
     <string name="player_video_settings_contrast">Kontrast</string>
@@ -1671,6 +1628,8 @@
     <string name="plugins_badge_providers">%1$d dostawców</string>
     <string name="plugins_badge_refreshing">Odświeżanie</string>
     <string name="plugins_badge_repos">%1$d repozytoriów</string>
+    <string name="plugins_badge_tmdb_key_missing">Brak klucza API TMDB</string>
+    <string name="plugins_badge_tmdb_key_set">Klucz API TMDB ustawiony</string>
     <string name="plugins_button_installing">Instalowanie…</string>
     <string name="plugins_button_install_repo">Zainstaluj repozytorium wtyczek</string>
     <string name="plugins_button_testing">Testowanie…</string>
@@ -1714,6 +1673,7 @@
     <string name="plugins_test_error_title">Błąd</string>
     <string name="plugins_test_failed">Test dostawcy nie powiódł się</string>
     <string name="plugins_test_results_count">Wyniki testu (%1$d)</string>
+    <string name="plugins_tmdb_required_message">Dostawcy wtyczek wymagają klucza API TMDB. Ustaw go na ekranie TMDB, w przeciwnym razie dostawcy nie będą działać poprawnie.</string>
     <string name="search_error_no_results_for_catalog">Brak wyników wyszukiwania dla %1$s.</string>
     <string name="settings_advanced_clear_cw_cache">Wyczyść pamięć Kontynuuj oglądanie</string>
     <string name="settings_advanced_clear_cw_cache_done">Pamięć wyczyszczona</string>
@@ -1871,6 +1831,7 @@
     <string name="submit_intro_start_time_label">CZAS STARTU (MM:SS)</string>
     <string name="submit_intro_submit">Wyślij</string>
     <string name="submit_intro_title">Zgłoś znaczniki czasu</string>
+    <string name="tmdb_sources_api_key_required">Dodaj klucz API TMDB w Ustawieniach, aby korzystać ze źródeł TMDB.</string>
     <string name="tmdb_sources_collection_fallback_title">Kolekcja TMDB %1$d</string>
     <string name="tmdb_sources_collection_not_found">Nie znaleziono kolekcji TMDB</string>
     <string name="tmdb_sources_company_fallback_title">Produkcja TMDB %1$d</string>
@@ -1908,7 +1869,6 @@
     <string name="trakt_more_like_this_source_subtitle">Wybierz skąd pochodzą rekomendacje na stronach szczegółów</string>
     <string name="trakt_more_like_this_source_title">Źródło Podobnych</string>
     <string name="trakt_more_like_this_source_tmdb">TMDB</string>
-    <string name="trakt_more_like_this_source_simkl">Simkl</string>
     <string name="trakt_more_like_this_source_trakt">Trakt</string>
     <string name="trakt_public_list">Publiczna lista Trakt</string>
     <string name="trakt_public_list_enter_valid_id_or_url">Wprowadź prawidłowy ID lub URL listy Trakt</string>
@@ -2003,7 +1963,7 @@
     <string name="settings_playback_external_player_send_skip_segments">Wysyłaj znaczniki intro i outro</string>
     <string name="settings_playback_external_player_send_skip_segments_description">Przekaż rozwiązane znaczniki pomijania intro i outro do zewnętrznego odtwarzacza w celu automatycznego pomijania. Działa tylko w odtwarzaczach, które to obsługują; inne odtwarzacze to ignorują.</string>
     <string name="settings_playback_engine">Silnik odtwarzania</string>
-    <string name="settings_playback_engine_auto_description">ExoPlayer dla filmów i seriali · MPV dla anime</string>
+    <string name="settings_playback_engine_auto_description">Użyj najpierw ExoPlayera i przejdź na libmpv, jeśli odtwarzanie się nie powiedzie.</string>
     <string name="settings_playback_engine_exoplayer_description">Użyj ExoPlayera i dekoderów Android Media3.</string>
     <string name="settings_playback_engine_libmpv_description">Użyj libmpv do odtwarzania na Androidzie.</string>
     <string name="settings_playback_libmpv_video_output">Renderer libmpv</string>

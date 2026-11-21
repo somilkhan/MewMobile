@@ -10,6 +10,7 @@ import com.nuvio.app.core.network.SharedOkHttpClient
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
@@ -43,40 +44,17 @@ private const val downloadProgressMinBytes = 1024L * 1024L
 private const val downloadMaxAttempts = 6
 
 internal actual object DownloadsPlatformDownloader {
-    // Transfers stream into a .part file and resume with a Range request.
-    actual val restartKeepsProgress: Boolean = true
-
     private var appContext: Context? = null
-    private var downloadScheduler: AndroidDownloadScheduler? = null
-    private val observerScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     fun initialize(context: Context) {
-        scheduler(context)
-    }
-
-    @Synchronized
-    internal fun scheduler(context: Context): AndroidDownloadScheduler {
         appContext = context.applicationContext
-        return downloadScheduler ?: AndroidDownloadScheduler(context.applicationContext).also { downloadScheduler = it }
     }
-
-    internal fun managedTransfers(): List<AndroidDownloadTransfer> =
-        downloadScheduler?.store?.transfers?.value?.values?.toList().orEmpty()
-
-    actual fun restoreItem(item: DownloadItem): DownloadItem = downloadScheduler?.restore(item)
-        ?: if (item.status == DownloadStatus.Downloading) item.copy(status = DownloadStatus.Paused) else item
-
-    actual fun pauseRestoredItem(item: DownloadItem) { downloadScheduler?.pause(item.fileName) }
-
-    actual fun clearUnfinishedTransfers() { downloadScheduler?.clearUnfinishedTransfers() }
 
     actual fun start(
         request: DownloadPlatformRequest,
         onProgress: (downloadedBytes: Long, totalBytes: Long?) -> Unit,
         onSuccess: (localFileUri: String, totalBytes: Long?) -> Unit,
         onFailure: (message: String) -> Unit,
-        onPaused: () -> Unit,
-        onQueued: () -> Unit,
     ): DownloadsTaskHandle {
         val job = SupervisorJob()
         val scope = CoroutineScope(job + Dispatchers.IO)
@@ -139,6 +117,12 @@ internal actual object DownloadsPlatformDownloader {
                 onFailure(error.message ?: runBlocking { getString(Res.string.download_failed) })
             }
         }
+
+        job.invokeOnCompletion {
+            call?.cancel()
+        }
+
+        return AndroidDownloadsTaskHandle(job)
     }
 
     actual fun removeFile(localFileUri: String?): Boolean {
@@ -159,15 +143,14 @@ internal actual object DownloadsPlatformDownloader {
     }
 
     actual fun removePartialFile(destinationFileName: String): Boolean {
-        val scheduler = downloadScheduler ?: return false
-        scheduler.remove(destinationFileName)
-        return true
+        val context = appContext ?: return false
+        val downloadsDir = File(context.filesDir, "downloads")
+        val tempFile = File(downloadsDir, "$destinationFileName.part")
+        if (!tempFile.exists()) return true
+        return runCatching { tempFile.delete() }.getOrDefault(false)
     }
 
     actual fun resolveLocalFileUri(localFileUri: String?, destinationFileName: String): String? {
-        if (localFileUri != null && AndroidDownloadExport.isContentUri(localFileUri)) {
-            if (appContext != null && AndroidDownloadExport.exists(localFileUri)) return localFileUri
-        }
         localFileUri
             ?.takeIf { it.startsWith("content:", ignoreCase = true) }
             ?.let { contentUri ->
@@ -272,7 +255,7 @@ internal actual object DownloadsPlatformDownloader {
             }.getOrDefault(false)
         }
         val downloadsDir = File(context.filesDir, "downloads").apply { mkdirs() }
-        val uri = customUri ?: runCatching {
+        val uri = runCatching {
             FileProvider.getUriForFile(
                 context,
                 "${context.packageName}.fileprovider",

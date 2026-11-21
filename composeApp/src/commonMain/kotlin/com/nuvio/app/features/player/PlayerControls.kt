@@ -4,12 +4,12 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -18,19 +18,18 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeContent
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ListAlt
 import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.rounded.AccessTime
@@ -63,7 +62,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
-import androidx.compose.material3.SliderState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -71,22 +69,11 @@ import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.player_toolbar_button_stream_info
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.material.icons.automirrored.rounded.Toc
-import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -96,24 +83,14 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontStyle
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.unit.LayoutDirection
 import com.nuvio.app.core.ui.AppIconResource
 import com.nuvio.app.core.ui.NuvioBackButton
 import com.nuvio.app.core.ui.NuvioLoadingIndicator
 import com.nuvio.app.core.ui.appIconPainter
-import com.nuvio.app.core.ui.gradientMask
 import com.nuvio.app.core.ui.nuvioTypeScale
-import com.nuvio.app.features.player.seekpreview.SeekPreviewController
-import com.nuvio.app.features.player.seekpreview.SeekPreviewOverlay
-import com.nuvio.app.features.streams.StreamBadge
 import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
 import kotlin.math.roundToLong
@@ -131,21 +108,11 @@ internal fun PlayerControlsShell(
     metrics: PlayerLayoutMetrics,
     resizeMode: PlayerResizeMode,
     isLocked: Boolean,
-    useLegacyLayout: Boolean = false,
-    showRemainingTime: Boolean = false,
-    onRuntimeClick: () -> Unit = {},
-    releaseInfo: String? = null,
-    badges: List<StreamBadge> = emptyList(),
-    hideDetails: Boolean = false,
-    onNextEpisodeClick: (() -> Unit)? = null,
-    onInteraction: () -> Unit = {},
     showPlaybackControls: Boolean = true,
     showDeviceStatusOverlay: Boolean = false,
     showClockEndTime: Boolean = false,
     onLockToggle: () -> Unit,
     onBack: () -> Unit,
-    onPartyClick: (() -> Unit)? = null,
-    partyActive: Boolean = false,
     onTogglePlayback: () -> Unit,
     onSeekBack: () -> Unit,
     onSeekForward: () -> Unit,
@@ -174,8 +141,6 @@ internal fun PlayerControlsShell(
     onOpenInExternalPlayer: (() -> Unit)? = null,
     onSwitchEngineClick: (() -> Unit)? = null,
     onSubmitIntroClick: (() -> Unit)? = null,
-    onSwitchEngineClick: (() -> Unit)? = null,
-    onStreamInfoClick: () -> Unit = {},
     parentalWarnings: List<ParentalWarning> = emptyList(),
     showParentalGuide: Boolean = false,
     onParentalGuideAnimationComplete: () -> Unit = {},
@@ -183,13 +148,6 @@ internal fun PlayerControlsShell(
     onScrubFinished: (Long) -> Unit,
     horizontalSafePadding: androidx.compose.ui.unit.Dp,
     modifier: Modifier = Modifier,
-    seekPreview: SeekPreviewController? = null,
-    onTimelineTouchChange: (Boolean) -> Unit = {},
-    foldLayout: Boolean = false,
-    gestureController: PlayerGestureController? = null,
-    onWake: () -> Unit = {},
-    titleLogo: String? = null,
-    showTitleLogo: Boolean = false,
 ) {
     val showQuietDeviceStatusOverlay = showDeviceStatusOverlay &&
         !showPlaybackControls &&
@@ -237,7 +195,9 @@ internal fun PlayerControlsShell(
         }
 
         Box(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = horizontalSafePadding),
         ) {
             if (showPlaybackControls || showParentalGuide) {
                 PlayerHeader(
@@ -300,89 +260,21 @@ internal fun PlayerControlsShell(
                     skipBackwardSeconds = skipBackwardSeconds,
                     skipForwardSeconds = skipForwardSeconds,
                     modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .fillMaxWidth()
-                        .windowInsetsPadding(playerToolbarTopInsets(metrics))
-                        .padding(horizontal = metrics.horizontalPadding),
-                )
-            } else {
-                if (showPlaybackControls) {
-                    PlayerToolbar(
-                        isLocked = isLocked,
-                        onLockToggle = onLockToggle,
-                        onBack = onBack,
-                        onCastClick = onCastClick,
-                        isCasting = isCasting,
-                        onPartyClick = onPartyClick,
-                        partyActive = partyActive,
-                        onOrientationToggleClick = onOrientationToggleClick,
-                        isPortraitPlayback = isPortraitPlayback,
-                        onPictureInPictureClick = onPictureInPictureClick,
-                        onDiscTitlesClick = onDiscTitlesClick,
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .windowInsetsPadding(playerToolbarTopInsets(metrics))
-                            .padding(horizontal = metrics.horizontalPadding),
-                    )
-                }
-                ParentalGuideOverlay(
-                    warnings = parentalWarnings,
-                    isVisible = showParentalGuide,
-                    onAnimationComplete = onParentalGuideAnimationComplete,
-                    contentPadding = PaddingValues(
-                        horizontal = metrics.horizontalPadding + playerTextCutoutPadding(metrics),
-                        vertical = metrics.verticalPadding,
-                    ),
-                    modifier = Modifier.align(Alignment.TopStart),
+                        .align(Alignment.Center)
+                        .padding(bottom = metrics.centerLift),
                 )
             }
 
             if (showPlaybackControls) {
-                CompositionLocalProvider(
-                    LocalLayoutDirection provides if (useLegacyLayout) LocalLayoutDirection.current else LayoutDirection.Ltr,
-                ) {
-                    CenterControls(
-                        snapshot = playbackSnapshot,
-                        metrics = metrics,
-                        skipBackwardSeconds = skipBackwardSeconds,
-                        skipForwardSeconds = skipForwardSeconds,
-                        showSkipButtons = showSkipButtons,
-                        onSeekBack = {
-                            if (!useLegacyLayout) onInteraction()
-                            onSeekBack()
-                        },
-                        onSeekForward = {
-                            if (!useLegacyLayout) onInteraction()
-                            onSeekForward()
-                        },
-                        onTogglePlayback = {
-                            if (!useLegacyLayout) onInteraction()
-                            onTogglePlayback()
-                        },
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                            .padding(bottom = centerBottomPadding),
-                    )
-                }
-            }
-
-            if (showPlaybackControls && useLegacyLayout) {
                 ProgressControls(
                     playbackSnapshot = playbackSnapshot,
                     displayedPositionMs = displayedPositionMs,
                     metrics = metrics,
-                    showRemainingTime = showRemainingTime,
-                    onRuntimeClick = onRuntimeClick,
                     resizeMode = resizeMode,
                     onScrubChange = onScrubChange,
                     onScrubFinished = onScrubFinished,
                     onResizeModeClick = onResizeModeClick,
                     onSpeedClick = onSpeedClick,
-                    speedPickerVisible = speedPickerVisible,
-                    onSpeedSelected = onSpeedSelected,
-                    onSpeedPickerDismiss = onSpeedPickerDismiss,
-                    nightModeEnabled = nightModeEnabled,
-                    onNightModeClick = onNightModeClick,
                     onSubtitleClick = onSubtitleClick,
                     onSubtitleSyncClick = onSubtitleSyncClick,
                     onAudioClick = onAudioClick,
@@ -398,106 +290,9 @@ internal fun PlayerControlsShell(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
-                        .windowInsetsPadding(playerTimelineBottomInsets(metrics))
-                        .padding(horizontal = metrics.horizontalPadding),
+                        .padding(horizontal = metrics.horizontalPadding)
+                        .padding(bottom = metrics.sliderBottomOffset),
                 )
-            }
-            if (showPlaybackControls && !useLegacyLayout) {
-                Column(
-                    modifier = Modifier
-                        .onSizeChanged { size -> timelineHeight = with(density) { size.height.toDp() } }
-                        .align(Alignment.BottomCenter)
-                        .fillMaxWidth()
-                        .windowInsetsPadding(playerTimelineBottomInsets(metrics))
-                        .padding(horizontal = metrics.horizontalPadding),
-                ) {
-                    if (!hideDetails) {
-                        PlayerTimelineDetails(
-                            modifier = Modifier.padding(horizontal = playerTextCutoutPadding(metrics)),
-                            title = title,
-                            titleLogo = titleLogo,
-                            showTitleLogo = showTitleLogo,
-                            seasonNumber = seasonNumber,
-                            episodeNumber = episodeNumber,
-                            episodeTitle = episodeTitle,
-                            releaseInfo = releaseInfo,
-                            metrics = metrics,
-                            badges = badges,
-                            animeEnhancement = playbackSnapshot.animeEnhancement,
-                        )
-                    }
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = playerTextCutoutPadding(metrics)),
-                        verticalAlignment = Alignment.Bottom,
-                    ) {
-                        Box(modifier = Modifier.weight(1f)) {
-                            PlayerChapterLabel(
-                                chapters = chapters,
-                                positionMs = displayedPositionMs,
-                                metrics = metrics,
-                                onClick = onChaptersClick?.let { openChapters ->
-                                    {
-                                        onInteraction()
-                                        openChapters()
-                                    }
-                                },
-                            )
-                        }
-                        PlayerEndTimeLabel(
-                            positionMs = displayedPositionMs,
-                            durationMs = playbackSnapshot.durationMs,
-                            playbackSpeed = playbackSnapshot.playbackSpeed,
-                            isPlaying = playbackSnapshot.isPlaying,
-                            metrics = metrics,
-                        )
-                    }
-                    PlayerTimeline(
-                        snapshot = playbackSnapshot,
-                        displayedPositionMs = displayedPositionMs,
-                        onScrubChange = onScrubChange,
-                        onScrubFinished = {
-                            onInteraction()
-                            onScrubFinished(it)
-                        },
-                        seekPreview = seekPreview,
-                        onTouchChange = onTimelineTouchChange,
-                        chapters = chapters,
-                    )
-                    PlayerControlActions(
-                        playbackSnapshot = playbackSnapshot,
-                        displayedPositionMs = displayedPositionMs,
-                        showRemainingTime = showRemainingTime,
-                        onRuntimeClick = onRuntimeClick,
-                        metrics = metrics,
-                        resizeMode = resizeMode,
-                        onSubtitleClick = { onSubtitleClick?.invoke() },
-                        onAudioClick = { onAudioClick?.invoke() },
-                        onSourcesClick = onSourcesClick,
-                        onEpisodesClick = onEpisodesClick,
-                        onChaptersClick = onChaptersClick,
-                        onNextEpisodeClick = onNextEpisodeClick,
-                        onSpeedClick = { onSpeedClick?.invoke() },
-                        speedPickerVisible = speedPickerVisible,
-                        onSpeedSelected = onSpeedSelected,
-                        onSpeedPickerDismiss = onSpeedPickerDismiss,
-                        nightModeEnabled = nightModeEnabled,
-                        onNightModeClick = onNightModeClick,
-                        onResizeModeClick = onResizeModeClick,
-                        onVideoSettingsClick = onVideoSettingsClick,
-                        onOpenInExternalPlayer = onOpenInExternalPlayer,
-                        onStreamInfoClick = onStreamInfoClick,
-                        onSubmitIntroClick = onSubmitIntroClick,
-                        qualityLabel = qualityLabel,
-                        onQualityClick = onQualityClick,
-                        onSwitchEngineClick = onSwitchEngineClick,
-                        onInfoClick = onInfoClick,
-                        onRateClick = onRateClick,
-                        userRating = userRating,
-                        onInteraction = onInteraction,
-                    )
-                }
             }
         }
     }
@@ -719,8 +514,6 @@ private fun PlayerBatteryGlyph(
 @Composable
 private fun PlayerHeader(
     title: String,
-    titleLogo: String?,
-    showTitleLogo: Boolean,
     streamTitle: String,
     providerName: String,
     seasonNumber: Int?,
@@ -766,28 +559,24 @@ private fun PlayerHeader(
                     modifier = Modifier.graphicsLayer { alpha = metadataAlpha },
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    PlayerTitleArtwork(
-                        title = title,
-                        logoUrl = titleLogo,
-                        showLogo = showTitleLogo,
-                        textStyle = typeScale.titleLg.copy(
+                    Text(
+                        text = title,
+                        style = typeScale.titleLg.copy(
                             fontSize = metrics.titleSize,
                             lineHeight = metrics.titleSize * 1.16f,
                             fontWeight = FontWeight.Bold,
                         ),
-                        textColor = Color.White,
+                        color = Color.White,
                         maxLines = 2,
-                        maxLogoHeight = metrics.titleLogoMaxHeight,
-                        maxLogoWidth = metrics.logoMaxWidth,
+                        overflow = TextOverflow.Ellipsis,
                     )
                     if (seasonNumber != null && episodeNumber != null && !episodeTitle.isNullOrBlank()) {
-                        val displayEpisodeTitle = localizedEpisodeTitle(episodeTitle, episodeNumber) ?: episodeTitle
                         Text(
                             text = stringResource(
                                 Res.string.compose_player_episode_title_format,
                                 seasonNumber,
                                 episodeNumber,
-                                displayEpisodeTitle,
+                                episodeTitle,
                             ),
                             style = typeScale.bodyMd.copy(
                                 fontSize = metrics.episodeInfoSize,
@@ -932,16 +721,14 @@ private fun PlayerHeader(
     }
 }
 
-
 @Composable
-internal fun PlayerHeaderIconButton(
+private fun PlayerHeaderIconButton(
     icon: ImageVector,
     contentDescription: String,
     buttonSize: androidx.compose.ui.unit.Dp,
     iconSize: androidx.compose.ui.unit.Dp,
     selected: Boolean = false,
     onClick: () -> Unit,
-    tint: Color = Color.White,
 ) {
     val glassEnabled = LocalPlayerLiquidGlassEnabled.current
     Box(
@@ -957,7 +744,7 @@ internal fun PlayerHeaderIconButton(
         Icon(
             imageVector = icon,
             contentDescription = contentDescription,
-            tint = tint,
+            tint = Color.White,
             modifier = Modifier.size(iconSize),
         )
     }
@@ -973,9 +760,6 @@ private fun CenterControls(
     skipBackwardSeconds: Int = PLAYER_SKIP_SECONDS_DEFAULT,
     skipForwardSeconds: Int = PLAYER_SKIP_SECONDS_DEFAULT,
     modifier: Modifier = Modifier,
-    skipBackwardSeconds: Int = PLAYER_SKIP_SECONDS_DEFAULT,
-    skipForwardSeconds: Int = PLAYER_SKIP_SECONDS_DEFAULT,
-    showSkipButtons: Boolean = true,
 ) {
     Row(
         modifier = modifier,
@@ -1059,7 +843,7 @@ private fun SkipStepIcon(seconds: Int, forward: Boolean, size: androidx.compose.
 }
 
 @Composable
-internal fun PlayPauseControlButton(
+private fun PlayPauseControlButton(
     isPlaying: Boolean,
     isBuffering: Boolean,
     metrics: PlayerLayoutMetrics,
@@ -1079,6 +863,7 @@ internal fun PlayPauseControlButton(
     ) {
         if (isBuffering) {
             NuvioLoadingIndicator(
+                color = Color.White,
                 modifier = Modifier.size(metrics.playIconSize),
             )
         } else {
@@ -1101,8 +886,6 @@ private fun ProgressControls(
     playbackSnapshot: PlayerPlaybackSnapshot,
     displayedPositionMs: Long,
     metrics: PlayerLayoutMetrics,
-    showRemainingTime: Boolean = false,
-    onRuntimeClick: () -> Unit = {},
     resizeMode: PlayerResizeMode,
     onScrubChange: (Long) -> Unit,
     onScrubFinished: (Long) -> Unit,
@@ -1129,7 +912,6 @@ private fun ProgressControls(
     val aspectRatioPainter = appIconPainter(AppIconResource.PlayerAspectRatio)
     val subtitlesPainter = appIconPainter(AppIconResource.PlayerSubtitles)
     val audioPainter = appIconPainter(AppIconResource.PlayerAudioFilled)
-    val sourcesPainter = appIconPainter(AppIconResource.PlayerSource)
 
     Column(modifier = modifier) {
         PlayerChapterLabel(
@@ -1342,8 +1124,6 @@ internal fun LockedPlayerOverlay(
     metrics: PlayerLayoutMetrics,
     horizontalSafePadding: androidx.compose.ui.unit.Dp,
     onUnlock: () -> Unit,
-    useLegacyLayout: Boolean = false,
-    showRemainingTime: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val seekableDurationMs = playbackSnapshot.durationMs.takeIf { it > 0L }
@@ -1382,11 +1162,9 @@ internal fun LockedPlayerOverlay(
             Box(
                 modifier = Modifier
                     .size(78.dp)
-                    .playerLiquidGlass(
-                        shape = CircleShape,
-                        refractionHeight = 10.dp,
-                        refractionAmount = 14.dp,
-                    )
+                    .clip(CircleShape)
+                    .background(Color.Black.copy(alpha = 0.52f))
+                    .border(1.dp, Color.White.copy(alpha = 0.18f), CircleShape)
                     .clickable(onClick = onUnlock),
                 contentAlignment = Alignment.Center,
             ) {
@@ -1443,8 +1221,6 @@ internal fun LockedPlayerOverlay(
 private fun TimePill(
     text: String,
     fontSize: androidx.compose.ui.unit.TextUnit,
-    glass: Boolean = true,
-    modifier: Modifier = Modifier,
 ) {
     val glassEnabled = LocalPlayerLiquidGlassEnabled.current
     Box(

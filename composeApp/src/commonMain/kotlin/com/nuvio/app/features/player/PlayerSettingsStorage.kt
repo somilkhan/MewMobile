@@ -3,14 +3,6 @@ package com.nuvio.app.features.player
 import kotlinx.serialization.json.JsonObject
 
 internal expect object PlayerSettingsStorage {
-    fun loadPendingExternalPlayback(): String?
-    fun savePendingExternalPlayback(value: String?)
-    fun loadPlaybackBrightness(): Float?
-    fun savePlaybackBrightness(level: Float)
-    fun loadUseLegacyPlayerLayout(): Boolean?
-    fun saveUseLegacyPlayerLayout(enabled: Boolean)
-    fun loadShowPlayerTitleLogo(): Boolean?
-    fun saveShowPlayerTitleLogo(enabled: Boolean)
     fun loadShowLoadingOverlay(): Boolean?
     fun loadPauseOverlayEnabled(): Boolean?
     fun savePauseOverlayEnabled(enabled: Boolean)
@@ -31,18 +23,6 @@ internal expect object PlayerSettingsStorage {
     fun loadToolbarLayout(): String?
     fun saveToolbarLayout(layout: String)
     fun saveShowLoadingOverlay(enabled: Boolean)
-    fun loadAutoSwitchPlaybackEngineOnError(): Boolean?
-    fun saveAutoSwitchPlaybackEngineOnError(enabled: Boolean)
-    fun loadStreamAutoPlayFallbackOnFailure(): Boolean?
-    fun saveStreamAutoPlayFallbackOnFailure(enabled: Boolean)
-    fun loadStreamAutoPlayFallbackMaxSources(): Int?
-    fun saveStreamAutoPlayFallbackMaxSources(count: Int)
-    fun loadStreamAutoPlayFallbackStartupTimeoutSeconds(): Int?
-    fun saveStreamAutoPlayFallbackStartupTimeoutSeconds(seconds: Int)
-    fun loadShowPlayerLoadingStatus(): Boolean?
-    fun saveShowPlayerLoadingStatus(enabled: Boolean)
-    fun loadPauseOverlayEnabled(): Boolean?
-    fun savePauseOverlayEnabled(enabled: Boolean)
     fun loadShowParentalGuide(): Boolean?
     fun saveShowParentalGuide(enabled: Boolean)
     fun loadResizeMode(): String?
@@ -51,18 +31,6 @@ internal expect object PlayerSettingsStorage {
     fun saveHoldToSpeedEnabled(enabled: Boolean)
     fun loadHoldToSpeedValue(): Float?
     fun saveHoldToSpeedValue(speed: Float)
-    fun loadSkipBackwardSeconds(): Int?
-    fun saveSkipBackwardSeconds(seconds: Int)
-    fun loadSkipIntroOffsetSeconds(): Int?
-    fun saveSkipIntroOffsetSeconds(seconds: Int)
-    fun loadSkipForwardSeconds(): Int?
-    fun saveSkipForwardSeconds(seconds: Int)
-    fun loadToolbarLayout(): String?
-    fun saveToolbarLayout(layout: String)
-    fun loadLegacyBottomButtons(): String?
-    fun saveLegacyBottomButtons(layout: String)
-    fun loadLegacyTopButtons(): String?
-    fun saveLegacyTopButtons(layout: String)
     fun loadTouchGesturesEnabled(): Boolean?
     fun saveTouchGesturesEnabled(enabled: Boolean)
     fun loadRememberPlayerBrightnessEnabled(): Boolean?
@@ -91,8 +59,6 @@ internal expect object PlayerSettingsStorage {
     fun saveSubtitleTextColor(colorHex: String)
     fun loadSubtitleBackgroundColor(): String?
     fun saveSubtitleBackgroundColor(colorHex: String)
-    fun loadSubtitleAppearance(): String?
-    fun saveSubtitleAppearance(value: String)
     fun loadSubtitleOutlineColor(): String?
     fun saveSubtitleOutlineColor(colorHex: String)
     fun loadSubtitleOutlineEnabled(): Boolean?
@@ -115,12 +81,12 @@ internal expect object PlayerSettingsStorage {
     fun saveSubtitleCustomFontPath(fontPath: String?)
     fun loadSubtitleBottomOffset(): Int?
     fun saveSubtitleBottomOffset(bottomOffset: Int)
-    fun loadSubtitleStripSdh(): Boolean?
-    fun saveSubtitleStripSdh(enabled: Boolean)
     fun loadSubtitleUseForcedSubtitles(): Boolean?
     fun saveSubtitleUseForcedSubtitles(enabled: Boolean)
     fun loadSubtitleShowOnlyPreferredLanguages(): Boolean?
     fun saveSubtitleShowOnlyPreferredLanguages(enabled: Boolean)
+    fun loadAddonSubtitleStartupMode(): String?
+    fun saveAddonSubtitleStartupMode(mode: String)
     fun loadStreamReuseLastLinkEnabled(): Boolean?
     fun saveStreamReuseLastLinkEnabled(enabled: Boolean)
     fun loadStreamReuseLastLinkCacheHours(): Int?
@@ -132,10 +98,6 @@ internal expect object PlayerSettingsStorage {
     fun loadAndroidLibmpvHardwareDecodingEnabled(): Boolean?
     fun saveAndroidLibmpvHardwareDecodingEnabled(enabled: Boolean)
     fun loadAndroidLibmpvYuv420pEnabled(): Boolean?
-    fun loadAndroidAnimeUpscaleEnabled(): Boolean?
-    fun loadAndroidAnimeLineSharpenEnabled(): Boolean?
-    fun loadAndroidExoChaptersEnabled(): Boolean?
-    fun loadChapterTitleEnabled(): Boolean?
     fun saveAndroidLibmpvYuv420pEnabled(enabled: Boolean)
     fun loadAndroidMemorySafeBufferEnabled(): Boolean?
     fun saveAndroidMemorySafeBufferEnabled(enabled: Boolean)
@@ -167,34 +129,6 @@ internal expect object PlayerSettingsStorage {
     fun saveMapDV7ToHevc(enabled: Boolean)
     fun loadTunnelingEnabled(): Boolean?
     fun saveTunnelingEnabled(enabled: Boolean)
-    fun loadAndroidAudioPassthroughEnabled(): Boolean?
-    fun saveAndroidAudioPassthroughEnabled(enabled: Boolean)
-    fun loadNightModeButtonEnabled(): Boolean?
-    fun saveNightModeButtonEnabled(enabled: Boolean)
-    fun loadNightModeEnabled(): Boolean?
-    fun saveNightModeEnabled(enabled: Boolean)
-    fun loadExoNativeMemoryEnabled(): Boolean?
-    fun saveExoNativeMemoryEnabled(value: Boolean)
-    fun loadCustomPlaybackBuffersEnabled(): Boolean?
-    fun saveCustomPlaybackBuffersEnabled(value: Boolean)
-    fun loadVodDiskCacheEnabled(): Boolean?
-    fun saveVodDiskCacheEnabled(value: Boolean)
-    fun loadVodDiskCacheAutoSize(): Boolean?
-    fun saveVodDiskCacheAutoSize(value: Boolean)
-    fun loadPlaybackMinBufferSeconds(): Int?
-    fun savePlaybackMinBufferSeconds(value: Int)
-    fun loadPlaybackMaxBufferSeconds(): Int?
-    fun savePlaybackMaxBufferSeconds(value: Int)
-    fun loadPlaybackStartBufferSeconds(): Int?
-    fun savePlaybackStartBufferSeconds(value: Int)
-    fun loadPlaybackRebufferSeconds(): Int?
-    fun savePlaybackRebufferSeconds(value: Int)
-    fun loadPlaybackBackBufferSeconds(): Int?
-    fun savePlaybackBackBufferSeconds(value: Int)
-    fun loadPlaybackTargetBufferMb(): Int?
-    fun savePlaybackTargetBufferMb(value: Int)
-    fun loadVodDiskCacheSizeMb(): Int?
-    fun saveVodDiskCacheSizeMb(value: Int)
     fun loadStreamAutoPlayMode(): String?
     fun saveStreamAutoPlayMode(mode: String)
     fun loadStreamAutoPlaySource(): String?
@@ -208,12 +142,6 @@ internal expect object PlayerSettingsStorage {
     fun loadStreamAutoPlayTimeoutSeconds(): Int?
     fun saveStreamAutoPlayTimeoutSeconds(seconds: Int)
     fun loadSkipIntroEnabled(): Boolean?
-    fun loadAutoSkipMovieCredits(): Boolean?
-    fun loadAutoSkipSegmentTypes(): Set<String>?
-    fun saveAutoSkipSegmentTypes(types: Set<String>)
-    fun saveAutoSkipMovieCredits(enabled: Boolean)
-    fun loadAutoSkipPostCredits(): Boolean?
-    fun saveAutoSkipPostCredits(enabled: Boolean)
     fun saveSkipIntroEnabled(enabled: Boolean)
     fun loadAnimeSkipEnabled(): Boolean?
     fun saveAnimeSkipEnabled(enabled: Boolean)
@@ -244,22 +172,10 @@ internal expect object PlayerSettingsStorage {
     fun saveNextEpisodeThresholdPercent(percent: Float)
     fun loadNextEpisodeThresholdMinutesBeforeEnd(): Float?
     fun saveNextEpisodeThresholdMinutesBeforeEnd(minutes: Float)
-    fun loadPreloadNextEpisodeSources(): Boolean?
-    fun savePreloadNextEpisodeSources(enabled: Boolean)
-    fun loadMiniPlayerEnabled(): Boolean?
-    fun saveMiniPlayerEnabled(enabled: Boolean)
-    fun loadPrivateViewingEnabled(): Boolean?
-    fun savePrivateViewingEnabled(enabled: Boolean)
     fun loadUseLibass(): Boolean?
     fun saveUseLibass(enabled: Boolean)
     fun loadLibassRenderType(): String?
     fun saveLibassRenderType(renderType: String)
-    fun loadUseLibmpvAss(): Boolean?
-    fun saveUseLibmpvAss(enabled: Boolean)
-    fun loadLibassRenderScale(): String?
-    fun saveLibassRenderScale(scale: String)
-    fun loadLibassRenderMode(): String?
-    fun saveLibassRenderMode(mode: String)
     fun loadIosVideoOutputPreset(): String?
     fun saveIosVideoOutputPreset(preset: String)
     fun loadIosToneMappingMode(): String?
@@ -290,7 +206,6 @@ internal expect object PlayerSettingsStorage {
     fun saveIosSaturation(value: Int)
     fun loadIosGamma(): Int?
     fun saveIosGamma(value: Int)
-    fun migrateLegacySubtitlePreferencesToDeviceStore()
     fun exportToSyncPayload(): JsonObject
     fun replaceFromSyncPayload(payload: JsonObject)
 }

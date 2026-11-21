@@ -3,7 +3,6 @@ package com.nuvio.app.features.home
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -31,25 +30,24 @@ internal object HomeCatalogParser {
         val metas = root.array("metas")
         val parsedItems = buildList {
             val seenKeys = mutableSetOf<String>()
-            for (element in metas) {
-                if (maxItems != null && size >= maxItems) break
+            metas.forEach { element ->
+                if (maxItems != null && size >= maxItems) return@forEach
 
-                val meta = element as? JsonObject ?: continue
+                val meta = element as? JsonObject ?: return@forEach
                 val id = meta.string("id")
                 val type = meta.string("type")
                 val name = meta.string("name")
 
                 if (id.isNullOrBlank() || type.isNullOrBlank() || name.isNullOrBlank()) {
-                    continue
+                    return@forEach
                 }
 
-                val landscapePoster = meta.string("landscapePoster")?.takeIf { it.isNotBlank() }
                 val item = MetaPreview(
                     id = id,
                     type = type,
                     name = name,
                     poster = meta.string("poster"),
-                    banner = meta.string("banner") ?: meta.string("background") ?: landscapePoster,
+                    banner = meta.string("banner") ?: meta.string("background"),
                     logo = meta.string("logo"),
                     posterShape = meta.string("posterShape").toPosterShape(),
                     description = meta.string("description") ?: meta.string("overview"),
@@ -59,9 +57,6 @@ internal object HomeCatalogParser {
                     genres = meta.array("genres").mapNotNull { genre ->
                         genre.jsonPrimitive.contentOrNull?.takeIf { it.isNotBlank() }
                     },
-                    landscapePoster = landscapePoster,
-                    runtime = meta.string("runtime")?.trim()?.takeIf { it.isNotBlank() },
-                    status = meta.string("status")?.trim()?.takeIf { it.isNotBlank() },
                 )
                 if (seenKeys.add(item.stableKey())) {
                     add(item)
@@ -75,7 +70,7 @@ internal object HomeCatalogParser {
     }
 
     private fun JsonObject.string(name: String): String? =
-        (this[name] as? JsonPrimitive)?.contentOrNull
+        this[name]?.jsonPrimitive?.contentOrNull
 
     private fun JsonObject.array(name: String): JsonArray =
         this[name] as? JsonArray ?: JsonArray(emptyList())

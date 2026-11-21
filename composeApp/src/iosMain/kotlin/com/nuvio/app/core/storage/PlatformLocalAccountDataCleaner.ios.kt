@@ -6,14 +6,12 @@ import platform.Foundation.NSUserDefaults
 import platform.Foundation.NSFileManager
 import platform.Foundation.NSHomeDirectory
 import com.nuvio.app.features.profiles.MAX_PROFILES
-import com.nuvio.app.core.storage.ProfileScopedKey
 
 internal actual object PlatformLocalAccountDataCleaner {
     private val plainKeys = listOf(
         "profile_payload",
         "avatar_catalog_payload",
         "anonymous_user_id",
-        "member_access_payload",
     )
     private val profilePinCachePrefixes = listOf("profile_pin_cache_")
     private val profileIndexedPrefixes = listOf(
@@ -28,9 +26,7 @@ internal actual object PlatformLocalAccountDataCleaner {
         "watch_progress_payload_",
     )
     private val profileScopedBaseKeys = listOf(
-        "episode_shuffle",
         "catalog_settings_payload",
-        "discover_catalog_key",
         "continue_watching_preferences_payload",
         "poster_card_style_payload",
         "episode_release_notifications_payload",
@@ -88,7 +84,6 @@ internal actual object PlatformLocalAccountDataCleaner {
         "trakt_library_payload",
         "trakt_settings_payload",
         "library_display_settings_payload",
-        "library_release_schedule_payload",
         "pending_watch_progress_source",
         "collection_mobile_settings_payload",
         "collections_payload",
@@ -96,8 +91,6 @@ internal actual object PlatformLocalAccountDataCleaner {
 
     actual fun wipe() {
         val defaults = NSUserDefaults.standardUserDefaults
-
-        com.nuvio.app.features.downloads.DownloadsStorage.clearUnfinishedDownloads()
 
         plainKeys.forEach(defaults::removeObjectForKey)
 
@@ -126,10 +119,6 @@ internal actual object PlatformLocalAccountDataCleaner {
         val scraperCodePath = "${NSHomeDirectory()}/Library/Application Support/nuvio_plugin_scrapers"
         if (NSFileManager.defaultManager.fileExistsAtPath(scraperCodePath)) {
             NSFileManager.defaultManager.removeItemAtPath(scraperCodePath, null)
-        }
-        val membershipPath = "${NSHomeDirectory()}/Library/Application Support/NuvioMembership"
-        if (NSFileManager.defaultManager.fileExistsAtPath(membershipPath)) {
-            NSFileManager.defaultManager.removeItemAtPath(membershipPath, null)
         }
     }
 }

@@ -374,8 +374,8 @@
     <string name="compose_player_color">Renk</string>
     <string name="compose_player_currently_playing">Şu an oynatılıyor</string>
     <string name="compose_player_episode_code_episode_only">B%1$d</string>
-    <string name="compose_player_episode_code_full">S%1$d B%2$d</string>
-    <string name="compose_player_episode_title_format">S%1$d B%2$d • %3$s</string>
+    <string name="compose_player_episode_code_full">S%1$dB%2$d</string>
+    <string name="compose_player_episode_title_format">S%1$dB%2$d • %3$s</string>
     <string name="compose_player_episodes">Bölümler</string>
     <string name="compose_player_font_size">Yazı boyutu</string>
     <string name="compose_player_font_family">Altyazı fontu</string>
@@ -968,6 +968,11 @@
     <string name="settings_playback_regex_preset_quality_720p_smaller">720p / Daha küçük</string>
     <string name="settings_playback_regex_preset_web_sources">WEB kaynakları</string>
     <string name="settings_playback_render_type">Gösterim tipi</string>
+    <string name="settings_playback_render_type_cues">Standart (Cues)</string>
+    <string name="settings_playback_render_type_effects_canvas">Efekt Canvas</string>
+    <string name="settings_playback_render_type_effects_opengl">Efekt OpenGL</string>
+    <string name="settings_playback_render_type_overlay_canvas">Overlay Canvas</string>
+    <string name="settings_playback_render_type_overlay_opengl">Overlay OpenGL</string>
     <string name="settings_playback_reuse_last_link">Son bağlantıyı tekrar kullan</string>
     <string name="settings_playback_reuse_last_link_description">Önbellek hâlâ geçerliyse aynı film/bölüm için son çalışan yayını otomatik oynat.</string>
     <string name="settings_playback_secondary_audio_language">İkinci ses dili</string>
@@ -1019,8 +1024,11 @@
     <string name="player_status_time_left">%1$s kaldı</string>
     <string name="settings_playback_tunneled_playback">Tunneled oynatma</string>
     <string name="settings_playback_tunneled_playback_description">Daha düşük gecikmeli ses/video senkronu için tunneled oynatmayı aç.</string>
+    <string name="settings_tmdb_add_api_key_first">Zenginleştirmeyi açmadan önce aşağıya kendi TMDB API anahtarını ekle.</string>
+    <string name="settings_tmdb_api_key_label">TMDB API anahtarı</string>
     <string name="settings_tmdb_enable_enrichment">TMDB zenginleştirmeyi aç</string>
-    <string name="settings_tmdb_enable_enrichment_description">Eklenti verilerini geliştirmek için TMDB'yi bir meta veri kaynağı olarak kullanın</string>
+    <string name="settings_tmdb_enable_enrichment_description">TMDB veya IMDb ID'si varsa detay ekranındaki eklenti meta verilerini TMDB API anahtarınla zenginleştir.</string>
+    <string name="settings_tmdb_enter_api_key">TMDB v3 API anahtarını gir.</string>
     <string name="settings_tmdb_language_code_label">Dil kodu</string>
     <string name="settings_tmdb_module_artwork">Görseller</string>
     <string name="settings_tmdb_module_artwork_description">Arka plan, poster ve logoyu TMDB görselleriyle değiştir.</string>
@@ -1117,7 +1125,7 @@
     <string name="theme_white">Beyaz</string>
     <string name="player_next_episode">Sonraki bölüm</string>
     <string name="player_next_episode_finding_source">Kaynak bulunuyor…</string>
-    <string name="player_next_episode_playing_via_countdown">%1$s üzerinden %2$d sn içinde oynatılıyor…</string>
+    <string name="player_next_episode_playing_via_countdown">%1$s üzerinden %2$d içinde oynatılıyor…</string>
     <string name="player_next_episode_thumbnail">Sonraki bölüm küçük görseli</string>
     <string name="player_next_episode_unaired">Yayınlanmadı</string>
     <string name="player_skip">Geç</string>
@@ -1418,7 +1426,7 @@
     <string name="streams_empty_no_streams_message">Kurulu eklentilerinin hiçbiri bu içerik için yayın döndürmedi.</string>
     <string name="streams_episode_badge">S%1$d B%2$d</string>
     <string name="streams_episode_fallback_title">Bölüm</string>
-    <string name="streams_episode_title_with_name">S%1$d B%2$d - %3$s</string>
+    <string name="streams_episode_title_with_name">S%1$dB%2$d - %3$s</string>
     <string name="streams_fetching">Alınıyor…</string>
     <string name="streams_finding_source">Kaynak bulunuyor…</string>
     <string name="streams_finding_streams">Yayınlar bulunuyor…</string>
@@ -1474,7 +1482,7 @@
     <string name="auth_sign_up_failed">Kayıt olunamadı</string>
     <string name="catalog_load_failed">Katalog öğeleri yüklenemiyor.</string>
     <string name="continue_watching_up_next">Sıradaki</string>
-    <string name="continue_watching_up_next_episode">Sıradaki • S%1$d B%2$d</string>
+    <string name="continue_watching_up_next_episode">Sıradaki • S%1$dB%2$d</string>
     <string name="detail_logo_content_description">%1$s logosu</string>
     <string name="details_comments_load_failed">Yorumlar yüklenemedi</string>
     <string name="details_load_failed_all_addons">Detaylar hiçbir eklentiden yüklenemedi.</string>

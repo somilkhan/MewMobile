@@ -5,6 +5,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -21,12 +23,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.OpenInNew
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.Button
-import com.nuvio.app.core.ui.DialogButton
-import com.nuvio.app.core.ui.DialogButtons
-import com.nuvio.app.core.ui.DialogButtonStyle
-import com.nuvio.app.core.ui.DialogSurface
+import androidx.compose.material3.ButtonDefaults
 import com.nuvio.app.core.ui.NuvioLoadingIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -49,15 +51,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.nuvio.app.core.build.AppFeaturePolicy
 import com.nuvio.app.core.ui.NuvioScreen
 import com.nuvio.app.core.ui.NuvioScreenHeader
 import com.nuvio.app.core.ui.NuvioSurfaceCard
 import com.nuvio.app.features.addons.httpRequestRaw
-import com.nuvio.app.features.membership.MembershipOverviewRepository
 import kotlinx.coroutines.launch
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
@@ -71,8 +69,6 @@ private enum class CommunityTab {
     Supporters,
 }
 
-private const val PatreonMembershipUrl = "https://www.patreon.com/settings/memberships"
-
 private data class CommunityUiState(
     val selectedTab: CommunityTab = CommunityTab.Supporters,
     val isContributorsLoading: Boolean = false,
@@ -82,22 +78,17 @@ private data class CommunityUiState(
     val donationProgress: DonationProgress? = null,
     val isSupportersLoading: Boolean = false,
     val hasLoadedSupporters: Boolean = false,
-    val supporters: List<CommunitySupporter> = emptyList(),
+    val supporters: List<SupporterDonation> = emptyList(),
     val supportersErrorMessage: String? = null,
 )
 
 @Serializable
-private data class LegacyContributionsResponseDto(
+private data class ContributionsResponseDto(
     val contributors: List<ContributionDto> = emptyList(),
 )
 
 @Serializable
 private data class ContributionDto(
-    val login: String? = null,
-    @SerialName("avatar_url") val avatarUrl: String? = null,
-    @SerialName("html_url") val htmlUrl: String? = null,
-    val contributions: Int? = null,
-    // Legacy contributor endpoint fields.
     val name: String? = null,
     val avatar: String? = null,
     val profile: String? = null,
@@ -106,6 +97,7 @@ private data class ContributionDto(
 
 @Serializable
 private data class DonationsResponseDto(
+    val currency: String? = null,
     val monthlyGoal: DonationMonthlyGoalDto? = null,
     val supporterCount: Int? = null,
     val donations: List<DonationDto> = emptyList(),
@@ -138,7 +130,7 @@ internal data class CommunityContributor(
     val totalContributions: Int,
 )
 
-internal data class CommunitySupporter(
+internal data class SupporterDonation(
     val key: String,
     val name: String,
     val date: String,
@@ -180,12 +172,8 @@ internal object SupportersContributorsRepository {
             error(getString(Res.string.community_error_contributors_request_failed))
         }
 
-        val contributors = runCatching {
-            json.decodeFromString<List<ContributionDto>>(response.body)
-        }.getOrElse {
-            json.decodeFromString<LegacyContributionsResponseDto>(response.body).contributors
-        }
-        contributors
+        json.decodeFromString<ContributionsResponseDto>(response.body)
+            .contributors
             .mapNotNull(::normalizeContributor)
             .sortedWith(
                 compareByDescending<CommunityContributor> { it.totalContributions }
@@ -194,14 +182,14 @@ internal object SupportersContributorsRepository {
     }
 
     suspend fun getSupporters(): Result<SupportersResult> = runCatching {
-        val wallUrl = CommunityConfig.SUPPORTERS_WALL_URL.trim()
-        check(wallUrl.isNotBlank()) {
+        val baseUrl = CommunityConfig.DONATIONS_BASE_URL.trim().removeSuffix("/")
+        check(baseUrl.isNotBlank()) {
             getString(Res.string.community_supporters_not_configured)
         }
 
         val response = httpRequestRaw(
             method = "GET",
-            url = wallUrl,
+            url = "$baseUrl/api/donations?view=recent",
             headers = emptyMap(),
             body = "",
         )
@@ -209,15 +197,17 @@ internal object SupportersContributorsRepository {
             error(getString(Res.string.community_error_supporters_request_failed))
         }
 
-        val supporters = json.decodeFromString<SupportersWallResponseDto>(response.body)
-            .top
-            .members
-            .mapNotNull { member ->
-                val name = member.displayName?.trim().orEmpty()
-                if (name.isBlank()) return@mapNotNull null
+        val donationsResponse = json.decodeFromString<DonationsResponseDto>(response.body)
+        val supporters = donationsResponse.donations
+            .mapNotNull { donation ->
+                val name = donation.name?.trim().orEmpty()
+                val date = donation.date?.trim()
+                    ?: donation.createdAt?.trim()
+                    ?: ""
+                if (name.isBlank() || date.isBlank()) return@mapNotNull null
 
-                CommunitySupporter(
-                    key = "${name.lowercase()}-${member.supporterSince.orEmpty()}",
+                SupporterDonation(
+                    key = donation.id?.trim()?.takeIf { it.isNotBlank() } ?: "${name.lowercase()}-$date",
                     name = name,
                     date = date,
                     message = donation.message?.trim()?.takeIf { it.isNotBlank() },
@@ -226,8 +216,9 @@ internal object SupportersContributorsRepository {
                     sortTimestamp = supporterSortTimestamp(date),
                 )
             }
-            .mapIndexed { index, supporter ->
-                supporter.copy(key = "${supporter.key}#$index")
+            .sortedByDescending { it.sortTimestamp }
+            .mapIndexed { index, donation ->
+                donation.copy(key = "${donation.key}#$index")
             }
 
         val progress = donationsResponse.monthlyGoal
@@ -251,36 +242,27 @@ internal object SupportersContributorsRepository {
         )
     }
 
-    private suspend fun getDonationProgress(): DonationProgress? = runCatching {
-        val baseUrl = CommunityConfig.DONATIONS_BASE_URL.trim().removeSuffix("/")
-        if (baseUrl.isBlank()) return@runCatching null
-
-        val response = httpRequestRaw(
-            method = "GET",
-            url = "$baseUrl/api/donations?view=recent",
-            headers = emptyMap(),
-            body = "",
-        )
-        if (response.status !in 200..299) return@runCatching null
-
-        json.decodeFromString<DonationsResponseDto>(response.body)
-            .monthlyGoal
-            ?.progressPercent
-            ?.toDonationProgressPercent()
-            ?.let { percent -> DonationProgress(progressPercent = percent) }
-    }.getOrNull()
-
     private fun normalizeContributor(dto: ContributionDto): CommunityContributor? {
-        val login = (dto.login ?: dto.name)?.trim().orEmpty()
-        val contributions = dto.contributions ?: dto.total ?: 0
+        val login = dto.name?.trim().orEmpty()
+        val contributions = dto.total ?: 0
         if (login.isBlank() || contributions <= 0) return null
 
         return CommunityContributor(
             login = login,
-            avatarUrl = (dto.avatarUrl ?: dto.avatar)?.trim()?.takeIf { it.isNotBlank() },
-            profileUrl = (dto.htmlUrl ?: dto.profile)?.trim()?.takeIf { it.isNotBlank() },
+            avatarUrl = dto.avatar?.trim()?.takeIf { it.isNotBlank() },
+            profileUrl = dto.profile?.trim()?.takeIf { it.isNotBlank() },
             totalContributions = contributions,
         )
+    }
+
+    private fun supporterSortTimestamp(rawDate: String): Long {
+        val datePart = rawDate.substringBefore('T')
+        val parts = datePart.split('-')
+        if (parts.size != 3) return Long.MIN_VALUE
+        val year = parts[0].toLongOrNull() ?: return Long.MIN_VALUE
+        val month = parts[1].toLongOrNull() ?: return Long.MIN_VALUE
+        val day = parts[2].toLongOrNull() ?: return Long.MIN_VALUE
+        return year * 10_000L + month * 100L + day
     }
 
     private fun Double.toDonationProgressPercent(): Int? {
@@ -327,14 +309,10 @@ private fun SupportersContributorsBody(
     val donationsConfigured = remember { CommunityConfig.DONATIONS_BASE_URL.trim().isNotBlank() }
     val contributorsErrorFallback = stringResource(Res.string.community_error_unable_load_contributors)
     val supportersErrorFallback = stringResource(Res.string.community_error_unable_load_supporters)
-    val membershipState by remember {
-        MembershipOverviewRepository.ensureStarted()
-        MembershipOverviewRepository.state
-    }.collectAsStateWithLifecycle()
 
     var uiState by remember { mutableStateOf(CommunityUiState()) }
     var selectedContributor by remember { mutableStateOf<CommunityContributor?>(null) }
-    var selectedSupporter by remember { mutableStateOf<CommunitySupporter?>(null) }
+    var selectedSupporter by remember { mutableStateOf<SupporterDonation?>(null) }
 
     fun loadContributors(force: Boolean) {
         if (uiState.isContributorsLoading) return
@@ -465,16 +443,8 @@ private fun SupportersContributorsBody(
                 null
             },
             onPrimaryAction = contributor.profileUrl?.let { url -> { uriHandler.openUri(url) } },
-            secondaryActionLabel = if (AppFeaturePolicy.donationActionsEnabled && supportUrl != null) {
-                stringResource(Res.string.action_donate)
-            } else {
-                null
-            },
-            onSecondaryAction = if (AppFeaturePolicy.donationActionsEnabled) {
-                supportUrl?.let { url -> { uriHandler.openUri(url) } }
-            } else {
-                null
-            },
+            secondaryActionLabel = if (supportUrl != null) stringResource(Res.string.action_donate) else null,
+            onSecondaryAction = supportUrl?.let { url -> { uriHandler.openUri(url) } },
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -502,7 +472,7 @@ private fun SupportersContributorsBody(
     selectedSupporter?.let { supporter ->
         CommunityDetailsDialog(
             title = supporter.name,
-            subtitle = supporter.supporterSince?.let { formatDonationDate(it) },
+            subtitle = formatDonationDate(supporter.date),
             onDismiss = { selectedSupporter = null },
             primaryActionLabel = supporter.profileUrl?.let {
                 stringResource(Res.string.community_open_profile)
@@ -515,13 +485,13 @@ private fun SupportersContributorsBody(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                CommunityAvatar(
+                NameAvatar(
                     label = supporter.name,
                     imageUrl = supporter.avatarUrl,
                     modifier = Modifier.size(72.dp),
                 )
                 Text(
-                    text = formatMembershipLevel(supporter.membershipLevel),
+                    text = supporter.message ?: stringResource(Res.string.community_no_message_attached),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -613,11 +583,11 @@ private fun ContributorsCard(
 
 @Composable
 private fun SupportersCard(
-    supporters: List<CommunitySupporter>,
+    supporters: List<SupporterDonation>,
     isLoading: Boolean,
     errorMessage: String?,
     onRetry: () -> Unit,
-    onSupporterClick: (CommunitySupporter) -> Unit,
+    onSupporterClick: (SupporterDonation) -> Unit,
 ) {
     NuvioSurfaceCard {
         when {
@@ -680,15 +650,6 @@ private fun ContributorRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            Text(
-                text = stringResource(
-                    Res.string.community_contributor_contributions,
-                    contributor.totalContributions,
-                ),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-            )
         }
         Icon(
             imageVector = Icons.AutoMirrored.Rounded.OpenInNew,
@@ -700,7 +661,7 @@ private fun ContributorRow(
 
 @Composable
 private fun SupporterRow(
-    supporter: CommunitySupporter,
+    supporter: SupporterDonation,
     onClick: () -> Unit,
 ) {
     Row(
@@ -712,7 +673,7 @@ private fun SupporterRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        CommunityAvatar(
+        NameAvatar(
             label = supporter.name,
             imageUrl = supporter.avatarUrl,
             modifier = Modifier.size(54.dp),
@@ -730,18 +691,18 @@ private fun SupporterRow(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = formatMembershipLevel(supporter.membershipLevel),
+                text = formatDonationDate(supporter.date),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            supporter.supporterSince?.let { supporterSince ->
+            supporter.message?.let { message ->
                 Text(
-                    text = formatDonationDate(supporterSince),
+                    text = message,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
@@ -865,6 +826,7 @@ private fun ErrorState(
 }
 
 @Composable
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 private fun CommunityDetailsDialog(
     title: String,
     subtitle: String?,
@@ -875,29 +837,49 @@ private fun CommunityDetailsDialog(
     onSecondaryAction: (() -> Unit)?,
     content: @Composable () -> Unit,
 ) {
-    DialogSurface(
-        onDismissRequest = onDismiss,
-        title = title,
-        message = subtitle?.takeIf(String::isNotBlank),
-    ) {
-        content()
-
-        val hasPrimary = primaryActionLabel != null && onPrimaryAction != null
-        val hasSecondary = secondaryActionLabel != null && onSecondaryAction != null
-        if (hasPrimary || hasSecondary) {
-            DialogButtons {
-                if (secondaryActionLabel != null && onSecondaryAction != null) {
-                    DialogButton(
-                        text = secondaryActionLabel,
-                        onClick = onSecondaryAction,
+    BasicAlertDialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            color = MaterialTheme.colorScheme.surface,
+            shape = RoundedCornerShape(24.dp),
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontWeight = FontWeight.SemiBold,
                     )
+                    subtitle?.takeIf(String::isNotBlank)?.let { text ->
+                        Text(
+                            text = text,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
-                if (primaryActionLabel != null && onPrimaryAction != null) {
-                    DialogButton(
-                        text = primaryActionLabel,
-                        onClick = onPrimaryAction,
-                        style = DialogButtonStyle.Primary,
-                    )
+
+                content()
+
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    if (primaryActionLabel != null && onPrimaryAction != null) {
+                        Button(onClick = onPrimaryAction) {
+                            Text(primaryActionLabel)
+                        }
+                    }
+                    if (secondaryActionLabel != null && onSecondaryAction != null) {
+                        Button(onClick = onSecondaryAction) {
+                            Text(secondaryActionLabel)
+                        }
+                    }
                 }
             }
         }
@@ -911,11 +893,6 @@ private fun contributorSupportLink(login: String): String? = when (login.lowerca
     "crisszollo", "xrissozollo" -> "https://ko-fi.com/crisszollo"
     else -> null
 }
-
-private fun formatMembershipLevel(rawLevel: String): String = rawLevel
-    .split('_')
-    .filter(String::isNotBlank)
-    .joinToString(" ") { word -> word.lowercase().replaceFirstChar { it.titlecase() } }
 
 @Composable
 internal fun formatDonationDate(rawDate: String): String {

@@ -53,7 +53,6 @@ data class NextEpisodeInfo(
     val overview: String?,
     val released: String?,
     val hasAired: Boolean,
-    val isWatched: Boolean,
     val unairedMessage: String?,
 )
 
@@ -61,14 +60,6 @@ enum class NextEpisodeThresholdMode {
     PERCENTAGE,
     MINUTES_BEFORE_END,
 }
-
-@Serializable
-data class ArmEntry(
-    @SerialName("myanimelist") val myanimelist: Int? = null,
-    @SerialName("anilist") val anilist: Int? = null,
-    @SerialName("kitsu") val kitsu: Int? = null,
-    @SerialName("imdb") val imdb: String? = null,
-)
 
 // --- IntroDb API response models ---
 
@@ -80,28 +71,7 @@ data class IntroDbSegmentsResponse(
     @SerialName("intro") val intro: IntroDbSegment? = null,
     @SerialName("recap") val recap: IntroDbSegment? = null,
     @SerialName("outro") val outro: IntroDbSegment? = null,
-    @SerialName("post_credits") val postCredits: IntroDbSegment? = null,
 )
-
-internal fun IntroDbSegmentsResponse.movieSkipIntervals(): List<SkipInterval> {
-    val credits = outro.movieIntervalOrNull("movie-credits")
-    val scene = postCredits.movieIntervalOrNull("post-credits")
-    // End-credit skipping must stop before the post-credits scene, even if data overlaps.
-    val safeCredits = if (credits != null && scene != null &&
-        scene.startTime < credits.endTime && scene.endTime > credits.startTime
-    ) {
-        credits.copy(endTime = scene.startTime).takeIf { it.endTime > it.startTime }
-    } else credits
-    return listOfNotNull(safeCredits, scene)
-}
-
-private fun IntroDbSegment?.movieIntervalOrNull(type: String): SkipInterval? {
-    if (this == null) return null
-    val start = startSec ?: startMs?.let { it / 1000.0 } ?: return null
-    val end = endSec ?: endMs?.let { it / 1000.0 } ?: return null
-    if (!start.isFinite() || !end.isFinite() || start < 0 || end <= start) return null
-    return SkipInterval(start, end, type, "introdb")
-}
 
 @Serializable
 data class IntroDbSegment(
@@ -147,6 +117,16 @@ data class AniSkipInterval(
     @SerialName("endTime") val endTime: Double,
 )
 
+// --- ARM API response models ---
+
+@Serializable
+data class ArmEntry(
+    @SerialName("myanimelist") val myanimelist: Int? = null,
+    @SerialName("anilist") val anilist: Int? = null,
+    @SerialName("kitsu") val kitsu: Int? = null,
+    @SerialName("imdb") val imdb: String? = null,
+)
+
 // --- Anime-Skip GraphQL API response models ---
 
 @Serializable
@@ -169,7 +149,6 @@ data class AnimeSkipShow(
 data class AnimeSkipEpisode(
     @SerialName("season") val season: String? = null,
     @SerialName("number") val number: String? = null,
-    @SerialName("baseDuration") val baseDuration: Double? = null,
     @SerialName("timestamps") val timestamps: List<AnimeSkipTimestamp>? = null,
 )
 

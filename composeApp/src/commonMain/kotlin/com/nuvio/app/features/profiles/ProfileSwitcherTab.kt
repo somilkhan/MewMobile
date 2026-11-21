@@ -23,21 +23,20 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.Backspace
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -54,8 +53,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.TransformOrigin
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -67,22 +64,22 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil3.compose.AsyncImage
 import com.nuvio.app.core.ui.NuvioTokens
 import com.nuvio.app.core.ui.nuvio
 import com.nuvio.app.core.ui.nuvioKeyboardFocusIndicator
 import com.nuvio.app.features.home.components.CollectionCardRemoteImage
 import com.nuvio.app.isIos
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import nuvio.composeapp.generated.resources.*
+import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
 import kotlin.math.max
 import kotlin.math.min
@@ -96,28 +93,26 @@ fun ProfileSwitcherTab(
     triggerContent: (@Composable (selected: Boolean) -> Unit)? = null,
     rememberTriggerAsContentFocus: Boolean = true,
     modifier: Modifier = Modifier,
-    backdrop: Backdrop? = null,
-    popupBelowAnchor: Boolean = false,
-    defaultIconColorOverride: Color? = null,
 ) {
+    val tokens = MaterialTheme.nuvio
     val profileState by ProfileRepository.state.collectAsStateWithLifecycle()
-    val scope = rememberCoroutineScope()
     val activeProfile = profileState.activeProfile
     val profiles = profileState.profiles
     val avatars by AvatarRepository.avatars.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
+        AvatarRepository.fetchAvatars()
         AvatarRepository.refreshAvatars()
     }
 
     val haptic = LocalHapticFeedback.current
+    val scope = rememberCoroutineScope()
     val density = LocalDensity.current
 
     var showPopup by remember { mutableStateOf(false) }
     // Keep popup composed while exit animation plays
     var popupVisible by remember { mutableStateOf(false) }
     var pinProfile by remember { mutableStateOf<NuvioProfile?>(null) }
-    var biometricAuthenticating by remember { mutableStateOf(false) }
     var dragTargetProfileIndex by remember { mutableStateOf<Int?>(null) }
     var triggerCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
     val profileBubbleBounds = remember(profiles.map { it.profileIndex }) {
@@ -137,7 +132,6 @@ fun ProfileSwitcherTab(
     }
 
     fun updateDragTarget(localPosition: Offset) {
-        if (pinProfile != null) return
         val trigger = triggerCoordinates ?: return
         val screenPosition = trigger.localToScreen(localPosition)
         val nextTargetProfileIndex = profileBubbleBounds.entries
@@ -149,62 +143,12 @@ fun ProfileSwitcherTab(
         dragTargetProfileIndex = nextTargetProfileIndex
     }
 
-    fun routeProfileNormally(profile: NuvioProfile) {
-        routeProfileSelection(
-            profile = profile,
-            isEditMode = false,
-            activeProfileIndex = ProfileRepository.state.value.activeProfile?.profileIndex,
-            onEditProfile = {},
-            onActiveProfileSelected = {
-                scope.launch {
-                    showAlreadyActiveProfileToast(it)
-                    showPopup = false
-                }
-            },
-            onPinRequired = { pinProfile = it },
-            onProfileSelected = {
-                showPopup = false
-                onProfileSelected(it)
-            },
-        )
-    }
-
     fun chooseProfile(profile: NuvioProfile) {
-        if (biometricAuthenticating) return
-        val isLockedPrimary = profile.profileIndex == 1 &&
-            profile.pinEnabled &&
-            profile.userId.isNotBlank() &&
-            profile.profileIndex != ProfileRepository.state.value.activeProfile?.profileIndex
-        if (!isLockedPrimary) {
-            routeProfileNormally(profile)
-            return
-        }
-
-        biometricAuthenticating = true
-        scope.launch {
-            val result = try {
-                ProfileBiometricAuth.authenticate(profile.profileIndex, profile.userId)
-            } catch (error: CancellationException) {
-                biometricAuthenticating = false
-                throw error
-            } catch (_: Exception) {
-                ProfileBiometricResult.Failed
-            }
-            biometricAuthenticating = false
-            when (result) {
-                ProfileBiometricResult.Success -> {
-                    pinProfile = null
-                    showPopup = false
-                    onProfileSelected(profile)
-                }
-                ProfileBiometricResult.Cancelled -> Unit
-                ProfileBiometricResult.FallbackRequested,
-                ProfileBiometricResult.Invalidated,
-                ProfileBiometricResult.Unavailable,
-                ProfileBiometricResult.NotConfigured,
-                ProfileBiometricResult.Failed,
-                -> routeProfileNormally(profile)
-            }
+        if (profile.pinEnabled) {
+            pinProfile = profile
+        } else {
+            showPopup = false
+            onProfileSelected(profile)
         }
     }
 
@@ -218,24 +162,38 @@ fun ProfileSwitcherTab(
 
     // Popup entrance/exit animation
     val popupAlpha = remember { Animatable(0f) }
-    val popupScale = remember { Animatable(0.96f) }
+    val popupScale = remember { Animatable(0.5f) }
+    val popupTranslateY = remember { Animatable(40f) }
 
     LaunchedEffect(showPopup) {
         if (showPopup) {
             popupVisible = true
-            launch { popupAlpha.animateTo(1f, tween(180, easing = FastOutSlowInEasing)) }
+            launch { popupAlpha.animateTo(1f, tween(220, easing = FastOutSlowInEasing)) }
             launch {
                 popupScale.animateTo(
                     1f,
-                    tween(180, easing = FastOutSlowInEasing),
+                    spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessMedium,
+                    ),
+                )
+            }
+            launch {
+                popupTranslateY.animateTo(
+                    0f,
+                    spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessMedium,
+                    ),
                 )
             }
         } else {
             ProfileHoverHapticFeedback.release()
             // Animate out
-            launch { popupAlpha.animateTo(0f, tween(140, easing = FastOutSlowInEasing)) }
+            launch { popupAlpha.animateTo(0f, tween(180, easing = FastOutSlowInEasing)) }
+            launch { popupScale.animateTo(0.85f, tween(200, easing = FastOutSlowInEasing)) }
             launch {
-                popupScale.animateTo(0.96f, tween(160, easing = FastOutSlowInEasing))
+                popupTranslateY.animateTo(30f, tween(200, easing = FastOutSlowInEasing))
                 // Remove from composition after animation completes
                 popupVisible = false
                 pinProfile = null
@@ -256,14 +214,12 @@ fun ProfileSwitcherTab(
                 indication = null,
                 onClick = onClick,
             )
-            .pointerInput(profiles, activeProfile?.profileIndex) {
+            .pointerInput(profiles) {
                 detectDragGesturesAfterLongPress(
                     onDragStart = { startOffset ->
                         if (profiles.isNotEmpty()) {
                             performProfileHoldHaptic()
                             ProfileHoverHapticFeedback.prepare()
-                            profileBubbleBounds.clear()
-                            dragTargetProfileIndex = null
                             showPopup = true
                             updateDragTarget(startOffset)
                         }
@@ -292,66 +248,101 @@ fun ProfileSwitcherTab(
                 avatars = avatars,
                 selected = selected,
                 size = 28,
-                iconColorOverride = defaultIconColorOverride,
             )
         }
 
         // Floating profile popup (stays composed during exit animation)
         if (popupVisible && profiles.isNotEmpty()) {
-            var opensBelow by remember { mutableStateOf(popupBelowAnchor) }
-            var availableHeight by remember { mutableStateOf<Dp?>(null) }
-            val dismissPopup = { if (pinProfile != null) pinProfile = null else showPopup = false }
             Popup(
-                popupPositionProvider = remember(density, popupBelowAnchor) {
-                    ProfilePopupPositionProvider(
-                        margin = with(density) { 16.dp.roundToPx() },
-                        gap = with(density) { 18.dp.roundToPx() },
-                        preferBelow = popupBelowAnchor,
-                        onPositioned = { below, height ->
-                            opensBelow = below
-                            availableHeight = with(density) { height.toDp() }
-                        },
-                    )
-                },
+                alignment = Alignment.BottomCenter,
+                offset = IntOffset(0, with(density) { -NuvioTokens.Space.s64.roundToPx() }),
                 properties = PopupProperties(focusable = true),
-                onDismissRequest = dismissPopup,
+                onDismissRequest = { showPopup = false },
             ) {
-                ProfilePopupContent(
-                    profiles = profiles,
-                    avatars = avatars,
-                    activeProfileIndex = activeProfile?.profileIndex,
-                    hoveredProfileIndex = dragTargetProfileIndex,
-                    pinProfile = pinProfile,
-                    backdrop = backdrop,
-                    opensBelow = opensBelow,
-                    availableHeight = availableHeight,
-                    modifier = Modifier.graphicsLayer {
-                        alpha = popupAlpha.value
-                        scaleX = popupScale.value
-                        scaleY = popupScale.value
-                        transformOrigin = TransformOrigin(
-                            0.5f,
-                            if (opensBelow) 0f else 1f,
-                        )
-                    },
-                    onBoundsChanged = { index, bounds -> profileBubbleBounds[index] = bounds },
-                    onDismissRequest = dismissPopup,
-                    onProfileSelected = ::chooseProfile,
-                    onAddProfileRequested = {
-                        showPopup = false
-                        onAddProfileRequested()
-                    },
-                    onPinCancelled = { pinProfile = null },
-                    onPinVerified = { profile ->
-                        if (
-                            showPopup && pinProfile?.profileIndex == profile.profileIndex &&
-                            profile.profileIndex != ProfileRepository.state.value.activeProfile?.profileIndex
-                        ) {
-                            onProfileSelected(profile)
-                            showPopup = false
+                Box(
+                    modifier = Modifier
+                        .imePadding()
+                        .graphicsLayer {
+                            alpha = popupAlpha.value
+                            scaleX = popupScale.value
+                            scaleY = popupScale.value
+                            translationY = popupTranslateY.value
                         }
-                    },
-                )
+                        .shadow(tokens.elevation.overlay, tokens.shapes.sheet)
+                        .background(
+                            tokens.colors.surfaceSheet,
+                            tokens.shapes.sheet,
+                        )
+                        .padding(tokens.spacing.sheetPadding),
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        // Profile avatars row
+                        Row(
+                            modifier = Modifier.horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(tokens.spacing.cardPadding),
+                            verticalAlignment = Alignment.Top,
+                        ) {
+                            profiles.forEachIndexed { index, profile ->
+                                val isActive =
+                                    profile.profileIndex == activeProfile?.profileIndex
+                                val isPinTarget =
+                                    pinProfile?.profileIndex == profile.profileIndex
+                                val isDragTarget =
+                                    dragTargetProfileIndex == profile.profileIndex
+
+                                PopupProfileBubble(
+                                    profile = profile,
+                                    avatars = avatars,
+                                    isActive = isActive,
+                                    isSelected = isPinTarget || isDragTarget,
+                                    delayMs = index * 50,
+                                    onBoundsChanged = { bounds ->
+                                        profileBubbleBounds[profile.profileIndex] = bounds
+                                    },
+                                    onClick = {
+                                        chooseProfile(profile)
+                                    },
+                                )
+                            }
+
+                            if (profiles.size < MAX_PROFILES) {
+                                PopupAddProfileBubble(
+                                    delayMs = profiles.size * 50,
+                                    onClick = {
+                                        showPopup = false
+                                        onAddProfileRequested()
+                                    },
+                                )
+                            }
+                        }
+
+                        // Inline PIN entry for locked profiles
+                        AnimatedVisibility(
+                            visible = pinProfile != null,
+                            enter = expandVertically(
+                                animationSpec = spring(
+                                    dampingRatio = Spring.DampingRatioLowBouncy,
+                                    stiffness = Spring.StiffnessMediumLow,
+                                ),
+                            ) + fadeIn(tween(200)),
+                            exit = shrinkVertically(tween(150)) + fadeOut(tween(100)),
+                        ) {
+                            pinProfile?.let { profile ->
+                                InlinePinEntry(
+                                    profileName = profile.name,
+                                    onVerified = {
+                                        onProfileSelected(profile)
+                                        showPopup = false
+                                    },
+                                    onCancel = { pinProfile = null },
+                                    verifyPin = { pin ->
+                                        ProfileRepository.verifyPin(profile.profileIndex, pin)
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -367,7 +358,6 @@ fun NativeProfileSwitcherPopup(
     modifier: Modifier = Modifier,
 ) {
     val profileState by ProfileRepository.state.collectAsStateWithLifecycle()
-    val scope = rememberCoroutineScope()
     val activeProfile = profileState.activeProfile
     val profiles = profileState.profiles
     val avatars by AvatarRepository.avatars.collectAsStateWithLifecycle()
@@ -378,9 +368,9 @@ fun NativeProfileSwitcherPopup(
     var showPopup by remember { mutableStateOf(false) }
     var popupVisible by remember { mutableStateOf(false) }
     var pinProfile by remember { mutableStateOf<NuvioProfile?>(null) }
-    var biometricAuthenticating by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
+        AvatarRepository.fetchAvatars()
         AvatarRepository.refreshAvatars()
     }
 
@@ -398,65 +388,13 @@ fun NativeProfileSwitcherPopup(
         }
     }
 
-    fun routeProfileNormally(profile: NuvioProfile) {
-        routeProfileSelection(
-            profile = profile,
-            isEditMode = false,
-            activeProfileIndex = ProfileRepository.state.value.activeProfile?.profileIndex,
-            onEditProfile = {},
-            onActiveProfileSelected = {
-                scope.launch {
-                    showAlreadyActiveProfileToast(it)
-                    showPopup = false
-                    onDismissRequest()
-                }
-            },
-            onPinRequired = { pinProfile = it },
-            onProfileSelected = {
-                showPopup = false
-                onDismissRequest()
-                onProfileSelected(it)
-            },
-        )
-    }
-
     fun chooseProfile(profile: NuvioProfile) {
-        if (biometricAuthenticating) return
-        val isLockedPrimary = profile.profileIndex == 1 &&
-            profile.pinEnabled &&
-            profile.userId.isNotBlank() &&
-            profile.profileIndex != ProfileRepository.state.value.activeProfile?.profileIndex
-        if (!isLockedPrimary) {
-            routeProfileNormally(profile)
-            return
-        }
-
-        biometricAuthenticating = true
-        scope.launch {
-            val result = try {
-                ProfileBiometricAuth.authenticate(profile.profileIndex, profile.userId)
-            } catch (error: CancellationException) {
-                biometricAuthenticating = false
-                throw error
-            } catch (_: Exception) {
-                ProfileBiometricResult.Failed
-            }
-            biometricAuthenticating = false
-            when (result) {
-                ProfileBiometricResult.Success -> {
-                    pinProfile = null
-                    showPopup = false
-                    onDismissRequest()
-                    onProfileSelected(profile)
-                }
-                ProfileBiometricResult.Cancelled -> Unit
-                ProfileBiometricResult.FallbackRequested,
-                ProfileBiometricResult.Invalidated,
-                ProfileBiometricResult.Unavailable,
-                ProfileBiometricResult.NotConfigured,
-                ProfileBiometricResult.Failed,
-                -> routeProfileNormally(profile)
-            }
+        if (profile.pinEnabled) {
+            pinProfile = profile
+        } else {
+            showPopup = false
+            onDismissRequest()
+            onProfileSelected(profile)
         }
     }
 
@@ -574,9 +512,7 @@ fun NativeProfileSwitcherPopup(
                                         onVerified = {
                                             showPopup = false
                                             onDismissRequest()
-                                            if (profile.profileIndex != ProfileRepository.state.value.activeProfile?.profileIndex) {
-                                                onProfileSelected(profile)
-                                            }
+                                            onProfileSelected(profile)
                                         },
                                         onCancel = { pinProfile = null },
                                         verifyPin = { pin ->
@@ -769,7 +705,7 @@ private fun PopupProfileBubble(
                     CollectionCardRemoteImage(
                         imageUrl = avatarImageUrl,
                         contentDescription = profile.name,
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier.size(48.dp).clip(tokens.shapes.avatar),
                         contentScale = ContentScale.Crop,
                         animateIfPossible = true,
                     )
@@ -828,7 +764,7 @@ private fun PopupProfileBubble(
     }
 }
 
-internal fun LayoutCoordinates.boundsOnScreen(): Rect {
+private fun LayoutCoordinates.boundsOnScreen(): Rect {
     val topLeft = localToScreen(Offset.Zero)
     val bottomRight = localToScreen(Offset(size.width.toFloat(), size.height.toFloat()))
     return Rect(
@@ -1046,14 +982,12 @@ fun ActiveProfileMiniAvatar(
     avatars: List<AvatarCatalogItem>,
     selected: Boolean,
     size: Int = 24,
-    iconColorOverride: Color? = null,
 ) {
     val tokens = MaterialTheme.nuvio
     if (profile == null) {
         Icon(
             imageVector = Icons.Rounded.Person,
             contentDescription = stringResource(Res.string.compose_nav_profile),
-            tint = iconColorOverride ?: LocalContentColor.current,
             modifier = Modifier.size(size.dp),
         )
         return

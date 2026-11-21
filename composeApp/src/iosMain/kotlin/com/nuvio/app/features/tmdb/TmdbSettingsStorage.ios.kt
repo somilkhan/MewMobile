@@ -20,27 +20,28 @@ actual object TmdbSettingsStorage {
     private const val useArtworkKey = "tmdb_use_artwork"
     private const val useBasicInfoKey = "tmdb_use_basic_info"
     private const val useDetailsKey = "tmdb_use_details"
+    private const val useReleaseDatesKey = "tmdb_use_release_dates"
     private const val useCreditsKey = "tmdb_use_credits"
     private const val useProductionsKey = "tmdb_use_productions"
     private const val useNetworksKey = "tmdb_use_networks"
     private const val useEpisodesKey = "tmdb_use_episodes"
-    private const val useEpisodeRatingsKey = "tmdb_use_episode_ratings"
     private const val useSeasonPostersKey = "tmdb_use_season_posters"
     private const val useMoreLikeThisKey = "tmdb_use_more_like_this"
     private const val useCollectionsKey = "tmdb_use_collections"
     private val syncKeys = listOf(
         enabledKey,
+        apiKeyKey,
         languageKey,
         titleLanguageKey,
         useTrailersKey,
         useArtworkKey,
         useBasicInfoKey,
         useDetailsKey,
+        useReleaseDatesKey,
         useCreditsKey,
         useProductionsKey,
         useNetworksKey,
         useEpisodesKey,
-        useEpisodeRatingsKey,
         useSeasonPostersKey,
         useMoreLikeThisKey,
         useCollectionsKey,
@@ -107,6 +108,12 @@ actual object TmdbSettingsStorage {
         saveBoolean(useDetailsKey, enabled)
     }
 
+    actual fun loadUseReleaseDates(): Boolean? = loadBoolean(useReleaseDatesKey)
+
+    actual fun saveUseReleaseDates(enabled: Boolean) {
+        saveBoolean(useReleaseDatesKey, enabled)
+    }
+
     actual fun loadUseCredits(): Boolean? = loadBoolean(useCreditsKey)
 
     actual fun saveUseCredits(enabled: Boolean) {
@@ -129,12 +136,6 @@ actual object TmdbSettingsStorage {
 
     actual fun saveUseEpisodes(enabled: Boolean) {
         saveBoolean(useEpisodesKey, enabled)
-    }
-
-    actual fun loadUseEpisodeRatings(): Boolean? = loadBoolean(useEpisodeRatingsKey)
-
-    actual fun saveUseEpisodeRatings(enabled: Boolean) {
-        saveBoolean(useEpisodeRatingsKey, enabled)
     }
 
     actual fun loadUseSeasonPosters(): Boolean? = loadBoolean(useSeasonPostersKey)
@@ -169,26 +170,20 @@ actual object TmdbSettingsStorage {
         NSUserDefaults.standardUserDefaults.setBool(enabled, forKey = ProfileScopedKey.of(key))
     }
 
-    actual fun loadTitleLanguage(): String? =
-        NSUserDefaults.standardUserDefaults.stringForKey(ProfileScopedKey.of(titleLanguageKey))
-
-    actual fun saveTitleLanguage(value: String) {
-        NSUserDefaults.standardUserDefaults.setObject(value, forKey = ProfileScopedKey.of(titleLanguageKey))
-    }
-
     actual fun exportToSyncPayload(): JsonObject = buildJsonObject {
         loadEnabled()?.let { put(enabledKey, encodeSyncBoolean(it)) }
+        loadApiKey()?.let { put(apiKeyKey, encodeSyncString(it)) }
         loadLanguage()?.let { put(languageKey, encodeSyncString(it)) }
         loadTitleLanguage()?.let { put(titleLanguageKey, encodeSyncString(it)) }
         loadUseTrailers()?.let { put(useTrailersKey, encodeSyncBoolean(it)) }
         loadUseArtwork()?.let { put(useArtworkKey, encodeSyncBoolean(it)) }
         loadUseBasicInfo()?.let { put(useBasicInfoKey, encodeSyncBoolean(it)) }
         loadUseDetails()?.let { put(useDetailsKey, encodeSyncBoolean(it)) }
+        loadUseReleaseDates()?.let { put(useReleaseDatesKey, encodeSyncBoolean(it)) }
         loadUseCredits()?.let { put(useCreditsKey, encodeSyncBoolean(it)) }
         loadUseProductions()?.let { put(useProductionsKey, encodeSyncBoolean(it)) }
         loadUseNetworks()?.let { put(useNetworksKey, encodeSyncBoolean(it)) }
         loadUseEpisodes()?.let { put(useEpisodesKey, encodeSyncBoolean(it)) }
-        loadUseEpisodeRatings()?.let { put(useEpisodeRatingsKey, encodeSyncBoolean(it)) }
         loadUseSeasonPosters()?.let { put(useSeasonPostersKey, encodeSyncBoolean(it)) }
         loadUseMoreLikeThis()?.let { put(useMoreLikeThisKey, encodeSyncBoolean(it)) }
         loadUseCollections()?.let { put(useCollectionsKey, encodeSyncBoolean(it)) }
@@ -206,11 +201,11 @@ actual object TmdbSettingsStorage {
         payload.decodeSyncBoolean(useArtworkKey)?.let(::saveUseArtwork)
         payload.decodeSyncBoolean(useBasicInfoKey)?.let(::saveUseBasicInfo)
         payload.decodeSyncBoolean(useDetailsKey)?.let(::saveUseDetails)
+        payload.decodeSyncBoolean(useReleaseDatesKey)?.let(::saveUseReleaseDates)
         payload.decodeSyncBoolean(useCreditsKey)?.let(::saveUseCredits)
         payload.decodeSyncBoolean(useProductionsKey)?.let(::saveUseProductions)
         payload.decodeSyncBoolean(useNetworksKey)?.let(::saveUseNetworks)
         payload.decodeSyncBoolean(useEpisodesKey)?.let(::saveUseEpisodes)
-        payload.decodeSyncBoolean(useEpisodeRatingsKey)?.let(::saveUseEpisodeRatings)
         payload.decodeSyncBoolean(useSeasonPostersKey)?.let(::saveUseSeasonPosters)
         payload.decodeSyncBoolean(useMoreLikeThisKey)?.let(::saveUseMoreLikeThis)
         payload.decodeSyncBoolean(useCollectionsKey)?.let(::saveUseCollections)

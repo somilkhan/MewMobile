@@ -11,11 +11,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.MutatePriority
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.stopScroll
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -25,18 +22,14 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
@@ -55,9 +48,9 @@ import androidx.compose.material.icons.automirrored.rounded.VolumeMute
 import androidx.compose.material.icons.automirrored.rounded.VolumeDown
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.derivedStateOf
@@ -65,13 +58,11 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
@@ -100,8 +91,6 @@ import com.nuvio.app.core.ui.LocalTvLayoutProfile
 import com.nuvio.app.core.ui.rememberAnimatedLineBrush
 import com.nuvio.app.core.ui.rememberAnimatedSoftBrush
 import com.nuvio.app.core.ui.heroStretchHeight
-import com.nuvio.app.core.ui.LocalVerticalBarPadding
-import com.nuvio.app.core.ui.ScreenActivityEffect
 import com.nuvio.app.core.ui.heroStretchZoom
 import com.nuvio.app.core.ui.nuvioExcludeFromKeyboardFocus
 import com.nuvio.app.core.ui.nuvioKeyboardFocusIndicator
@@ -158,7 +147,6 @@ private const val HERO_SWIPE_THRESHOLD_FRACTION = 0.16f
 private const val HERO_SWIPE_VELOCITY_THRESHOLD = 300f
 private const val HERO_AUTO_SCROLL_INTERVAL_MS = 5500L
 private const val MOBILE_HERO_VIEWPORT_RATIO = 0.82f
-private const val MOBILE_PORTRAIT_HERO_WIDTH_RATIO = 1.5f
 private const val MOBILE_HERO_MIN_HEIGHT_DP = 360f
 private const val MOBILE_HERO_MAX_HEIGHT_DP = 760f
 private const val POSTER_ART_HERO_VIEWPORT_RATIO = 0.80f
@@ -197,7 +185,6 @@ internal fun HomeHeroSection(
     modifier: Modifier = Modifier,
     viewportHeight: Dp? = null,
     mobileBelowSectionHeightHint: Dp? = null,
-    heroStyle: HomeHeroStyle = HomeHeroStyle.FULL_BLEED,
     listState: LazyListState? = null,
     autoScrollEnabled: Boolean = true,
     motionPreviewEnabled: Boolean = false,
@@ -216,11 +203,6 @@ internal fun HomeHeroSection(
     metadataRefreshKey: String? = null,
     refreshPullProgress: Float = 0f,
     stretchPx: () -> Float = { 0f },
-    trailerPlaybackEnabled: Boolean = false,
-    trailerStartDelaySeconds: Int = 0,
-    trailerStartUnmuted: Boolean = false,
-    showImdbRating: Boolean = true,
-    showMdbListRatings: Boolean = false,
     onItemClick: ((MetaPreview) -> Unit)? = null,
     onPlayClick: ((MetaPreview) -> Unit)? = null,
     onSaveClick: ((MetaPreview) -> Unit)? = null,
@@ -229,16 +211,7 @@ internal fun HomeHeroSection(
 ) {
     if (items.isEmpty()) return
 
-    val pagerState = key(items.size) {
-        rememberPagerState(
-            initialPage = if (items.size > 1) {
-                Int.MAX_VALUE / 2 - (Int.MAX_VALUE / 2) % items.size
-            } else {
-                0
-            },
-            pageCount = { if (items.size > 1) Int.MAX_VALUE else 1 },
-        )
-    }
+    val pagerState = rememberPagerState(pageCount = { items.size })
     val coroutineScope = rememberCoroutineScope()
     var isUserInteracting by remember { mutableStateOf(false) }
     val itemKeys = remember(items) { items.joinToString(separator = "|") { it.stableKey() } }
@@ -352,7 +325,6 @@ internal fun HomeHeroSection(
                         offset = pageOffset,
                     )
                 }
-                PrefetchArtworkDominantColors(heroArtworkUrls)
             }
             .sortedBy(HeroPageLayer::visibility)
         val currentItem = items[displayPage]
@@ -684,48 +656,6 @@ internal fun HomeHeroSection(
                 }
             }
         }
-
-        if (isCardStyle && items.size > 1) {
-            Spacer(modifier = Modifier.height(12.dp))
-            HeroPageIndicator(
-                itemCount = items.size,
-                pagerState = pagerState,
-                coroutineScope = coroutineScope,
-            )
-        }
-    }
-}
-
-@Composable
-private fun HeroPageIndicator(
-    itemCount: Int,
-    pagerState: PagerState,
-    coroutineScope: CoroutineScope,
-) {
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        repeat(itemCount) { index ->
-            val activeFraction = heroItemVisibility(pagerState, index, itemCount)
-            Box(
-                modifier = Modifier
-                    .clickable {
-                        coroutineScope.launch {
-                            pagerState.animateScrollToPage(
-                                heroPageForItem(pagerState.currentPage, index, itemCount),
-                            )
-                        }
-                    }
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.onBackground)
-                    .graphicsLayer {
-                        alpha = 0.35f + (0.57f * activeFraction)
-                    }
-                    .width(8.dp + (24.dp * activeFraction))
-                    .height(8.dp),
-            )
-        }
     }
 }
 
@@ -742,13 +672,9 @@ private data class PosterHeroRatingItem(
 
 private data class HeroPageLayer(
     val page: Int,
-    val itemIndex: Int,
+    val visibility: Float,
+    val offset: Float,
 )
-
-private fun heroArtworkUrl(item: MetaPreview, source: HomeHeroArtworkSource): String? = when (source) {
-    HomeHeroArtworkSource.POSTER -> item.poster ?: item.banner
-    HomeHeroArtworkSource.BACKDROP -> item.banner ?: item.poster
-}
 
 private fun heroPageOffset(
     pagerState: PagerState,
@@ -2299,14 +2225,6 @@ private fun PosterHeroActionRail(
     }
 }
 
-internal fun heroPageForItem(currentPage: Int, itemIndex: Int, itemCount: Int): Int {
-    val page = currentPage.toLong() - currentPage % itemCount + itemIndex
-    return listOf(page - itemCount, page, page + itemCount)
-        .filter { it in 0L until Int.MAX_VALUE.toLong() }
-        .minBy { abs(it - currentPage) }
-        .toInt()
-}
-
 @Composable
 private fun PosterHeroRoundActionButton(
     imageVector: ImageVector,
@@ -2473,9 +2391,7 @@ private fun HeroContentBlock(
     val showRatingsAboveMetadata = ratingsAboveMetadata && !originalNuvioHeroBannerEnabled
 
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .animateContentSize(),
+        modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = if (layout.isTablet) Alignment.Start else Alignment.CenterHorizontally,
     ) {
         Box(
@@ -2797,7 +2713,8 @@ private fun HeroMetaGlassRail(
                 }
             }
         }
-        val synopsis = (item.description ?: details?.description)?.trim()?.takeIf { it.isNotBlank() }
+    }
+}
 
 private suspend fun fetchHeroDetailMeta(
     item: MetaPreview,
@@ -3116,18 +3033,11 @@ internal fun homeHeroLayout(
     maxWidthDp: Float,
     viewportHeightDp: Float? = null,
     mobileBelowSectionHeightHintDp: Float? = null,
-): HomeHeroLayout {
-    val isLandscapeViewport = viewportHeightDp?.let { maxWidthDp > it } == true
-    val shortestViewportSideDp = viewportHeightDp?.let { minOf(maxWidthDp, it) } ?: maxWidthDp
-    val shouldBoostTabletLandscapeHero = isLandscapeViewport && shortestViewportSideDp >= 600f
-
-    return when {
+): HomeHeroLayout =
+    when {
         maxWidthDp >= 1200f -> HomeHeroLayout(
             isTablet = true,
-            heroHeight = tabletHeroHeight(
-                baseHeight = (maxWidthDp * 0.42f).dp.coerceIn(360.dp, 440.dp),
-                boostForLandscape = shouldBoostTabletLandscapeHero,
-            ),
+            heroHeight = (maxWidthDp * 0.42f).dp.coerceIn(360.dp, 440.dp),
             contentMaxWidth = 640.dp,
             contentWidthFraction = 0.56f,
             contentHorizontalPadding = 56.dp,
@@ -3137,10 +3047,7 @@ internal fun homeHeroLayout(
         )
         maxWidthDp >= 840f -> HomeHeroLayout(
             isTablet = true,
-            heroHeight = tabletHeroHeight(
-                baseHeight = (maxWidthDp * 0.46f).dp.coerceIn(340.dp, 420.dp),
-                boostForLandscape = shouldBoostTabletLandscapeHero,
-            ),
+            heroHeight = (maxWidthDp * 0.46f).dp.coerceIn(340.dp, 420.dp),
             contentMaxWidth = 560.dp,
             contentWidthFraction = 0.62f,
             contentHorizontalPadding = 40.dp,
@@ -3150,10 +3057,7 @@ internal fun homeHeroLayout(
         )
         maxWidthDp >= 600f -> HomeHeroLayout(
             isTablet = true,
-            heroHeight = tabletHeroHeight(
-                baseHeight = (maxWidthDp * 0.58f).dp.coerceIn(320.dp, 380.dp),
-                boostForLandscape = shouldBoostTabletLandscapeHero,
-            ),
+            heroHeight = (maxWidthDp * 0.58f).dp.coerceIn(320.dp, 380.dp),
             contentMaxWidth = 520.dp,
             contentWidthFraction = 0.72f,
             contentHorizontalPadding = 32.dp,
@@ -3176,16 +3080,6 @@ internal fun homeHeroLayout(
             logoWidthFraction = 0.58f,
         )
     }
-}
-
-private fun tabletHeroHeight(
-    baseHeight: Dp,
-    boostForLandscape: Boolean,
-): Dp {
-    if (!boostForLandscape) return baseHeight
-
-    return (baseHeight.value * TABLET_LANDSCAPE_HERO_HEIGHT_MULTIPLIER).dp
-}
 
 internal fun posterArtHeroHeight(
     maxWidthDp: Float,
@@ -3226,12 +3120,6 @@ private fun mobileHeroHeight(
     viewportHeightDp: Float?,
     mobileBelowSectionHeightHintDp: Float?,
 ): Dp {
-    val isPortraitViewport = viewportHeightDp?.let { it >= maxWidthDp } != false
-
-    if (isPortraitViewport) {
-        return (maxWidthDp * MOBILE_PORTRAIT_HERO_WIDTH_RATIO).dp
-    }
-
     val viewportDrivenHeight = viewportHeightDp?.let { (it * MOBILE_HERO_VIEWPORT_RATIO).dp }
     val widthFallbackHeight = (maxWidthDp * 1.02f).dp
     val baseHeight = viewportDrivenHeight ?: widthFallbackHeight
@@ -3297,7 +3185,7 @@ private fun Modifier.homeHeroPagerGesture(
                     if (dragging) {
                         val targetPage = resolveHeroTargetPage(
                             startPage = startPage,
-                            pageCount = pagerState.pageCount,
+                            itemCount = itemCount,
                             totalDx = totalDx,
                             velocityX = velocityTracker.calculateVelocity().x,
                             widthPx = widthPx,
@@ -3343,7 +3231,7 @@ private fun Modifier.homeHeroPagerGesture(
 
 private fun resolveHeroTargetPage(
     startPage: Int,
-    pageCount: Int,
+    itemCount: Int,
     totalDx: Float,
     velocityX: Float,
     widthPx: Float,
@@ -3352,10 +3240,10 @@ private fun resolveHeroTargetPage(
         abs(velocityX) > HERO_SWIPE_VELOCITY_THRESHOLD
     if (!thresholdPassed) return startPage
 
-    val currentPage = startPage.coerceIn(0, pageCount - 1)
+    val currentPage = startPage.coerceIn(0, itemCount - 1)
     return when {
-        totalDx > 0f -> (currentPage - 1).coerceAtLeast(0)
-        totalDx < 0f -> (currentPage + 1).coerceAtMost(pageCount - 1)
+        totalDx > 0f -> if (currentPage == 0) itemCount - 1 else currentPage - 1
+        totalDx < 0f -> if (currentPage == itemCount - 1) 0 else currentPage + 1
         else -> currentPage
     }
 }

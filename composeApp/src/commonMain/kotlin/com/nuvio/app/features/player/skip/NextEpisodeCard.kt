@@ -43,7 +43,6 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Brush
@@ -69,7 +68,6 @@ import nuvio.composeapp.generated.resources.player_next_episode_ready_via
 import nuvio.composeapp.generated.resources.player_next_episode_thumbnail
 import nuvio.composeapp.generated.resources.player_next_episode_unaired
 import org.jetbrains.compose.resources.stringResource
-import com.nuvio.app.core.ui.glass.ambientLiquidGlass
 
 @Composable
 fun NextEpisodeCard(
@@ -79,7 +77,6 @@ fun NextEpisodeCard(
     isAutoPlayReady: Boolean,
     autoPlaySourceName: String?,
     autoPlayCountdownSec: Int?,
-    blurred: Boolean,
     onPlayNext: () -> Unit,
     onDismiss: () -> Unit,
     /** When true, a right swipe or the back key dismisses the card without playing. Default off. */
@@ -131,14 +128,7 @@ fun NextEpisodeCard(
                 .widthIn(max = 292.dp)
                 .graphicsLayer { translationX = animatedOffsetX }
                 .clip(shape)
-                .ambientLiquidGlass(
-                    shape = shape,
-                    tint = Color(0xFF191919).copy(alpha = 0.64f),
-                    fallback = Color(0xFF191919).copy(alpha = 0.89f),
-                    blurRadius = 20.dp,
-                    refractionHeight = 10.dp,
-                    refractionAmount = 14.dp,
-                )
+                .background(Color(0xFF191919).copy(alpha = 0.89f))
                 .border(1.dp, Color.White.copy(alpha = 0.12f), shape)
                 .pointerInput(nextEpisode.videoId, visible, swipeDismissEnabled, dismissThreshold) {
                     if (!visible || !swipeDismissEnabled) return@pointerInput
@@ -181,9 +171,7 @@ fun NextEpisodeCard(
                 AsyncImage(
                     model = nextEpisode.thumbnail,
                     contentDescription = stringResource(Res.string.player_next_episode_thumbnail),
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .then(if (blurred) Modifier.blur(18.dp) else Modifier),
+                    modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop,
                 )
                 Box(

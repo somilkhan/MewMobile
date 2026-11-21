@@ -3,7 +3,6 @@ package com.nuvio.app.features.downloads
 import android.content.Context
 import android.content.SharedPreferences
 import com.nuvio.app.core.storage.ProfileScopedKey
-import com.nuvio.app.features.profiles.MAX_PROFILES
 
 internal actual object DownloadsStorage {
     private const val preferencesName = "nuvio_downloads"

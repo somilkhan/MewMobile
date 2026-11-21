@@ -4,6 +4,7 @@ import co.touchlab.kermit.Logger
 import com.nuvio.app.core.auth.AuthRepository
 import com.nuvio.app.core.auth.AuthState
 import com.nuvio.app.core.network.SupabaseProvider
+import com.nuvio.app.core.sync.HOME_CATALOG_LEGACY_SYNC_PLATFORMS
 import com.nuvio.app.core.sync.HOME_CATALOG_SHARED_SYNC_PLATFORM
 import com.nuvio.app.core.sync.putSyncOriginClientId
 import com.nuvio.app.features.profiles.ProfileRepository
@@ -68,19 +69,6 @@ private data class PullToken(
     val profileId: Int,
 )
 
-private data class CachedSharedSettings(
-    val token: PullToken,
-    val settingsJson: JsonObject,
-)
-
-internal fun mergeHomeCatalogSettingsJson(
-    remoteJson: JsonObject?,
-    localJson: JsonObject,
-): JsonObject = buildJsonObject {
-    remoteJson?.forEach { (key, value) -> put(key, value) }
-    localJson.forEach { (key, value) -> put(key, value) }
-}
-
 object HomeCatalogSettingsSyncService {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val log = Logger.withTag("HomeCatalogSettingsSyncService")
@@ -103,33 +91,19 @@ object HomeCatalogSettingsSyncService {
     @Volatile
     private var completedInitialPull: PullToken? = null
 
-    @Volatile
-    private var cachedSharedSettings: CachedSharedSettings? = null
-
     suspend fun pullFromServer(profileId: Int) {
         runCatching {
             val pullToken = currentPullToken(profileId) ?: return
             val localPayload = HomeCatalogSettingsRepository.exportToSyncPayload()
-            val remoteBlob = fetchRemoteBlob(profileId)
-            cachedSharedSettings = CachedSharedSettings(
-                token = pullToken,
-                settingsJson = remoteBlob?.settingsJson ?: buildJsonObject { },
-            )
-            val remotePayload = remoteBlob?.let { blob ->
-                decodePayloadPreservingLocalDefaults(blob.settingsJson, localPayload)
-            }
+            val remote = fetchBestRemotePayload(profileId, localPayload)
 
-            if (remoteBlob == null) {
+            if (remote == null) {
                 log.i { "pullFromServer — no remote home catalog settings found; preserving local" }
                 markInitialPullComplete(pullToken)
                 return
             }
 
-            if (remotePayload == null) {
-                log.w { "pullFromServer — failed to parse remote home catalog settings" }
-                markInitialPullComplete(pullToken)
-                return
-            }
+            val remotePayload = remote.payload
 
             if (remotePayload.items.isEmpty()) {
                 log.i { "pullFromServer — remote has empty items, preserving local catalog order" }
@@ -158,23 +132,22 @@ object HomeCatalogSettingsSyncService {
             delay(500)
             if (isSyncingFromRemote) return@launch
             if (currentPullToken() != requestedToken) return@launch
-            pushToRemote(requestedToken)
+            pushToRemote(requestedToken.profileId)
         }
     }
 
-    private suspend fun pushToRemote(token: PullToken) {
+    private suspend fun pushToRemote(profileId: Int) {
         runCatching {
             val payload = HomeCatalogSettingsRepository.exportToSyncPayload()
-            val jsonElement = mergedSharedPayloadJson(token, payload)
+            val jsonElement = mergedSharedPayloadJson(profileId, payload)
 
             val params = buildJsonObject {
-                put("p_profile_id", token.profileId)
+                put("p_profile_id", profileId)
                 put("p_platform", HOME_CATALOG_SHARED_SYNC_PLATFORM)
                 put("p_settings_json", jsonElement)
                 putSyncOriginClientId()
             }
             SupabaseProvider.client.postgrest.rpc("sync_push_home_catalog_settings", params)
-            cachedSharedSettings = CachedSharedSettings(token = token, settingsJson = jsonElement)
             log.d { "pushToRemote — success" }
         }.onFailure { e ->
             log.e(e) { "pushToRemote — FAILED" }
@@ -289,10 +262,11 @@ object HomeCatalogSettingsSyncService {
 
     private suspend fun fetchRemoteBlob(
         profileId: Int,
+        platform: String,
     ): SupabaseHomeCatalogSettingsBlob? {
         val params = buildJsonObject {
             put("p_profile_id", profileId)
-            put("p_platform", HOME_CATALOG_SHARED_SYNC_PLATFORM)
+            put("p_platform", platform)
         }
         val result = SupabaseProvider.client.postgrest.rpc("sync_pull_home_catalog_settings", params)
         return result.decodeList<SupabaseHomeCatalogSettingsBlob>().firstOrNull()
@@ -327,14 +301,15 @@ object HomeCatalogSettingsSyncService {
         )
     }.getOrNull()
 
-    private fun mergedSharedPayloadJson(
-        token: PullToken,
+    private suspend fun mergedSharedPayloadJson(
+        profileId: Int,
         payload: SyncHomeCatalogPayload,
     ): JsonObject {
         val localJson = json.encodeToJsonElement(SyncHomeCatalogPayload.serializer(), payload).jsonObject
-        val remoteJson = cachedSharedSettings
-            ?.takeIf { cached -> cached.token == token }
-            ?.settingsJson
-        return mergeHomeCatalogSettingsJson(remoteJson = remoteJson, localJson = localJson)
+        val remoteJson = fetchRemoteBlob(profileId, HOME_CATALOG_SHARED_SYNC_PLATFORM)?.settingsJson
+        return buildJsonObject {
+            remoteJson?.forEach { (key, value) -> put(key, value) }
+            localJson.forEach { (key, value) -> put(key, value) }
+        }
     }
 }

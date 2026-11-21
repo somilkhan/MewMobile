@@ -13,7 +13,6 @@ import java.io.InputStream
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import java.util.Locale
-import java.util.concurrent.ConcurrentHashMap
 
 internal fun playbackMediaItemFromUrl(
     url: String,
@@ -195,10 +194,6 @@ internal fun normalizeMimeType(contentType: String?): String? {
 
         "application/vnd.ms-sstr+xml" -> MimeTypes.APPLICATION_SS
 
-        "video/mp2t",
-        "video/mpeg2-ts",
-        "video/x-mpegts" -> MimeTypes.VIDEO_MP2T
-
         "video/mp4",
         "application/mp4",
         "video/x-m4v" -> MimeTypes.VIDEO_MP4
@@ -249,10 +244,7 @@ private fun inferMimeTypeFromQuery(query: String): String? {
 
     query.split('&').forEach { parameter ->
         val key = parameter.substringBefore('=', missingDelimiterValue = "").trim()
-        val rawValue = parameter.substringAfter('=', missingDelimiterValue = "").trim()
-        val value = runCatching {
-            URLDecoder.decode(rawValue.replace("+", "%2B"), Charsets.UTF_8.name())
-        }.getOrDefault(rawValue).lowercase(Locale.US)
+        val value = parameter.substringAfter('=', missingDelimiterValue = "").trim()
         if (key.isBlank() || value.isBlank()) return@forEach
 
         when (key) {
@@ -337,18 +329,6 @@ private val mimeProbeHttpClient by lazy {
 }
 
 private const val MIME_VIDEO_QUICK_TIME = "video/quicktime"
-private const val MIME_APPLICATION_OGG = "application/ogg"
-private const val HEADER_SNIFF_BYTES = 4096
-private const val MPEG_TS_PACKET_OFFSET = 188
-private const val MPEG_TS_SYNC_BYTE: Byte = 0x47
-private const val LOCAL_MIME_TYPE_CACHE_LIMIT = 64
-private val EBML_HEADER = byteArrayOf(0x1A, 0x45, 0xDF.toByte(), 0xA3.toByte())
-private val MP4_FTYP_HEADER = "ftyp".toByteArray(Charsets.US_ASCII)
-private val RIFF_HEADER = "RIFF".toByteArray(Charsets.US_ASCII)
-private val AVI_HEADER = "AVI ".toByteArray(Charsets.US_ASCII)
-private val FLV_HEADER = "FLV".toByteArray(Charsets.US_ASCII)
-private val OGG_HEADER = "OggS".toByteArray(Charsets.US_ASCII)
-private val localMimeTypeCache = ConcurrentHashMap<String, String>()
 private val DELIMITED_M3U8_PATTERN = Regex("(^|[=/_.?&%-])m3u8($|[=/_.?&%-])")
 private val DELIMITED_HLS_PATTERN = Regex("(^|[=/_.?&%-])hls($|[=/_.?&%-])")
 private val DELIMITED_MPD_PATTERN = Regex("(^|[=/_.?&%-])mpd($|[=/_.?&%-])")

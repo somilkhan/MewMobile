@@ -1,12 +1,5 @@
 package com.nuvio.app.core.ui
 
-import androidx.compose.ui.layout.layout
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.staticCompositionLocalOf
-import androidx.compose.runtime.Stable
-import com.nuvio.app.core.ui.background.appBackgroundCover
-import com.nuvio.app.core.ui.background.appGlassBackdrop
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.MutableTransitionState
@@ -40,8 +33,10 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -64,7 +59,6 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
@@ -83,31 +77,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import com.nuvio.app.navigation.LocalNativeNavigationBarHidden
 import com.nuvio.app.navigation.LocalUseNativeNavigation
 
-@Stable
-internal class NuvioScreenMetrics(val horizontalPadding: Dp) {
-    var hasPinnedHeader by mutableStateOf(false)
-}
-
-internal val LocalNuvioScreenMetrics = staticCompositionLocalOf<NuvioScreenMetrics?> { null }
-
-@Composable
-internal fun Modifier.nuvioScreenSideBleed(): Modifier {
-    val bleed = LocalNuvioScreenMetrics.current?.horizontalPadding ?: return this
-    if (bleed <= NuvioTokens.Space.none) return this
-    return layout { measurable, constraints ->
-        val extra = (bleed * 2).roundToPx()
-        val placeable = measurable.measure(
-            constraints.copy(
-                minWidth = constraints.minWidth + extra,
-                maxWidth = constraints.maxWidth + extra,
-            ),
-        )
-        layout(placeable.width - extra, placeable.height) {
-            placeable.place(-extra / 2, 0)
-        }
-    }
-}
-
 @Composable
 fun NuvioScreen(
     modifier: Modifier = Modifier,
@@ -115,10 +84,8 @@ fun NuvioScreen(
     topPadding: Dp? = null,
     backgroundColor: Color = MaterialTheme.nuvio.colors.background,
     listState: LazyListState = rememberLazyListState(),
-    autoHidesNativeTabBar: Boolean = false,
     content: LazyListScope.() -> Unit,
 ) {
-    NativeTabBarScrollEffect(listState = listState, enabled = autoHidesNativeTabBar)
     val tokens = MaterialTheme.nuvio
     val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     LazyColumn(
@@ -156,7 +123,7 @@ fun NuvioSurfaceCard(
 ) {
     val tokens = MaterialTheme.nuvio
     Surface(
-        modifier = modifier.fillMaxWidth().appGlassBackdrop(tokens.shapes.card),
+        modifier = modifier.fillMaxWidth(),
         color = tokens.colors.surface,
         shape = tokens.shapes.card,
         tonalElevation = tonalElevation.dp,
@@ -177,7 +144,6 @@ fun NuvioScreenHeader(
     includeStatusBarPadding: Boolean = true,
     topPadding: Dp? = null,
     onBack: (() -> Unit)? = null,
-    coverAbove: Boolean = true,
     actions: @Composable RowScope.() -> Unit = {},
 ) {
     val tokens = MaterialTheme.nuvio
@@ -197,29 +163,18 @@ fun NuvioScreenHeader(
         return
     }
     val resolvedTopPadding = topPadding ?: if (includeStatusBarPadding) statusBarTop else NuvioTokens.Space.none
-    val screenMetrics = LocalNuvioScreenMetrics.current
-    if (screenMetrics != null && includeStatusBarPadding && topPadding == null) {
-        DisposableEffect(screenMetrics) {
-            screenMetrics.hasPinnedHeader = true
-            onDispose { screenMetrics.hasPinnedHeader = false }
-        }
-    }
-    val sideBleed = screenMetrics?.horizontalPadding ?: NuvioTokens.Space.none
     Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .nuvioScreenSideBleed(),
+        modifier = modifier.fillMaxWidth(),
     ) {
         Row(
             modifier = Modifier
                 .matchParentSize()
-                .appBackgroundCover(tokens.colors.background, coverAbove = coverAbove)
+                .background(tokens.colors.background)
                 .nuvioConsumePointerEvents(),
         ) {}
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = sideBleed)
                 .padding(top = resolvedTopPadding, bottom = NuvioTokens.Space.s4),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.Bottom,
@@ -337,9 +292,8 @@ fun NuvioBackButton(
     buttonSize: Dp = NuvioTokens.Space.s40,
     iconSize: Dp = NuvioTokens.Icon.md,
     contentDescription: String = stringResource(Res.string.action_back),
-    hiddenUnderNativeNavigation: Boolean = true,
 ) {
-    if (hiddenUnderNativeNavigation && LocalUseNativeNavigation.current && !LocalNativeNavigationBarHidden.current) return
+    if (LocalUseNativeNavigation.current && !LocalNativeNavigationBarHidden.current) return
 
     Box(
         modifier = modifier
@@ -384,7 +338,7 @@ fun NuvioPrimaryButton(
         colors = ButtonDefaults.buttonColors(
             containerColor = if (animatedBrush != null) Color.Transparent else tokens.colors.accent,
             contentColor = tokens.colors.onAccent,
-            disabledContainerColor = Color.Transparent,
+            disabledContainerColor = tokens.colors.accent.copy(alpha = tokens.opacity.disabled),
             disabledContentColor = tokens.colors.onAccent.copy(alpha = tokens.opacity.disabled),
         ),
     ) {
@@ -410,7 +364,6 @@ fun NuvioInputField(
     modifier: Modifier = Modifier,
     textStyle: TextStyle = MaterialTheme.typography.bodyLarge,
     trailingContent: (@Composable (() -> Unit))? = null,
-    containerColor: Color = MaterialTheme.nuvio.colors.surfaceCard,
 ) {
     val tokens = MaterialTheme.nuvio
     OutlinedTextField(
@@ -418,7 +371,7 @@ fun NuvioInputField(
         onValueChange = onValueChange,
         modifier = modifier.fillMaxWidth(),
         singleLine = true,
-        shape = shape,
+        shape = RoundedCornerShape(NuvioTokens.Radius.lg),
         placeholder = {
             Text(
                 text = placeholder,
@@ -431,8 +384,8 @@ fun NuvioInputField(
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = tokens.colors.borderFocus,
             unfocusedBorderColor = tokens.colors.borderDefault,
-            focusedContainerColor = containerColor,
-            unfocusedContainerColor = containerColor,
+            focusedContainerColor = tokens.colors.surfaceCard,
+            unfocusedContainerColor = tokens.colors.surfaceCard,
             cursorColor = tokens.colors.accent,
         ),
     )
@@ -487,40 +440,80 @@ fun NuvioInlineMetadata(
 }
 
 @Composable
+@OptIn(ExperimentalMaterial3Api::class)
 fun NuvioStatusModal(
     title: String,
     message: String,
     modifier: Modifier = Modifier,
     isVisible: Boolean,
     isBusy: Boolean = false,
-    destructive: Boolean = false,
     confirmText: String = stringResource(Res.string.action_ok),
     dismissText: String? = null,
     onConfirm: () -> Unit,
     onDismiss: (() -> Unit)? = null,
 ) {
     if (!isVisible) return
+    val tokens = MaterialTheme.nuvio
 
-    DialogSurface(
+    BasicAlertDialog(
         onDismissRequest = {
             if (!isBusy) {
                 onDismiss?.invoke() ?: onConfirm()
             }
         },
-        modifier = modifier,
-        title = title,
-        message = message,
     ) {
-        DialogButtons {
-            if (!isBusy && dismissText != null && onDismiss != null) {
-                DialogButton(text = dismissText, onClick = onDismiss)
+        Surface(
+            modifier = modifier.fillMaxWidth(),
+            color = tokens.colors.surfaceDialog,
+            shape = tokens.shapes.dialog,
+        ) {
+            Column(
+                modifier = Modifier.padding(tokens.spacing.dialogPadding),
+            ) {
+                if (isBusy) {
+                    NuvioLoadingIndicator(
+                        color = tokens.colors.accent,
+                    )
+                    Spacer(modifier = Modifier.height(NuvioTokens.Space.s16))
+                }
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleLarge,
+                    color = tokens.colors.textPrimary,
+                )
+                Spacer(modifier = Modifier.height(tokens.spacing.controlGap))
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = tokens.colors.textMuted,
+                )
+                Spacer(modifier = Modifier.height(NuvioTokens.Space.s18))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    if (!isBusy && dismissText != null && onDismiss != null) {
+                        Button(
+                            onClick = onDismiss,
+                            shape = tokens.shapes.button,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = tokens.colors.surfaceCard,
+                                contentColor = tokens.colors.textPrimary,
+                            ),
+                        ) {
+                            Text(dismissText)
+                        }
+                        Spacer(modifier = Modifier.width(NuvioTokens.Space.s10))
+                    }
+                    Button(
+                        onClick = onConfirm,
+                        enabled = !isBusy,
+                        shape = tokens.shapes.button,
+                    ) {
+                        Text(confirmText)
+                    }
+                }
             }
-            DialogButton(
-                text = confirmText,
-                onClick = onConfirm,
-                style = if (destructive) DialogButtonStyle.Destructive else DialogButtonStyle.Primary,
-                loading = isBusy,
-            )
         }
     }
 }

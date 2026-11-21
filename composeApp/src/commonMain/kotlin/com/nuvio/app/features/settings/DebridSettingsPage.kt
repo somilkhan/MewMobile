@@ -6,8 +6,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -16,15 +19,15 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Visibility
+import androidx.compose.material3.BasicAlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
-import com.nuvio.app.core.ui.DialogButton
-import com.nuvio.app.core.ui.DialogButtons
-import com.nuvio.app.core.ui.DialogButtonStyle
-import com.nuvio.app.core.ui.DialogOption
-import com.nuvio.app.core.ui.DialogSurface
 import com.nuvio.app.core.ui.NuvioLoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -42,7 +45,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.AnnotatedString
@@ -121,7 +123,6 @@ import nuvio.composeapp.generated.resources.settings_debrid_prepare_instant_play
 import nuvio.composeapp.generated.resources.settings_debrid_prepare_stream_count
 import nuvio.composeapp.generated.resources.settings_debrid_prepare_stream_count_warning
 import nuvio.composeapp.generated.resources.settings_debrid_key_invalid
-import nuvio.composeapp.generated.resources.settings_debrid_use_api_key
 import nuvio.composeapp.generated.resources.settings_debrid_name_template
 import nuvio.composeapp.generated.resources.settings_debrid_name_template_description
 import nuvio.composeapp.generated.resources.settings_debrid_not_set
@@ -337,14 +338,6 @@ internal fun LazyListScope.debridSettingsContent(
                     onConnected = { token -> DebridSettingsRepository.setProviderApiKey(provider.id, token) },
                     onDisconnect = { DebridSettingsRepository.setProviderApiKey(provider.id, "") },
                     onDismiss = { activeDeviceAuthProviderId = null },
-                    onUseApiKey = if (provider.id == DebridProviders.TORBOX_ID) {
-                        {
-                            activeDeviceAuthProviderId = null
-                            activeApiKeyProviderId = provider.id
-                        }
-                    } else {
-                        null
-                    },
                 )
             }
 
@@ -623,29 +616,77 @@ private fun DebridPrepareCountDialog(
 ) {
     val options = listOf(1, 2, 3, 5)
 
-    DialogSurface(
-        onDismissRequest = onDismiss,
-        title = stringResource(Res.string.settings_debrid_prepare_stream_count),
-    ) {
-        Column(
+    BasicAlertDialog(onDismissRequest = onDismiss) {
+        Surface(
             modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            shape = RoundedCornerShape(20.dp),
+            color = MaterialTheme.colorScheme.surface,
         ) {
-            options.forEach { limit ->
-                val isSelected = limit == selectedLimit
-                DialogOption(
-                    text = prepareCountLabel(limit),
-                    selected = isSelected,
-                    onClick = { onLimitSelected(limit) },
+            Column(
+                modifier = Modifier.padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(
+                    text = stringResource(Res.string.settings_debrid_prepare_stream_count),
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.SemiBold,
+                )
+
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    options.forEach { limit ->
+                        val isSelected = limit == selectedLimit
+                        val containerColor = if (isSelected) {
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
+                        } else {
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                        }
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onLimitSelected(limit) },
+                            shape = RoundedCornerShape(12.dp),
+                            color = containerColor,
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    text = prepareCountLabel(limit),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                Box(
+                                    modifier = Modifier.size(24.dp),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    if (isSelected) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.Check,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Text(
+                    text = stringResource(Res.string.settings_debrid_prepare_stream_count_warning),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
-
-        Text(
-            text = stringResource(Res.string.settings_debrid_prepare_stream_count_warning),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
     }
 }
 
@@ -661,47 +702,62 @@ private fun DebridTemplateDialog(
 ) {
     var draft by rememberSaveable(currentValue) { mutableStateOf(currentValue) }
 
-    DialogSurface(
-        onDismissRequest = onDismiss,
-        title = title,
-    ) {
-        Text(
-            text = description,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        OutlinedTextField(
-            value = draft,
-            onValueChange = { draft = it },
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 140.dp, max = 280.dp),
-            minLines = 5,
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.75f),
-                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.42f),
-                focusedContainerColor = MaterialTheme.colorScheme.surface,
-                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                disabledContainerColor = MaterialTheme.colorScheme.surface,
-            ),
-        )
-        DialogButtons {
-            DialogButton(
-                text = stringResource(Res.string.action_reset),
-                onClick = { draft = defaultValue },
+    BasicAlertDialog(onDismissRequest = onDismiss) {
+        DebridDialogSurface(title = title) {
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            DialogButton(
-                text = stringResource(Res.string.action_cancel),
-                onClick = onDismiss,
+            OutlinedTextField(
+                value = draft,
+                onValueChange = { draft = it },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 140.dp, max = 280.dp),
+                minLines = 5,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.75f),
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.42f),
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                    disabledContainerColor = MaterialTheme.colorScheme.surface,
+                ),
             )
-            DialogButton(
-                text = stringResource(Res.string.action_save),
-                onClick = {
-                    onSave(draft)
-                    onDismiss()
-                },
-                style = DialogButtonStyle.Primary,
-            )
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                TextButton(onClick = { draft = defaultValue }) {
+                    Text(
+                        text = stringResource(Res.string.action_reset),
+                        maxLines = 1,
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text(
+                            text = stringResource(Res.string.action_cancel),
+                            maxLines = 1,
+                        )
+                    }
+                    Button(
+                        onClick = {
+                            onSave(draft)
+                            onDismiss()
+                        },
+                    ) {
+                        Text(
+                            text = stringResource(Res.string.action_save),
+                            maxLines = 1,
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -1017,25 +1073,24 @@ private fun <T> DebridSingleChoiceDialog(
     onSelected: (T) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    DialogSurface(
-        onDismissRequest = onDismiss,
-        title = title,
-    ) {
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(max = 420.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            items(options) { option ->
-                DialogOption(
-                    text = label(option),
-                    selected = option == selectedValue,
-                    onClick = {
-                        onSelected(option)
-                        onDismiss()
-                    },
-                )
+    BasicAlertDialog(onDismissRequest = onDismiss) {
+        DebridDialogSurface(title = title) {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 420.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                items(options) { option ->
+                    DebridDialogOptionRow(
+                        text = label(option),
+                        selected = option == selectedValue,
+                        onClick = {
+                            onSelected(option)
+                            onDismiss()
+                        },
+                    )
+                }
             }
         }
     }
@@ -1052,45 +1107,46 @@ private fun <T> DebridMultiChoiceDialog(
     onDismiss: () -> Unit,
 ) {
     var draft by remember(selectedValues) { mutableStateOf(selectedValues) }
-    DialogSurface(
-        onDismissRequest = onDismiss,
-        title = title,
-    ) {
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(max = 420.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            items(values) { option ->
-                val selected = option in draft
-                DialogOption(
-                    text = label(option),
-                    selected = selected,
-                    role = Role.Checkbox,
-                    onClick = {
-                        draft = if (selected) {
-                            draft - option
-                        } else {
-                            draft + option
-                        }
-                    },
-                )
+    BasicAlertDialog(onDismissRequest = onDismiss) {
+        DebridDialogSurface(title = title) {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 420.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                items(values) { option ->
+                    val selected = option in draft
+                    DebridDialogOptionRow(
+                        text = label(option),
+                        selected = selected,
+                        showCheckbox = true,
+                        onClick = {
+                            draft = if (selected) {
+                                draft - option
+                            } else {
+                                draft + option
+                            }
+                        },
+                    )
+                }
             }
-        }
-        DialogButtons {
-            DialogButton(
-                text = stringResource(Res.string.action_clear),
-                onClick = { draft = emptyList() },
-            )
-            DialogButton(
-                text = stringResource(Res.string.action_save),
-                onClick = {
-                    onSelected(draft)
-                    onDismiss()
-                },
-                style = DialogButtonStyle.Primary,
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+            ) {
+                TextButton(onClick = { draft = emptyList() }) {
+                    Text(stringResource(Res.string.action_clear))
+                }
+                Button(
+                    onClick = {
+                        onSelected(draft)
+                        onDismiss()
+                    },
+                ) {
+                    Text(stringResource(Res.string.action_save))
+                }
+            }
         }
     }
 }
@@ -1104,43 +1160,124 @@ private fun DebridTextListDialog(
     onDismiss: () -> Unit,
 ) {
     var value by remember(selectedValues) { mutableStateOf(selectedValues.joinToString("\n")) }
-    DialogSurface(
-        onDismissRequest = onDismiss,
-        title = title,
+    BasicAlertDialog(onDismissRequest = onDismiss) {
+        DebridDialogSurface(title = title) {
+            Text(
+                text = stringResource(Res.string.settings_debrid_release_groups_hint),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            OutlinedTextField(
+                value = value,
+                onValueChange = { value = it },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 120.dp),
+                minLines = 4,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.75f),
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.42f),
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                    disabledContainerColor = MaterialTheme.colorScheme.surface,
+                ),
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+            ) {
+                TextButton(onClick = { value = "" }) {
+                    Text(stringResource(Res.string.action_clear))
+                }
+                Button(
+                    onClick = {
+                        onSelected(value.split('\n', ',').map { it.trim() }.filter { it.isNotBlank() }.distinct())
+                        onDismiss()
+                    },
+                ) {
+                    Text(stringResource(Res.string.action_save))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DebridDialogSurface(
+    title: String,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surface,
     ) {
-        Text(
-            text = stringResource(Res.string.settings_debrid_release_groups_hint),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        OutlinedTextField(
-            value = value,
-            onValueChange = { value = it },
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.SemiBold,
+            )
+            content()
+            Spacer(modifier = Modifier.height(2.dp))
+        }
+    }
+}
+
+@Composable
+private fun DebridDialogOptionRow(
+    text: String,
+    selected: Boolean,
+    showCheckbox: Boolean = false,
+    onClick: () -> Unit,
+) {
+    val containerColor = if (selected) {
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+    }
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(12.dp),
+        color = containerColor,
+    ) {
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = 120.dp),
-            minLines = 4,
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.75f),
-                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.42f),
-                focusedContainerColor = MaterialTheme.colorScheme.surface,
-                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                disabledContainerColor = MaterialTheme.colorScheme.surface,
-            ),
-        )
-        DialogButtons {
-            DialogButton(
-                text = stringResource(Res.string.action_clear),
-                onClick = { value = "" },
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = text,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f),
             )
-            DialogButton(
-                text = stringResource(Res.string.action_save),
-                onClick = {
-                    onSelected(value.split('\n', ',').map { it.trim() }.filter { it.isNotBlank() }.distinct())
-                    onDismiss()
-                },
-                style = DialogButtonStyle.Primary,
-            )
+            if (showCheckbox) {
+                Checkbox(
+                    checked = selected,
+                    onCheckedChange = { onClick() },
+                )
+            } else {
+                Box(
+                    modifier = Modifier.size(24.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (selected) {
+                        Icon(
+                            imageVector = Icons.Rounded.Check,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -1315,7 +1452,6 @@ private fun DebridDeviceAuthDialog(
     onConnected: (String) -> Unit,
     onDisconnect: () -> Unit,
     onDismiss: () -> Unit,
-    onUseApiKey: (() -> Unit)? = null,
 ) {
     val uriHandler = LocalUriHandler.current
     val clipboardManager = LocalClipboardManager.current
@@ -1433,130 +1569,125 @@ private fun DebridDeviceAuthDialog(
         }
     }
 
-    DialogSurface(
-        onDismissRequest = onDismiss,
-        title = stringResource(
+    BasicAlertDialog(onDismissRequest = onDismiss) {
+        DebridDialogSurface(
+            title = stringResource(
                 if (isConnected) Res.string.settings_debrid_disconnect_provider else Res.string.settings_debrid_connect_provider,
                 provider.displayName,
             ),
-    ) {
-        if (isConnected) {
-            Text(
-                text = stringResource(Res.string.settings_debrid_device_auth_connected, provider.displayName),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        } else if (isStarting) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                NuvioLoadingIndicator(modifier = Modifier.size(18.dp))
+        ) {
+            if (isConnected) {
                 Text(
-                    text = startingMessage,
+                    text = stringResource(Res.string.settings_debrid_device_auth_connected, provider.displayName),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-            }
-        } else {
-            session?.let { activeSession ->
-                Text(
-                    text = stringResource(Res.string.settings_debrid_device_auth_instructions),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            clipboardManager.setText(AnnotatedString(activeSession.userCode))
-                            statusMessage = codeCopiedMessage
-                        },
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
-                ) {
-                    Column(
-                        modifier = Modifier.padding(14.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Text(
-                            text = activeSession.userCode,
-                            style = MaterialTheme.typography.headlineSmall,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Text(
-                            text = activeSession.friendlyVerificationUrl,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                    }
-                }
-            }
-            statusMessage?.let { message ->
+            } else if (isStarting) {
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    if (isPolling) {
-                        NuvioLoadingIndicator(modifier = Modifier.size(16.dp))
-                    }
+                    NuvioLoadingIndicator(modifier = Modifier.size(18.dp))
                     Text(
-                        text = message,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = if (message == failedMessage || message == expiredMessage || message == missingConfigurationMessage) {
-                            MaterialTheme.colorScheme.error
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
+                        text = startingMessage,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+            } else {
+                session?.let { activeSession ->
+                    Text(
+                        text = stringResource(Res.string.settings_debrid_device_auth_instructions),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                clipboardManager.setText(AnnotatedString(activeSession.userCode))
+                                statusMessage = codeCopiedMessage
+                            },
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(14.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Text(
+                                text = activeSession.userCode,
+                                style = MaterialTheme.typography.headlineSmall,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            Text(
+                                text = activeSession.friendlyVerificationUrl,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                    }
+                }
+                statusMessage?.let { message ->
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        if (isPolling) {
+                            NuvioLoadingIndicator(modifier = Modifier.size(16.dp))
+                        }
+                        Text(
+                            text = message,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (message == failedMessage || message == expiredMessage || message == missingConfigurationMessage) {
+                                MaterialTheme.colorScheme.error
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                        )
+                    }
+                }
             }
-        }
-        DialogButtons {
-            DialogButton(
-                text = stringResource(Res.string.action_cancel),
-                onClick = onDismiss,
-            )
-            if (isConnected) {
-                DialogButton(
-                    text = stringResource(Res.string.settings_debrid_disconnect),
-                    onClick = {
-                        clearPendingDeviceAuthorization(provider.id)
-                        onDisconnect()
-                        onDismiss()
-                    },
-                    style = DialogButtonStyle.Destructive,
-                )
-            }
-            if (!isConnected && !isStarting && session == null) {
-                DialogButton(
-                    text = stringResource(Res.string.action_retry),
-                    onClick = {
-                        clearPendingDeviceAuthorization(provider.id)
-                        restartNonce += 1
-                    },
-                )
-            }
-            if (!isConnected && onUseApiKey != null) {
-                DialogButton(
-                    text = stringResource(Res.string.settings_debrid_use_api_key),
-                    onClick = {
-                        clearPendingDeviceAuthorization(provider.id)
-                        onUseApiKey()
-                    },
-                )
-            }
-            if (!isConnected) session?.let { activeSession ->
-                DialogButton(
-                    text = stringResource(Res.string.settings_debrid_device_auth_open),
-                    onClick = {
-                        runCatching { uriHandler.openUri(activeSession.verificationUrl) }
-                            .onFailure { statusMessage = failedMessage }
-                    },
-                    enabled = !isStarting,
-                    style = DialogButtonStyle.Primary,
-                )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+            ) {
+                TextButton(onClick = onDismiss) {
+                    Text(stringResource(Res.string.action_cancel))
+                }
+                if (isConnected) {
+                    Button(
+                        onClick = {
+                            clearPendingDeviceAuthorization(provider.id)
+                            onDisconnect()
+                            onDismiss()
+                        },
+                    ) {
+                        Text(stringResource(Res.string.settings_debrid_disconnect))
+                    }
+                }
+                if (!isConnected && !isStarting && session == null) {
+                    TextButton(
+                        onClick = {
+                            clearPendingDeviceAuthorization(provider.id)
+                            restartNonce += 1
+                        },
+                    ) {
+                        Text(stringResource(Res.string.action_retry))
+                    }
+                }
+                if (!isConnected) session?.let { activeSession ->
+                    Button(
+                        onClick = {
+                            runCatching { uriHandler.openUri(activeSession.verificationUrl) }
+                                .onFailure { statusMessage = failedMessage }
+                        },
+                        enabled = !isStarting,
+                    ) {
+                        Text(stringResource(Res.string.settings_debrid_device_auth_open))
+                    }
+                }
             }
         }
     }
@@ -1640,62 +1771,66 @@ private fun DebridApiKeyDialog(
         }
     }
 
-    DialogSurface(
-        onDismissRequest = onDismiss,
-        title = title,
-    ) {
-        Text(
-            text = subtitle,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        OutlinedTextField(
-            value = draft,
-            onValueChange = {
-                draft = it
-                validationMessage = null
-            },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            placeholder = { Text(placeholder) },
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.75f),
-                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.42f),
-                focusedContainerColor = MaterialTheme.colorScheme.surface,
-                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                disabledContainerColor = MaterialTheme.colorScheme.surface,
-            ),
-        )
-        validationMessage?.let { message ->
+    BasicAlertDialog(onDismissRequest = onDismiss) {
+        DebridDialogSurface(title = title) {
             Text(
-                text = message,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error,
+                text = subtitle,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-        }
-        DialogButtons {
-            DialogButton(
-                text = stringResource(Res.string.action_cancel),
-                onClick = onDismiss,
-            )
-            DialogButton(
-                text = stringResource(Res.string.action_clear),
-                onClick = {
-                    onSave("")
-                    onDismiss()
+            OutlinedTextField(
+                value = draft,
+                onValueChange = {
+                    draft = it
+                    validationMessage = null
                 },
-                enabled = !isValidating,
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                placeholder = { Text(placeholder) },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.75f),
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.42f),
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                    disabledContainerColor = MaterialTheme.colorScheme.surface,
+                ),
             )
-            DialogButton(
-                text = if (isValidating) {
-                        stringResource(Res.string.action_saving)
-                    } else {
-                        stringResource(Res.string.action_save)
+            validationMessage?.let { message ->
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+            ) {
+                TextButton(onClick = onDismiss) {
+                    Text(stringResource(Res.string.action_cancel))
+                }
+                TextButton(
+                    onClick = {
+                        onSave("")
+                        onDismiss()
                     },
-                onClick = saveAndDismiss,
-                enabled = normalizedDraft.isNotBlank() && !isValidating,
-                style = DialogButtonStyle.Primary,
-            )
+                    enabled = !isValidating,
+                ) {
+                    Text(stringResource(Res.string.action_clear))
+                }
+                Button(
+                    onClick = saveAndDismiss,
+                    enabled = normalizedDraft.isNotBlank() && !isValidating,
+                ) {
+                    Text(
+                        if (isValidating) {
+                            stringResource(Res.string.action_saving)
+                        } else {
+                            stringResource(Res.string.action_save)
+                        },
+                    )
+                }
+            }
         }
     }
 }
