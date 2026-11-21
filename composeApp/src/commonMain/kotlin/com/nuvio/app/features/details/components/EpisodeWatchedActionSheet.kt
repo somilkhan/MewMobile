@@ -173,7 +173,6 @@ fun SeasonWatchedActionSheet(
     onDismiss: () -> Unit,
     onToggleSeasonWatched: () -> Unit,
     onMarkPreviousSeasonsWatched: () -> Unit,
-    onDownloadSeason: (() -> Unit)? = null,
 ) {
     NuvioMediaActionOverlay(
         artworkUrl = null,
@@ -218,17 +217,6 @@ fun SeasonWatchedActionSheet(
                             onDismiss()
                         },
                     )
-                    if (onDownloadSeason != null) {
-                        EpisodeSheetDivider()
-                        EpisodeSheetActionRow(
-                            icon = Icons.Default.Download,
-                            title = stringResource(Res.string.episode_download_season, seasonLabel),
-                            onClick = {
-                                onDownloadSeason.invoke()
-                                onDismiss()
-                            },
-                        )
-                    }
                     if (canMarkPreviousSeasons) {
                         EpisodeSheetDivider()
                         EpisodeSheetActionRow(
