@@ -31,6 +31,12 @@ data class MetaPreview(
 
 fun MetaPreview.stableKey(): String = "$type:$id"
 
+internal fun cloudStreamSectionKey(
+    providerStorageKey: String,
+    categoryName: String,
+    categoryIndex: Int = 0,
+): String = "cloudstream:$providerStorageKey:$categoryIndex:$categoryName"
+
 enum class PosterShape {
     Poster,
     Square,

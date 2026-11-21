@@ -5,6 +5,13 @@ import com.nuvio.app.features.addons.AddonRepository
 import com.nuvio.app.features.addons.enabledAddons
 import com.nuvio.app.features.catalog.CatalogTarget
 import com.nuvio.app.features.catalog.fetchCatalogPage
+import com.nuvio.app.features.cloudstream.CloudStreamPluginItem
+import com.nuvio.app.features.cloudstream.CLOUDSTREAM_DISCOVERY_TIMEOUT_MS
+import com.nuvio.app.features.cloudstream.CloudStreamRepository
+import com.nuvio.app.features.cloudstream.CloudStreamSearchItem
+import com.nuvio.app.features.cloudstream.isCloudStreamDiscoveryAllowed
+import com.nuvio.app.features.cloudstream.toMetaPreview
+import com.nuvio.app.features.tmdb.TmdbSettingsRepository
 import com.nuvio.app.core.poster.CustomPosterUrlRepository
 import com.nuvio.app.core.poster.reapplyCustomPosterUrls
 import com.nuvio.app.core.poster.withCustomPosterUrls
@@ -24,6 +31,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -38,10 +46,76 @@ import kotlin.random.Random
 import kotlin.time.Clock
 import kotlin.time.TimeSource
 
+internal fun shouldShowCloudStreamHomeCatalogs(hasAddonCatalogs: Boolean, tmdbEnabled: Boolean): Boolean =
+    !hasAddonCatalogs && tmdbEnabled
+
+internal fun effectiveHomeCloudStreamProviderId(selectedProviderId: String?, hasAddonCatalogs: Boolean): String? =
+    selectedProviderId.takeUnless { hasAddonCatalogs }
+
+internal fun buildCloudStreamHomeSections(
+    providerStorageKey: String,
+    providerId: String,
+    providerName: String,
+    categories: List<Pair<String, List<CloudStreamSearchItem>>>,
+): List<HomeCatalogSection> {
+    val categoryNameCounts = categories.groupingBy { it.first }.eachCount()
+    val occurrenceByName = mutableMapOf<String, Int>()
+    return categories.mapIndexedNotNull { categoryIndex, (categoryName, items) ->
+        if (items.isEmpty()) return@mapIndexedNotNull null
+        val occurrence = (occurrenceByName[categoryName] ?: 0) + 1
+        occurrenceByName[categoryName] = occurrence
+        val displayName = if ((categoryNameCounts[categoryName] ?: 0) > 1) "$categoryName $occurrence" else categoryName
+        val previews = items.take(HOME_CATALOG_PREVIEW_FETCH_LIMIT).map { it.toMetaPreview() }
+        HomeCatalogSection(
+            key = cloudStreamSectionKey(providerStorageKey, categoryName, categoryIndex),
+            title = displayName,
+            subtitle = "$providerName · CloudStream",
+            addonName = providerName,
+            target = CatalogTarget.CloudStream(
+                providerId = providerId,
+                categoryName = categoryName,
+                contentType = items.first().type.nuvioType,
+                supportsPagination = false,
+                categoryIndex = categoryIndex,
+            ),
+            items = previews,
+            availableItemCount = items.size,
+            hasMore = items.size > previews.size,
+        )
+    }
+}
+
+private data class CloudHomeProviderResult(
+    val sections: List<HomeCatalogSection>,
+    val errorMessage: String?,
+)
+
+private data class CloudHomeSectionsResult(
+    val sections: List<HomeCatalogSection>,
+    val errorMessage: String?,
+)
+
 object HomeRepository {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
+
+    private val _selectedCloudStreamProviderId = MutableStateFlow<String?>(null)
+    val selectedCloudStreamProviderId: StateFlow<String?> = _selectedCloudStreamProviderId.asStateFlow()
+
+    private var cachedCloudSections: List<HomeCatalogSection> = emptyList()
+
+    private fun restoreSelectedCloudStreamProvider() {
+        _selectedCloudStreamProviderId.value = HomeCatalogSettingsRepository.selectedCloudStreamProviderId()
+    }
+
+    fun setSelectedCloudStreamProvider(providerId: String?) {
+        val normalized = providerId?.trim()?.takeIf { it.isNotEmpty() }
+        if (_selectedCloudStreamProviderId.value == normalized) return
+        _selectedCloudStreamProviderId.value = normalized
+        HomeCatalogSettingsRepository.setCloudStreamProviderId(normalized)
+        refresh(AddonRepository.uiState.value.addons.enabledAddons(), force = true)
+    }
 
     private var activeJob: Job? = null
     private var activeRequestKey: String? = null
@@ -66,24 +140,55 @@ object HomeRepository {
     }
 
     fun refresh(addons: List<ManagedAddon>, force: Boolean = false) {
+        HomeCatalogSettingsRepository.snapshot()
+        restoreSelectedCloudStreamProvider()
+        CloudStreamRepository.initialize()
+        val cloudState = CloudStreamRepository.uiState.value
         val activeAddons = addons.enabledAddons()
+        val hasAddonCatalogs = activeAddons.any { it.manifest != null }
+        val tmdbEnabled = isCloudStreamDiscoveryAllowed(TmdbSettingsRepository.snapshot().enabled)
+        val selectedProviderId = effectiveHomeCloudStreamProviderId(
+            selectedProviderId = _selectedCloudStreamProviderId.value,
+            hasAddonCatalogs = hasAddonCatalogs,
+        )
+        val cloudPlugins = if (shouldShowCloudStreamHomeCatalogs(hasAddonCatalogs, tmdbEnabled)) {
+            cloudState.plugins
+                .filter(CloudStreamPluginItem::isRunnable)
+                .filter { selectedProviderId == null || it.metadata.id.value == selectedProviderId }
+        } else {
+            emptyList()
+        }
+        val activeCloudProviderIds = cloudPlugins.mapTo(mutableSetOf()) { it.metadata.id.value }
+        cachedCloudSections = cachedCloudSections.filter {
+            (it.target as? CatalogTarget.CloudStream)?.providerId in activeCloudProviderIds
+        }
+        if (cloudPlugins.isEmpty()) cachedCloudSections = emptyList()
         lastRefreshAddonSignature = buildAddonCatalogRefreshSignature(addons)
         val requests = buildHomeCatalogDefinitions(activeAddons)
         currentDefinitions = requests
         val requestCacheKeys = requests.mapTo(mutableSetOf(), HomeCatalogDefinition::cacheKey)
         cachedSections = cachedSections.filterKeys(requestCacheKeys::contains)
-        val requestKey = requests.joinToString(separator = "|", transform = HomeCatalogDefinition::cacheKey)
+        val requestKey = buildString {
+            append(requests.joinToString(separator = "|", transform = HomeCatalogDefinition::cacheKey))
+            append("|cloudstream=")
+            append(cloudState.registryRevision)
+            append(':')
+            append(cloudPlugins.joinToString(separator = ",") { it.metadata.id.value })
+            append("|selectedCloudStreamProvider=")
+            append(selectedProviderId.orEmpty())
+        }
         currentRequestKey = requestKey
 
         if (!force && activeRequestKey == requestKey && _uiState.value.isLoading) return
         activeRequestKey = requestKey
         snapshotGeneration++
 
-        if (requests.isEmpty()) {
+        if (requests.isEmpty() && cloudPlugins.isEmpty()) {
             activeJob?.cancel()
             activeJob = null
             activeRequestKey = null
             cachedSections = emptyMap()
+            cachedCloudSections = emptyList()
             lastErrorMessage = null
             publishCurrentState(
                 isLoading = false,
@@ -101,6 +206,7 @@ object HomeRepository {
         activeJob?.cancel()
         _uiState.update { it.copy(isLoading = true, errorMessage = null) }
         activeJob = scope.launch {
+            val cloudResultDeferred = async { loadCloudSections(cloudPlugins) }
             val settingsSnapshot = HomeCatalogSettingsRepository.snapshot()
             val prioritizedRequests = prioritizeDefinitions(
                 definitions = requests,
@@ -166,6 +272,10 @@ object HomeRepository {
 
             if (activeRequestKey != requestKey) return@launch
 
+            val cloudResult = cloudResultDeferred.await()
+            if (activeRequestKey != requestKey) return@launch
+            cachedCloudSections = cloudResult.sections
+            if (firstErrorMessage == null) firstErrorMessage = cloudResult.errorMessage
             cachedSections = loadedSections.toMap()
             lastErrorMessage = firstErrorMessage
             activeRequestKey = null
@@ -204,6 +314,8 @@ object HomeRepository {
         currentRequestKey = null
         currentDefinitions = emptyList()
         cachedSections = emptyMap()
+        cachedCloudSections = emptyList()
+        _selectedCloudStreamProviderId.value = null
         cachedCollectionHeroItems = emptyList()
         collectionHeroJob?.cancel()
         collectionHeroJob = null
@@ -298,7 +410,9 @@ object HomeRepository {
         if (entries.isNotEmpty() || currentDefinitions.isNotEmpty()) {
             lastPublishedEntries = entries
         }
-        val sections = entries.map { (_, section) -> section }
+        val cloudSections = cachedCloudSections
+            .map { it.withPosterOverlay().withReleaseFilter() }
+        val sections = entries.map { (_, section) -> section } + cloudSections
 
         if (snapshot.heroEnabled && !heroSourcesResolved) {
             _uiState.value = HomeUiState(
@@ -323,7 +437,18 @@ object HomeRepository {
         } else {
             emptyList()
         }
-        lastPublishedCatalogHeroEmpty = snapshot.heroEnabled && catalogHeroItems.isEmpty()
+        val cloudStreamHeroItems = if (snapshot.heroEnabled) {
+            val heroRandom = Random((requestKey?.hashCode() ?: 0).absoluteValue + 2)
+            cloudSections
+                .flatMap { section -> section.items }
+                .distinctBy { item -> item.stableKey() }
+                .shuffled(heroRandom)
+                .take(HOME_HERO_ITEM_LIMIT)
+        } else {
+            emptyList()
+        }
+        lastPublishedCatalogHeroEmpty =
+            snapshot.heroEnabled && catalogHeroItems.isEmpty() && cloudStreamHeroItems.isEmpty()
         val visibleHeroItems = _uiState.value.heroItems
         val heroItems = if (snapshot.heroEnabled) {
             if (
@@ -333,7 +458,7 @@ object HomeRepository {
             ) {
                 visibleHeroItems
             } else {
-                catalogHeroItems.ifEmpty { cachedCollectionHeroItems }
+                catalogHeroItems.ifEmpty { cloudStreamHeroItems }.ifEmpty { cachedCollectionHeroItems }
             }
         } else {
             emptyList()
@@ -418,6 +543,49 @@ object HomeRepository {
             items = page.items,
             availableItemCount = page.rawItemCount,
             hasMore = page.nextSkip != null,
+        )
+    }
+
+    private suspend fun loadCloudSections(
+        plugins: List<CloudStreamPluginItem>,
+    ): CloudHomeSectionsResult = coroutineScope {
+        val gate = Semaphore(HOME_CLOUDSTREAM_PROVIDER_CONCURRENCY)
+        val results = plugins.map { plugin ->
+            async {
+                gate.withPermit {
+                    val mainPage = withTimeoutOrNull(HOME_CLOUDSTREAM_PROVIDER_TIMEOUT_MS) {
+                        CloudStreamRepository.getMainPage(plugin.metadata.id.value, page = 1)
+                    }
+                    if (mainPage == null) {
+                        CloudHomeProviderResult(emptyList(), "${plugin.metadata.name} timed out")
+                    } else {
+                        mainPage.fold(
+                            onSuccess = { categories ->
+                                CloudHomeProviderResult(
+                                    sections = buildCloudStreamHomeSections(
+                                        providerStorageKey = plugin.metadata.id.storageKey,
+                                        providerId = plugin.metadata.id.value,
+                                        providerName = plugin.metadata.name,
+                                        categories = categories,
+                                    ),
+                                    errorMessage = null,
+                                )
+                            },
+                            onFailure = { error ->
+                                if (error is kotlinx.coroutines.CancellationException) throw error
+                                CloudHomeProviderResult(
+                                    emptyList(),
+                                    error.message ?: "${plugin.metadata.name} failed",
+                                )
+                            },
+                        )
+                    }
+                }
+            }
+        }.awaitAll()
+        CloudHomeSectionsResult(
+            sections = results.flatMap { it.sections },
+            errorMessage = results.firstNotNullOfOrNull { it.errorMessage },
         )
     }
 
@@ -591,6 +759,8 @@ private const val HOME_CATALOG_MAX_CONCURRENT_FETCHES = 6
 private const val HOME_CATALOG_FETCH_TIMEOUT_MS = 30_000L
 private const val HOME_CATALOG_PREVIEW_FETCH_LIMIT = 18
 private const val HOME_CATALOG_PUBLISH_THROTTLE_MS = 200L
+internal const val HOME_CLOUDSTREAM_PROVIDER_TIMEOUT_MS = CLOUDSTREAM_DISCOVERY_TIMEOUT_MS + 5_000L
+private const val HOME_CLOUDSTREAM_PROVIDER_CONCURRENCY = 4
 private const val HOME_SNAPSHOT_SAVE_DELAY_MS = 1_500L
 
 private fun prioritizeDefinitions(
