@@ -583,9 +583,9 @@ private class CloudStreamSettingsCopy private constructor(
         if (turkish) "CS3 providerları" else "CS3 providers"
     val sectionDescription: String =
         if (turkish) {
-            "Standart .cs3 paketleri indirilen üçüncü taraf kodudur. Bu derleme indirilen DEX kodunu çalıştırmaz; yalnızca Mew içine derlenmiş incelenmiş adaptörler çalışabilir. Yalnızca güvendiğiniz depoları ve eklentileri kurun."
+            "Standart .cs3 paketleri indirilen üçüncü taraf kodudur. Bu derleme indirilen DEX kodunu çalıştırmaz; yalnızca Mew içine derlenmiş incelenmiş adaptörler çalışabilir. SHA-256 özeti olmayan paketler doğrulanmamış kalır ve çalıştırılamaz. Yalnızca güvendiğiniz depoları ve eklentileri kurun."
         } else {
-            "Standard .cs3 packages are downloaded third-party code. This build does not execute downloaded DEX; only reviewed adapters compiled into Mew can run. Only install repositories and plugins you trust."
+            "Standard .cs3 packages are downloaded third-party code. This build does not execute downloaded DEX; only reviewed adapters compiled into Mew can run. Packages without a SHA-256 hash remain unverified and cannot run. Only install repositories and plugins you trust."
         }
     val autoUpdateTitle: String = if (turkish) "Kurulu eklentileri otomatik güncelle" else "Automatically update installed extensions"
     val autoUpdateDescription: String = if (turkish) {
