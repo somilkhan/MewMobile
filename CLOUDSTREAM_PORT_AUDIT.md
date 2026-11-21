@@ -2,6 +2,8 @@
 
 > **MANDATORY HANDOFF RULE:** Before making any CloudStream port change, read this entire file, the complete `CLOUDSTREAM_UPSTREAM_COMPATIBILITY.md` and `CLOUDSTREAM_CROSS_PLATFORM_COMPATIBILITY.md` from the source branch (`Main-dev`), and the current `MEW-CONTEXT-SNAPSHOT.md` if present. Then re-check the live branch SHA and inspect the exact target files/callers. Do not repeat completed investigations or copy files blindly. Update this audit with date, time, SHA, decisions, tests, and remaining risks after each meaningful work unit.
 
+> **CURRENT-STATUS RULE:** Sections 8–12 are historical checkpoints. Sections 13–16 contain the latest implementation status and remaining work. Do not treat older “still absent” or “next steps” lists as current, and do not repeat work marked complete in the latest sections.
+
 ## 1. Audit metadata
 
 - Date/time: 22 November 2026, 01:47 IST
@@ -144,7 +146,9 @@ Do not replace these files wholesale. Their target and source SHAs differ, and t
 - Next: Home provider/catalog integration and profile-aware selected-provider persistence; then Search, Details, Streams, settings/navigation, platform runtime and build wiring.
 
 
-## 11. Implementation progress — Home/Search/profile integration
+## 11. Historical checkpoint — Home/Search/profile integration
+
+> This section records the status at its original commit only. Sections 13–16 supersede its incomplete-work list.
 
 - Target branch head before this documentation update: `16a048de58f1615a3581e99d69d86d5260b018bd`
 - Commits:
@@ -157,7 +161,9 @@ Do not replace these files wholesale. Their target and source SHAs differ, and t
 - Target-specific server, collection, snapshot, custom-poster, and player fields were preserved; no shared Home/Stream model was replaced.
 - Tests/build/device checks: **NOT RUN**.
 
-## 12. Current implementation state
+## 12. Historical intermediate implementation state (superseded by sections 13–16)
+
+> This was the state before the Details/Streams, platform, settings and security follow-up ports. Use sections 13–16 for current status.
 
 - Ported/added: common CloudStream domain foundation, parser/package checks, provider contract, Nuvio adapter, catalog target/loading, Home fallback discovery, Search provider results, selected Home provider persistence, profile lifecycle call.
 - Still absent: platform actuals/storage, Android Full runtime and compatibility shims, iOS Full reviewed adapter implementation, Play Store/App Store stubs, binary runtime AAR, Gradle dependency/ProGuard integration, settings route/UI, Details and Streams integration, localization, and regression tests for target-specific integrations.
