@@ -31,6 +31,9 @@ actual fun LockPlayerToLandscape() {
     val activity = LocalContext.current.findActivity() ?: return
     if (!activity.shouldForceLandscapePlayer()) return
     val portrait by PlayerOrientationPreference.portrait.collectAsState()
+    // While the player is minimised to the floating card, release the landscape lock so the
+    // app can rotate normally.
+    val minimized = MiniPlayerController.minimized
 
     val originalOrientation = PlayerOrientationPreference.captureOriginalOrientation(activity.requestedOrientation)
     DisposableEffect(activity, originalOrientation) {
@@ -44,8 +47,11 @@ actual fun LockPlayerToLandscape() {
         }
     }
     SideEffect {
-        val target = if (portrait) ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-        else ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+        val target = when {
+            minimized -> ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            portrait -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            else -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+        }
         if (activity.requestedOrientation != target) activity.requestedOrientation = target
     }
 }
