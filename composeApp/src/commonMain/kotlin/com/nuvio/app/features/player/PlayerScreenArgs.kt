@@ -43,4 +43,5 @@ internal data class PlayerScreenArgs(
     val randomEpisodeMode: Boolean = false,
     val initialStreamFilename: String? = null,
     val initialStreamInfoHash: String? = null,
+    val miniPlayerLaunch: PlayerLaunch? = null,
 )

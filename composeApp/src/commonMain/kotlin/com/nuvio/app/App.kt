@@ -216,6 +216,7 @@ import com.nuvio.app.features.p2p.P2pSettingsRepository
 import com.nuvio.app.features.player.PlayerLaunch
 import com.nuvio.app.features.party.PartyScreen
 import com.nuvio.app.features.streams.PartyStreamsProvider
+import com.nuvio.app.features.player.MiniPlayerHost
 import com.nuvio.app.features.player.PlayerLaunchStore
 import com.nuvio.app.features.player.PlayerScreen
 import com.nuvio.app.features.player.PlayerPlaybackSnapshot
@@ -3344,6 +3345,7 @@ private fun MainAppContent(
                     }
                     PlayerScreen(
                         profileId = launch.profileId,
+                        miniPlayerLaunch = launch,
                         title = launch.title,
                         sourceUrl = launch.sourceUrl,
                         sourceAudioUrl = launch.sourceAudioUrl,
@@ -3719,6 +3721,14 @@ private fun MainAppContent(
                 }
             }
             }
+
+            MiniPlayerHost(
+                playerOnTop = currentRoute is PlayerRoute,
+                onExpand = { launch ->
+                    val launchId = PlayerLaunchStore.put(launch)
+                    navController.navigate(PlayerRoute(launchId = launchId, title = launch.title))
+                },
+            )
 
             selectedPosterActionTarget?.let { posterActionTarget ->
                 key(posterActionTarget) {

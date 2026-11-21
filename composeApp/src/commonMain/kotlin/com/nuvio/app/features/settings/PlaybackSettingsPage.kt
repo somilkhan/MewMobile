@@ -450,6 +450,14 @@ private fun PlaybackSettingsSection(
                 )
                 SettingsGroupDivider(isTablet = isTablet)
                 SettingsSwitchRow(
+                    title = stringResource(Res.string.settings_playback_mini_player),
+                    description = stringResource(Res.string.settings_playback_mini_player_description),
+                    checked = autoPlayPlayerSettings.miniPlayerEnabled,
+                    isTablet = isTablet,
+                    onCheckedChange = PlayerSettingsRepository::setMiniPlayerEnabled,
+                )
+                SettingsGroupDivider(isTablet = isTablet)
+                SettingsSwitchRow(
                     title = stringResource(Res.string.settings_playback_parental_guide),
                     description = stringResource(Res.string.settings_playback_parental_guide_description),
                     checked = autoPlayPlayerSettings.showParentalGuide,

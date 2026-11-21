@@ -24,6 +24,7 @@ actual object PlayerSettingsStorage {
     private const val chapterSkipEnabledKey = "chapter_skip_enabled"
     private const val playerLiquidGlassEnabledKey = "player_liquid_glass_enabled"
     private const val nextEpisodeSwipeDismissEnabledKey = "next_episode_swipe_dismiss_enabled"
+    private const val miniPlayerEnabledKey = "mini_player_enabled"
     private const val skipBackwardSecondsKey = "player_skip_backward_seconds"
     private const val skipForwardSecondsKey = "player_skip_forward_seconds"
     private const val toolbarLayoutKey = "player_toolbar_layout"
@@ -126,6 +127,7 @@ actual object PlayerSettingsStorage {
         chapterSkipEnabledKey,
         playerLiquidGlassEnabledKey,
         nextEpisodeSwipeDismissEnabledKey,
+        miniPlayerEnabledKey,
         skipBackwardSecondsKey,
         skipForwardSecondsKey,
         toolbarLayoutKey,
@@ -298,6 +300,14 @@ actual object PlayerSettingsStorage {
     }
     actual fun saveNextEpisodeSwipeDismissEnabled(enabled: Boolean) {
         NSUserDefaults.standardUserDefaults.setBool(enabled, forKey = ProfileScopedKey.of(nextEpisodeSwipeDismissEnabledKey))
+    }
+    actual fun loadMiniPlayerEnabled(): Boolean? {
+        val defaults = NSUserDefaults.standardUserDefaults
+        val key = ProfileScopedKey.of(miniPlayerEnabledKey)
+        return if (defaults.objectForKey(key) != null) defaults.boolForKey(key) else null
+    }
+    actual fun saveMiniPlayerEnabled(enabled: Boolean) {
+        NSUserDefaults.standardUserDefaults.setBool(enabled, forKey = ProfileScopedKey.of(miniPlayerEnabledKey))
     }
 
     actual fun loadShowLoadingOverlay(): Boolean? {

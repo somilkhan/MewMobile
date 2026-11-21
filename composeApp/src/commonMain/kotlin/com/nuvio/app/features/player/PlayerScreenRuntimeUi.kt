@@ -370,6 +370,7 @@ private fun PlayerScreenRuntime.RenderPlayerControls(displayedPositionMs: Long, 
                 },
                 onBack = {
                     flushWatchProgress()
+                    handOffToMiniPlayerIfEnabled()
                     args.onBack()
                 },
                 onTogglePlayback = { togglePlayback() },
@@ -541,6 +542,7 @@ private fun BoxScope.RenderPlaybackOverlays(
         title = title,
         onBackWithProgress = {
             flushWatchProgress()
+            handOffToMiniPlayerIfEnabled()
             args.onBack()
         },
         p2pInitialLoadingMessage = p2pInitialLoadingMessage,
