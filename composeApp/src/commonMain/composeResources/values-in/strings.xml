@@ -2620,7 +2620,6 @@
     <string name="theme_blossom">Mekar</string>
     <string name="theme_lagoon">Laguna</string>
     <string name="theme_sunset">Matahari terbenam</string>
-    <string name="theme_custom">Kustom</string>
     <string name="settings_appearance_theme_classic">Tema klasik</string>
     <string name="settings_appearance_theme_enhanced">Tema yang disempurnakan</string>
     <string name="settings_appearance_theme_custom_first">Warna pertama</string>
