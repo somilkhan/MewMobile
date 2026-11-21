@@ -6,6 +6,7 @@ import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.BugReport
+import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.LiveTv
 import androidx.compose.material.icons.filled.NewReleases
@@ -207,6 +208,11 @@ internal enum class SettingsPage(
         category = SettingsCategory.Watch,
         parentPage = ContentDiscovery,
     ),
+    CloudStream(
+        titleRes = Res.string.compose_settings_page_cloudstream,
+        category = SettingsCategory.Watch,
+        parentPage = ContentDiscovery,
+    ),
     MediaServers(
         titleRes = Res.string.compose_settings_page_media_servers,
         category = SettingsCategory.Watch,
@@ -299,6 +305,7 @@ internal val SettingsPage.icon: ImageVector
         SettingsPage.ContentDiscovery -> Icons.Default.Explore
         SettingsPage.Addons -> Icons.Default.Extension
         SettingsPage.Plugins -> Icons.Default.Power
+        SettingsPage.CloudStream -> Icons.Default.Cloud
         SettingsPage.MediaServers -> Icons.Default.Dns
         SettingsPage.MediaServer -> Icons.Default.Dns
         SettingsPage.Homescreen -> Icons.Default.Dashboard
