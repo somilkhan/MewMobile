@@ -163,3 +163,59 @@ Do not replace these files wholesale. Their target and source SHAs differ, and t
 - Still absent: platform actuals/storage, Android Full runtime and compatibility shims, iOS Full reviewed adapter implementation, Play Store/App Store stubs, binary runtime AAR, Gradle dependency/ProGuard integration, settings route/UI, Details and Streams integration, localization, and regression tests for target-specific integrations.
 - Do not treat this branch as buildable or feature-complete yet. The current work is an intermediate port state.
 - Immediate next steps: adapt MetaDetailsRepository and StreamsRepository without replacing their server/debrid/player behavior; then add platform source files and distribution/build wiring. Resolve the missing-hash verification policy and DEX documentation conflict before enabling downloaded Android DEX execution.
+
+
+## 13. Implementation progress — Details, streams, Home and Search
+
+- Date/time: 22 November 2026 at 2:38:00 am IST
+- Source branch: `Main-dev` at `4e98931537192e20a85fd2a248de590676aa9643`
+- Target branch head before this documentation update: `59006f0d6237d7c93b0fe5609b09bba4b1a0b50a`
+- CloudStream detail routes now load through `MetaDetailsRepository`; cached CloudStream metadata is cleared on profile changes.
+- `StreamsRepository` now resolves CloudStream providers alongside existing addons, scraper plugins and server sources. `StreamsScreen` passes parent metadata type and title for title/episode matching. The public load/reload parameter order preserves existing positional callers.
+- CloudStream streams are merged into the existing stream-group pipeline and receive existing badge/debrid presentation and autoplay updates. Headers, referer, subtitle metadata and HLS/DASH flags are retained through the existing `StreamItem` adapter.
+- HLS master-playlist variant expansion was **not ported**: the target branch has no equivalent `PlayerQualityResolver`. The original HLS/DASH source URLs still reach the existing player; do not add a second player/quality abstraction without auditing the target player pipeline.
+- Home now displays CloudStream shelves, a provider filter, and refreshes while Home is visible when the CloudStream registry changes. Search refreshes its active query when runnable CloudStream providers change.
+- Profile switching resets the CloudStream runtime, CloudStream detail cache, and stream results.
+- Catalog integration preserves the target's `Server`, `MoreLikeThis`, collection and library branches.
+
+## 14. Platform, settings and security decisions
+
+- Added the full-distribution CloudStream repository implementation, provider registry and reviewed built-in `KickTR` adapter.
+- Added Android Full and iOS Full private package/state storage actuals; Android app startup initializes CloudStream storage.
+- Added Android Play Store and iOS App Store disabled repository/runtime/storage/settings actuals.
+- Added the settings route under **Settings → Content Discovery → CloudStream**, with full-build settings UI and provider-management controls.
+- Added no CloudStream runtime AAR, DEX loader, ProGuard rules or DEX-related dependencies.
+- **Downloaded DEX remains disabled on Android Full and iOS Full.** Both full runtimes report `supportsAndroidDex = false`; only reviewed providers compiled into Mew (currently KickTR) can run. Standard `.cs3` packages may be inspected and stored, but arbitrary downloaded code is not executed.
+- This follows `CLOUDSTREAM_CROSS_PLATFORM_COMPATIBILITY.md` from `Main-dev` (source blob `13197bcc82e93bb36933f9759397eb20ef1d7441`): it explicitly says downloaded DEX is never executed and only reviewed built-in adapters run. The Android `RepositoryManager`/dynamic DEX bridge described in `CLOUDSTREAM_UPSTREAM_COMPATIBILITY.md` (source blob `f4f3c4c7fccad31ddb4a7f3c72cb2dd323a5775f`) is intentionally not ported because it exists to support executable downloaded extensions.
+- Hash policy mismatch resolved: packages without an expected SHA-256 hash can be stored but remain **unverified and disabled**; a supplied mismatching hash still rejects installation. Added `CloudStreamSha256Test` for missing, matching and mismatching hash cases.
+- Replaced the source implementation's JVM `java.util.LinkedHashMap` access-order cache with Kotlin collection maps and explicit move-to-end helpers, preserving LRU behavior in the shared source set.
+- Removed `RuntimeDiagnostics` calls from the full repository implementation because that diagnostics subsystem does not exist on the target branch. Existing repository error logging remains; detailed CloudStream runtime diagnostics are not ported.
+- Updated compatibility/security copy to state that this Mew build does not execute downloaded DEX and that hashless packages remain unverified.
+
+## 15. Duplicate audit and files changed
+
+- `AddonRepository`, `PluginRepository` and `CloudStreamRepository` remain **INTENTIONAL PARALLEL** systems with distinct Stremio, Nuvio scraper and CloudStream `.cs3` semantics. No generic plugin manager or second player was introduced.
+- Existing target models (`MetaPreview`, `MetaDetails`, `MetaVideo`, `StreamItem`) were adapted through `CloudStreamNuvioAdapter`; they were not replaced with source-branch models.
+- Main integration areas changed/added:
+  - Common CloudStream models, parser, package inspection, SHA helper, compatibility and Nuvio adapter.
+  - Catalog target/repository; Home settings/repository/screen; Search repository/screen.
+  - Details repository; Streams support/repository/screen; profile lifecycle.
+  - FullCommon repository/provider/KickTR/settings section; Android/iOS platform runtime and storage actuals; store-build stubs.
+  - Settings models, Content Discovery page, SettingsScreen and default resource strings.
+  - Common regression tests, including provider matching and SHA verification.
+- `CLOUDSTREAM_PORT_AUDIT.md` remains the authoritative handoff. **No `MEW-CONTEXT-SNAPSHOT.md` exists on this branch** at this update.
+
+## 16. Verification and next actions
+
+- GitHub branch refs checked:
+  - `integration`: `59006f0d6237d7c93b0fe5609b09bba4b1a0b50a` before this doc commit.
+  - `main`: `207ef8fa309b8061b73039b2d4e4bde4af65050e` — untouched.
+  - `Main-dev`: `4e98931537192e20a85fd2a248de590676aa9643` — untouched.
+  - `upstream-sync`: `af51bbbc13cdb315a88ef597eb4d2672a60335d5` — untouched.
+- GitHub Actions runs queried for `integration`: none returned. No CI workflow has verified this port.
+- Gradle build/tests: **NOT RUN**. The new/ported tests are committed but not executed.
+- Android/iOS device verification: **NOT RUN**. No iOS device verification is available.
+- Do not call the branch buildable, tested or feature-complete until Android Full, Android Play Store, iOS Full and iOS App Store compilation/tests have been run.
+- Next: obtain a build-capable checkout/CI run; fix compile/test failures; then verify repository add/update, profile isolation, search, details, stream extraction and playback. Review HLS master-playlist handling against the target player before considering variant expansion.
+- Do not enable downloaded DEX execution or add its runtime AAR/ProGuard rules. The current compatibility policy explicitly excludes it; any policy change requires a separate security review and explicit approval.
+- Do not merge/promote this branch. `main`, `Main-dev` and `upstream-sync` remain unchanged.
