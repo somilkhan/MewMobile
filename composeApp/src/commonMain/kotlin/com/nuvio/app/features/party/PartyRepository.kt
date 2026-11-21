@@ -5,7 +5,6 @@ import com.nuvio.app.core.auth.AuthRepository
 import com.nuvio.app.core.auth.AuthState
 import com.nuvio.app.core.network.ServerConfigurationRepository
 import com.nuvio.app.core.sync.AppForegroundMonitor
-import com.nuvio.app.core.sync.AppVisibility
 import com.nuvio.app.core.sync.SyncClientIdentity
 import com.nuvio.app.features.profiles.AvatarRepository
 import com.nuvio.app.features.profiles.ProfileRepository
@@ -100,7 +99,6 @@ object PartyRepository {
             refreshEnabled()
             AppForegroundMonitor.events()
                 .flowOn(Dispatchers.Main)
-                .filter { it == AppVisibility.Foreground }
                 .collect { refreshEnabled() }
         }
     }
@@ -411,12 +409,19 @@ object PartyRepository {
             return
         }
         val name = party.member(memberId)?.displayName
-        if (memberId == party.hostMemberId) _sharedStream.value = null
+        val hostLeft = memberId == party.hostMemberId
+        val nextHostMemberId = hostMemberId ?: party.hostMemberId
+        if (hostLeft) {
+            // Host stream ownership cannot survive an election. Clear sharing before
+            // storing the new host ID so the subsequent snapshot sees no old host.
+            _sharedStream.value = null
+        }
         updateParty { current ->
             current.copy(
                 members = current.members.filterNot { it.id == memberId },
                 presence = current.presence - memberId,
-                hostMemberId = hostMemberId ?: current.hostMemberId,
+                hostMemberId = nextHostMemberId,
+                sharing = if (hostLeft) false else current.sharing,
             )
         }
         ignoredWaiting.remove(memberId)
@@ -447,6 +452,13 @@ object PartyRepository {
             else -> return
         }
         val info = snapshot.party ?: return
+        val previousHostMemberId = _state.value.party?.hostMemberId
+        if (previousHostMemberId != null && previousHostMemberId != info.hostMemberId) {
+            // Shared stream is published by the previous host and is not transferable
+            // merely because the server elected a new host.
+            _sharedStream.value = null
+            updateParty { it.copy(sharing = false) }
+        }
         updateParty { current ->
             current.copy(
                 members = snapshot.members,
@@ -456,8 +468,10 @@ object PartyRepository {
                 presence = current.presence.filterKeys { key -> snapshot.members.any { it.id == key } },
             )
         }
-        if (info.media.key != _state.value.party?.media?.key) applyMedia(info.media, info.playback)
-        info.playback?.let(::accept)
+        // Snapshots are authoritative for media metadata even when the stable media key
+        // is unchanged (e.g. refreshed title/poster/source details after reconnect).
+        // applyMedia handles both changed-media replacement and same-key playback acceptance.
+        applyMedia(info.media, info.playback)
     }
 
     private fun applyMedia(media: PartyMedia, playback: PartyPlayback?) {
@@ -611,7 +625,9 @@ object PartyRepository {
                         return@withLock
                     }
                     if (rejoined.memberId == party.memberId) {
-                        updateParty { it.copy(members = rejoined.members, hostMemberId = rejoined.hostMemberId) }
+                        // Rejoin can return the same member identity after server-side membership
+                        // recovery. Refresh every server-owned field, not only the roster/host.
+                        applySnapshot(snapshot)
                         return@withLock
                     }
                     val playback = _playback.value
@@ -645,7 +661,7 @@ object PartyRepository {
         return PartyIdentity(
             deviceId = deviceId(),
             displayName = profile?.name?.trim()?.takeIf { it.isNotEmpty() }?.take(40) ?: DEFAULT_NAME,
-            avatarUrl = profile?.let { AvatarRepository.shareableImageUrl(it) }?.takeIf { it.startsWith("https://") && it.length <= 512 },
+            avatarUrl = profile?.avatarUrl?.takeIf { it.startsWith("https://") && it.length <= 512 },
             avatarColor = profile?.avatarColorHex?.takeIf { COLOR_PATTERN.matches(it) },
             profileIndex = profile?.profileIndex,
         )
