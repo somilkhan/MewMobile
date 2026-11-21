@@ -18,7 +18,6 @@ import androidx.media3.extractor.SniffFailure
 import androidx.media3.extractor.TrackOutput
 import androidx.media3.extractor.text.CueDecoder
 import com.nuvio.app.features.player.RewrappableExtractor
-import com.nuvio.app.features.player.SubtitleSyncCue
 import java.io.EOFException
 import kotlin.math.max
 
@@ -168,7 +167,7 @@ private class ObservingTextTrackOutput(
             label = currentFormat?.label,
             selectionFlags = currentFormat?.selectionFlags ?: 0,
             roleFlags = currentFormat?.roleFlags ?: 0,
-            cue = SubtitleSyncCue(startTimeMs = startMs, endTimeMs = endMs, text = text),
+            cue = AutoSyncSubtitleCue(startTimeMs = startMs, endTimeMs = endMs, text = text),
         )
     }
 
