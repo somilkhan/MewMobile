@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -178,7 +179,7 @@ fun HomeScreen(
         }
     }
 
-    LaunchedEffect(addonSignals.metaProviderReadinessKey, cloudStreamUiState.registryRevision, cloudStreamUiState.plugins) {
+    LaunchedEffect(addonSignals.metaProviderReadinessKey, cloudStreamUiState.registryRevision) {
         HomeRepository.refresh(AddonRepository.uiState.value.addons.enabledAddons())
     }
     val homeUiState by HomeRepository.uiState.collectAsStateWithLifecycle()
