@@ -3541,4 +3541,13 @@
     <string name="player_stream_info_section_video">Video</string>
     <string name="player_stream_info_section_audio">Audio</string>
     <string name="player_stream_info_section_subtitles">Subtitles</string>
+    <string name="downloads_section_shows">Shows</string>
+    <string name="settings_playback_render_type_cues">Cues</string>
+    <string name="settings_playback_render_type_effects_canvas">Effects (Canvas)</string>
+    <string name="settings_playback_render_type_effects_opengl">Effects (OpenGL)</string>
+    <string name="settings_playback_render_type_overlay_canvas">Overlay (Canvas)</string>
+    <string name="settings_playback_render_type_overlay_opengl">Overlay (OpenGL)</string>
+    <string name="settings_tmdb_add_api_key_first">Add your own TMDB API key below before enabling enrichment.</string>
+    <string name="settings_tmdb_module_release_dates">Release dates</string>
+    <string name="settings_tmdb_module_release_dates_description">Show release dates for upcoming titles.</string>
 </resources>
