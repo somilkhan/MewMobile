@@ -70,6 +70,17 @@ data class PlayerSettingsUiState(
     val androidLibmpvHardwareDecodingEnabled: Boolean = true,
     val androidLibmpvYuv420pEnabled: Boolean = false,
     val androidMemorySafeBufferEnabled: Boolean = false,
+    val exoNativeMemoryEnabled: Boolean = false,
+    val customPlaybackBuffersEnabled: Boolean = false,
+    val vodDiskCacheEnabled: Boolean = false,
+    val vodDiskCacheAutoSize: Boolean = true,
+    val playbackMinBufferSeconds: Int = 50,
+    val playbackMaxBufferSeconds: Int = 50,
+    val playbackStartBufferSeconds: Int = 3,
+    val playbackRebufferSeconds: Int = 5,
+    val playbackBackBufferSeconds: Int = 10,
+    val playbackTargetBufferMb: Int = 256,
+    val vodDiskCacheSizeMb: Int = 2048,
     val decoderPriority: Int = 1,
     val mapDV7ToHevc: Boolean = false,
     val tunnelingEnabled: Boolean = false,
@@ -152,6 +163,17 @@ object PlayerSettingsRepository {
     private var androidLibmpvHardwareDecodingEnabled = true
     private var androidLibmpvYuv420pEnabled = false
     private var androidMemorySafeBufferEnabled = false
+    private var exoNativeMemoryEnabled = false
+    private var customPlaybackBuffersEnabled = false
+    private var vodDiskCacheEnabled = false
+    private var vodDiskCacheAutoSize = true
+    private var playbackMinBufferSeconds = 50
+    private var playbackMaxBufferSeconds = 50
+    private var playbackStartBufferSeconds = 3
+    private var playbackRebufferSeconds = 5
+    private var playbackBackBufferSeconds = 10
+    private var playbackTargetBufferMb = 256
+    private var vodDiskCacheSizeMb = 2048
     private var decoderPriority = 1
     private var mapDV7ToHevc = false
     private var tunnelingEnabled = false
@@ -239,6 +261,17 @@ object PlayerSettingsRepository {
         androidLibmpvHardwareDecodingEnabled = true
         androidLibmpvYuv420pEnabled = false
         androidMemorySafeBufferEnabled = false
+        exoNativeMemoryEnabled = false
+        customPlaybackBuffersEnabled = false
+        vodDiskCacheEnabled = false
+        vodDiskCacheAutoSize = true
+        playbackMinBufferSeconds = 50
+        playbackMaxBufferSeconds = 50
+        playbackStartBufferSeconds = 3
+        playbackRebufferSeconds = 5
+        playbackBackBufferSeconds = 10
+        playbackTargetBufferMb = 256
+        vodDiskCacheSizeMb = 2048
         decoderPriority = 1
         mapDV7ToHevc = false
         tunnelingEnabled = false
@@ -367,6 +400,17 @@ object PlayerSettingsRepository {
         androidLibmpvHardwareDecodingEnabled = PlayerSettingsStorage.loadAndroidLibmpvHardwareDecodingEnabled() ?: true
         androidLibmpvYuv420pEnabled = PlayerSettingsStorage.loadAndroidLibmpvYuv420pEnabled() ?: false
         androidMemorySafeBufferEnabled = PlayerSettingsStorage.loadAndroidMemorySafeBufferEnabled() ?: false
+        exoNativeMemoryEnabled = PlayerSettingsStorage.loadExoNativeMemoryEnabled() ?: false
+        customPlaybackBuffersEnabled = PlayerSettingsStorage.loadCustomPlaybackBuffersEnabled() ?: false
+        vodDiskCacheEnabled = PlayerSettingsStorage.loadVodDiskCacheEnabled() ?: false
+        vodDiskCacheAutoSize = PlayerSettingsStorage.loadVodDiskCacheAutoSize() ?: true
+        playbackMinBufferSeconds = PlayerSettingsStorage.loadPlaybackMinBufferSeconds() ?: 50
+        playbackMaxBufferSeconds = PlayerSettingsStorage.loadPlaybackMaxBufferSeconds() ?: 50
+        playbackStartBufferSeconds = PlayerSettingsStorage.loadPlaybackStartBufferSeconds() ?: 3
+        playbackRebufferSeconds = PlayerSettingsStorage.loadPlaybackRebufferSeconds() ?: 5
+        playbackBackBufferSeconds = PlayerSettingsStorage.loadPlaybackBackBufferSeconds() ?: 10
+        playbackTargetBufferMb = PlayerSettingsStorage.loadPlaybackTargetBufferMb() ?: 256
+        vodDiskCacheSizeMb = PlayerSettingsStorage.loadVodDiskCacheSizeMb() ?: 2048
         decoderPriority = PlayerSettingsStorage.loadDecoderPriority() ?: 1
         mapDV7ToHevc = PlayerSettingsStorage.loadMapDV7ToHevc() ?: false
         tunnelingEnabled = PlayerSettingsStorage.loadTunnelingEnabled() ?: false
@@ -759,6 +803,94 @@ object PlayerSettingsRepository {
         androidMemorySafeBufferEnabled = enabled
         publish()
         PlayerSettingsStorage.saveAndroidMemorySafeBufferEnabled(enabled)
+    }
+
+    fun setExoNativeMemoryEnabled(value: Boolean) {
+        ensureLoaded()
+        if (exoNativeMemoryEnabled == value) return
+        exoNativeMemoryEnabled = value
+        publish()
+        PlayerSettingsStorage.saveExoNativeMemoryEnabled(value)
+    }
+
+    fun setCustomPlaybackBuffersEnabled(value: Boolean) {
+        ensureLoaded()
+        if (customPlaybackBuffersEnabled == value) return
+        customPlaybackBuffersEnabled = value
+        publish()
+        PlayerSettingsStorage.saveCustomPlaybackBuffersEnabled(value)
+    }
+
+    fun setVodDiskCacheEnabled(value: Boolean) {
+        ensureLoaded()
+        if (vodDiskCacheEnabled == value) return
+        vodDiskCacheEnabled = value
+        publish()
+        PlayerSettingsStorage.saveVodDiskCacheEnabled(value)
+    }
+
+    fun setVodDiskCacheAutoSize(value: Boolean) {
+        ensureLoaded()
+        if (vodDiskCacheAutoSize == value) return
+        vodDiskCacheAutoSize = value
+        publish()
+        PlayerSettingsStorage.saveVodDiskCacheAutoSize(value)
+    }
+
+    fun setPlaybackMinBufferSeconds(value: Int) {
+        ensureLoaded()
+        if (playbackMinBufferSeconds == value) return
+        playbackMinBufferSeconds = value
+        publish()
+        PlayerSettingsStorage.savePlaybackMinBufferSeconds(value)
+    }
+
+    fun setPlaybackMaxBufferSeconds(value: Int) {
+        ensureLoaded()
+        if (playbackMaxBufferSeconds == value) return
+        playbackMaxBufferSeconds = value
+        publish()
+        PlayerSettingsStorage.savePlaybackMaxBufferSeconds(value)
+    }
+
+    fun setPlaybackStartBufferSeconds(value: Int) {
+        ensureLoaded()
+        if (playbackStartBufferSeconds == value) return
+        playbackStartBufferSeconds = value
+        publish()
+        PlayerSettingsStorage.savePlaybackStartBufferSeconds(value)
+    }
+
+    fun setPlaybackRebufferSeconds(value: Int) {
+        ensureLoaded()
+        if (playbackRebufferSeconds == value) return
+        playbackRebufferSeconds = value
+        publish()
+        PlayerSettingsStorage.savePlaybackRebufferSeconds(value)
+    }
+
+    fun setPlaybackBackBufferSeconds(value: Int) {
+        ensureLoaded()
+        if (playbackBackBufferSeconds == value) return
+        playbackBackBufferSeconds = value
+        publish()
+        PlayerSettingsStorage.savePlaybackBackBufferSeconds(value)
+    }
+
+    fun setPlaybackTargetBufferMb(value: Int) {
+        ensureLoaded()
+        if (playbackTargetBufferMb == value) return
+        playbackTargetBufferMb = value
+        publish()
+        PlayerSettingsStorage.savePlaybackTargetBufferMb(value)
+    }
+
+    fun setVodDiskCacheSizeMb(value: Int) {
+        ensureLoaded()
+        if (vodDiskCacheSizeMb == value) return
+        vodDiskCacheSizeMb = value
+        publish()
+        PlayerSettingsStorage.saveVodDiskCacheSizeMb(value)
     }
 
     fun setDecoderPriority(priority: Int) {
@@ -1173,6 +1305,17 @@ object PlayerSettingsRepository {
             androidLibmpvHardwareDecodingEnabled = androidLibmpvHardwareDecodingEnabled,
             androidLibmpvYuv420pEnabled = androidLibmpvYuv420pEnabled,
             androidMemorySafeBufferEnabled = androidMemorySafeBufferEnabled,
+            exoNativeMemoryEnabled = exoNativeMemoryEnabled,
+            customPlaybackBuffersEnabled = customPlaybackBuffersEnabled,
+            vodDiskCacheEnabled = vodDiskCacheEnabled,
+            vodDiskCacheAutoSize = vodDiskCacheAutoSize,
+            playbackMinBufferSeconds = playbackMinBufferSeconds,
+            playbackMaxBufferSeconds = playbackMaxBufferSeconds,
+            playbackStartBufferSeconds = playbackStartBufferSeconds,
+            playbackRebufferSeconds = playbackRebufferSeconds,
+            playbackBackBufferSeconds = playbackBackBufferSeconds,
+            playbackTargetBufferMb = playbackTargetBufferMb,
+            vodDiskCacheSizeMb = vodDiskCacheSizeMb,
             decoderPriority = decoderPriority,
             mapDV7ToHevc = mapDV7ToHevc,
             tunnelingEnabled = tunnelingEnabled,

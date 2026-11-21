@@ -99,6 +99,28 @@ internal expect object PlayerSettingsStorage {
     fun saveAndroidLibmpvYuv420pEnabled(enabled: Boolean)
     fun loadAndroidMemorySafeBufferEnabled(): Boolean?
     fun saveAndroidMemorySafeBufferEnabled(enabled: Boolean)
+    fun loadExoNativeMemoryEnabled(): Boolean?
+    fun saveExoNativeMemoryEnabled(value: Boolean)
+    fun loadCustomPlaybackBuffersEnabled(): Boolean?
+    fun saveCustomPlaybackBuffersEnabled(value: Boolean)
+    fun loadVodDiskCacheEnabled(): Boolean?
+    fun saveVodDiskCacheEnabled(value: Boolean)
+    fun loadVodDiskCacheAutoSize(): Boolean?
+    fun saveVodDiskCacheAutoSize(value: Boolean)
+    fun loadPlaybackMinBufferSeconds(): Int?
+    fun savePlaybackMinBufferSeconds(value: Int)
+    fun loadPlaybackMaxBufferSeconds(): Int?
+    fun savePlaybackMaxBufferSeconds(value: Int)
+    fun loadPlaybackStartBufferSeconds(): Int?
+    fun savePlaybackStartBufferSeconds(value: Int)
+    fun loadPlaybackRebufferSeconds(): Int?
+    fun savePlaybackRebufferSeconds(value: Int)
+    fun loadPlaybackBackBufferSeconds(): Int?
+    fun savePlaybackBackBufferSeconds(value: Int)
+    fun loadPlaybackTargetBufferMb(): Int?
+    fun savePlaybackTargetBufferMb(value: Int)
+    fun loadVodDiskCacheSizeMb(): Int?
+    fun saveVodDiskCacheSizeMb(value: Int)
     fun loadDecoderPriority(): Int?
     fun saveDecoderPriority(priority: Int)
     fun loadMapDV7ToHevc(): Boolean?

@@ -360,6 +360,12 @@ private fun ExoPlayerSurface(
         sanitizedSourceResponseHeaders,
         useYoutubeChunkedPlayback,
         externalSubtitles,
+        normalizedStreamType,
+        playerSettings.exoNativeMemoryEnabled,
+        playerSettings.vodDiskCacheEnabled,
+        playerSettings.vodDiskCacheAutoSize,
+        playerSettings.vodDiskCacheSizeMb,
+        playerSettings.playbackTargetBufferMb,
     ) {
         PlatformPlaybackDataSourceFactory.create(
             context = context,
@@ -368,6 +374,16 @@ private fun ExoPlayerSurface(
             useYoutubeChunkedPlayback = useYoutubeChunkedPlayback,
             useLongReadTimeout = isLoopbackPlaybackSource(sourceUrl),
             externalSubtitles = externalSubtitles,
+        ).withPlaybackBuffering(
+            context = context,
+            settings = playerSettings,
+            bufferedUrls = if (useYoutubeChunkedPlayback || !sourceAudioUrl.isNullOrBlank()) {
+                emptySet()
+            } else {
+                listOf(sourceUrl).filter {
+                    isProgressivePlaybackSource(it, sanitizedSourceResponseHeaders, normalizedStreamType)
+                }.toSet()
+            },
         )
     }
 
@@ -400,6 +416,17 @@ private fun ExoPlayerSurface(
         useLibass,
         libassRenderType,
         playerSettings.androidMemorySafeBufferEnabled,
+        playerSettings.exoNativeMemoryEnabled,
+        playerSettings.customPlaybackBuffersEnabled,
+        playerSettings.vodDiskCacheEnabled,
+        playerSettings.vodDiskCacheAutoSize,
+        playerSettings.playbackMinBufferSeconds,
+        playerSettings.playbackMaxBufferSeconds,
+        playerSettings.playbackStartBufferSeconds,
+        playerSettings.playbackRebufferSeconds,
+        playerSettings.playbackBackBufferSeconds,
+        playerSettings.playbackTargetBufferMb,
+        playerSettings.vodDiskCacheSizeMb,
         playerSettings.mapDV7ToHevc,
         playerSettings.tunnelingEnabled,
         initialPositionRequestKey,
@@ -446,7 +473,7 @@ private fun ExoPlayerSurface(
             setParameters(parameters)
         }
 
-        val loadControl = buildAndroidLoadControl(playerSettings.androidMemorySafeBufferEnabled)
+        val loadControl = playerSettings.buildPlaybackLoadControl(playerSettings.androidMemorySafeBufferEnabled)
 
         val playerBuilder = ExoPlayer.Builder(context)
             .setAudioAttributes(playbackAudioAttributes, true)
@@ -2555,7 +2582,7 @@ private fun SubtitleStyleState.toMpvSubtitleBackColor(): String =
     if (shadowEnabled && backgroundColor.alphaByte() == 0) MPV_SUBTITLE_SHADOW_COLOR
     else backgroundColor.toMpvColor()
 
-private fun buildAndroidLoadControl(memorySafeBufferEnabled: Boolean): DefaultLoadControl =
+internal fun buildAndroidLoadControl(memorySafeBufferEnabled: Boolean): DefaultLoadControl =
     DefaultLoadControl.Builder().apply {
         if (memorySafeBufferEnabled) {
             setTargetBufferBytes(48 * 1024 * 1024)
