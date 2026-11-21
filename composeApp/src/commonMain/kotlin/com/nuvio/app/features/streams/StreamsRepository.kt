@@ -54,11 +54,11 @@ object StreamsRepository {
         type: String,
         videoId: String,
         parentMetaId: String? = null,
-        parentMetaType: String? = null,
-        searchTitle: String? = null,
         season: Int? = null,
         episode: Int? = null,
         manualSelection: Boolean = false,
+        parentMetaType: String? = null,
+        searchTitle: String? = null,
     ) {
         PluginRepository.setLocalPluginSearchPaused(false)
         load(
@@ -78,11 +78,11 @@ object StreamsRepository {
         type: String,
         videoId: String,
         parentMetaId: String? = null,
-        parentMetaType: String? = null,
-        searchTitle: String? = null,
         season: Int? = null,
         episode: Int? = null,
         manualSelection: Boolean = false,
+        parentMetaType: String? = null,
+        searchTitle: String? = null,
     ) {
         PluginRepository.setLocalPluginSearchPaused(false)
         load(
