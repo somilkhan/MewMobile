@@ -1099,8 +1099,6 @@
     <string name="settings_playback_stable_opening_overlay_description">Keep the title and artwork centered while loading status text changes.</string>
     <string name="settings_playback_chapter_title">Show Chapter Title</string>
     <string name="settings_playback_chapter_title_description">Show the name of the current chapter above the progress bar.</string>
-    <string name="settings_playback_chapter_skip">Skip Chapters</string>
-    <string name="settings_playback_chapter_skip_description">Offer a Skip button for opening, ending and recap chapters when the file has them.</string>
     <string name="player_chapter_number">Chapter %1$d</string>
     <string name="settings_playback_parental_guide">Content Warnings</string>
     <string name="settings_playback_parental_guide_description">Show parental guidance overlay when playback starts.</string>

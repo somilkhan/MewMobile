@@ -213,6 +213,12 @@ internal class PlayerScreenRuntime(
     var episodeStreamsPanelState by mutableStateOf(EpisodeStreamsPanelState())
     var playerMetaVideos by mutableStateOf<List<MetaVideo>>(emptyList())
     var skipIntervals by mutableStateOf<List<SkipInterval>>(emptyList())
+    var chapterSkipIntervals: List<SkipInterval> = emptyList()
+    var apiSkipIntervals: List<SkipInterval> = emptyList()
+    var skipDetectionChapters: List<PlayerChapter> = emptyList()
+    var skipChaptersComputedForDuration: Long = 0L
+    /** The source whose chapters were read, so a rebuffer does not read them again. */
+    var chaptersLoadedForSourceUrl: String? = null
     var activeSkipInterval by mutableStateOf<SkipInterval?>(null)
     var skipIntervalDismissed by mutableStateOf(false)
     var parentalWarnings by mutableStateOf<List<ParentalWarning>>(emptyList())

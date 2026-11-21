@@ -104,6 +104,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
 import java.net.URI
 import java.util.Locale
@@ -527,28 +528,47 @@ private fun ExoPlayerSurface(
         )
     }
 
-    val exoMatroskaChapters = remember(sourceUrl) { mutableStateOf<List<PlayerChapter>>(emptyList()) }
+    var playerChapters by remember(playerSourceKey) { mutableStateOf<List<PlayerChapter>>(emptyList()) }
+    var chaptersProbeDone by remember(playerSourceKey) { mutableStateOf(false) }
 
     fun dispatchExoPlayerSnapshot() {
         val base = exoPlayer.snapshot()
-        val matroskaChapters = exoMatroskaChapters.value
-        val snapshot = if (matroskaChapters.isEmpty()) base else base.copy(chapters = matroskaChapters)
+        val chapters = playerChapters
+        val snapshot = if (chapters.isEmpty()) base else base.copy(chapters = chapters)
         latestOnSnapshot.value(snapshot)
         nowPlayingController.syncPlayback(snapshot)
     }
 
-    // ExoPlayer's Matroska extractor skips chapters, so they are read only when chapter skip is on.
-    LaunchedEffect(sourceUrl, sanitizedSourceHeaders, playerSettings.chapterSkipEnabled) {
-        if (!playerSettings.chapterSkipEnabled) {
-            exoMatroskaChapters.value = emptyList()
+    // Fork: ExoPlayer's Matroska extractor skips chapters, so PlayerChapterReader reads them (MKV and
+    // MP4) once the file is ready. Read only when skip intro is on, since chapters feed skip intro.
+    LaunchedEffect(exoPlayer, playerSourceKey) {
+        if (chaptersProbeDone || useYoutubeChunkedPlayback) return@LaunchedEffect
+        if (!playerSettings.skipIntroEnabled) return@LaunchedEffect
+        if (!isProgressivePlaybackSource(sourceUrl, sanitizedSourceResponseHeaders, normalizedStreamType)) {
             return@LaunchedEffect
         }
-        if (normalizedStreamType != null && !normalizedStreamType.isMatroskaStreamType()) return@LaunchedEffect
-        val chapters = withContext(Dispatchers.IO) {
-            MatroskaChapterLoader.load(sourceUrl, sanitizedSourceHeaders)
+        while (
+            exoPlayer.playbackState != Player.STATE_READY ||
+            exoPlayer.duration == C.TIME_UNSET ||
+            exoPlayer.isCurrentMediaItemLive
+        ) {
+            delay(500)
         }
-        exoMatroskaChapters.value = chapters
-        dispatchExoPlayerSnapshot()
+        val chapterDataSourceFactory = PlatformPlaybackDataSourceFactory.create(
+            context = context,
+            defaultRequestHeaders = sanitizedSourceHeaders,
+            defaultResponseHeaders = sanitizedSourceResponseHeaders,
+            useYoutubeChunkedPlayback = false,
+            useLongReadTimeout = isLoopbackPlaybackSource(sourceUrl),
+        )
+        val chapters = withTimeoutOrNull(20_000L) {
+            PlayerChapterReader.read(sourceUrl, chapterDataSourceFactory)
+        }.orEmpty()
+        chaptersProbeDone = true
+        if (chapters.isNotEmpty()) {
+            playerChapters = chapters
+            dispatchExoPlayerSnapshot()
+        }
     }
 
     DisposableEffect(nowPlayingController) {

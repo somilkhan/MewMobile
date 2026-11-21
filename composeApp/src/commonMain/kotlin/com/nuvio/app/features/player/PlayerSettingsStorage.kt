@@ -10,8 +10,6 @@ internal expect object PlayerSettingsStorage {
     fun saveStableOpeningOverlayEnabled(enabled: Boolean)
     fun loadChapterTitleEnabled(): Boolean?
     fun saveChapterTitleEnabled(enabled: Boolean)
-    fun loadChapterSkipEnabled(): Boolean?
-    fun saveChapterSkipEnabled(enabled: Boolean)
     fun loadPlayerLiquidGlassEnabled(): Boolean?
     fun savePlayerLiquidGlassEnabled(enabled: Boolean)
     fun loadNextEpisodeSwipeDismissEnabled(): Boolean?

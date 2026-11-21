@@ -426,14 +426,6 @@ private fun PlaybackSettingsSection(
                 )
                 SettingsGroupDivider(isTablet = isTablet)
                 SettingsSwitchRow(
-                    title = stringResource(Res.string.settings_playback_chapter_skip),
-                    description = stringResource(Res.string.settings_playback_chapter_skip_description),
-                    checked = autoPlayPlayerSettings.chapterSkipEnabled,
-                    isTablet = isTablet,
-                    onCheckedChange = PlayerSettingsRepository::setChapterSkipEnabled,
-                )
-                SettingsGroupDivider(isTablet = isTablet)
-                SettingsSwitchRow(
                     title = stringResource(Res.string.settings_playback_player_liquid_glass),
                     description = stringResource(Res.string.settings_playback_player_liquid_glass_description),
                     checked = autoPlayPlayerSettings.playerLiquidGlassEnabled,

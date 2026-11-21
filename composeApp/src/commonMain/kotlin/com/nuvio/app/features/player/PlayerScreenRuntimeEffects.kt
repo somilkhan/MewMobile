@@ -109,6 +109,8 @@ internal fun PlayerScreenRuntime.BindPlayerRuntimeEffects() {
         showEpisodesPanel = false
         showQualityPanel = false
         showLiveTvChannelsPanel = false
+        chaptersLoadedForSourceUrl = null
+        clearChapterSkipState()
         episodeStreamsPanelState = EpisodeStreamsPanelState()
         preloadedNextEpisodeVideoId = null
         nextEpisodePreparationJob?.cancel()
@@ -615,21 +617,6 @@ private fun PlayerScreenRuntime.BindPlayerUiVisibilityEffects() {
 private fun PlayerScreenRuntime.BindPlayerMetadataAndSkipEffects(networkStatus: NetworkStatusUiState) {
     val networkCondition = networkStatus.condition
     val networkAvailable = networkStatus.condition == NetworkCondition.Online
-    // Chapter skip is off by default; with it off, effectiveSkipIntervals is exactly skipIntervals.
-    val chapterSkipIntervals = remember(
-        playbackSnapshot.chapters,
-        playbackSnapshot.durationMs,
-        playerSettingsUiState.chapterSkipEnabled,
-    ) {
-        if (playerSettingsUiState.chapterSkipEnabled) {
-            ChapterSkipIntervals.fromChapters(playbackSnapshot.chapters, playbackSnapshot.durationMs)
-        } else {
-            emptyList()
-        }
-    }
-    val effectiveSkipIntervals = remember(skipIntervals, chapterSkipIntervals) {
-        mergeSkipIntervals(skipIntervals, chapterSkipIntervals)
-    }
     LaunchedEffect(
         activeVideoId,
         activeSeasonNumber,
@@ -663,6 +650,8 @@ private fun PlayerScreenRuntime.BindPlayerMetadataAndSkipEffects(networkStatus: 
 
     LaunchedEffect(activeVideoId, activeSeasonNumber, activeEpisodeNumber, networkAvailable) {
         skipIntervals = emptyList()
+        apiSkipIntervals = emptyList()
+        clearChapterSkipState()
         activeSkipInterval = null
         skipIntervalDismissed = false
         showNextEpisodeCard = false
@@ -701,17 +690,32 @@ private fun PlayerScreenRuntime.BindPlayerMetadataAndSkipEffects(networkStatus: 
                     )
                 }
             } ?: return@launch
-            skipIntervals = intervals
+            apiSkipIntervals = intervals
+            recomputeMergedSkipIntervals()
         }
     }
 
-    LaunchedEffect(playbackSnapshot.positionMs, effectiveSkipIntervals) {
-        if (effectiveSkipIntervals.isEmpty()) {
+    LaunchedEffect(
+        playbackSnapshot.isLoading,
+        playerController,
+        playerControllerSourceUrl,
+        activeSourceUrl,
+    ) {
+        if (!playbackSnapshot.isLoading) loadChaptersIfNeeded()
+    }
+
+    LaunchedEffect(playbackSnapshot.chapters) {
+        adoptSnapshotChaptersIfNeeded()
+    }
+
+    LaunchedEffect(playbackSnapshot.positionMs, playbackSnapshot.durationMs, skipIntervals) {
+        recomputeChapterSkipIntervalsIfNeeded()
+        if (skipIntervals.isEmpty()) {
             activeSkipInterval = null
             return@LaunchedEffect
         }
         val positionSec = playbackSnapshot.positionMs / 1000.0
-        val current = selectActiveSkipInterval(effectiveSkipIntervals, positionSec)
+        val current = selectActiveSkipInterval(skipIntervals, positionSec)
         val previous = activeSkipInterval
         if (current != previous) {
             if (current != null) {
@@ -721,7 +725,7 @@ private fun PlayerScreenRuntime.BindPlayerMetadataAndSkipEffects(networkStatus: 
                 if (!keepDismissed) skipIntervalDismissed = false
             } else if (previous != null) {
                 // A replacement provider may start a little later; avoid flicker across a short gap.
-                val nearby = effectiveSkipIntervals.firstOrNull {
+                val nearby = skipIntervals.firstOrNull {
                     it.categoryKey() == previous.categoryKey() &&
                         it.startTime.isFinite() &&
                         it.endTime.isFinite() &&
@@ -817,7 +821,7 @@ private fun PlayerScreenRuntime.BindPlayerMetadataAndSkipEffects(networkStatus: 
         playbackSnapshot.positionMs,
         playbackSnapshot.durationMs,
         nextEpisodeInfo,
-        effectiveSkipIntervals,
+        skipIntervals,
         playerSettingsUiState.nextEpisodeThresholdMode,
         playerSettingsUiState.nextEpisodeThresholdPercent,
         playerSettingsUiState.nextEpisodeThresholdMinutesBeforeEnd,
@@ -833,7 +837,7 @@ private fun PlayerScreenRuntime.BindPlayerMetadataAndSkipEffects(networkStatus: 
         val shouldShow = PlayerNextEpisodeRules.shouldShowNextEpisodeCard(
             positionMs = playbackSnapshot.positionMs,
             durationMs = playbackSnapshot.durationMs,
-            skipIntervals = effectiveSkipIntervals,
+            skipIntervals = skipIntervals,
             thresholdMode = playerSettingsUiState.nextEpisodeThresholdMode,
             thresholdPercent = playerSettingsUiState.nextEpisodeThresholdPercent,
             thresholdMinutesBeforeEnd = playerSettingsUiState.nextEpisodeThresholdMinutesBeforeEnd,
@@ -1037,3 +1041,12 @@ private fun findCredentialRefreshCandidate(
 
 private const val CREDENTIAL_REFRESH_POLL_COUNT = 30
 private const val CREDENTIAL_REFRESH_POLL_INTERVAL_MS = 500L
+
+internal fun PlayerScreenRuntime.isControllerOnActivePlayback(
+    controllerSourceUrl: String? = playerControllerSourceUrl,
+): Boolean =
+    controllerSourceUrl != null && (
+        controllerSourceUrl == activeSourceUrl ||
+            controllerSourceUrl == activePlaybackSourceUrl ||
+            controllerSourceUrl == p2pResolvedSourceUrl
+        )
