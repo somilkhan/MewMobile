@@ -1,4 +1,7 @@
 [versions]
+androidx-uiautomator = "2.3.0"
+androidx-benchmark = "1.5.0"
+androidx-profileinstaller = "1.4.1"
 androidx-savedstate = "1.4.0"
 agp = "9.4.0"
 android-compileSdk = "37"
