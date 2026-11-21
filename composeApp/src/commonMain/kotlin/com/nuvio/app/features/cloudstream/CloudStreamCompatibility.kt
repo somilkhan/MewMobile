@@ -23,21 +23,21 @@ object CloudStreamCompatibilityResolver {
                 runtimeKind = CloudStreamRuntimeKind.PrecompiledCrossPlatformAdapter,
                 platformSupport = CloudStreamPlatformSupport.AndroidAndIos,
                 adapterId = adapterId,
-                reason = "This provider has a reviewed cross-platform adapter compiled into Nuvio Enhanced.",
+                reason = "This provider has a reviewed cross-platform adapter compiled into Mew.",
             )
             }
             supportsAndroidDex -> {
                 CloudStreamCompatibility(
                     runtimeKind = CloudStreamRuntimeKind.AndroidDex,
                     platformSupport = CloudStreamPlatformSupport.AndroidOnly,
-                    reason = "Android full builds execute this standard CloudStream .cs3 package with the embedded CloudStream runtime.",
+                    reason = "This build explicitly enables Android DEX execution for this standard CloudStream .cs3 package.",
                 )
             }
             else -> {
             CloudStreamCompatibility(
                 runtimeKind = CloudStreamRuntimeKind.UnsupportedAndroidDex,
                 platformSupport = CloudStreamPlatformSupport.Unsupported,
-                reason = "This standard .cs3 package contains Android DEX code, which cannot run on iOS.",
+                reason = "This build does not execute downloaded Android DEX packages. Only reviewed providers compiled into Mew are supported.",
             )
             }
         }
