@@ -56,6 +56,7 @@ import nuvio.composeapp.generated.resources.anime_tracking_action
 import nuvio.composeapp.generated.resources.play_manually
 import nuvio.composeapp.generated.resources.streams_download_file
 import org.jetbrains.compose.resources.stringResource
+import com.nuvio.app.core.i18n.localizedEpisodeTitle
 
 @Composable
 fun EpisodeWatchedActionSheet(
@@ -245,6 +246,31 @@ fun SeasonWatchedActionSheet(
             }
         }
     }
+}
+
+@Composable
+private fun UserRatingActionRow(
+    title: String,
+    userRating: Int?,
+    onClick: () -> Unit,
+) {
+    NuvioBottomSheetActionRow(
+        icon = if (userRating != null) Icons.Rounded.Star else Icons.Rounded.StarBorder,
+        title = title,
+        onClick = onClick,
+        trailingContent = if (userRating != null) {
+            {
+                Text(
+                    text = stringResource(Res.string.user_rating_value, userRating),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.nuvio.colors.accent,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+        } else {
+            null
+        },
+    )
 }
 
 @Composable

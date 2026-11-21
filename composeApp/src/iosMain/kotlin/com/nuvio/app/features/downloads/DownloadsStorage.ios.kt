@@ -2,6 +2,7 @@ package com.nuvio.app.features.downloads
 
 import com.nuvio.app.core.storage.ProfileScopedKey
 import platform.Foundation.NSUserDefaults
+import com.nuvio.app.features.profiles.MAX_PROFILES
 
 internal actual object DownloadsStorage {
     private const val payloadKey = "downloads_payload"

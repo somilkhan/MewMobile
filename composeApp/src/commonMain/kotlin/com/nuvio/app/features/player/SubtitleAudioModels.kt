@@ -2,9 +2,11 @@ package com.nuvio.app.features.player
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import com.nuvio.app.isIos
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.compose_player_track_number
 import org.jetbrains.compose.resources.stringResource
+import kotlin.math.pow
 import kotlin.math.roundToInt
 
 data class AudioTrack(
@@ -31,6 +33,7 @@ data class AddonSubtitle(
     val display: String,
     val addonName: String? = null,
     val isSelected: Boolean = false,
+    val label: String? = null,
 )
 
 internal val AddonSubtitle.selectionKey: String
@@ -82,8 +85,10 @@ data class SubtitleStyleState(
     val customFontName: String? = null,
     val customFontPath: String? = null,
     val bottomOffset: Int = 20,
-    val useForcedSubtitles: Boolean = false,
+    val stripSdh: Boolean = false,
+    val useForcedSubtitles: Boolean = true,
     val showOnlyPreferredLanguages: Boolean = false,
+    val appearance: SubtitleAppearance = SubtitleAppearance(),
 ) {
     companion object {
         val DEFAULT = SubtitleStyleState()

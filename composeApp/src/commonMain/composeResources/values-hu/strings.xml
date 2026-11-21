@@ -318,8 +318,8 @@
     <string name="compose_player_color">Szín</string>
     <string name="compose_player_currently_playing">Most játszott tartalom</string>
     <string name="compose_player_episode_code_episode_only">%1$d. rész</string>
-    <string name="compose_player_episode_code_full">S%1$dE%2$d</string>
-    <string name="compose_player_episode_title_format">S%1$dE%2$d • %3$s</string>
+    <string name="compose_player_episode_code_full">S%1$d E%2$d</string>
+    <string name="compose_player_episode_title_format">S%1$d E%2$d • %3$s</string>
     <string name="compose_player_episodes">Epizódok</string>
     <string name="compose_player_font_size">Betűméret</string>
     <string name="compose_player_font_size_value">%1$dsp</string>
@@ -778,11 +778,6 @@
     <string name="settings_playback_regex_preset_quality_720p_smaller">720p / Kisebb méret</string>
     <string name="settings_playback_regex_preset_web_sources">WEB-es források</string>
     <string name="settings_playback_render_type">Libass renderelési mód</string>
-    <string name="settings_playback_render_type_cues">Szabványos Cues</string>
-    <string name="settings_playback_render_type_effects_canvas">Effects Canvas</string>
-    <string name="settings_playback_render_type_effects_opengl">Effects OpenGL</string>
-    <string name="settings_playback_render_type_overlay_canvas">Overlay Canvas</string>
-    <string name="settings_playback_render_type_overlay_opengl">Overlay OpenGL (Ajánlott)</string>
     <string name="settings_playback_reuse_last_link">Utolsó link újrafelhasználása</string>
     <string name="settings_playback_reuse_last_link_description">Automatikusan játsza le az utoljára működő streamet ugyanahhoz a filmhez/epizódhoz, ha a gyorsítótár még érvényes</string>
     <string name="settings_playback_secondary_audio_language">Másodlagos hangnyelv</string>
@@ -830,11 +825,8 @@
     <string name="settings_playback_timeout_unlimited">Korlátlan</string>
     <string name="settings_playback_tunneled_playback">Alagutalt lejátszás (Tunneled)</string>
     <string name="settings_playback_tunneled_playback_description">Hardverszintű hang- és videószinkronizáció. Javíthatja a lejátszást egyes Android TV eszközökön.</string>
-    <string name="settings_tmdb_add_api_key_first">Az adatbővítés bekapcsolása előtt add meg a saját TMDB API-kulcsodat alább.</string>
-    <string name="settings_tmdb_api_key_label">API-kulcs</string>
     <string name="settings_tmdb_enable_enrichment">TMDB adatbővítés engedélyezése</string>
     <string name="settings_tmdb_enable_enrichment_description">A TMDB használata metaadat-forrásként a kiegészítők adatainak felbővítéséhez</string>
-    <string name="settings_tmdb_enter_api_key">Add meg a TMDB v3 API-kulcsodat.</string>
     <string name="settings_tmdb_language_code_label">Nyelvkód</string>
     <string name="settings_tmdb_module_artwork">Borítóképek és grafikák</string>
     <string name="settings_tmdb_module_artwork_description">Logók és háttérképek a TMDB-ről</string>
@@ -858,7 +850,6 @@
     <string name="settings_tmdb_module_season_posters_description">TMDB évadposzterek használata a sorozatok évadválasztó képernyőjén.</string>
     <string name="settings_tmdb_module_trailers">Előzetesek</string>
     <string name="settings_tmdb_module_trailers_description">Előzetesek a TMDB videóiból a részletek oldalon megjelenő szekcióhoz</string>
-    <string name="settings_tmdb_personal_api_key">Saját API-kulcs</string>
     <string name="settings_tmdb_preferred_language">Nyelv</string>
     <string name="settings_tmdb_preferred_language_description">A TMDB metaadatok (cím, logó és engedélyezett mezők) nyelve</string>
     <string name="settings_tmdb_original_title_language">Eredeti nyelv</string>
@@ -1144,7 +1135,7 @@
     <string name="streams_empty_no_streams_message">Egyetlen telepített kiegészítő sem adott vissza streamet ehhez a tartalomhoz.</string>
     <string name="streams_episode_badge">S%1$d E%2$d</string>
     <string name="streams_episode_fallback_title">Epizód</string>
-    <string name="streams_episode_title_with_name">S%1$dE%2$d - %3$s</string>
+    <string name="streams_episode_title_with_name">S%1$d E%2$d - %3$s</string>
     <string name="streams_fetching">Lekérés…</string>
     <string name="streams_finding_source">Forrás keresése…</string>
     <string name="streams_finding_streams">Streamek keresése…</string>
@@ -1192,7 +1183,7 @@
     <string name="auth_sign_up_failed">Regisztráció sikertelen</string>
     <string name="catalog_load_failed">Nem sikerült betölteni a katalóguselemeket.</string>
     <string name="continue_watching_up_next">Következő epizód</string>
-    <string name="continue_watching_up_next_episode">Következő • S%1$dE%2$d</string>
+    <string name="continue_watching_up_next_episode">Következő • S%1$d E%2$d</string>
     <string name="detail_logo_content_description">%1$s logó</string>
     <string name="details_comments_load_failed">Nem sikerült betölteni a hozzászólásokat</string>
     <string name="details_load_failed_all_addons">Egyetlen kiegészítőből sem sikerült betölteni a részleteket.</string>
@@ -1216,6 +1207,13 @@
     <string name="notifications_test_send_failed">Nem sikerült elküldeni a tesztértesítést.</string>
     <string name="notifications_test_sent_for">Tesztértesítés elküldve a következőhöz: %1$s.</string>
     <string name="player_unable_to_play_stream">Nem sikerült lejátszani ezt a streamet.</string>
+    <string name="player_error_stream_expired">A stream link lejárt. Próbálj meg egy másik forrást.</string>
+    <string name="player_error_stream_removed">A stream link lejárt vagy eltávolították. Próbálj meg egy másik forrást.</string>
+    <string name="player_error_stream_rate_limited">Túl sok kérés a stream forráshoz. Várj egy pillanatot, és próbáld újra.</string>
+    <string name="player_error_stream_unavailable">A stream szerver jelenleg nem elérhető. Próbálj meg egy másik forrást.</string>
+    <string name="player_error_stream_blocked">A stream forrás blokkolva van vagy korlátozott. Próbálj meg egy másik forrást.</string>
+    <string name="player_error_source_invalid_content">Forráshiba: A stream forrás érvénytelen vagy lejátszhatatlan tartalmat adott vissza. Lehet, hogy a link lejárt, vagy a szerver hibaoldalt adott vissza videó helyett.\n\nPróbálj meg egy másik forrást. [%1$s]</string>
+    <string name="player_error_unsupported_format">Ez a stream olyan formátumot használ, amelyet a készüléked nem biztos, hogy támogat. Próbálj meg egy másik forrást. [%1$s]</string>
     <string name="profile_pin_changed_requires_refresh">A profil PIN-kódja megváltozott. Csatlakozz az internetre a zárolás frissítéséhez ezen az eszközön.</string>
     <string name="profile_pin_clear_failed">Nem sikerült eltávolítani a PIN-kódos zárolást. Próbáld újra.</string>
     <string name="profile_pin_clear_requires_internet">Csatlakozz az internetre a PIN-kódos zárolás eltávolításához.</string>
@@ -1247,11 +1245,11 @@
     <string name="action_resume_episode">%1$s folytatása</string>
     <string name="collections_import_error_empty_json">A JSON üres.</string>
     <string name="collections_import_error_collection_blank_id">A(z) %1$d. gyűjtemény azonosítója (ID) üres.</string>
-    <string name="collections_import_error_collection_blank_title">A(z) \'%1$s\' gyűjtemény címe üres.</string>
-    <string name="collections_import_error_folder_blank_id">A(z) %1$d. mappa a(z) \'%2$s\' helyen üres azonosítóval rendelkezik.</string>
-    <string name="collections_import_error_folder_blank_title">A(z) \'%1$s\' mappa a(z) \'%2$s\' helyen üres címmel rendelkezik.</string>
-    <string name="collections_import_error_source_blank_fields">A(z) %1$d. forrás a(z) \'%2$s\' mappában üres mezőket tartalmaz.</string>
-    <string name="collections_import_error_trakt_list_id">A(z) %1$d. forrásból a(z) \'%2$s\' mappában hiányzik a Trakt lista ID.</string>
+    <string name="collections_import_error_collection_blank_title">A(z) '%1$s' gyűjtemény címe üres.</string>
+    <string name="collections_import_error_folder_blank_id">A(z) %1$d. mappa a(z) '%2$s' helyen üres azonosítóval rendelkezik.</string>
+    <string name="collections_import_error_folder_blank_title">A(z) '%1$s' mappa a(z) '%2$s' helyen üres címmel rendelkezik.</string>
+    <string name="collections_import_error_source_blank_fields">A(z) %1$d. forrás a(z) '%2$s' mappában üres mezőket tartalmaz.</string>
+    <string name="collections_import_error_trakt_list_id">A(z) %1$d. forrásból a(z) '%2$s' mappában hiányzik a Trakt lista ID.</string>
     <string name="collections_import_error_invalid_json">Érvénytelen JSON: %1$s</string>
     <string name="collections_folder_addon_not_found">A kiegészítő nem található: %1$s</string>
     <string name="date_month_january">január</string>
@@ -1470,7 +1468,7 @@
     <string name="settings_meta_hero_trailer_playback_description">Előzetesek automatikus lejátszása a fejlécben, ha elérhető előzetes.</string>
     <string name="community_donation_progress_title">E havi szerver- és karbantartási költségek</string>
     <string name="community_donation_progress_complete">Fedezve. A további támogatások mostantól a fejlesztésre fordítódnak.</string>
-    <string name="community_donation_progress_remaining">100%% felett a további támogatások a fejlesztésre fordítódnak.</string>
+    <string name="community_donation_progress_remaining">100% felett a további támogatások a fejlesztésre fordítódnak.</string>
     <string name="community_loading_donation_progress">Támogatási állapot betöltése…</string>
     <string name="settings_playback_external_player_forward_subtitles">Feliratok továbbítása a külső lejátszónak</string>
     <string name="settings_playback_external_player_forward_subtitles_description">Lekéri a kiegészítő feliratokat a preferált nyelveden, és átadja azokat a külső lejátszónak.</string>
@@ -1494,7 +1492,7 @@
     <string name="settings_playback_reuse_binge_group">Sorozatnézési csoport újrafelhasználása</string>
     <string name="settings_playback_reuse_binge_group_description">Megjegyzi és újra felhasználja az utolsó sorozatnézési csoportot a munkamenetek között (Nézés folytatása, Részletek stb.).</string>
     <string name="settings_playback_engine">Lejátszómotor</string>
-    <string name="settings_playback_engine_auto_description">Elsőként az ExoPlayer-t használja, majd ha a lejátszás meghiúsul, visszavált a libmpv-re.</string>
+    <string name="settings_playback_engine_auto_description">ExoPlayer filmekhez és sorozatokhoz · MPV animékhez</string>
     <string name="settings_playback_engine_exoplayer_description">Az ExoPlayer és az Android Media3 dekóderek használata.</string>
     <string name="settings_playback_engine_libmpv_description">A libmpv használata az Androidos lejátszáshoz.</string>
     <string name="settings_playback_libmpv_video_output">libmpv megjelenítő</string>
@@ -1558,7 +1556,6 @@
     <string name="trakt_error_add_list_failed">Nem sikerült hozzáadni a Trakt listához</string>
     <string name="trakt_error_missing_ids">Hiányzó kompatibilis Trakt azonosítók</string>
     <string name="trakt_error_empty_response">Üres válasz törzs (body)</string>
-    <string name="tmdb_sources_api_key_required">A TMDB források használatához adj meg egy TMDB API kulcsot a Beállításokban.</string>
     <string name="tmdb_sources_collection_fallback_title">%1$d. TMDB gyűjtemény</string>
     <string name="tmdb_sources_collection_not_found">A TMDB gyűjtemény nem található</string>
     <string name="tmdb_sources_company_fallback_title">%1$d. TMDB gyártó cég</string>
@@ -1769,7 +1766,6 @@
     <string name="collections_editor_tmdb_production_title_format">%1$s. TMDB gyártó cég</string>
     <string name="collections_editor_tmdb_source_load_failed">Nem sikerült betölteni a TMDB forrást</string>
     <string name="collections_editor_trakt_list_id_format">ID: %1$s</string>
-    <string name="collections_tmdb_api_key_required">A TMDB források használatához adj meg egy TMDB API kulcsot a Beállításokban.</string>
     <string name="collections_tmdb_collection_not_found">A TMDB gyűjtemény nem található</string>
     <string name="collections_tmdb_company_not_found">A TMDB cég nem található</string>
     <string name="collections_tmdb_discover_no_data">A TMDB felfedezés nem adott vissza adatot</string>
@@ -1812,8 +1808,6 @@
     <string name="plugins_badge_providers">%1$d szolgáltató</string>
     <string name="plugins_badge_refreshing">Frissítés…</string>
     <string name="plugins_badge_repos">%1$d repó</string>
-    <string name="plugins_badge_tmdb_key_missing">Hiányzó TMDB API kulcs</string>
-    <string name="plugins_badge_tmdb_key_set">TMDB API kulcs beállítva</string>
     <string name="plugins_button_install_repo">Bővítmény-tároló (Repo) telepítése</string>
     <string name="plugins_button_installing">Telepítés...</string>
     <string name="plugins_button_test_provider">Szolgáltató tesztelése</string>
@@ -1857,7 +1851,6 @@
     <string name="plugins_test_error_title">Hiba</string>
     <string name="plugins_test_failed">A szolgáltató tesztelése meghiúsult</string>
     <string name="plugins_test_results_count">Teszt eredmények (%1$d)</string>
-    <string name="plugins_tmdb_required_message">A szolgáltatói bővítményekhez TMDB API kulcs szükséges. Állítsd be a TMDB képernyőn, különben a bővítmények nem fognak megfelelően működni.</string>
     <string name="search_error_no_results_for_catalog">Nincs találat a(z) %1$s katalógusban.</string>
     <string name="settings_playback_introdb_invalid_key">Érvénytelen API kulcs vagy a kapcsolódás meghiúsult</string>
     <string name="streams_plugin_repository_fallback">Bővítmény-tároló</string>
@@ -1908,7 +1901,7 @@
     <string name="player_torrent_peer_info">%1$d seeder · %2$d peer</string>
     <string name="player_torrent_buffered_status">%1$s pufferelve · %2$s · %3$s</string>
     <string name="player_torrent_status">%1$s · %2$s</string>
-    <string name="player_torrent_stats">%1$d peer · %2$d seeder · %3$d%%</string>
+    <string name="player_torrent_stats">%1$d peer · %2$d seeder · %3$d%</string>
     <string name="player_torrent_connecting_peers">Kapcsolódás a peerekhez…</string>
     <string name="player_torrent_starting_engine">P2P motor indítása…</string>
     <string name="player_error_failed_start_torrent">Nem sikerült elindítani a torrentet: %1$s</string>

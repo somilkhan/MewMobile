@@ -23,11 +23,23 @@ actual object ThemeSettingsStorage {
     private const val liquidGlassAutoHideOnScrollEnabledKey = "liquid_glass_auto_hide_on_scroll_enabled"
     private const val selectedAppLanguageKey = "selected_app_language"
     private const val NAV_BAR_STYLE_KEY = "nav_bar_style"
+    private const val NAV_BAR_POSITION_KEY = "nav_bar_position"
+
+    private const val localNavBarStyleKey = "enhanced_local_nav_bar_style"
+    private const val localNavBarPositionKey = "enhanced_local_nav_bar_position"
+    private const val localNavBarGlassKey = "enhanced_local_nav_bar_glass"
+    private const val localLiquidGlassEffectsKey = "enhanced_local_liquid_glass_effects"
+    private const val navBarGlowEnabledKey = "nav_bar_glow_enabled"
+    private const val navBarDefaultIconColorEnabledKey = "enhanced_local_nav_bar_default_icon_color_enabled"
+    private const val navBarDefaultIconColorKey = "enhanced_local_nav_bar_default_icon_color"
+    private const val navBarLiquidGlassBarEffectsKey = "enhanced_local_nav_bar_liquid_glass_bar_effects"
+    private const val navBarLiquidGlassSelectionEffectsKey = "enhanced_local_nav_bar_liquid_glass_selection_effects"
     private val profileScopedSyncKeys = listOf(
         selectedThemeKey,
         customThemeFirstColorKey,
         customThemeSecondColorKey,
         amoledEnabledKey,
+        navBarGlowEnabledKey,
         liquidGlassNativeTabBarEnabledKey,
         liquidGlassAutoHideOnScrollEnabledKey,
     )
@@ -74,6 +86,52 @@ actual object ThemeSettingsStorage {
             ?.edit()
             ?.putBoolean(ProfileScopedKey.of(amoledEnabledKey), enabled)
             ?.apply()
+    }
+
+    actual fun loadNavBarGlowEnabled(): Boolean? =
+        preferences?.let { prefs ->
+            val key = ProfileScopedKey.of(navBarGlowEnabledKey)
+            if (prefs.contains(key)) prefs.getBoolean(key, false) else null
+        }
+
+    actual fun saveNavBarGlowEnabled(enabled: Boolean) {
+        preferences
+            ?.edit()
+            ?.putBoolean(ProfileScopedKey.of(navBarGlowEnabledKey), enabled)
+            ?.apply()
+    }
+
+    actual fun loadNavBarDefaultIconColorEnabled(): Boolean? =
+        preferences?.let { prefs ->
+            val key = ProfileScopedKey.of(navBarDefaultIconColorEnabledKey)
+            if (prefs.contains(key)) prefs.getBoolean(key, false) else null
+        }
+
+    actual fun saveNavBarDefaultIconColorEnabled(enabled: Boolean) {
+        preferences
+            ?.edit()
+            ?.putBoolean(ProfileScopedKey.of(navBarDefaultIconColorEnabledKey), enabled)
+            ?.apply()
+    }
+
+    actual fun loadNavBarDefaultIconColor(): String? = loadRawString(navBarDefaultIconColorKey)
+
+    actual fun saveNavBarDefaultIconColor(color: String) {
+        saveRawString(navBarDefaultIconColorKey, color)
+    }
+
+
+    actual fun loadNavBarLiquidGlassBarEffects(): String? = loadRawString(navBarLiquidGlassBarEffectsKey)
+
+    actual fun saveNavBarLiquidGlassBarEffects(settings: String) {
+        saveRawString(navBarLiquidGlassBarEffectsKey, settings)
+    }
+
+    actual fun loadNavBarLiquidGlassSelectionEffects(): String? =
+        loadRawString(navBarLiquidGlassSelectionEffectsKey)
+
+    actual fun saveNavBarLiquidGlassSelectionEffects(settings: String) {
+        saveRawString(navBarLiquidGlassSelectionEffectsKey, settings)
     }
 
     actual fun loadLiquidGlassNativeTabBarEnabled(): Boolean? =
@@ -128,12 +186,46 @@ actual object ThemeSettingsStorage {
     }
 
     actual fun loadNavBarStyle(): String? =
-        preferences?.getString(ProfileScopedKey.of(NAV_BAR_STYLE_KEY), null)
+        loadRawString(localNavBarStyleKey) ?: loadRawString(NAV_BAR_STYLE_KEY)
 
     actual fun saveNavBarStyle(styleKey: String) {
+        saveRawString(localNavBarStyleKey, styleKey)
+    }
+
+    actual fun loadNavBarPosition(): String? =
+        loadRawString(localNavBarPositionKey) ?: loadRawString(NAV_BAR_POSITION_KEY)
+
+    actual fun saveNavBarPosition(positionKey: String) {
+        saveRawString(localNavBarPositionKey, positionKey)
+    }
+
+    actual fun loadNavBarGlass(): String? =
+        loadRawString(localNavBarGlassKey)
+
+    actual fun saveNavBarGlass(value: String) {
+        saveRawString(localNavBarGlassKey, value)
+    }
+
+    actual fun loadLiquidGlassEffectsEnabled(): Boolean? =
+        preferences?.let { prefs ->
+            val key = ProfileScopedKey.of(localLiquidGlassEffectsKey)
+            if (prefs.contains(key)) prefs.getBoolean(key, true) else null
+        }
+
+    actual fun saveLiquidGlassEffectsEnabled(enabled: Boolean) {
         preferences
             ?.edit()
-            ?.putString(ProfileScopedKey.of(NAV_BAR_STYLE_KEY), styleKey)
+            ?.putBoolean(ProfileScopedKey.of(localLiquidGlassEffectsKey), enabled)
+            ?.apply()
+    }
+
+    private fun loadRawString(key: String): String? =
+        preferences?.getString(ProfileScopedKey.of(key), null)
+
+    private fun saveRawString(key: String, value: String) {
+        preferences
+            ?.edit()
+            ?.putString(ProfileScopedKey.of(key), value)
             ?.apply()
     }
 

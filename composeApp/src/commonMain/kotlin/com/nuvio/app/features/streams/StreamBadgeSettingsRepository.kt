@@ -20,8 +20,17 @@ data class StreamBadgeSettingsUiState(
     val rules: StreamBadgeRules = StreamBadgeRules(),
     val showFileSizeBadges: Boolean = true,
     val showAddonLogo: Boolean = false,
+    val showStreamSearch: Boolean = false,
+    val showInPlayer: Boolean = false,
+    val playerBadgeSource: String = "",
     val badgePlacement: StreamBadgePlacement = StreamBadgePlacement.BOTTOM,
+    val backgroundMode: StreamBackgroundMode = StreamBackgroundMode.Normal,
 )
+
+enum class StreamBackgroundMode {
+    Normal,
+    Cinematic,
+}
 
 enum class StreamBadgePlacement {
     TOP,
@@ -42,7 +51,11 @@ object StreamBadgeSettingsRepository {
     private var streamBadgeRules = StreamBadgeRules()
     private var showFileSizeBadges = true
     private var showAddonLogo = false
+    private var showStreamSearch = false
+    private var showInPlayer = false
+    private var playerBadgeSource = ""
     private var badgePlacement = StreamBadgePlacement.BOTTOM
+    private var backgroundMode = StreamBackgroundMode.Normal
 
     fun ensureLoaded() {
         if (hasLoaded) return
@@ -58,7 +71,11 @@ object StreamBadgeSettingsRepository {
         streamBadgeRules = StreamBadgeRules()
         showFileSizeBadges = true
         showAddonLogo = false
+        showStreamSearch = false
+        showInPlayer = false
+        playerBadgeSource = ""
         badgePlacement = StreamBadgePlacement.BOTTOM
+        backgroundMode = StreamBackgroundMode.Normal
         _uiState.value = StreamBadgeSettingsUiState()
     }
 
@@ -103,8 +120,8 @@ object StreamBadgeSettingsRepository {
                 payload = payload,
             )
             streamBadgeRules = currentRules.upsert(parsedImport, activate = true)
-            publish()
             saveStreamBadgeRules()
+            publish()
             StreamBadgeImportResult.Success(streamBadgeRules)
         } catch (error: Exception) {
             if (error is CancellationException) throw error
@@ -118,8 +135,8 @@ object StreamBadgeSettingsRepository {
         val nextRules = currentRules.setActiveSource(sourceUrl)
         if (nextRules == currentRules) return
         streamBadgeRules = nextRules
-        publish()
         saveStreamBadgeRules()
+        publish()
     }
 
     fun deleteStreamBadgeRulesSource(sourceUrl: String) {
@@ -128,32 +145,64 @@ object StreamBadgeSettingsRepository {
         val nextRules = currentRules.removeSource(sourceUrl)
         if (nextRules == currentRules) return
         streamBadgeRules = nextRules
-        publish()
         saveStreamBadgeRules()
+        publish()
     }
 
     fun setShowFileSizeBadges(enabled: Boolean) {
         ensureLoaded()
         if (showFileSizeBadges == enabled) return
         showFileSizeBadges = enabled
-        publish()
         StreamBadgeSettingsStorage.saveShowFileSizeBadges(enabled)
+        publish()
     }
 
     fun setShowAddonLogo(enabled: Boolean) {
         ensureLoaded()
         if (showAddonLogo == enabled) return
         showAddonLogo = enabled
-        publish()
         StreamBadgeSettingsStorage.saveShowAddonLogo(enabled)
+        publish()
+    }
+
+    fun setShowStreamSearch(enabled: Boolean) {
+        ensureLoaded()
+        if (showStreamSearch == enabled) return
+        showStreamSearch = enabled
+        StreamBadgeSettingsStorage.saveShowStreamSearch(enabled)
+        publish()
+    }
+
+    fun setShowInPlayer(enabled: Boolean) {
+        ensureLoaded()
+        if (showInPlayer == enabled) return
+        showInPlayer = enabled
+        StreamBadgeSettingsStorage.saveShowInPlayer(enabled)
+        publish()
+    }
+
+    fun setPlayerBadgeSource(source: String) {
+        ensureLoaded()
+        if (playerBadgeSource == source) return
+        playerBadgeSource = source
+        StreamBadgeSettingsStorage.savePlayerBadgeSource(source)
+        publish()
     }
 
     fun setBadgePlacement(placement: StreamBadgePlacement) {
         ensureLoaded()
         if (badgePlacement == placement) return
         badgePlacement = placement
-        publish()
         StreamBadgeSettingsStorage.saveStreamBadgePlacement(placement.name)
+        publish()
+    }
+
+    fun setBackgroundMode(mode: StreamBackgroundMode) {
+        ensureLoaded()
+        if (backgroundMode == mode) return
+        backgroundMode = mode
+        StreamBadgeSettingsStorage.saveStreamBackgroundMode(mode.name.lowercase())
+        publish()
     }
 
     private fun loadFromDisk() {
@@ -167,6 +216,12 @@ object StreamBadgeSettingsRepository {
         streamBadgeRules = storedRules ?: legacyRules ?: StreamBadgeRules()
         showFileSizeBadges = StreamBadgeSettingsStorage.loadShowFileSizeBadges() ?: true
         showAddonLogo = StreamBadgeSettingsStorage.loadShowAddonLogo() ?: false
+        showStreamSearch = StreamBadgeSettingsStorage.loadShowStreamSearch() ?: false
+        showInPlayer = StreamBadgeSettingsStorage.loadShowInPlayer() ?: false
+        playerBadgeSource = StreamBadgeSettingsStorage.loadPlayerBadgeSource().orEmpty()
+        backgroundMode = StreamBadgeSettingsStorage.loadStreamBackgroundMode()
+            ?.let { storedMode -> StreamBackgroundMode.entries.firstOrNull { it.name.equals(storedMode, ignoreCase = true) } }
+            ?: StreamBackgroundMode.Normal
         badgePlacement = StreamBadgeSettingsStorage.loadStreamBadgePlacement()
             ?.let { storedPlacement ->
                 StreamBadgePlacement.entries.firstOrNull { placement ->
@@ -186,7 +241,11 @@ object StreamBadgeSettingsRepository {
             rules = streamBadgeRules,
             showFileSizeBadges = showFileSizeBadges,
             showAddonLogo = showAddonLogo,
+            showStreamSearch = showStreamSearch,
+            showInPlayer = showInPlayer,
+            playerBadgeSource = playerBadgeSource,
             badgePlacement = badgePlacement,
+            backgroundMode = backgroundMode,
         )
     }
 

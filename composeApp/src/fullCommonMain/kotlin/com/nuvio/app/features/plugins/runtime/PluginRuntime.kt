@@ -1,5 +1,6 @@
 package com.nuvio.app.features.plugins.runtime
 
+import com.nuvio.app.core.logging.InAppLogger
 import com.nuvio.app.features.plugins.PluginRuntimeResult
 import com.nuvio.app.features.plugins.PluginStorage
 import com.nuvio.app.features.plugins.runtime.crypto.CryptoBridge
@@ -36,6 +37,8 @@ internal const val MAX_CONCURRENT_PLUGINS = 4
 internal object PluginRuntime {
     private val json = Json { ignoreUnknownKeys = true }
 
+    fun setSearchPaused(paused: Boolean) = Unit
+
     suspend fun executePlugin(
         code: String,
         tmdbId: String,
@@ -43,29 +46,43 @@ internal object PluginRuntime {
         season: Int?,
         episode: Int?,
         scraperId: String,
+        respectSearchPause: Boolean = true,
     ): List<PluginRuntimeResult> = withContext(Dispatchers.Default) {
         val scraperSettingsJson = PluginStorage.loadScraperSettings(scraperId) ?: "{}"
         val scraperSettingsMap = runCatching {
             json.decodeFromString<Map<String, JsonElement>>(scraperSettingsJson)
         }.getOrElse { emptyMap() }
 
-        withTimeout(PLUGIN_TIMEOUT_MS) {
-            executePluginInternal(
-                code = code,
-                tmdbId = tmdbId,
-                mediaType = mediaType,
-                season = season,
-                episode = episode,
-                scraperId = scraperId,
-                scraperSettings = scraperSettingsMap,
-            )
-        }
+        InAppLogger.info(
+            "Plugins/Runtime",
+            "Execute scraper=$scraperId mediaType=$mediaType tmdbId=$tmdbId season=${season ?: -1} episode=${episode ?: -1} " +
+                "settingsKeys=${scraperSettingsMap.keys.sorted().joinToString(",").ifBlank { "none" }}",
+        )
+
+        runCatching {
+            withTimeout(PLUGIN_TIMEOUT_MS) {
+                executePluginInternal(
+                    code = code,
+                    tmdbId = tmdbId,
+                    mediaType = mediaType,
+                    season = season,
+                    episode = episode,
+                    scraperId = scraperId,
+                    scraperSettings = scraperSettingsMap,
+                )
+            }
+        }.onSuccess { results ->
+            InAppLogger.info("Plugins/Runtime", "Completed scraper=$scraperId results=${results.size}")
+        }.onFailure { error ->
+            InAppLogger.warn("Plugins/Runtime", "Failed scraper=$scraperId error=${InAppLogger.throwableSummary(error)}")
+        }.getOrThrow()
     }
 
     suspend fun getPluginSettingsLayout(
         code: String,
         scraperId: String,
     ): String? = withContext(Dispatchers.Default) {
+        InAppLogger.debug("Plugins/Runtime", "Load settings layout scraper=$scraperId")
         withTimeout(PLUGIN_TIMEOUT_MS) {
             val jsRuntime = JsRuntime()
             val deferred = CompletableDeferred<String?>()
@@ -125,6 +142,7 @@ internal object PluginRuntime {
                     deferred.await()
                 }
             } catch (e: Exception) {
+                InAppLogger.warn("Plugins/Runtime", "Settings layout failed scraper=$scraperId error=${InAppLogger.throwableSummary(e)}")
                 null
             }
         }
@@ -163,11 +181,7 @@ internal object PluginRuntime {
                 hostRegistry.registerAll(this)
 
                 val settingsJson = JsonObject(scraperSettings).toString()
-                val polyfillCode = JsBindings.buildPolyfillCode(
-                    scraperIdJson = JsonPrimitive(scraperId).toString(),
-                    settingsJson = settingsJson,
-                )
-                evaluate<Any?>(polyfillCode)
+                evaluate<Any?>(JsBindings.staticPolyfillCode)
 
                 val wrappedCode = """
                     var module = { exports: {} };
@@ -205,7 +219,13 @@ internal object PluginRuntime {
             }
             
             // Result is captured inside use block, but returned outside to satisfy compiler
-            return parseJsonResults(deferred.await())
+            val rawResult = deferred.await()
+            val parsedResults = parseJsonResults(rawResult)
+            InAppLogger.debug(
+                "Plugins/Runtime",
+                "Parsed scraper=$scraperId rawLength=${rawResult.length} results=${parsedResults.size}",
+            )
+            return parsedResults
         } finally {
             domBridge.clear()
         }

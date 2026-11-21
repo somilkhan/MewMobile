@@ -2,6 +2,7 @@
 
 package com.nuvio.app.features.streams
 
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -22,7 +23,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -30,8 +30,6 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
@@ -41,13 +39,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.OpenInNew
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.PushPin
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.SearchOff
-import com.nuvio.app.core.ui.NuvioLoadingIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -57,11 +56,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -71,13 +74,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextDecoration
 import com.nuvio.app.core.build.AppFeaturePolicy
+import com.nuvio.app.core.ui.ArtworkBackdrop
+import com.nuvio.app.core.ui.LocalOnBackdrop
 import com.nuvio.app.core.ui.NuvioBackButton
+import com.nuvio.app.core.ui.nuvio
+import com.nuvio.app.core.ui.NuvioInputField
 import com.nuvio.app.core.ui.NuvioBottomSheetActionRow
 import com.nuvio.app.core.ui.NuvioBottomSheetDivider
 import com.nuvio.app.core.ui.NuvioModalBottomSheet
@@ -89,11 +94,15 @@ import com.nuvio.app.core.ui.rememberAnimatedSelectionBrush
 import com.nuvio.app.core.ui.rememberAnimatedSoftBrush
 import com.nuvio.app.core.ui.withDuplicateSafeLazyKeys
 import com.nuvio.app.features.downloads.DownloadsRepository
+import com.nuvio.app.features.details.MetaScreenSettingsRepository
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.rememberModalBottomSheetState
 import coil3.compose.AsyncImage
 import com.nuvio.app.core.ui.nuvioSafeBottomPadding
+import com.nuvio.app.core.ui.shimmer
+import com.nuvio.app.core.ui.LocalVerticalBarPadding
+import com.nuvio.app.core.ui.centeredVerticalBarPadding
 import com.nuvio.app.features.debrid.DebridSettingsRepository
 import com.nuvio.app.features.debrid.DirectDebridPlayableResult
 import com.nuvio.app.features.debrid.DirectDebridPlaybackResolver
@@ -106,6 +115,15 @@ import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
+import com.nuvio.app.core.ui.glass.LocalLiquidGlassBackdrop
+import com.nuvio.app.core.ui.glass.ambientLiquidGlass
+import com.nuvio.app.core.ui.glass.isAmbientLiquidGlassActive
+import com.nuvio.app.core.ui.NuvioTokens
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import com.nuvio.app.core.ui.glass.nuvioBackdropSource
+import com.nuvio.app.core.ui.glass.rememberNuvioBackdrop
+import com.nuvio.app.core.i18n.localizedEpisodeTitle
 
 // ---------------------------------------------------------------------------
 // Streams Screen
@@ -130,6 +148,7 @@ fun StreamsScreen(
     resumeProgressFraction: Float? = null,
     manualSelection: Boolean = false,
     startFromBeginning: Boolean = false,
+    showLoadingScreen: Boolean = false,
     onStreamSelected: (stream: StreamItem, resumePositionMs: Long?, resumeProgressFraction: Float?) -> Unit = { _, _, _ -> },
     streamHighlight: ((StreamItem) -> String?)? = null,
     onStreamActionOpen: (
@@ -142,6 +161,10 @@ fun StreamsScreen(
     modifier: Modifier = Modifier,
 ) {
     val uiState by StreamsRepository.uiState.collectAsStateWithLifecycle()
+    val streamDisplaySettings by remember {
+        StreamBadgeSettingsRepository.ensureLoaded()
+        StreamBadgeSettingsRepository.uiState
+    }.collectAsStateWithLifecycle()
     val playerSettings by remember {
         PlayerSettingsRepository.ensureLoaded()
         PlayerSettingsRepository.uiState
@@ -183,8 +206,12 @@ fun StreamsScreen(
         .orEmpty()
     val downloadScope = rememberCoroutineScope()
     var preferredFilterApplied by remember(videoId) { mutableStateOf(false) }
-    var autoPlayOverlayLogoLoadError by remember(logo) { mutableStateOf(false) }
-    val autoPlayOverlayLogoUrl = logo?.takeIf { it.isNotBlank() }
+    val episodeProgress = watchProgressUiState.progressForVideo(
+        videoId = videoId,
+        parentMetaId = parentMetaId,
+        seasonNumber = seasonNumber,
+        episodeNumber = episodeNumber,
+    )
     val storedProgress = if (startFromBeginning) {
         null
     } else {
@@ -212,6 +239,14 @@ fun StreamsScreen(
             (resumePositionMs ?: storedProgress?.takeIf { it.isResumable }?.lastPositionMs)?.takeIf { it > 0L }
         }
     }
+    val resumeState = resolveStreamResumeState(
+        progress = episodeProgress,
+        initialPositionMs = resumePositionMs,
+        initialProgressFraction = resumeProgressFraction,
+        startFromBeginning = startFromBeginning,
+    )
+    val effectiveResumePositionMs = resumeState.positionMs
+    val effectiveResumeProgressFraction = resumeState.progressFraction
 
     LaunchedEffect(type, videoId, seasonNumber, episodeNumber, manualSelection, title, tmdbSettingsUiState.enabled) {
         StreamsRepository.load(
@@ -254,6 +289,66 @@ fun StreamsScreen(
         background ?: poster
     }
 
+    val startStreamDownload: (StreamItem) -> Unit = { stream ->
+
+            if (DirectDebridPlaybackResolver.shouldResolveToPlayableStream(stream)) {
+                downloadScope.launch {
+                    val resolved = DirectDebridPlaybackResolver.resolveToPlayableStream(
+                        stream = stream,
+                        season = seasonNumber,
+                        episode = episodeNumber,
+                    )
+                    when (resolved) {
+                        is DirectDebridPlayableResult.Success -> {
+                            val result = DownloadsRepository.enqueueFromStream(
+                                contentType = type,
+                                videoId = videoId,
+                                parentMetaId = parentMetaId,
+                                parentMetaType = parentMetaType,
+                                title = title,
+                                logo = logo,
+                                poster = poster,
+                                background = background,
+                                seasonNumber = seasonNumber,
+                                episodeNumber = episodeNumber,
+                                episodeTitle = episodeTitle,
+                                episodeThumbnail = episodeThumbnail,
+                                stream = resolved.stream,
+                                episodeOverview = episodeOverview,
+                            )
+                            NuvioToastController.show(result.toastMessage())
+                        }
+                        else -> {
+                            val message = resolved.toastMessage()
+                            if (message != null) {
+                                NuvioToastController.show(message)
+                            }
+                        }
+                    }
+                }
+            } else {
+                val result = DownloadsRepository.enqueueFromStream(
+                    contentType = type,
+                    videoId = videoId,
+                    parentMetaId = parentMetaId,
+                    parentMetaType = parentMetaType,
+                    title = title,
+                    logo = logo,
+                    poster = poster,
+                    background = background,
+                    seasonNumber = seasonNumber,
+                    episodeNumber = episodeNumber,
+                    episodeTitle = episodeTitle,
+                    episodeThumbnail = episodeThumbnail,
+                    stream = stream,
+                    episodeOverview = episodeOverview,
+                )
+                NuvioToastController.show(result.toastMessage())
+            }
+    }
+
+    if (showLoadingScreen) return
+
     BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
@@ -264,6 +359,9 @@ fun StreamsScreen(
         if (isTabletLayout) {
             TabletStreamsLayout(
                 isEpisode = isEpisode,
+                showSearchField = streamDisplaySettings.showStreamSearch,
+                searchQuery = streamSearchQuery,
+                onSearchQueryChange = { streamSearchQuery = it },
                 title = title,
                 logo = logo,
                 poster = poster,
@@ -280,9 +378,7 @@ fun StreamsScreen(
                 sourcePinningEnabled = sourcePinningEnabled,
                 resumePositionMs = effectiveResumePositionMs,
                 resumeProgressFraction = effectiveResumeProgressFraction,
-                onStreamSelected = { stream, positionMs, progressFraction ->
-                    onStreamSelected(stream, positionMs, progressFraction)
-                },
+                onStreamSelected = onStreamSelected,
                 onStreamLongPress = { stream -> streamActionsTarget = stream },
                 onSourcePinRequested = { source -> sourcePinTarget = source },
                 onSourceUnpinRequested = { source -> sourceUnpinTarget = source },
@@ -290,6 +386,10 @@ fun StreamsScreen(
         } else {
             MobileStreamsLayout(
                 isEpisode = isEpisode,
+                showSearchField = streamDisplaySettings.showStreamSearch,
+                searchQuery = streamSearchQuery,
+                onSearchQueryChange = { streamSearchQuery = it },
+                backgroundMode = streamDisplaySettings.backgroundMode,
                 title = title,
                 logo = logo,
                 heroArtwork = heroArtwork,
@@ -304,9 +404,7 @@ fun StreamsScreen(
                 sourcePinningEnabled = sourcePinningEnabled,
                 resumePositionMs = effectiveResumePositionMs,
                 resumeProgressFraction = effectiveResumeProgressFraction,
-                onStreamSelected = { stream, positionMs, progressFraction ->
-                    onStreamSelected(stream, positionMs, progressFraction)
-                },
+                onStreamSelected = onStreamSelected,
                 onStreamLongPress = { stream -> streamActionsTarget = stream },
                 onSourcePinRequested = { source -> sourcePinTarget = source },
                 onSourceUnpinRequested = { source -> sourceUnpinTarget = source },
@@ -316,6 +414,7 @@ fun StreamsScreen(
         Row(
             modifier = Modifier
                 .align(Alignment.TopStart)
+                .padding(LocalVerticalBarPadding.current)
                 .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top))
                 .padding(start = 12.dp, top = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -567,6 +666,10 @@ fun StreamsScreen(
 @Composable
 private fun MobileStreamsLayout(
     isEpisode: Boolean,
+    showSearchField: Boolean,
+    searchQuery: String,
+    onSearchQueryChange: (String) -> Unit,
+    backgroundMode: StreamBackgroundMode,
     title: String,
     logo: String?,
     heroArtwork: String?,
@@ -587,65 +690,47 @@ private fun MobileStreamsLayout(
     onSourceUnpinRequested: (AddonStreamGroup) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val cinematic = backgroundMode == StreamBackgroundMode.Cinematic && heroArtwork != null
+    val streamsGlassBackdrop = rememberNuvioBackdrop()
     Box(modifier = modifier.fillMaxSize()) {
-        if (heroArtwork != null) {
-            AsyncImage(
-                model = heroArtwork,
-                contentDescription = null,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .blur(22.dp),
-                contentScale = ContentScale.Crop,
-            )
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = if (isEpisode) 0.9f else 0.82f)),
+        if (cinematic) {
+            ArtworkBackdrop(
+                image = rememberArtworkBackdrop(heroArtwork),
+                modifier = Modifier.nuvioBackdropSource(streamsGlassBackdrop),
+                scrim = SolidColor(Color.Black.copy(alpha = if (isEpisode) 0.48f else 0.36f)),
             )
         }
 
-        val streamBlendColor = MaterialTheme.colorScheme.background
-
-        Column(modifier = Modifier.fillMaxSize()) {
-            if (isEpisode && seasonNumber != null && episodeNumber != null) {
-                EpisodeHeroBlock(
-                    seasonNumber = seasonNumber,
-                    episodeNumber = episodeNumber,
-                    episodeTitle = episodeTitle ?: title,
-                    thumbnail = heroArtwork,
-                    showTitle = title,
-                )
-            } else {
-                MovieHeroBlock(
-                    title = title,
-                    logo = logo,
-                )
-            }
-
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-            ) {
-                if (isEpisode) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(132.dp)
-                            .background(
-                                Brush.verticalGradient(
-                                    colors = listOf(
-                                        streamBlendColor.copy(alpha = 0.98f),
-                                        streamBlendColor.copy(alpha = 0.84f),
-                                        streamBlendColor.copy(alpha = 0.52f),
-                                        Color.Transparent,
-                                    ),
-                                ),
-                            ),
+        CompositionLocalProvider(
+            LocalLiquidGlassBackdrop provides if (cinematic) streamsGlassBackdrop else null,
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                if (isEpisode && seasonNumber != null && episodeNumber != null) {
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        EpisodeHeaderArtwork(
+                            imageUrl = heroArtwork,
+                            blurred = blurEpisodeThumbnail,
+                            modifier = Modifier.matchParentSize(),
+                        )
+                        EpisodeHeroBlock(
+                            seasonNumber = seasonNumber,
+                            episodeNumber = episodeNumber,
+                            episodeTitle = episodeTitle ?: title,
+                            showTitle = title,
+                        )
+                    }
+                } else {
+                    MovieHeroBlock(
+                        title = title,
+                        logo = logo,
                     )
                 }
 
-                Column(modifier = Modifier.fillMaxSize()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                ) {
                     if ((resumePositionMs != null && resumePositionMs > 0L) || (resumeProgressFraction != null && resumeProgressFraction > 0f)) {
                         ResumeBanner(
                             positionMs = resumePositionMs,
@@ -666,9 +751,40 @@ private fun MobileStreamsLayout(
                         onSourcePinRequested = onSourcePinRequested,
                         onSourceUnpinRequested = onSourceUnpinRequested,
                     )
+                    val smartStreams = rememberSmartStreams(
+                        listState = rememberStreamSearchResult(uiState, searchQuery, showSearchField).uiState,
+                        allState = uiState,
+                        debridEnabled = debridEnabled,
+                        isEpisode = isEpisode,
+                    )
+                    SmartStreamControls(
+                        state = smartStreams,
+                        onPlay = { stream -> onStreamSelected(stream, resumePositionMs, resumeProgressFraction) },
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                    )
+
+                    if (showSearchField) {
+                        StreamSearchField(
+                            query = searchQuery,
+                            onQueryChange = onSearchQueryChange,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                        )
+                    }
+
+                    val listUiState = rememberStreamSearchResult(uiState, searchQuery, showSearchField)
+                    if (listUiState.isEmptyBecauseOfSearch) {
+                        StreamSearchEmptyBlock(modifier = Modifier.weight(1f))
+                        return@Column
+                    }
+                    if (smartStreams.result?.emptyBecauseOfFilters == true) {
+                        SmartFiltersEmptyBlock(modifier = Modifier.weight(1f))
+                        return@Column
+                    }
 
                     StreamList(
-                        uiState = uiState,
+                        uiState = smartStreams.result?.listState ?: listUiState.uiState,
+                        smartStreams = smartStreams.result?.sortedStreams,
+                        bestStream = smartStreams.result?.best?.stream,
                         debridEnabled = debridEnabled,
                         appendInstantServiceToDefaultName = appendInstantServiceToDefaultName,
                         pinnedSourceIds = pinnedSourceIds,
@@ -682,6 +798,25 @@ private fun MobileStreamsLayout(
             }
         }
     }
+}
+
+internal data class StreamResumeState(
+    val positionMs: Long? = null,
+    val progressFraction: Float? = null,
+)
+
+internal fun resolveStreamResumeState(
+    progress: WatchProgressEntry?,
+    initialPositionMs: Long?,
+    initialProgressFraction: Float?,
+    startFromBeginning: Boolean,
+): StreamResumeState {
+    if (startFromBeginning || progress?.isResumable == false) return StreamResumeState()
+    val fraction = (if (progress != null) progress.progressPercent?.div(100f) else initialProgressFraction)
+        ?.takeIf { it > 0f }?.coerceIn(0f, 1f)
+    val position = if (fraction != null) null
+        else (progress?.lastPositionMs ?: initialPositionMs)?.takeIf { it > 0L }
+    return StreamResumeState(positionMs = position, progressFraction = fraction)
 }
 
 @Composable
@@ -705,7 +840,12 @@ internal fun ResumeBanner(
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(18.dp))
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.72f))
+            .ambientLiquidGlass(
+                shape = RoundedCornerShape(18.dp),
+                tint = StreamGlassTint,
+                fallback = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f),
+                staticFromBackdrop = true,
+            )
             .padding(horizontal = 14.dp, vertical = 10.dp),
     ) {
         Text(
@@ -733,6 +873,7 @@ private fun MovieHeroBlock(
     Box(
         modifier = modifier
             .fillMaxWidth()
+            .padding(centeredVerticalBarPadding())
             .height(140.dp)
             .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top)),
         contentAlignment = Alignment.Center,
@@ -765,54 +906,27 @@ private fun MovieHeroBlock(
     }
 }
 
-// ---------------------------------------------------------------------------
-// Episode Hero
-// ---------------------------------------------------------------------------
-
 @Composable
-private fun EpisodeHeroBlock(
-    seasonNumber: Int,
-    episodeNumber: Int,
-    episodeTitle: String,
-    thumbnail: String?,
-    showTitle: String,
-    modifier: Modifier = Modifier,
+private fun EpisodeHeaderArtwork(
+    imageUrl: String?,
+    blurred: Boolean,
+    modifier: Modifier,
 ) {
-    val heroBlendColor = MaterialTheme.colorScheme.background
-
     Box(
         modifier = modifier
             .fillMaxWidth()
             .height(226.dp),
     ) {
-        // Thumbnail image
-        if (thumbnail != null) {
+        if (imageUrl != null) {
             AsyncImage(
-                model = thumbnail,
+                model = imageUrl,
                 contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .then(if (blurred) Modifier.blur(18.dp) else Modifier),
                 contentScale = ContentScale.Crop,
             )
         }
-
-        // Gradient overlay bottom-up
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colorStops = arrayOf(
-                            0.0f to Color.Transparent,
-                            0.58f to Color.Transparent,
-                            0.8f to Color.Black.copy(alpha = 0.42f),
-                            0.93f to heroBlendColor.copy(alpha = 0.84f),
-                            1.0f to heroBlendColor.copy(alpha = 0.97f),
-                        ),
-                        startY = 0f,
-                        endY = Float.POSITIVE_INFINITY,
-                    ),
-                ),
-        )
 
         Box(
             modifier = Modifier
@@ -820,8 +934,7 @@ private fun EpisodeHeroBlock(
                 .background(Color.Black.copy(alpha = 0.1f)),
         )
 
-        // Safe-area push-down for status bar, then content pinned to bottom
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top))
@@ -858,11 +971,7 @@ private fun EpisodeHeroBlock(
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium,
                 ),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
+        )
     }
 }
 
@@ -970,9 +1079,12 @@ internal fun ProviderFilterRow(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .horizontalScroll(rememberScrollState())
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+            .height(220.dp)
+            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top))
+            .padding(LocalVerticalBarPadding.current)
+            .padding(horizontal = 16.dp)
+            .padding(bottom = 12.dp),
+        verticalArrangement = Arrangement.Bottom,
     ) {
         // "All" chip
         FilterChip(
@@ -1127,6 +1239,9 @@ internal fun StreamList(
     resumePositionMs: Long?,
     resumeProgressFraction: Float?,
     modifier: Modifier = Modifier,
+    smartStreams: List<StreamItem>? = null,
+    bestStream: StreamItem? = null,
+    header: (@Composable () -> Unit)? = null,
 ) {
     val sharedStream = LocalSharedStream.current
     val streamHighlight = LocalStreamHighlight.current
@@ -1138,12 +1253,37 @@ internal fun StreamList(
         buildStreamSectionRenderModels(filteredGroups)
     }
     val torrentNotSupportedText = stringResource(Res.string.streams_torrent_not_supported)
+    val fetchingText = stringResource(Res.string.streams_fetching)
+    val findingStreamsText = stringResource(Res.string.streams_finding_streams)
+    val checkingMoreAddonsText = stringResource(Res.string.streams_checking_more_addons)
+    val formatStreamSize = rememberStreamSizeLabelFormat()
+    val sharedStream = LocalSharedStream.current
     val streamBadgeSettings by remember {
         StreamBadgeSettingsRepository.ensureLoaded()
         StreamBadgeSettingsRepository.uiState
     }.collectAsStateWithLifecycle()
+    val pinnedSourceIds by rememberPinnedStreamSourceIds()
+    val pinnedFirst = remember(filteredGroups, pinnedSourceIds, smartStreams) {
+        if (smartStreams != null) {
+            PinnedFirstStreamGroups(emptyList(), emptyList())
+        } else {
+            splitPinnedSources(filteredGroups, pinnedSourceIds)
+        }
+    }
 
+    val listState = rememberLazyListState()
+    // As on TV, picking another addon filter starts at the top of its results. Only a change of
+    // filter does it, so the position kept when coming back from the player stays.
+    var shownFilter by remember { mutableStateOf(uiState.selectedFilter) }
+    LaunchedEffect(uiState.selectedFilter) {
+        if (uiState.selectedFilter == shownFilter) return@LaunchedEffect
+        shownFilter = uiState.selectedFilter
+        listState.scrollToItem(0)
+    }
+
+    CompositionLocalProvider(LocalStreamSizeLabelFormat provides formatStreamSize) {
     LazyColumn(
+        state = listState,
         modifier = modifier.fillMaxWidth(),
         contentPadding = PaddingValues(
             horizontal = 12.dp,
@@ -1224,6 +1364,7 @@ internal fun StreamList(
             }
         }
     }
+    }
 }
 
 private fun buildStreamSectionRenderModels(groups: List<AddonStreamGroup>): List<StreamSectionRenderModel> =
@@ -1287,8 +1428,8 @@ private fun LazyListScope.streamSection(
             contentType = STREAM_CONTENT_TYPE_SECTION_HEADER,
         ) {
             StreamSectionHeader(
-                addonName = group.addonName,
-                isLoading = group.isLoading,
+                group = group,
+                fetchingText = fetchingText,
             )
         }
     }
@@ -1316,13 +1457,16 @@ private fun LazyListScope.streamSection(
                     !(debridEnabled && stream.isAddonDebridCandidate)
             StreamCard(
                 stream = stream,
-                enabled = isSelectable || isUnsupportedTorrentStream,
+                enabled = isSelectable || isUnsupportedTorrentStream || isDownloaded,
                 appendInstantServiceToDefaultName = appendInstantServiceToDefaultName,
                 showFileSizeBadges = showFileSizeBadges,
                 showAddonLogo = showAddonLogo,
                 badgePlacement = badgePlacement,
+                isCurrent = isDownloaded,
+                currentLabel = if (isDownloaded) stringResource(Res.string.provider_downloaded) else null,
+                outlined = isDownloaded,
                 onClick = {
-                    if (isSelectable) {
+                    if (isSelectable || isDownloaded) {
                         onStreamSelected(stream, resumePositionMs, resumeProgressFraction)
                     } else if (isUnsupportedTorrentStream) {
                         NuvioToastController.show(torrentNotSupportedText)
@@ -1385,56 +1529,107 @@ private fun StringBuilder.appendLazyKeyPart(value: Any?) {
 
 @Composable
 private fun StreamSectionHeader(
-    addonName: String,
-    isLoading: Boolean,
+    group: AddonStreamGroup,
+    fetchingText: String,
     modifier: Modifier = Modifier,
 ) {
+    val isLoading = group.isLoading
+    val pinnedSourceIds by rememberPinnedStreamSourceIds()
+    val pinTarget = remember(group) { group.soleSourcePin() }
+    val isPinned = pinTarget?.key in pinnedSourceIds
+    var pinSheetVisible by remember { mutableStateOf(false) }
+
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .combinedClickable(
+                onClick = {},
+                onLongClick = { if (pinTarget != null) pinSheetVisible = true },
+            )
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        Text(
-            text = addonName,
-            style = MaterialTheme.typography.bodyMedium.copy(
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
-            ),
-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.9f),
-        )
-        AnimatedVisibility(visible = isLoading, enter = fadeIn(), exit = fadeOut()) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                NuvioLoadingIndicator(
-                    modifier = Modifier.size(12.dp),
-                    color = MaterialTheme.colorScheme.primary,
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = stringResource(Res.string.streams_fetching),
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp),
-                    color = MaterialTheme.colorScheme.primary,
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            if (isPinned) {
+                Icon(
+                    imageVector = Icons.Rounded.PushPin,
+                    contentDescription = stringResource(Res.string.streams_pinned_source),
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(14.dp),
                 )
             }
+            Text(
+                text = group.displayName(),
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                ),
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.9f),
+            )
+        }
+        AnimatedVisibility(visible = isLoading, enter = fadeIn(), exit = fadeOut()) {
+            Text(
+                text = fetchingText,
+                modifier = Modifier.shimmer(),
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp),
+                color = MaterialTheme.colorScheme.primary,
+            )
         }
     }
+
+    StreamSourcePinSheet(
+        target = pinTarget?.takeIf { pinSheetVisible },
+        onDismiss = { pinSheetVisible = false },
+    )
 }
 
 @Composable
 private fun StreamSourceHeader(
     sourceName: String,
+    pinTarget: PinTarget? = null,
     modifier: Modifier = Modifier,
 ) {
-    Text(
-        text = sourceName,
-        modifier = modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-        style = MaterialTheme.typography.labelLarge.copy(
-            fontSize = 12.sp,
-            fontWeight = FontWeight.SemiBold,
-            letterSpacing = 0.2.sp,
-        ),
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    val pinnedSourceIds by rememberPinnedStreamSourceIds()
+    val isPinned = pinTarget?.key in pinnedSourceIds
+    var pinSheetVisible by remember { mutableStateOf(false) }
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .combinedClickable(
+                onClick = {},
+                onLongClick = { if (pinTarget != null) pinSheetVisible = true },
+            )
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        if (isPinned) {
+            Icon(
+                imageVector = Icons.Rounded.PushPin,
+                contentDescription = stringResource(Res.string.streams_pinned_source),
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(12.dp),
+            )
+        }
+        Text(
+            text = sourceName,
+            style = MaterialTheme.typography.labelLarge.copy(
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = 0.2.sp,
+            ),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+
+    StreamSourcePinSheet(
+        target = pinTarget?.takeIf { pinSheetVisible },
+        onDismiss = { pinSheetVisible = false },
     )
 }
 
@@ -1493,6 +1688,25 @@ private fun StreamActionsSheet(
                     }
             }
 
+            if (stream.addonId.isNotBlank() && !stream.isDirectDebridStream) {
+                val pinnedSourceIds by rememberPinnedStreamSourceIds()
+                val sourceKey = PinnedStreamSourcesRepository.sourceKeyFor(stream)
+                val isPinned = sourceKey in pinnedSourceIds
+                NuvioBottomSheetDivider()
+                NuvioBottomSheetActionRow(
+                    icon = Icons.Rounded.PushPin,
+                    title = stringResource(
+                        if (isPinned) Res.string.streams_unpin_source else Res.string.streams_pin_source,
+                    ),
+                    onClick = {
+                        PinnedStreamSourcesRepository.setPinned(sourceKey, !isPinned)
+                        coroutineScope.launch {
+                            dismissNuvioBottomSheet(sheetState = sheetState, onDismiss = onDismiss)
+                        }
+                    },
+                )
+            }
+
             NuvioBottomSheetDivider()
             NuvioBottomSheetActionRow(
                 icon = Icons.Rounded.ContentCopy,
@@ -1504,7 +1718,6 @@ private fun StreamActionsSheet(
                     }
                 },
             )
-            NuvioBottomSheetDivider()
             NuvioBottomSheetActionRow(
                 icon = Icons.AutoMirrored.Rounded.OpenInNew,
                 title = stringResource(
@@ -1521,17 +1734,18 @@ private fun StreamActionsSheet(
                     }
                 },
             )
-            NuvioBottomSheetDivider()
-            NuvioBottomSheetActionRow(
-                icon = Icons.Rounded.Download,
-                title = stringResource(Res.string.streams_download_file),
-                onClick = {
-                    onDownload(stream)
-                    coroutineScope.launch {
-                        dismissNuvioBottomSheet(sheetState = sheetState, onDismiss = onDismiss)
-                    }
-                },
-            )
+            if (!stream.isLocalDownload) {
+                NuvioBottomSheetActionRow(
+                    icon = Icons.Rounded.Download,
+                    title = stringResource(Res.string.streams_download_file),
+                    onClick = {
+                        onDownload(stream)
+                        coroutineScope.launch {
+                            dismissNuvioBottomSheet(sheetState = sheetState, onDismiss = onDismiss)
+                        }
+                    },
+                )
+            }
         }
     }
 }
@@ -1563,26 +1777,25 @@ private fun Long.toPlaybackClock(): String {
 // ---------------------------------------------------------------------------
 
 @Composable
-private fun LoadingStateBlock(modifier: Modifier = Modifier) {
+private fun LoadingStateBlock(
+    findingStreamsText: String,
+    modifier: Modifier = Modifier,
+) {
     Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(vertical = 48.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        NuvioLoadingIndicator(
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(32.dp),
-        )
         Text(
-            text = stringResource(Res.string.streams_finding_streams),
-            style = MaterialTheme.typography.bodySmall.copy(
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium,
-            ),
+            text = findingStreamsText,
+            modifier = Modifier
+                .padding(horizontal = 12.dp, vertical = 8.dp)
+                .shimmer(),
+            style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp),
             color = MaterialTheme.colorScheme.primary,
         )
+        repeat(4) {
+            StreamCardSkeleton()
+        }
     }
 }
 
@@ -1595,14 +1808,10 @@ private fun EmptyStateBlock(
     val message: String
 
     when (reason) {
-        StreamsEmptyStateReason.NoAddonsInstalled -> {
-            title = stringResource(Res.string.compose_search_empty_no_active_addons_title)
-            message = stringResource(Res.string.streams_empty_no_addons_message)
-        }
-
+        StreamsEmptyStateReason.NoAddonsInstalled,
         StreamsEmptyStateReason.NoCompatibleAddons -> {
-            title = stringResource(Res.string.streams_empty_no_stream_addon_title)
-            message = stringResource(Res.string.streams_empty_no_stream_addon_message)
+            title = stringResource(Res.string.playback_unavailable)
+            message = stringResource(Res.string.playback_unavailable_message)
         }
 
         StreamsEmptyStateReason.StreamFetchFailed -> {
@@ -1648,7 +1857,10 @@ private fun EmptyStateBlock(
 }
 
 @Composable
-private fun FooterLoadingBlock(modifier: Modifier = Modifier) {
+private fun FooterLoadingBlock(
+    checkingMoreAddonsText: String,
+    modifier: Modifier = Modifier,
+) {
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -1656,13 +1868,9 @@ private fun FooterLoadingBlock(modifier: Modifier = Modifier) {
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        NuvioLoadingIndicator(
-            modifier = Modifier.size(14.dp),
-            color = MaterialTheme.colorScheme.primary,
-        )
-        Spacer(modifier = Modifier.width(8.dp))
         Text(
-            text = stringResource(Res.string.streams_checking_more_addons),
+            text = checkingMoreAddonsText,
+            modifier = Modifier.shimmer(),
             style = MaterialTheme.typography.bodySmall.copy(
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Medium,
@@ -1671,3 +1879,136 @@ private fun FooterLoadingBlock(modifier: Modifier = Modifier) {
         )
     }
 }
+
+internal data class StreamSearchResult(
+    val uiState: StreamsUiState,
+    val isEmptyBecauseOfSearch: Boolean,
+)
+
+@Composable
+internal fun rememberStreamSearchResult(
+    uiState: StreamsUiState,
+    query: String,
+    enabled: Boolean,
+): StreamSearchResult = remember(uiState, query, enabled) {
+    val terms = if (enabled) query.trim().lowercase().split(' ').filter { it.isNotEmpty() } else emptyList()
+    if (terms.isEmpty()) return@remember StreamSearchResult(uiState, isEmptyBecauseOfSearch = false)
+    val groups = uiState.groups.map { group ->
+        group.copy(streams = group.streams.filter { it.matchesSearchTerms(terms) })
+    }
+    val filtered = uiState.copy(groups = groups)
+    StreamSearchResult(
+        uiState = filtered,
+        isEmptyBecauseOfSearch = uiState.hasAnyStreams && !filtered.hasAnyStreams,
+    )
+}
+
+private fun StreamItem.matchesSearchTerms(terms: List<String>): Boolean {
+    val haystack = buildString {
+        name?.let { append(it).append(' ') }
+        title?.let { append(it).append(' ') }
+        description?.let { append(it).append(' ') }
+        sourceName?.let { append(it).append(' ') }
+        append(addonName).append(' ')
+        behaviorHints.filename?.let { append(it).append(' ') }
+        badges.forEach { badge -> append(badge.name).append(' ') }
+    }.lowercase()
+    return terms.all { haystack.contains(it) }
+}
+
+@Composable
+internal fun StreamSearchField(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val trailingContent: (@Composable () -> Unit)? = if (query.isEmpty()) null else {
+        {
+            IconButton(onClick = { onQueryChange("") }) {
+                Icon(
+                    imageVector = Icons.Rounded.Close,
+                    contentDescription = stringResource(Res.string.streams_search_clear),
+                    tint = MaterialTheme.nuvio.colors.textMuted,
+                )
+            }
+        }
+    }
+    if (!isAmbientLiquidGlassActive()) {
+        NuvioInputField(
+            value = query,
+            onValueChange = onQueryChange,
+            placeholder = stringResource(Res.string.streams_search_placeholder),
+            modifier = modifier,
+            trailingContent = trailingContent,
+        )
+        return
+    }
+    val tokens = MaterialTheme.nuvio
+    val fieldShape = RoundedCornerShape(NuvioTokens.Radius.lg)
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(fieldShape)
+            .ambientLiquidGlass(
+                shape = fieldShape,
+                tint = StreamGlassTint,
+                fallback = tokens.colors.surfaceCard,
+                blurRadius = 14.dp,
+                refractionHeight = 8.dp,
+                staticFromBackdrop = true,
+            ),
+    ) {
+        OutlinedTextField(
+            value = query,
+            onValueChange = onQueryChange,
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            shape = fieldShape,
+            placeholder = {
+                Text(
+                    text = stringResource(Res.string.streams_search_placeholder),
+                    color = tokens.colors.textMuted,
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+            },
+            textStyle = MaterialTheme.typography.bodyLarge.copy(color = tokens.colors.textPrimary),
+            trailingIcon = trailingContent,
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = tokens.colors.borderFocus,
+                unfocusedBorderColor = Color.White.copy(alpha = 0.12f),
+                focusedContainerColor = Color.Transparent,
+                unfocusedContainerColor = Color.Transparent,
+                cursorColor = tokens.colors.accent,
+            ),
+        )
+    }
+}
+
+@Composable
+internal fun StreamSearchEmptyBlock(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier.fillMaxWidth(),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = stringResource(Res.string.streams_search_no_results),
+            color = MaterialTheme.nuvio.colors.textMuted,
+            style = MaterialTheme.typography.bodyMedium,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(24.dp),
+        )
+    }
+}
+
+/** The source name to show; the downloaded copy is labelled here because it's built outside composition. */
+@Composable
+internal fun AddonStreamGroup.displayName(): String =
+    displayAddonName(addonId, addonName)
+
+@Composable
+internal fun StreamItem.displayAddonName(): String =
+    displayAddonName(addonId, addonName)
+
+@Composable
+internal fun displayAddonName(addonId: String, addonName: String): String =
+    if (addonId == DOWNLOADED_ADDON_ID) stringResource(Res.string.provider_downloaded) else addonName

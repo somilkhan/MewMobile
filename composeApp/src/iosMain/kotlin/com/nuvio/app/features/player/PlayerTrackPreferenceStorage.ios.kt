@@ -14,7 +14,9 @@ internal actual object PlayerTrackPreferenceStorage {
     private const val audioLanguageKey = "audio_language"
     private const val audioNameKey = "audio_name"
     private const val audioTrackIdKey = "audio_track_id"
+    private const val subtitleIsForcedKey = "subtitle_is_forced"
     private const val subtitleDelayMsKey = "subtitle_delay_ms"
+    private const val audioDelayMsKey = "audio_delay_ms"
 
     actual fun load(contentId: String): PersistedPlayerTrackPreference? {
         val id = contentId.normalizedStorageId() ?: return null
@@ -29,6 +31,7 @@ internal actual object PlayerTrackPreferenceStorage {
             audioLanguage = loadString(audioLanguageKey, id),
             audioName = loadString(audioNameKey, id),
             audioTrackId = loadString(audioTrackIdKey, id),
+            subtitleIsForced = loadBoolean(subtitleIsForcedKey, id),
         )
         return preference.takeIf {
             listOf(
@@ -42,7 +45,7 @@ internal actual object PlayerTrackPreferenceStorage {
                 it.audioLanguage,
                 it.audioName,
                 it.audioTrackId,
-            ).any { value -> !value.isNullOrBlank() }
+            ).any { value -> !value.isNullOrBlank() } || it.subtitleIsForced != null
         }
     }
 
@@ -58,6 +61,7 @@ internal actual object PlayerTrackPreferenceStorage {
         saveOptionalString(audioLanguageKey, id, preference.audioLanguage)
         saveOptionalString(audioNameKey, id, preference.audioName)
         saveOptionalString(audioTrackIdKey, id, preference.audioTrackId)
+        saveOptionalBoolean(subtitleIsForcedKey, id, preference.subtitleIsForced)
     }
 
     actual fun loadSubtitleDelayMs(videoId: String): Int? {
@@ -79,10 +83,49 @@ internal actual object PlayerTrackPreferenceStorage {
         )
     }
 
+    actual fun loadAudioDelayMs(audioOutputKey: String): Int? {
+        val id = audioOutputKey.normalizedStorageId() ?: return null
+        val defaults = NSUserDefaults.standardUserDefaults
+        val key = scopedKey(audioDelayMsKey, id)
+        return if (defaults.objectForKey(key) != null) {
+            defaults.integerForKey(key).toInt()
+        } else {
+            null
+        }
+    }
+
+    actual fun saveAudioDelayMs(audioOutputKey: String, delayMs: Int) {
+        val id = audioOutputKey.normalizedStorageId() ?: return
+        val defaults = NSUserDefaults.standardUserDefaults
+        val key = scopedKey(audioDelayMsKey, id)
+        if (delayMs == 0) {
+            defaults.removeObjectForKey(key)
+        } else {
+            defaults.setInteger(delayMs.coerceIn(AUDIO_DELAY_MIN_MS, AUDIO_DELAY_MAX_MS).toLong(), forKey = key)
+        }
+    }
+
     private fun loadString(field: String, contentId: String): String? =
         NSUserDefaults.standardUserDefaults
             .stringForKey(scopedKey(field, contentId))
             ?.takeIf { it.isNotBlank() }
+
+    private fun loadBoolean(field: String, contentId: String): Boolean? {
+        val defaults = NSUserDefaults.standardUserDefaults
+        val key = scopedKey(field, contentId)
+        if (defaults.objectForKey(key) == null) return null
+        return defaults.boolForKey(key)
+    }
+
+    private fun saveOptionalBoolean(field: String, contentId: String, value: Boolean?) {
+        val defaults = NSUserDefaults.standardUserDefaults
+        val key = scopedKey(field, contentId)
+        if (value == null) {
+            defaults.removeObjectForKey(key)
+        } else {
+            defaults.setBool(value, forKey = key)
+        }
+    }
 
     private fun saveOptionalString(field: String, contentId: String, value: String?) {
         val defaults = NSUserDefaults.standardUserDefaults

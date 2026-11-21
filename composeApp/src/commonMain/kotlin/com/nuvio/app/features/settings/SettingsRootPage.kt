@@ -2,6 +2,7 @@ package com.nuvio.app.features.settings
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.material.icons.Icons
@@ -17,17 +18,15 @@ import androidx.compose.material.icons.rounded.Link
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.People
-import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material.icons.rounded.Policy
-import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalUriHandler
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nuvio.app.core.build.AppVersionConfig
@@ -79,8 +78,6 @@ import nuvio.composeapp.generated.resources.about_supporters_contributors_subtit
 import nuvio.composeapp.generated.resources.about_licenses_attributions_subtitle
 import org.jetbrains.compose.resources.stringResource
 
-private const val PRIVACY_POLICY_URL = "https://nuvio.tv/privacy-policy"
-
 internal fun LazyListScope.settingsRootContent(
     isTablet: Boolean,
     onPlaybackClick: () -> Unit,
@@ -123,9 +120,33 @@ internal fun LazyListScope.settingsRootContent(
                             description = stringResource(Res.string.compose_settings_root_profile_description),
                             icon = Icons.Rounded.People,
                             isTablet = isTablet,
-                            onClick = onSwitchProfileClick,
+                            onPageClick = onPageClick,
+                        )
+                        if (onWatchPartyClick != null) {
+                            SettingsGroupDivider(isTablet = isTablet)
+                            SettingsNavigationRow(
+                                title = stringResource(Res.string.party_title),
+                                description = stringResource(Res.string.party_settings_description),
+                                icon = Icons.Rounded.Groups,
+                                isTablet = isTablet,
+                                onClick = onWatchPartyClick,
+                            )
+                        }
+                    }
+                    SettingsCategory.Look -> {
+                        SettingsPageRow(
+                            page = SettingsPage.Appearance,
+                            description = Res.string.settings_appearance_description,
+                            isTablet = isTablet,
+                            onPageClick = onPageClick,
                         )
                         SettingsGroupDivider(isTablet = isTablet)
+                        SettingsPageRow(
+                            page = SettingsPage.Layout,
+                            description = Res.string.compose_settings_root_layout_description,
+                            isTablet = isTablet,
+                            onPageClick = onPageClick,
+                        )
                     }
                     SettingsNavigationRow(
                         title = stringResource(Res.string.compose_settings_page_account),
@@ -262,62 +283,117 @@ internal fun LazyListScope.settingsRootContent(
                             description = stringResource(Res.string.about_supporters_contributors_subtitle),
                             icon = Icons.Rounded.Favorite,
                             isTablet = isTablet,
-                            onClick = onSupportersContributorsClick,
+                            onPageClick = onPageClick,
                         )
                         SettingsGroupDivider(isTablet = isTablet)
-                    }
-                    SettingsNavigationRow(
-                        title = stringResource(Res.string.compose_settings_page_privacy_policy),
-                        description = stringResource(Res.string.compose_settings_root_privacy_policy_description),
-                        icon = Icons.Rounded.Policy,
-                        isTablet = isTablet,
-                        onClick = { uriHandler.openUri(PRIVACY_POLICY_URL) },
-                    )
-                    SettingsGroupDivider(isTablet = isTablet)
-                    SettingsNavigationRow(
-                        title = stringResource(Res.string.compose_settings_page_licenses_attributions),
-                        description = stringResource(Res.string.about_licenses_attributions_subtitle),
-                        icon = Icons.Rounded.Info,
-                        isTablet = isTablet,
-                        onClick = onLicensesAttributionsClick,
-                    )
-                    if (onCheckForUpdatesClick != null) {
-                        SettingsGroupDivider(isTablet = isTablet)
-                        SettingsNavigationRow(
-                            title = stringResource(Res.string.compose_settings_root_check_updates_title),
-                            description = stringResource(Res.string.compose_settings_root_check_updates_description),
-                            icon = Icons.Rounded.CloudDownload,
+                        SettingsPageRow(
+                            page = SettingsPage.Playback,
+                            description = Res.string.settings_playback_subtitle,
                             isTablet = isTablet,
-                            onClick = onCheckForUpdatesClick,
+                            onPageClick = onPageClick,
+                        )
+                        SettingsGroupDivider(isTablet = isTablet)
+                        SettingsPageRow(
+                            page = SettingsPage.Downloads,
+                            description = Res.string.compose_settings_root_downloads_description,
+                            isTablet = isTablet,
+                            onPageClick = onPageClick,
                         )
                     }
-                    if (onTestUpdateBannerClick != null) {
-                        SettingsGroupDivider(isTablet = isTablet)
-                        SettingsNavigationRow(
-                            title = stringResource(Res.string.updates_debug_test_title),
-                            description = stringResource(Res.string.updates_debug_test_description),
-                            icon = Icons.Rounded.BugReport,
+                    SettingsCategory.Services -> {
+                        SettingsPageRow(
+                            page = SettingsPage.Integrations,
+                            description = Res.string.compose_settings_root_integrations_description,
                             isTablet = isTablet,
-                            onClick = onTestUpdateBannerClick,
+                            onPageClick = onPageClick,
+                        )
+                        SettingsGroupDivider(isTablet = isTablet)
+                        SettingsPageRow(
+                            page = SettingsPage.TraktAuthentication,
+                            description = Res.string.compose_settings_root_tracking_description,
+                            isTablet = isTablet,
+                            onPageClick = onPageClick,
+                        )
+                    }
+                    SettingsCategory.System -> {
+                        SettingsPageRow(
+                            page = SettingsPage.Notifications,
+                            description = Res.string.compose_settings_root_notifications_description,
+                            isTablet = isTablet,
+                            onPageClick = onPageClick,
+                        )
+                        SettingsGroupDivider(isTablet = isTablet)
+                        SettingsPageRow(
+                            page = SettingsPage.Advanced,
+                            description = Res.string.compose_settings_root_advanced_description,
+                            isTablet = isTablet,
+                            onPageClick = onPageClick,
+                        )
+                        SettingsGroupDivider(isTablet = isTablet)
+                        SettingsPageRow(
+                            page = SettingsPage.About,
+                            description = Res.string.compose_settings_root_about_description,
+                            isTablet = isTablet,
+                            onPageClick = onPageClick,
                         )
                     }
                 }
             }
         }
     }
-    if (showAdvancedSection) {
-        item {
-            SettingsSection(
-                title = stringResource(Res.string.compose_settings_root_advanced_section),
-                isTablet = isTablet,
+    settingsFooterContent(isTablet = isTablet)
+}
+
+@Composable
+private fun SettingsPageRow(
+    page: SettingsPage,
+    description: StringResource,
+    isTablet: Boolean,
+    onPageClick: (SettingsPage) -> Unit,
+) {
+    SettingsNavigationRow(
+        title = stringResource(page.titleRes),
+        description = stringResource(description),
+        icon = page.icon,
+        isTablet = isTablet,
+        onClick = { onPageClick(page) },
+    )
+}
+
+@Composable
+private fun SettingsProfileCard(
+    isTablet: Boolean,
+    onClick: () -> Unit,
+) {
+    val tokens = MaterialTheme.nuvio
+    val profileState by ProfileRepository.state.collectAsStateWithLifecycle()
+    val profile = profileState.activeProfile
+    val avatarSize = if (isTablet) 84.dp else 72.dp
+    SettingsGroup(
+        isTablet = isTablet,
+        modifier = Modifier.padding(top = if (isTablet) 12.dp else 8.dp),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(horizontal = if (isTablet) 20.dp else 16.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(avatarSize)
+                    .border(2.5.dp, MaterialTheme.themePalette.accentBrush(), CircleShape)
+                    .padding(4.dp),
             ) {
-                SettingsGroup(isTablet = isTablet) {
-                    SettingsNavigationRow(
-                        title = stringResource(Res.string.compose_settings_page_advanced),
-                        description = stringResource(Res.string.compose_settings_root_advanced_description),
-                        icon = Icons.Rounded.Tune,
-                        isTablet = isTablet,
-                        onClick = onAdvancedClick,
+                if (profile != null) {
+                    AppLoadingProfileAvatar(profile = profile, modifier = Modifier.fillMaxSize())
+                } else {
+                    Icon(
+                        imageVector = Icons.Rounded.People,
+                        contentDescription = null,
+                        tint = tokens.colors.accent,
+                        modifier = Modifier.align(Alignment.Center),
                     )
                 }
             }

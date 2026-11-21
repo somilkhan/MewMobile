@@ -1,6 +1,7 @@
 package com.nuvio.app.core.i18n
 
 import kotlinx.coroutines.runBlocking
+import nuvio.composeapp.generated.resources.player_picture_in_picture
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.action_play
 import nuvio.composeapp.generated.resources.action_play_episode
@@ -8,6 +9,7 @@ import nuvio.composeapp.generated.resources.action_resume
 import nuvio.composeapp.generated.resources.action_resume_episode
 import nuvio.composeapp.generated.resources.compose_player_episode_code_episode_only
 import nuvio.composeapp.generated.resources.compose_player_episode_code_full
+import nuvio.composeapp.generated.resources.streams_episode_fallback_title
 import nuvio.composeapp.generated.resources.compose_player_no_subtitle_lines_found
 import nuvio.composeapp.generated.resources.compose_player_subtitle_lines_load_error
 import nuvio.composeapp.generated.resources.continue_watching_up_next
@@ -81,10 +83,23 @@ fun localizedEpisodeTitle(episodeTitle: String?, episodeNumber: Int? = null): St
 
 fun localizedMovieTypeLabel(): String = resourceString("Movie") { getString(Res.string.media_movie) }
 
+
+private val genericEpisodeTitleRegex = Regex("""(?i)^Episode\s+(\d+)$""")
+
+/** Same idea as NuvioTV localizeEpisodeTitle: "Episode 12" -> localized word + number. */
+fun localizedEpisodeTitle(episodeTitle: String?, episodeNumber: Int? = null): String? {
+    val title = episodeTitle?.trim()?.takeIf { it.isNotBlank() } ?: return null
+    val match = genericEpisodeTitleRegex.matchEntire(title) ?: return title
+    val n = match.groupValues[1].toIntOrNull() ?: episodeNumber ?: return title
+    return resourceString("Episode $n") {
+        "${getString(Res.string.streams_episode_fallback_title)} $n"
+    }
+}
+
 fun localizedSeasonEpisodeCode(seasonNumber: Int?, episodeNumber: Int?): String? =
     when {
         seasonNumber != null && episodeNumber != null ->
-            resourceString("S${seasonNumber}E${episodeNumber}") {
+            resourceString("S${seasonNumber} E${episodeNumber}") {
                 getString(Res.string.compose_player_episode_code_full, seasonNumber, episodeNumber)
             }
         episodeNumber != null ->
@@ -114,15 +129,26 @@ fun localizedResumeLabel(seasonNumber: Int?, episodeNumber: Int?): String {
 
 fun localizedUpNextLabel(seasonNumber: Int?, episodeNumber: Int?): String =
     if (seasonNumber != null && episodeNumber != null) {
-        resourceString("Next Up • S${seasonNumber}E${episodeNumber}") {
+        resourceString("Next Up • S${seasonNumber} E${episodeNumber}") {
             getString(Res.string.continue_watching_up_next_episode, seasonNumber, episodeNumber)
         }
     } else {
         resourceString("Next Up") { getString(Res.string.continue_watching_up_next) }
     }
 
-fun localizedMonthName(month: Int): String =
-    when (month) {
+// Month names are resolved via a blocking resource lookup (see resourceString below), but every
+// caller sits on a hot path (one call per poster/episode/calendar-day rendered). Memoize by month
+// so the blocking lookup runs at most once per month per process instead of once per item per
+// composition. Safe to leave unsynchronized: worst case under a race is resolving the same
+// (deterministic, immutable) value twice, never a wrong one. Language changes go through an
+// app-language switch that recreates the process, which naturally clears these arrays too.
+private val monthNameCache = arrayOfNulls<String>(13)
+private val shortMonthNameCache = arrayOfNulls<String>(13)
+
+fun localizedMonthName(month: Int): String {
+    if (month !in 1..12) return month.toString()
+    monthNameCache[month]?.let { return it }
+    val resolved = when (month) {
         1 -> resourceString("January") { getString(Res.string.date_month_january) }
         2 -> resourceString("February") { getString(Res.string.date_month_february) }
         3 -> resourceString("March") { getString(Res.string.date_month_march) }
@@ -134,12 +160,16 @@ fun localizedMonthName(month: Int): String =
         9 -> resourceString("September") { getString(Res.string.date_month_september) }
         10 -> resourceString("October") { getString(Res.string.date_month_october) }
         11 -> resourceString("November") { getString(Res.string.date_month_november) }
-        12 -> resourceString("December") { getString(Res.string.date_month_december) }
-        else -> month.toString()
+        else -> resourceString("December") { getString(Res.string.date_month_december) }
     }
+    monthNameCache[month] = resolved
+    return resolved
+}
 
-fun localizedShortMonthName(month: Int): String =
-    when (month) {
+fun localizedShortMonthName(month: Int): String {
+    if (month !in 1..12) return month.toString()
+    shortMonthNameCache[month]?.let { return it }
+    val resolved = when (month) {
         1 -> resourceString("Jan") { getString(Res.string.date_month_short_jan) }
         2 -> resourceString("Feb") { getString(Res.string.date_month_short_feb) }
         3 -> resourceString("Mar") { getString(Res.string.date_month_short_mar) }
@@ -151,9 +181,11 @@ fun localizedShortMonthName(month: Int): String =
         9 -> resourceString("Sep") { getString(Res.string.date_month_short_sep) }
         10 -> resourceString("Oct") { getString(Res.string.date_month_short_oct) }
         11 -> resourceString("Nov") { getString(Res.string.date_month_short_nov) }
-        12 -> resourceString("Dec") { getString(Res.string.date_month_short_dec) }
-        else -> month.toString()
+        else -> resourceString("Dec") { getString(Res.string.date_month_short_dec) }
     }
+    shortMonthNameCache[month] = resolved
+    return resolved
+}
 
 fun localizedNoSubtitleLinesFound(): String =
     resourceString("No subtitle lines found") { getString(Res.string.compose_player_no_subtitle_lines_found) }
@@ -183,6 +215,9 @@ fun localizedByteUnit(unit: String): String =
         "KB" -> resourceString("KB") { getString(Res.string.unit_bytes_kb) }
         else -> resourceString("B") { getString(Res.string.unit_bytes_b) }
     }
+
+fun localizedPlayerPictureInPicture(): String =
+    resourceString("Nuvio is playing in Picture in Picture mode") { getString(Res.string.player_picture_in_picture) }
 
 private fun resourceString(
     fallback: String,
