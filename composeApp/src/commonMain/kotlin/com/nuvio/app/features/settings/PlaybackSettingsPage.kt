@@ -66,7 +66,9 @@ import com.nuvio.app.features.player.IosHardwareDecoderMode
 import com.nuvio.app.features.player.localizedLabel
 import com.nuvio.app.features.player.IosTargetPrimaries
 import com.nuvio.app.features.player.IosTargetTransfer
+import com.nuvio.app.features.player.PlaybackMemoryInfo
 import com.nuvio.app.features.player.PlayerSettingsRepository
+import com.nuvio.app.features.player.safeBufferLimitMb
 import com.nuvio.app.features.player.STREAM_AUTO_PLAY_TIMEOUT_VALUES
 import com.nuvio.app.features.player.SubtitleBackgroundColorSwatches
 import com.nuvio.app.features.player.SubtitleColorSwatches
@@ -140,6 +142,11 @@ internal fun LazyListScope.playbackSettingsContent(
             useLibass = useLibass,
             libassRenderType = libassRenderType,
         )
+    }
+    if (!isIos) {
+        item {
+            PlaybackBufferSection(isTablet = isTablet)
+        }
     }
 }
 
@@ -3889,3 +3896,151 @@ private fun libassRenderTypeRes(renderType: String): StringResource = when (rend
 
 @Composable
 private fun libassRenderTypeLabel(renderType: String): String = stringResource(libassRenderTypeRes(renderType))
+
+@Composable
+private fun PlaybackBufferSection(isTablet: Boolean) {
+    val settings by PlayerSettingsRepository.uiState.collectAsStateWithLifecycle()
+    val exoOptionsEnabled = !settings.externalPlayerEnabled && settings.androidPlaybackEngine != AndroidPlaybackEngine.Libmpv
+    val safeBufferLimitMb = remember { PlaybackMemoryInfo.safeBufferLimitMb() }
+    val targetBufferLimitMb = remember(settings.exoNativeMemoryEnabled) {
+        val limit = if (settings.exoNativeMemoryEnabled) {
+            safeBufferLimitMb
+        } else {
+            minOf(safeBufferLimitMb, PlaybackMemoryInfo.javaHeapBufferLimitMb())
+        }
+        (limit / 50 * 50).coerceAtLeast(100)
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(if (isTablet) 18.dp else 12.dp)) {
+        SettingsSection(
+            title = stringResource(Res.string.settings_playback_section_buffer),
+            isTablet = isTablet,
+        ) {
+            SettingsGroup(isTablet = isTablet) {
+                SettingsSwitchRow(
+                    title = stringResource(Res.string.settings_playback_exo_native_memory),
+                    description = stringResource(Res.string.settings_playback_exo_native_memory_description),
+                    checked = settings.exoNativeMemoryEnabled,
+                    enabled = exoOptionsEnabled,
+                    isTablet = isTablet,
+                    onCheckedChange = PlayerSettingsRepository::setExoNativeMemoryEnabled,
+                )
+                SettingsGroupDivider(isTablet = isTablet)
+                SettingsSwitchRow(
+                    title = stringResource(Res.string.settings_playback_custom_buffers),
+                    description = stringResource(Res.string.settings_playback_custom_buffers_description),
+                    checked = settings.customPlaybackBuffersEnabled,
+                    enabled = exoOptionsEnabled,
+                    isTablet = isTablet,
+                    onCheckedChange = PlayerSettingsRepository::setCustomPlaybackBuffersEnabled,
+                )
+                if (settings.customPlaybackBuffersEnabled) {
+                    Text(
+                        text = stringResource(Res.string.settings_playback_custom_buffers_warning),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(horizontal = if (isTablet) 20.dp else 16.dp, vertical = 6.dp),
+                    )
+                    SettingsSliderRow(
+                        title = stringResource(Res.string.settings_playback_min_buffer),
+                        value = settings.playbackMinBufferSeconds,
+                        valueText = "${settings.playbackMinBufferSeconds}s",
+                        valueRange = 5..1200,
+                        step = 5,
+                        isTablet = isTablet,
+                        enabled = exoOptionsEnabled,
+                        onValueChange = PlayerSettingsRepository::setPlaybackMinBufferSeconds,
+                    )
+                    SettingsSliderRow(
+                        title = stringResource(Res.string.settings_playback_max_buffer),
+                        value = settings.playbackMaxBufferSeconds,
+                        valueText = "${settings.playbackMaxBufferSeconds}s",
+                        valueRange = 5..1200,
+                        step = 5,
+                        isTablet = isTablet,
+                        enabled = exoOptionsEnabled,
+                        onValueChange = PlayerSettingsRepository::setPlaybackMaxBufferSeconds,
+                    )
+                    SettingsSliderRow(
+                        title = stringResource(Res.string.settings_playback_start_buffer),
+                        value = settings.playbackStartBufferSeconds,
+                        valueText = "${settings.playbackStartBufferSeconds}s",
+                        valueRange = 1..30,
+                        step = 1,
+                        isTablet = isTablet,
+                        enabled = exoOptionsEnabled,
+                        onValueChange = PlayerSettingsRepository::setPlaybackStartBufferSeconds,
+                    )
+                    SettingsSliderRow(
+                        title = stringResource(Res.string.settings_playback_buffer_after_stall),
+                        value = settings.playbackRebufferSeconds,
+                        valueText = "${settings.playbackRebufferSeconds}s",
+                        valueRange = 1..60,
+                        step = 1,
+                        isTablet = isTablet,
+                        enabled = exoOptionsEnabled,
+                        onValueChange = PlayerSettingsRepository::setPlaybackRebufferSeconds,
+                    )
+                    SettingsSliderRow(
+                        title = stringResource(Res.string.settings_playback_back_buffer),
+                        value = settings.playbackBackBufferSeconds,
+                        valueText = "${settings.playbackBackBufferSeconds}s",
+                        valueRange = 0..120,
+                        step = 5,
+                        isTablet = isTablet,
+                        enabled = exoOptionsEnabled,
+                        onValueChange = PlayerSettingsRepository::setPlaybackBackBufferSeconds,
+                    )
+                    val targetMb = settings.playbackTargetBufferMb.coerceIn(50, targetBufferLimitMb)
+                    SettingsSliderRow(
+                        title = stringResource(Res.string.settings_playback_target_buffer_size),
+                        value = targetMb,
+                        valueText = "$targetMb MB",
+                        valueRange = 50..targetBufferLimitMb,
+                        step = 50,
+                        isTablet = isTablet,
+                        enabled = exoOptionsEnabled,
+                        onValueChange = PlayerSettingsRepository::setPlaybackTargetBufferMb,
+                    )
+                }
+                SettingsGroupDivider(isTablet = isTablet)
+                SettingsSwitchRow(
+                    title = stringResource(Res.string.settings_playback_vod_disk_cache),
+                    description = stringResource(Res.string.settings_playback_vod_disk_cache_description),
+                    checked = settings.vodDiskCacheEnabled,
+                    enabled = exoOptionsEnabled,
+                    isTablet = isTablet,
+                    onCheckedChange = PlayerSettingsRepository::setVodDiskCacheEnabled,
+                )
+                if (settings.vodDiskCacheEnabled) {
+                    SettingsGroupDivider(isTablet = isTablet)
+                    SettingsSwitchRow(
+                        title = stringResource(Res.string.settings_playback_vod_disk_cache_auto_size),
+                        description = stringResource(Res.string.settings_playback_vod_disk_cache_auto_size_description),
+                        checked = settings.vodDiskCacheAutoSize,
+                        enabled = exoOptionsEnabled,
+                        isTablet = isTablet,
+                        onCheckedChange = PlayerSettingsRepository::setVodDiskCacheAutoSize,
+                    )
+                    if (!settings.vodDiskCacheAutoSize) {
+                        SettingsSliderRow(
+                            title = stringResource(Res.string.settings_playback_vod_disk_cache_size),
+                            value = settings.vodDiskCacheSizeMb,
+                            valueText = "${settings.vodDiskCacheSizeMb} MB",
+                            valueRange = 256..20480,
+                            step = 256,
+                            isTablet = isTablet,
+                            enabled = exoOptionsEnabled,
+                            onValueChange = PlayerSettingsRepository::setVodDiskCacheSizeMb,
+                        )
+                    }
+                    Text(
+                        text = stringResource(Res.string.settings_playback_vod_disk_cache_note),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(horizontal = if (isTablet) 20.dp else 16.dp, vertical = 6.dp),
+                    )
+                }
+            }
+        }
+    }
+}

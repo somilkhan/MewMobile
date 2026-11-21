@@ -66,6 +66,17 @@ actual object PlayerSettingsStorage {
     private const val androidLibmpvHardwareDecodingEnabledKey = "android_libmpv_hardware_decoding_enabled"
     private const val androidLibmpvYuv420pEnabledKey = "android_libmpv_yuv420p_enabled"
     private const val androidMemorySafeBufferEnabledKey = "android_memory_safe_buffer_enabled"
+    private const val exoNativeMemoryEnabledKey = "exo_native_memory_enabled"
+    private const val customPlaybackBuffersEnabledKey = "custom_playback_buffers_enabled"
+    private const val vodDiskCacheEnabledKey = "vod_disk_cache_enabled"
+    private const val vodDiskCacheAutoSizeKey = "vod_disk_cache_auto_size"
+    private const val playbackMinBufferSecondsKey = "playback_min_buffer_seconds"
+    private const val playbackMaxBufferSecondsKey = "playback_max_buffer_seconds"
+    private const val playbackStartBufferSecondsKey = "playback_start_buffer_seconds"
+    private const val playbackRebufferSecondsKey = "playback_rebuffer_seconds"
+    private const val playbackBackBufferSecondsKey = "playback_back_buffer_seconds"
+    private const val playbackTargetBufferMbKey = "playback_target_buffer_mb"
+    private const val vodDiskCacheSizeMbKey = "vod_disk_cache_size_mb"
     private const val decoderPriorityKey = "decoder_priority"
     private const val mapDV7ToHevcKey = "map_dv7_to_hevc"
     private const val tunnelingEnabledKey = "tunneling_enabled"
@@ -153,6 +164,17 @@ actual object PlayerSettingsStorage {
         androidLibmpvHardwareDecodingEnabledKey,
         androidLibmpvYuv420pEnabledKey,
         androidMemorySafeBufferEnabledKey,
+        exoNativeMemoryEnabledKey,
+        customPlaybackBuffersEnabledKey,
+        vodDiskCacheEnabledKey,
+        vodDiskCacheAutoSizeKey,
+        playbackMinBufferSecondsKey,
+        playbackMaxBufferSecondsKey,
+        playbackStartBufferSecondsKey,
+        playbackRebufferSecondsKey,
+        playbackBackBufferSecondsKey,
+        playbackTargetBufferMbKey,
+        vodDiskCacheSizeMbKey,
         decoderPriorityKey,
         mapDV7ToHevcKey,
         tunnelingEnabledKey,
@@ -712,6 +734,72 @@ actual object PlayerSettingsStorage {
 
     actual fun saveAndroidMemorySafeBufferEnabled(enabled: Boolean) {
         saveBoolean(androidMemorySafeBufferEnabledKey, enabled)
+    }
+
+    actual fun loadExoNativeMemoryEnabled(): Boolean? = loadBoolean(exoNativeMemoryEnabledKey)
+
+    actual fun saveExoNativeMemoryEnabled(value: Boolean) {
+        saveBoolean(exoNativeMemoryEnabledKey, value)
+    }
+
+    actual fun loadCustomPlaybackBuffersEnabled(): Boolean? = loadBoolean(customPlaybackBuffersEnabledKey)
+
+    actual fun saveCustomPlaybackBuffersEnabled(value: Boolean) {
+        saveBoolean(customPlaybackBuffersEnabledKey, value)
+    }
+
+    actual fun loadVodDiskCacheEnabled(): Boolean? = loadBoolean(vodDiskCacheEnabledKey)
+
+    actual fun saveVodDiskCacheEnabled(value: Boolean) {
+        saveBoolean(vodDiskCacheEnabledKey, value)
+    }
+
+    actual fun loadVodDiskCacheAutoSize(): Boolean? = loadBoolean(vodDiskCacheAutoSizeKey)
+
+    actual fun saveVodDiskCacheAutoSize(value: Boolean) {
+        saveBoolean(vodDiskCacheAutoSizeKey, value)
+    }
+
+    actual fun loadPlaybackMinBufferSeconds(): Int? = loadInt(playbackMinBufferSecondsKey)
+
+    actual fun savePlaybackMinBufferSeconds(value: Int) {
+        saveInt(playbackMinBufferSecondsKey, value)
+    }
+
+    actual fun loadPlaybackMaxBufferSeconds(): Int? = loadInt(playbackMaxBufferSecondsKey)
+
+    actual fun savePlaybackMaxBufferSeconds(value: Int) {
+        saveInt(playbackMaxBufferSecondsKey, value)
+    }
+
+    actual fun loadPlaybackStartBufferSeconds(): Int? = loadInt(playbackStartBufferSecondsKey)
+
+    actual fun savePlaybackStartBufferSeconds(value: Int) {
+        saveInt(playbackStartBufferSecondsKey, value)
+    }
+
+    actual fun loadPlaybackRebufferSeconds(): Int? = loadInt(playbackRebufferSecondsKey)
+
+    actual fun savePlaybackRebufferSeconds(value: Int) {
+        saveInt(playbackRebufferSecondsKey, value)
+    }
+
+    actual fun loadPlaybackBackBufferSeconds(): Int? = loadInt(playbackBackBufferSecondsKey)
+
+    actual fun savePlaybackBackBufferSeconds(value: Int) {
+        saveInt(playbackBackBufferSecondsKey, value)
+    }
+
+    actual fun loadPlaybackTargetBufferMb(): Int? = loadInt(playbackTargetBufferMbKey)
+
+    actual fun savePlaybackTargetBufferMb(value: Int) {
+        saveInt(playbackTargetBufferMbKey, value)
+    }
+
+    actual fun loadVodDiskCacheSizeMb(): Int? = loadInt(vodDiskCacheSizeMbKey)
+
+    actual fun saveVodDiskCacheSizeMb(value: Int) {
+        saveInt(vodDiskCacheSizeMbKey, value)
     }
 
     actual fun loadDecoderPriority(): Int? {
