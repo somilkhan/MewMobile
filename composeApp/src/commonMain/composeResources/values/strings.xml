@@ -572,6 +572,21 @@
     <string name="detail_trailers_title">Trailers</string>
     <string name="downloads_empty_episodes">No completed episodes</string>
     <string name="downloads_empty_title">No downloads yet</string>
+    <string name="downloads_downloading_count">%1$d downloading</string>
+    <string name="downloads_pause_all">Pause all</string>
+    <string name="downloads_resume_all">Resume all</string>
+    <string name="downloads_section_downloaded">Downloaded</string>
+    <string name="downloads_speed">%1$s/s</string>
+    <string name="downloads_watched_count">%1$d watched</string>
+    <string name="action_delete_confirm_message">Are you sure you want to delete it?</string>
+    <plurals name="downloads_episodes">
+        <item quantity="one">%1$d episode</item>
+        <item quantity="other">%1$d episodes</item>
+    </plurals>
+    <plurals name="downloads_titles">
+        <item quantity="one">%1$d title</item>
+        <item quantity="other">%1$d titles</item>
+    </plurals>
     <string name="downloads_episode_count">%1$d downloaded episode(s)</string>
     <string name="downloads_open_directory">Open downloads folder</string>
     <string name="downloads_open_directory_failed">Couldn&apos;t open downloads folder</string>

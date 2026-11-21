@@ -426,6 +426,14 @@ object DownloadsRepository {
             .forEach(::pauseDownload)
     }
 
+    fun resumePausedDownloads() {
+        ensureLoaded()
+        _uiState.value.items
+            .filter { it.status == DownloadStatus.Paused }
+            .map { it.id }
+            .forEach(::resumeDownload)
+    }
+
     fun resumeDownload(downloadId: String) {
         ensureLoaded()
         val log = Logger.withTag("Downloads")
