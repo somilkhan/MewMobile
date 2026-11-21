@@ -3125,4 +3125,6 @@
     <string name="settings_glass_ui_style_dark">Dark</string>
     <string name="settings_glass_ui_style_balanced">Balanced</string>
     <string name="settings_glass_ui_style_vivid">Vivid</string>
+    <string name="home_cloudstream_all_sources">All sources</string>
+    <string name="home_cloudstream_source_label">CloudStream · %1$s</string>
 </resources>

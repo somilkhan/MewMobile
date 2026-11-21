@@ -62,6 +62,7 @@ import com.nuvio.app.core.ui.nuvioConsumePointerEvents
 import com.nuvio.app.core.ui.withDuplicateSafeLazyKeys
 import com.nuvio.app.core.ui.ScreenActivityEffect
 import com.nuvio.app.features.addons.AddonRepository
+import com.nuvio.app.features.cloudstream.CloudStreamRepository
 import com.nuvio.app.features.addons.firstEnabledManifestError
 import com.nuvio.app.features.addons.hasPendingEnabledManifests
 import com.nuvio.app.features.home.HomeCatalogSettingsRepository
@@ -132,6 +133,7 @@ fun SearchScreen(
     }
 
     val addonsUiState by AddonRepository.uiState.collectAsStateWithLifecycle()
+    val cloudStreamUiState by CloudStreamRepository.uiState.collectAsStateWithLifecycle()
     val uiState by SearchRepository.uiState.collectAsStateWithLifecycle()
     val discoverUiState by SearchRepository.discoverUiState.collectAsStateWithLifecycle()
     val homeCatalogSettingsUiState by remember {
@@ -162,13 +164,22 @@ fun SearchScreen(
         buildAddonCatalogRefreshSignature(addonsUiState.addons)
     }
     val addonManifestsLoading = addonsUiState.addons.hasPendingEnabledManifests()
+    val cloudStreamRefreshKey = remember(cloudStreamUiState.registryRevision, cloudStreamUiState.plugins) {
+        buildString {
+            append(cloudStreamUiState.registryRevision)
+            append(':')
+            append(cloudStreamUiState.plugins.joinToString(separator = ",") { plugin ->
+                plugin.metadata.id.value + ":" + plugin.isRunnable
+            })
+        }
+    }
 
     ScreenActivityEffect(addonRefreshKey, homeCatalogSettingsUiState.hideUnreleasedContent) { screenActive ->
         if (!screenActive) return@ScreenActivityEffect
         SearchRepository.refreshDiscover(addonsUiState.addons)
     }
 
-    ScreenActivityEffect(query, addonRefreshKey, homeCatalogSettingsUiState.hideUnreleasedContent) { screenActive ->
+    ScreenActivityEffect(query, addonRefreshKey, cloudStreamRefreshKey, homeCatalogSettingsUiState.hideUnreleasedContent) { screenActive ->
         if (!screenActive) return@ScreenActivityEffect
         val normalizedQuery = query.trim()
         if (normalizedQuery.isBlank()) {
@@ -208,7 +219,7 @@ fun SearchScreen(
         SearchHistoryRepository.recordSearch(normalizedQuery)
     }
 
-    ScreenActivityEffect(networkStatusUiState.condition, query, addonRefreshKey) { screenActive ->
+    ScreenActivityEffect(networkStatusUiState.condition, query, addonRefreshKey, cloudStreamRefreshKey) { screenActive ->
         if (!screenActive) return@ScreenActivityEffect
         when (networkStatusUiState.condition) {
             NetworkCondition.NoInternet,
