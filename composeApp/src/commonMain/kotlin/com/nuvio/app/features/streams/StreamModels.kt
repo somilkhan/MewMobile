@@ -1,10 +1,11 @@
 package com.nuvio.app.features.streams
 
 import com.nuvio.app.core.build.AppFeaturePolicy
-import com.nuvio.app.features.servers.ServerPlaybackTarget
+import io.ktor.http.Url
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
-
-const val DOWNLOADED_ADDON_ID = "downloaded"
+import nuvio.composeapp.generated.resources.*
+import org.jetbrains.compose.resources.getString
 
 @Serializable
 data class StreamSubtitle(
@@ -22,7 +23,6 @@ data class StreamItem(
     val infoHash: String? = null,
     val fileIdx: Int? = null,
     val externalUrl: String? = null,
-    val ytId: String? = null,
     val sources: List<String> = emptyList(),
     val sourceName: String? = null,
     val addonName: String,
@@ -34,12 +34,9 @@ data class StreamItem(
     val debridCacheStatus: StreamDebridCacheStatus? = null,
     val externalSubtitles: List<StreamSubtitle> = emptyList(),
     val badges: List<StreamBadge> = emptyList(),
-    val serverTarget: ServerPlaybackTarget? = null,
-    /** True when [url] was produced by Nuvio's own debrid resolver, not returned by the add-on. */
-    val debridResolved: Boolean = false,
 ) {
     val streamLabel: String
-        get() = name?.takeIf { it.isNotBlank() } ?: "Stream"
+        get() = name ?: runBlocking { getString(Res.string.stream_default_name) }
 
     val streamSubtitle: String?
         get() = description
@@ -65,22 +62,6 @@ data class StreamItem(
             infoHash.isNullOrBlank() &&
             clientResolve == null &&
             externalOpenUrl != null
-
-    /**
-     * YouTube video id to resolve on the device, set only when `ytId` is the
-     * stream's only way to play. Streams that also carry a url, externalUrl,
-     * torrent or debrid resolve keep using those.
-     */
-    val youTubeIdToResolve: String?
-        get() = ytId
-            ?.trim()
-            ?.takeIf {
-                it.isNotEmpty() &&
-                    url.isNullOrBlank() &&
-                    externalUrl.isNullOrBlank() &&
-                    infoHash.isNullOrBlank() &&
-                    clientResolve == null
-            }
 
     val torrentMagnetUri: String?
         get() = listOfNotNull(url, externalUrl)
@@ -121,10 +102,16 @@ data class StreamItem(
         get() = fileIdx ?: torrentSchemeUri.extractTorrentSchemeFileIdx()
 
     val p2pTrackers: List<String>
-        get() = sources
+        get() = (sources + clientResolve?.sources.orEmpty())
             .asSequence()
             .filter { it.startsWith("tracker:") }
             .map { it.removePrefix("tracker:").trim() }
+            .plus(
+                torrentMagnetUri
+                    ?.let { magnet -> runCatching { Url(magnet).parameters.getAll("tr") }.getOrNull() }
+                    .orEmpty()
+                    .asSequence(),
+            )
             .filter { it.isNotEmpty() }
             .distinct()
             .toList()
@@ -133,11 +120,7 @@ data class StreamItem(
         get() = isInstalledAddonStream && (needsLocalDebridResolve || isDirectDebridStream)
 
     val hasPlayableSource: Boolean
-        get() = url != null || infoHash != null || externalUrl != null || clientResolve != null || ytId != null ||
-            serverTarget != null
-
-    val needsServerPreparation: Boolean
-        get() = serverTarget != null && playableDirectUrl == null
+        get() = url != null || infoHash != null || externalUrl != null || clientResolve != null
 }
 
 @Serializable
@@ -201,9 +184,7 @@ private fun String?.extractBtihInfoHash(): String? {
 
 fun StreamItem.isSelectableForPlayback(debridEnabled: Boolean): Boolean =
     playableDirectUrl != null ||
-        serverTarget != null ||
         shouldOpenExternally ||
-        youTubeIdToResolve != null ||
         (AppFeaturePolicy.p2pEnabled && needsLocalDebridResolve && p2pInfoHash != null) ||
         (debridEnabled && isAddonDebridCandidate)
 
@@ -309,12 +290,6 @@ data class AddonStreamGroup(
     val error: String? = null,
 )
 
-val StreamItem.isLocalDownload: Boolean
-    get() = addonId == DOWNLOADED_ADDON_ID
-
-val AddonStreamGroup.isLocalDownload: Boolean
-    get() = addonId == DOWNLOADED_ADDON_ID
-
 enum class StreamsEmptyStateReason {
     NoAddonsInstalled,
     NoCompatibleAddons,
@@ -324,7 +299,6 @@ enum class StreamsEmptyStateReason {
 
 data class StreamsUiState(
     val requestToken: String? = null,
-    val autoPlayDecided: Boolean = false,
     val groups: List<AddonStreamGroup> = emptyList(),
     val activeAddonIds: Set<String> = emptySet(),
     val selectedFilter: String? = null,
@@ -335,7 +309,6 @@ data class StreamsUiState(
     val isDirectAutoPlayFlow: Boolean = false,
     val showDirectAutoPlayOverlay: Boolean = false,
     val overlayMessage: String? = null,
-    val smartAutoPlaySearch: SmartAutoPlaySearch? = null,
 ) {
     val filteredGroups: List<AddonStreamGroup>
         get() = if (selectedFilter == null) groups
@@ -347,9 +320,3 @@ data class StreamsUiState(
     val hasAnyStreams: Boolean
         get() = groups.any { it.streams.isNotEmpty() }
 }
-
-data class SmartAutoPlaySearch(
-    val loadedSources: Int,
-    val totalSources: Int,
-    val candidateSummary: String?,
-)
