@@ -3,8 +3,9 @@ package com.nuvio.app.features.downloads
 internal expect object DownloadsStorage {
     fun loadPayload(): String?
     fun savePayload(payload: String)
-    fun loadExternalFolderUri(): String?
-    fun saveExternalFolderUri(uri: String?)
-    fun loadEpisodeDownloadSettings(): String?
-    fun saveEpisodeDownloadSettings(payload: String)
+    fun loadOfflineMetadataPayload(): String?
+    fun saveOfflineMetadataPayload(payload: String)
+    fun getDownloadLocationUri(): String?
+    fun setDownloadLocationUri(uri: String?)
+    fun clearUnfinishedDownloads()
 }

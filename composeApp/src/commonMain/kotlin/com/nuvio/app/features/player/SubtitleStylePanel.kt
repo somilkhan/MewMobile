@@ -1,5 +1,6 @@
 package com.nuvio.app.features.player
 
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -55,7 +56,11 @@ import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
 import com.nuvio.app.core.ui.isTvLayoutProfileEnabled
 import kotlin.math.abs
-import kotlin.math.roundToInt
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+
+private const val STEPPER_HOLD_START_MS = 500L
+private const val STEPPER_HOLD_REPEAT_MS = 100L
 
 @Composable
 fun SubtitleStylePanel(
@@ -98,6 +103,7 @@ fun SubtitleSyncPanel(
     isPlaying: Boolean,
     onSubtitleDelayChanged: (Int) -> Unit,
     onSubtitleDelayReset: () -> Unit,
+    onSyncByEarClick: () -> Unit,
     onAutoSyncCapture: () -> Unit,
     onSyncByEarClick: () -> Unit,
     onAutoSyncCueSelected: (SubtitleSyncCue) -> Unit,

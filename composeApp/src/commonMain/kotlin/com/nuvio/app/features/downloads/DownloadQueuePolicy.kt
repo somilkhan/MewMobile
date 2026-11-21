@@ -1,12 +1,6 @@
 package com.nuvio.app.features.downloads
 
-/**
- * Decides which downloads may run, given concurrency limits and network policy.
- *
- * Ported from luqmanfadlli 1b9f21f0b. Adapted for Mew: waiting downloads use
- * [DownloadStatus.Waiting] (Mew has no Queued status), and the limits and network
- * inputs are plain values supplied by the caller.
- */
+/** Decides which downloads may run, given the user's concurrency limits and network policy. */
 internal data class DownloadQueuePolicy(
     val maxDownloads: Int,
     val maxEpisodesPerShow: Int,
@@ -23,11 +17,11 @@ internal data class DownloadQueuePolicy(
         return downloading.count { it.showKey == showKey } < maxEpisodesPerShow
     }
 
-    /** The oldest waiting download that may start now, or null when none can. */
+    /** The oldest queued download that may start now, or null when none can. */
     fun nextToStart(items: List<DownloadItem>): DownloadItem? {
         val downloading = items.filter { it.status == DownloadStatus.Downloading }
         return items
-            .filter { it.status == DownloadStatus.Waiting }
+            .filter { it.status == DownloadStatus.Queued }
             .sortedWith(queueOrder)
             .firstOrNull { canStart(it.showKey, downloading) }
     }
@@ -38,14 +32,23 @@ internal data class DownloadQueuePolicy(
             .thenBy { it.episodeNumber ?: 0 }
             .thenBy { it.id }
 
-        /** Policy for Mew's one-at-a-time queue: a single active download at a time. */
-        val oneAtATime: DownloadQueuePolicy = DownloadQueuePolicy(
-            maxDownloads = 1,
-            maxEpisodesPerShow = 1,
-            maxShows = 1,
-            isNetworkAllowed = true,
-        )
+        fun current(): DownloadQueuePolicy {
+            DownloadsSettingsRepository.ensureLoaded()
+            val limits = DownloadsSettingsRepository.concurrencyLimits.value
+            return DownloadQueuePolicy(
+                maxDownloads = limits.getValue(DownloadConcurrencyLimit.TotalDownloads),
+                maxEpisodesPerShow = limits.getValue(DownloadConcurrencyLimit.EpisodesPerShow),
+                maxShows = limits.getValue(DownloadConcurrencyLimit.ConcurrentShows),
+                isNetworkAllowed = isDownloadNetworkAllowed(),
+            )
+        }
     }
+}
+
+/** False when the user only allows downloads on Wi-Fi and the device is on mobile data. */
+internal fun isDownloadNetworkAllowed(): Boolean {
+    DownloadsSettingsRepository.ensureLoaded()
+    return DownloadsSettingsRepository.allowMobileDataDownloads.value || DownloadNetworkGuard.transportState.value
 }
 
 /** The show an episode download counts against for per-show limits; null for movies. */

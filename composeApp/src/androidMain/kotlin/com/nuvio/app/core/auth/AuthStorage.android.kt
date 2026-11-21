@@ -25,14 +25,10 @@ actual object AuthStorage {
         preferences?.edit()?.remove(KEY_ANONYMOUS_USER_ID)?.apply()
     }
 
-    actual fun loadLocalDataOwnerUserId(): String? =
-        preferences?.getString(KEY_LOCAL_DATA_OWNER_USER_ID, null)
+    actual fun loadFlag(key: String): Boolean =
+        preferences?.getBoolean(key, false) == true
 
-    actual fun saveLocalDataOwnerUserId(userId: String) {
-        preferences?.edit()?.putString(KEY_LOCAL_DATA_OWNER_USER_ID, userId)?.apply()
-    }
-
-    actual fun clearLocalDataOwnerUserId() {
-        preferences?.edit()?.remove(KEY_LOCAL_DATA_OWNER_USER_ID)?.apply()
+    actual fun saveFlag(key: String, value: Boolean) {
+        preferences?.edit()?.putBoolean(key, value)?.apply()
     }
 }

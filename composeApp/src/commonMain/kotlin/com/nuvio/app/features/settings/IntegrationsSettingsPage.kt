@@ -7,11 +7,19 @@ import androidx.compose.foundation.lazy.LazyListScope
 import nuvio.composeapp.generated.resources.compose_settings_page_debrid
 import nuvio.composeapp.generated.resources.compose_settings_page_ai_assistant
 import nuvio.composeapp.generated.resources.Res
+import nuvio.composeapp.generated.resources.compose_settings_page_debrid
+import nuvio.composeapp.generated.resources.compose_settings_page_discord_rpc
+import nuvio.composeapp.generated.resources.compose_settings_page_live_tv
 import nuvio.composeapp.generated.resources.compose_settings_page_mdblist_ratings
+import nuvio.composeapp.generated.resources.compose_settings_page_omdb
 import nuvio.composeapp.generated.resources.compose_settings_page_tmdb_enrichment
 import nuvio.composeapp.generated.resources.settings_integrations_mdblist_description
 import nuvio.composeapp.generated.resources.settings_integrations_ai_description
 import nuvio.composeapp.generated.resources.settings_integrations_debrid_description
+import nuvio.composeapp.generated.resources.settings_integrations_discord_description
+import nuvio.composeapp.generated.resources.settings_integrations_live_tv_description
+import nuvio.composeapp.generated.resources.settings_integrations_mdblist_description
+import nuvio.composeapp.generated.resources.settings_integrations_omdb_description
 import nuvio.composeapp.generated.resources.settings_integrations_section_title
 import nuvio.composeapp.generated.resources.settings_integrations_tmdb_description
 import org.jetbrains.compose.resources.stringResource
@@ -21,7 +29,9 @@ internal fun LazyListScope.integrationsContent(
     onAiAssistantClick: () -> Unit,
     onTmdbClick: () -> Unit,
     onMdbListClick: () -> Unit,
-    onDebridClick: () -> Unit,
+    onOmdbClick: () -> Unit,
+    onLiveTvClick: () -> Unit,
+    onDiscordClick: () -> Unit,
 ) {
     item {
         SettingsSection(
@@ -54,11 +64,30 @@ internal fun LazyListScope.integrationsContent(
                 )
                 SettingsGroupDivider(isTablet = isTablet)
                 SettingsNavigationRow(
-                    title = stringResource(Res.string.compose_settings_page_debrid),
-                    description = stringResource(Res.string.settings_integrations_debrid_description),
+                    title = stringResource(Res.string.compose_settings_page_omdb),
+                    description = stringResource(Res.string.settings_integrations_omdb_description),
+                    icon = Icons.Rounded.Theaters,
                     isTablet = isTablet,
-                    onClick = onDebridClick,
+                    onClick = onOmdbClick,
                 )
+                SettingsGroupDivider(isTablet = isTablet)
+                SettingsNavigationRow(
+                    title = stringResource(Res.string.compose_settings_page_live_tv),
+                    description = stringResource(Res.string.settings_integrations_live_tv_description),
+                    icon = Icons.Rounded.LiveTv,
+                    isTablet = isTablet,
+                    onClick = onLiveTvClick,
+                )
+                if (DiscordRpcPlatform.isSupported) {
+                    SettingsGroupDivider(isTablet = isTablet)
+                    SettingsNavigationRow(
+                        title = stringResource(Res.string.compose_settings_page_discord_rpc),
+                        description = stringResource(Res.string.settings_integrations_discord_description),
+                        icon = Icons.Rounded.Forum,
+                        isTablet = isTablet,
+                        onClick = onDiscordClick,
+                    )
+                }
             }
         }
     }

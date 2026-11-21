@@ -20,8 +20,6 @@ internal expect object TmdbSettingsStorage {
     fun saveUseBasicInfo(enabled: Boolean)
     fun loadUseDetails(): Boolean?
     fun saveUseDetails(enabled: Boolean)
-    fun loadUseReleaseDates(): Boolean?
-    fun saveUseReleaseDates(enabled: Boolean)
     fun loadUseCredits(): Boolean?
     fun saveUseCredits(enabled: Boolean)
     fun loadUseProductions(): Boolean?
@@ -30,12 +28,16 @@ internal expect object TmdbSettingsStorage {
     fun saveUseNetworks(enabled: Boolean)
     fun loadUseEpisodes(): Boolean?
     fun saveUseEpisodes(enabled: Boolean)
+    fun loadUseEpisodeRatings(): Boolean?
+    fun saveUseEpisodeRatings(enabled: Boolean)
     fun loadUseSeasonPosters(): Boolean?
     fun saveUseSeasonPosters(enabled: Boolean)
     fun loadUseMoreLikeThis(): Boolean?
     fun saveUseMoreLikeThis(enabled: Boolean)
     fun loadUseCollections(): Boolean?
     fun saveUseCollections(enabled: Boolean)
+    fun loadTitleLanguage(): String?
+    fun saveTitleLanguage(value: String)
     fun exportToSyncPayload(): JsonObject
     fun replaceFromSyncPayload(payload: JsonObject)
 }

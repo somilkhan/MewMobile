@@ -30,6 +30,8 @@ import java.util.concurrent.TimeUnit
 object AndroidAppUpdaterPlatform {
     private const val preferencesName = "nuvio_updater"
     private const val ignoredTagKey = "ignored_release_tag"
+    private const val updateChannelKey = "update_channel"
+    private const val whatsNewCacheKey = "whats_new_cache"
 
     private val httpClient = SharedOkHttpClient.base.newBuilder()
         .connectTimeout(60, TimeUnit.SECONDS)
@@ -59,6 +61,24 @@ object AndroidAppUpdaterPlatform {
         preferences().edit().apply {
             if (tag == null) remove(ignoredTagKey) else putString(ignoredTagKey, tag)
         }.apply()
+    }
+
+    fun getUpdateChannel(): String? = preferences().getString(updateChannelKey, null)
+
+    fun setUpdateChannel(channel: String) {
+        preferences().edit().putString(updateChannelKey, channel).apply()
+    }
+
+    fun getWhatsNewCache(): String? = preferences().getString(whatsNewCacheKey, null)
+
+    fun setWhatsNewCache(payload: String?) {
+        preferences().edit().apply {
+            if (payload == null) remove(whatsNewCacheKey) else putString(whatsNewCacheKey, payload)
+        }.apply()
+    }
+
+    fun deleteDownloadedApk(path: String) {
+        File(path).delete()
     }
 
     suspend fun downloadApk(

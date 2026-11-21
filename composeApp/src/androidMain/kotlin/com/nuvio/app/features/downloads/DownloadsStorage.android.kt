@@ -3,12 +3,13 @@ package com.nuvio.app.features.downloads
 import android.content.Context
 import android.content.SharedPreferences
 import com.nuvio.app.core.storage.ProfileScopedKey
+import com.nuvio.app.features.profiles.MAX_PROFILES
 
 internal actual object DownloadsStorage {
     private const val preferencesName = "nuvio_downloads"
     private const val payloadKey = "downloads_payload"
-    private const val externalFolderUriKey = "external_folder_uri"
-    private const val episodeDownloadSettingsKey = "episode_download_settings"
+    private const val offlineMetadataKey = "downloads_offline_metadata"
+    private const val downloadLocationUriKey = "download_location_uri"
 
     private var preferences: SharedPreferences? = null
 
@@ -26,29 +27,41 @@ internal actual object DownloadsStorage {
             ?.apply()
     }
 
-    actual fun loadExternalFolderUri(): String? =
-        preferences?.getString(ProfileScopedKey.of(externalFolderUriKey), null)
+    actual fun loadOfflineMetadataPayload(): String? =
+        preferences?.getString(ProfileScopedKey.of(offlineMetadataKey), null)
 
-    actual fun saveExternalFolderUri(uri: String?) {
-        preferences
-            ?.edit()
-            ?.let { editor ->
-                if (uri.isNullOrBlank()) {
-                    editor.remove(ProfileScopedKey.of(externalFolderUriKey))
-                } else {
-                    editor.putString(ProfileScopedKey.of(externalFolderUriKey), uri)
-                }
-                editor.apply()
-            }
+    actual fun saveOfflineMetadataPayload(payload: String) {
+        preferences?.edit()?.putString(ProfileScopedKey.of(offlineMetadataKey), payload)?.apply()
     }
 
-    actual fun loadEpisodeDownloadSettings(): String? =
-        preferences?.getString(ProfileScopedKey.of(episodeDownloadSettingsKey), null)
+    actual fun getDownloadLocationUri(): String? =
+        preferences?.getString(ProfileScopedKey.of(downloadLocationUriKey), null)
 
-    actual fun saveEpisodeDownloadSettings(payload: String) {
+    actual fun setDownloadLocationUri(uri: String?) {
         preferences
             ?.edit()
-            ?.putString(ProfileScopedKey.of(episodeDownloadSettingsKey), payload)
+            ?.run {
+                if (uri == null) {
+                    remove(ProfileScopedKey.of(downloadLocationUriKey))
+                } else {
+                    putString(ProfileScopedKey.of(downloadLocationUriKey), uri)
+                }
+            }
             ?.apply()
+    }
+
+    actual fun clearUnfinishedDownloads() {
+        val prefs = preferences ?: return
+        (1..MAX_PROFILES).forEach { profileId ->
+            val key = ProfileScopedKey.of(payloadKey, profileId)
+            val payload = prefs.getString(key, null) ?: return@forEach
+            val items = DownloadsCodec.decodePayload(payload).items
+            val unfinished = items.filter { it.status != DownloadStatus.Completed }
+            unfinished.forEach { DownloadsPlatformDownloader.removePartialFile(it.fileName) }
+            prefs.edit().putString(
+                key,
+                DownloadsCodec.encodePayload(items.filter { it.status == DownloadStatus.Completed }),
+            ).apply()
+        }
     }
 }

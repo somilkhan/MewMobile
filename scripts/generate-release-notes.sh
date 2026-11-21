@@ -7,9 +7,12 @@ to_ref="HEAD"
 repository="${GITHUB_REPOSITORY:-}"
 offline=false
 exclude_commits="${RELEASE_NOTES_EXCLUDE_COMMITS:-}"
+exclude_refs=()
+upstream_ref=""
+upstream_repository=""
 
 usage() {
-    echo "Usage: $0 --from <commit> [--to <commit>] [--repository <owner/repo>] [--exclude <hashes>] [--offline]" >&2
+    echo "Usage: $0 --from <commit> [--to <commit>] [--repository <owner/repo>] [--exclude <hashes>] [--exclude-ref <ref>]... [--offline]" >&2
 }
 
 while [[ $# -gt 0 ]]; do
@@ -28,6 +31,18 @@ while [[ $# -gt 0 ]]; do
             ;;
         --exclude)
             exclude_commits="${exclude_commits} ${2:-}"
+            shift 2
+            ;;
+        --exclude-ref)
+            exclude_refs+=("^${2:-}")
+            shift 2
+            ;;
+        --upstream-ref)
+            upstream_ref="${2:-}"
+            shift 2
+            ;;
+        --upstream-repository)
+            upstream_repository="${2:-}"
             shift 2
             ;;
         --offline)
@@ -115,12 +130,54 @@ resolve_username() {
     printf '%s' "${username:-unknown}"
 }
 
+resolve_pull_request() {
+    local commit="$1"
+    local repository="${2:-$repository}"
+
+    if [[ "$offline" == true || -z "$repository" || -z "${GH_TOKEN:-}" ]] || ! command -v gh >/dev/null 2>&1; then
+        return
+    fi
+
+    gh api \
+        -H 'Accept: application/vnd.github+json' \
+        "repos/${repository}/commits/${commit}/pulls" \
+        --jq '[.[] | select(.merged_at != null)][0] | if . == null then empty else [.number, .title, (.user.login // "unknown")] | @tsv end' \
+        2>/dev/null \
+        || true
+}
+
 seen_subjects=$'\n'
+seen_pull_requests=$'\n'
 separator=$'\x1f'
 
-while IFS="$separator" read -r commit short_hash subject author_name author_email; do
+emit_notes() {
+    local notes_repository="$1"
+    shift
+    while IFS="$separator" read -r commit short_hash subject author_name author_email; do
     [[ -n "$commit" ]] || continue
     is_excluded_hash "$commit" && continue
+
+    pull_request="$(resolve_pull_request "$commit" "$notes_repository")"
+    if [[ -n "$pull_request" ]]; then
+        pull_request_number=""
+        pull_request_title=""
+        pull_request_username=""
+        IFS=$'\t' read -r pull_request_number pull_request_title pull_request_username <<< "$pull_request"
+        if [[ -n "$pull_request_number" ]]; then
+            [[ "$seen_pull_requests" != *$'\n'"$pull_request_number"$'\n'* ]] || continue
+            seen_pull_requests+="${pull_request_number}"$'\n'
+            is_release_note "$pull_request_title" || continue
+            display_pull_request_title="$(printf '%s' "$pull_request_title" | sed -E 's/[[:space:]]+$//')"
+            printf -- '- [%s (#%s)](https://github.com/%s/pull/%s) @%s  \n' \
+                "$display_pull_request_title" \
+                "$pull_request_number" \
+                "$notes_repository" \
+                "$pull_request_number" \
+                "${pull_request_username:-unknown}"
+            continue
+        fi
+    fi
+
     is_release_note "$subject" || continue
 
     normalized_subject="$(printf '%s' "$subject" | tr '[:upper:]' '[:lower:]' | sed -E 's/[[:space:]]+/ /g; s/[[:space:].]+$//')"
@@ -129,8 +186,31 @@ while IFS="$separator" read -r commit short_hash subject author_name author_emai
 
     display_subject="$(printf '%s' "$subject" | sed -E 's/[[:space:]]+$//; s/\.$//')"
     username="$(resolve_username "$commit" "$author_name" "$author_email")"
-    printf '%s %s @%s  \n' "$short_hash" "$display_subject" "$username"
+    printf -- '- %s %s @%s  \n' "$short_hash" "$display_subject" "$username"
 done < <(
-    git log "${from_ref}..${to_ref}" --no-merges \
-        --format="%H${separator}%h${separator}%s${separator}%an${separator}%ae"
-)
+        git log "$@" --no-merges \
+            --format="%H${separator}%h${separator}%s${separator}%an${separator}%ae"
+    )
+}
+
+upstream_args=()
+upstream_base=""
+if [[ -n "$upstream_ref" ]] && git cat-file -e "${upstream_ref}^{commit}" 2>/dev/null; then
+    upstream_args=("^${upstream_ref}")
+    upstream_base="$(git merge-base "$to_ref" "$upstream_ref" || true)"
+fi
+
+fork_notes="$(emit_notes "$repository" "${from_ref}..${to_ref}" ${exclude_refs[@]+"${exclude_refs[@]}"} ${upstream_args[@]+"${upstream_args[@]}"})"
+upstream_notes=""
+if [[ -n "$upstream_base" ]]; then
+    upstream_notes="$(emit_notes "${upstream_repository:-$repository}" "$upstream_base" "^${from_ref}")"
+fi
+
+if [[ -n "$upstream_notes" ]]; then
+    if [[ -n "$fork_notes" ]]; then
+        printf '### Nuvio Enhanced\n\n%s\n\n' "$fork_notes"
+    fi
+    printf '### Upstream (%s)\n\n%s\n' "${upstream_repository:-upstream}" "$upstream_notes"
+elif [[ -n "$fork_notes" ]]; then
+    printf '%s\n' "$fork_notes"
+fi

@@ -13,23 +13,22 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -37,7 +36,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
@@ -50,8 +48,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.nuvio.app.core.ui.toThemeHex
 import kotlin.math.max
@@ -59,8 +56,8 @@ import kotlin.math.min
 import com.nuvio.app.core.ui.AppTheme
 import com.nuvio.app.core.ui.accentBrush
 import com.nuvio.app.core.ui.NuvioBottomSheetActionRow
-import com.nuvio.app.core.ui.NuvioBottomSheetDivider
 import com.nuvio.app.core.ui.NuvioModalBottomSheet
+import com.nuvio.app.core.ui.NuvioStatusModal
 import com.nuvio.app.core.ui.dismissNuvioBottomSheet
 import com.nuvio.app.core.ui.labelRes
 import com.nuvio.app.core.ui.ThemeColors
@@ -94,8 +91,6 @@ import nuvio.composeapp.generated.resources.settings_appearance_nav_bar_style_sh
 import nuvio.composeapp.generated.resources.settings_appearance_poster_customization_description
 import nuvio.composeapp.generated.resources.settings_appearance_section_detail_page
 import nuvio.composeapp.generated.resources.settings_appearance_section_display
-import nuvio.composeapp.generated.resources.settings_appearance_section_home
-import nuvio.composeapp.generated.resources.settings_appearance_section_streams
 import nuvio.composeapp.generated.resources.settings_appearance_section_theme
 import nuvio.composeapp.generated.resources.settings_appearance_theme_classic
 import nuvio.composeapp.generated.resources.settings_appearance_theme_custom_first
@@ -108,8 +103,6 @@ import nuvio.composeapp.generated.resources.compose_settings_root_streams_descri
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.rememberModalBottomSheetState
 
 internal fun LazyListScope.appearanceSettingsContent(
     isTablet: Boolean,
@@ -127,14 +120,6 @@ internal fun LazyListScope.appearanceSettingsContent(
     onAppIconFailureDismissed: () -> Unit,
     selectedAppLanguage: AppLanguage,
     onAppLanguageSelected: (AppLanguage) -> Unit,
-    selectedNavBarStyle: NavBarStyle,
-    onNavBarStyleSelected: (NavBarStyle) -> Unit,
-    onHomescreenClick: () -> Unit,
-    onMetaScreenClick: () -> Unit,
-    onStreamsClick: () -> Unit,
-    onCollectionsClick: () -> Unit,
-    onContinueWatchingClick: () -> Unit,
-    onPosterCustomizationClick: () -> Unit,
 ) {
     item {
         val customFirst by remember { ThemeSettingsRepository.customThemeFirstColor }.collectAsState()
@@ -232,10 +217,13 @@ internal fun LazyListScope.appearanceSettingsContent(
             }
         }
     }
+    appBackgroundSettingsItem(isTablet = isTablet)
     item {
         var showLanguageSheet by remember { mutableStateOf(false) }
-        var showNavBarStyleSheet by remember { mutableStateOf(false) }
+        var showLanguageRestartDialog by remember { mutableStateOf(false) }
+        val layoutDirection = LocalLayoutDirection.current
         var showAppIconPicker by remember { mutableStateOf(false) }
+        val liquidGlassEffectsEnabled by ThemeSettingsRepository.liquidGlassEffectsEnabled.collectAsStateWithLifecycle()
         SettingsSection(
             title = stringResource(Res.string.settings_appearance_section_display),
             isTablet = isTablet,
@@ -248,14 +236,14 @@ internal fun LazyListScope.appearanceSettingsContent(
                     isTablet = isTablet,
                     onCheckedChange = onAmoledToggle,
                 )
-                if (liquidGlassNativeTabBarSupported) {
+                if (isLiquidGlassAvailable()) {
                     SettingsGroupDivider(isTablet = isTablet)
                     SettingsSwitchRow(
-                        title = stringResource(Res.string.settings_appearance_liquid_glass),
-                        description = stringResource(Res.string.settings_appearance_liquid_glass_description),
-                        checked = liquidGlassNativeTabBarEnabled,
+                        title = stringResource(Res.string.settings_appearance_liquid_glass_effects),
+                        description = stringResource(Res.string.settings_appearance_liquid_glass_effects_description),
+                        checked = liquidGlassEffectsEnabled,
                         isTablet = isTablet,
-                        onCheckedChange = onLiquidGlassNativeTabBarToggle,
+                        onCheckedChange = ThemeSettingsRepository::setLiquidGlassEffectsEnabled,
                     )
                     SettingsGroupDivider(isTablet = isTablet)
                     SettingsSwitchRow(
@@ -286,15 +274,6 @@ internal fun LazyListScope.appearanceSettingsContent(
                     isTablet = isTablet,
                     onClick = { showLanguageSheet = true },
                 )
-                if (!isIos) {
-                    SettingsGroupDivider(isTablet = isTablet)
-                    SettingsNavigationRow(
-                        title = stringResource(Res.string.settings_appearance_nav_bar_style),
-                        description = stringResource(selectedNavBarStyle.labelRes),
-                        isTablet = isTablet,
-                        onClick = { showNavBarStyleSheet = true },
-                    )
-                }
             }
         }
 
@@ -304,10 +283,19 @@ internal fun LazyListScope.appearanceSettingsContent(
                 onLanguageSelected = {
                     onAppLanguageSelected(it)
                     showLanguageSheet = false
+                    val newLayoutDirection = if (it.isRightToLeft()) LayoutDirection.Rtl else LayoutDirection.Ltr
+                    if (isIos && newLayoutDirection != layoutDirection) showLanguageRestartDialog = true
                 },
                 onDismiss = { showLanguageSheet = false },
             )
         }
+
+        NuvioStatusModal(
+            title = stringResource(Res.string.settings_appearance_app_language_restart_title),
+            message = stringResource(Res.string.settings_appearance_app_language_restart_message),
+            isVisible = showLanguageRestartDialog,
+            onConfirm = { showLanguageRestartDialog = false },
+        )
 
         if (showAppIconPicker) {
             AppIconPicker(
@@ -319,84 +307,6 @@ internal fun LazyListScope.appearanceSettingsContent(
                     showAppIconPicker = false
                 },
             )
-        }
-
-        if (showNavBarStyleSheet) {
-            NavBarStyleBottomSheet(
-                selectedStyle = selectedNavBarStyle,
-                onStyleSelected = {
-                    onNavBarStyleSelected(it)
-                    showNavBarStyleSheet = false
-                },
-                onDismiss = { showNavBarStyleSheet = false },
-            )
-        }
-    }
-
-    item {
-        SettingsSection(
-            title = stringResource(Res.string.settings_appearance_section_home),
-            isTablet = isTablet,
-        ) {
-            SettingsGroup(isTablet = isTablet) {
-                SettingsNavigationRow(
-                    title = stringResource(Res.string.compose_settings_page_homescreen),
-                    description = stringResource(Res.string.settings_content_discovery_homescreen_description),
-                    isTablet = isTablet,
-                    onClick = onHomescreenClick,
-                )
-                SettingsGroupDivider(isTablet = isTablet)
-                SettingsNavigationRow(
-                    title = stringResource(Res.string.collections_header),
-                    description = stringResource(Res.string.settings_content_discovery_collections_description),
-                    isTablet = isTablet,
-                    onClick = onCollectionsClick,
-                )
-                SettingsGroupDivider(isTablet = isTablet)
-                SettingsNavigationRow(
-                    title = stringResource(Res.string.compose_settings_page_continue_watching),
-                    description = stringResource(Res.string.settings_appearance_continue_watching_description),
-                    isTablet = isTablet,
-                    onClick = onContinueWatchingClick,
-                )
-                SettingsGroupDivider(isTablet = isTablet)
-                SettingsNavigationRow(
-                    title = stringResource(Res.string.compose_settings_page_poster_customization),
-                    description = stringResource(Res.string.settings_appearance_poster_customization_description),
-                    isTablet = isTablet,
-                    onClick = onPosterCustomizationClick,
-                )
-            }
-        }
-    }
-    item {
-        SettingsSection(
-            title = stringResource(Res.string.settings_appearance_section_streams),
-            isTablet = isTablet,
-        ) {
-            SettingsGroup(isTablet = isTablet) {
-                SettingsNavigationRow(
-                    title = stringResource(Res.string.compose_settings_page_streams),
-                    description = stringResource(Res.string.compose_settings_root_streams_description),
-                    isTablet = isTablet,
-                    onClick = onStreamsClick,
-                )
-            }
-        }
-    }
-    item {
-        SettingsSection(
-            title = stringResource(Res.string.settings_appearance_section_detail_page),
-            isTablet = isTablet,
-        ) {
-            SettingsGroup(isTablet = isTablet) {
-                SettingsNavigationRow(
-                    title = stringResource(Res.string.compose_settings_page_meta_screen),
-                    description = stringResource(Res.string.settings_content_discovery_meta_screen_description),
-                    isTablet = isTablet,
-                    onClick = onMetaScreenClick,
-                )
-            }
         }
     }
 }
@@ -447,12 +357,10 @@ private fun AppearanceLanguageBottomSheet(
                 )
             }
 
-            itemsIndexed(options) { index, option ->
-                if (index > 0) {
-                    NuvioBottomSheetDivider()
-                }
+            items(options) { option ->
                 NuvioBottomSheetActionRow(
                     title = stringResource(option.labelRes),
+                    selected = option.language == selectedLanguage,
                     onClick = {
                         onLanguageSelected(option.language)
                         coroutineScope.launch {

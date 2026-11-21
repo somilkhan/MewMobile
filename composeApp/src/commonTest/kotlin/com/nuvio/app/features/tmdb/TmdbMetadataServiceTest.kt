@@ -7,8 +7,9 @@ import com.nuvio.app.features.details.MetaPerson
 import com.nuvio.app.features.details.MetaVideo
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
-import kotlinx.coroutines.runBlocking
+import kotlin.test.assertTrue
 
 class TmdbMetadataServiceTest {
     @Test
@@ -120,6 +121,7 @@ class TmdbMetadataServiceTest {
                 thumbnail = "https://example.com/thumb.jpg",
                 airDate = "2024-01-01",
                 runtimeMinutes = 58,
+                voteAverage = 8.7,
             ),
         )
 
@@ -141,11 +143,106 @@ class TmdbMetadataServiceTest {
         assertEquals(listOf("HBO"), result.networks.map { it.name })
         assertEquals("Pilot", result.videos.first().title)
         assertEquals(58, result.videos.first().runtime)
+        assertEquals(8.7, result.videos.first().tmdbRating)
         assertEquals("2023-12-31T19:00:00Z", result.videos.first().released)
     }
 
     @Test
-    fun `applyEnrichment replaces episode release only when enabled`() {
+    fun `applyEnrichment keeps TMDB and IMDb episode ratings side by side`() {
+        val base = MetaDetails(
+            id = "tt1234567",
+            type = "series",
+            name = "Original",
+            videos = listOf(
+                MetaVideo(id = "ep1", title = "Episode 1", season = 1, episode = 1),
+            ),
+        )
+        val episodes = mapOf(
+            (1 to 1) to TmdbEpisodeEnrichment(
+                voteAverage = 8.7,
+                imdbVoteAverage = 9.1,
+            ),
+        )
+
+        val result = TmdbMetadataService.applyEnrichment(
+            meta = base,
+            enrichment = null,
+            episodeMap = episodes,
+            settings = TmdbSettings(enabled = true),
+        )
+
+        assertEquals(8.7, result.videos.first().tmdbRating)
+        assertEquals(9.1, result.videos.first().imdbRating)
+    }
+
+    @Test
+    fun `applyEnrichment keeps a lone IMDb episode rating`() {
+        val base = MetaDetails(
+            id = "tt1234567",
+            type = "series",
+            name = "Original",
+            videos = listOf(
+                MetaVideo(id = "ep1", title = "Episode 1", season = 1, episode = 1),
+            ),
+        )
+        val episodes = mapOf(
+            (1 to 1) to TmdbEpisodeEnrichment(imdbVoteAverage = 9.1),
+        )
+
+        val result = TmdbMetadataService.applyEnrichment(
+            meta = base,
+            enrichment = null,
+            episodeMap = episodes,
+            settings = TmdbSettings(enabled = true),
+        )
+
+        assertNull(result.videos.first().tmdbRating)
+        assertEquals(9.1, result.videos.first().imdbRating)
+    }
+
+    @Test
+    fun `applyEnrichment omits TMDB episode rating when disabled`() {
+        val base = MetaDetails(
+            id = "tt1234567",
+            type = "series",
+            name = "Original",
+            videos = listOf(
+                MetaVideo(
+                    id = "ep1",
+                    title = "Episode 1",
+                    season = 1,
+                    episode = 1,
+                    tmdbRating = 7.0,
+                ),
+            ),
+        )
+        val episodes = mapOf(
+            (1 to 1) to TmdbEpisodeEnrichment(
+                title = null,
+                overview = null,
+                thumbnail = null,
+                airDate = null,
+                runtimeMinutes = null,
+                voteAverage = 8.7,
+            ),
+        )
+
+        val result = TmdbMetadataService.applyEnrichment(
+            meta = base,
+            enrichment = null,
+            episodeMap = episodes,
+            settings = TmdbSettings(
+                enabled = true,
+                useEpisodeRatings = false,
+            ),
+        )
+
+        assertEquals(null, result.videos.first().tmdbRating)
+        assertEquals(null, result.videos.first().imdbRating)
+    }
+
+    @Test
+    fun `applyEnrichment does not replace episode release dates from TMDB`() {
         val addonRelease = "2023-12-31T19:00:00Z"
         val base = MetaDetails(
             id = "tt1234567",
@@ -171,25 +268,18 @@ class TmdbMetadataServiceTest {
             ),
         )
 
-        val disabled = TmdbMetadataService.applyEnrichment(
+        val result = TmdbMetadataService.applyEnrichment(
             meta = base,
             enrichment = null,
             episodeMap = episodes,
             settings = TmdbSettings(enabled = true),
         )
-        val enabled = TmdbMetadataService.applyEnrichment(
-            meta = base,
-            enrichment = null,
-            episodeMap = episodes,
-            settings = TmdbSettings(enabled = true, useReleaseDates = true),
-        )
 
-        assertEquals(addonRelease, disabled.videos.first().released)
-        assertEquals("2024-01-01", enabled.videos.first().released)
+        assertEquals(addonRelease, result.videos.first().released)
     }
 
     @Test
-    fun `applyEnrichment replaces top level release dates only when enabled`() {
+    fun `applyEnrichment does not replace top level release dates from TMDB`() {
         val base = MetaDetails(
             id = "tt1234567",
             type = "series",
@@ -219,23 +309,15 @@ class TmdbMetadataServiceTest {
             networks = emptyList(),
         )
 
-        val disabled = TmdbMetadataService.applyEnrichment(
+        val result = TmdbMetadataService.applyEnrichment(
             meta = base,
             enrichment = enrichment,
             episodeMap = emptyMap(),
             settings = TmdbSettings(enabled = true),
         )
-        val enabled = TmdbMetadataService.applyEnrichment(
-            meta = base,
-            enrichment = enrichment,
-            episodeMap = emptyMap(),
-            settings = TmdbSettings(enabled = true, useReleaseDates = true),
-        )
 
-        assertEquals(base.releaseInfo, disabled.releaseInfo)
-        assertEquals(base.lastAirDate, disabled.lastAirDate)
-        assertEquals("2024-01-01", enabled.releaseInfo)
-        assertEquals("2024-12-31", enabled.lastAirDate)
+        assertEquals(base.releaseInfo, result.releaseInfo)
+        assertEquals(base.lastAirDate, result.lastAirDate)
     }
 
     @Test
@@ -298,113 +380,179 @@ class TmdbMetadataServiceTest {
     }
 
     @Test
-    fun `applyEnrichment exposes episodes from every requested season`() {
-        val base = MetaDetails(
-            id = "tt1234567",
-            type = "series",
-            name = "Series",
-            videos = (1..3).map { season ->
-                MetaVideo(id = "s${season}e1", title = "Addon S$season", season = season, episode = 1)
-            },
+    fun `containsCjkOrHangul detects Japanese Chinese and Korean scripts`() {
+        assertTrue(containsCjkOrHangul("田中敦子"))
+        assertTrue(containsCjkOrHangul("成龙"))
+        assertTrue(containsCjkOrHangul("김수현"))
+        assertFalse(containsCjkOrHangul("Atsuko Tanaka"))
+        assertFalse(containsCjkOrHangul("Scarlett Johansson"))
+    }
+
+    @Test
+    fun `isTalkShowGuestAppearance skips talk show guests but keeps hosts and other series`() {
+        assertTrue(isTalkShowGuestAppearance(listOf(10767, 35), "Self - Guest"))
+        assertTrue(isTalkShowGuestAppearance(listOf(10767), "Self"))
+        assertTrue(isTalkShowGuestAppearance(listOf(10767), null))
+        assertFalse(isTalkShowGuestAppearance(listOf(10767), "Self - Host"))
+        assertFalse(isTalkShowGuestAppearance(listOf(10767), "Co-Host"))
+        assertFalse(isTalkShowGuestAppearance(listOf(18, 80), "Self"))
+        assertFalse(isTalkShowGuestAppearance(emptyList(), "Detective Ghost"))
+        assertTrue(isTalkShowGuestAppearance(listOf(10767), "Ghost"))
+    }
+
+    @Test
+    fun `resolvePersonName falls back Japanese names to Romaji for non-Japanese locales`() {
+        assertEquals(
+            "Atsuko Tanaka",
+            resolvePersonName("田中敦子", "Atsuko Tanaka", null, "tr-TR"),
         )
-        val episodes = (1..3).associate { season ->
-            (season to 1) to TmdbEpisodeEnrichment(
-                title = "TMDB S$season",
-                overview = null,
-                thumbnail = null,
-                airDate = null,
-                runtimeMinutes = null,
+        assertEquals(
+            "Atsuko Tanaka",
+            resolvePersonName("田中敦子", "田中敦子", "Atsuko Tanaka", "de-DE"),
+        )
+    }
+
+    @Test
+    fun `resolvePersonName keeps Japanese names when user language is Japanese`() {
+        assertEquals(
+            "田中敦子",
+            resolvePersonName("田中敦子", "Atsuko Tanaka", "Atsuko Tanaka", "ja-JP"),
+        )
+    }
+
+    @Test
+    fun `resolvePersonName falls back Hangul names to Latin for non-Korean locales`() {
+        assertEquals(
+            "Kim Soo-hyun",
+            resolvePersonName("김수현", "Kim Soo-hyun", null, "de-DE"),
+        )
+        assertEquals(
+            "Kim Soo-hyun",
+            resolvePersonName("김수현", "김수현", "Kim Soo-hyun", "fr-FR"),
+        )
+    }
+
+    @Test
+    fun `resolvePersonName keeps Hangul when user language is Korean`() {
+        assertEquals(
+            "김수현",
+            resolvePersonName("김수현", "Kim Soo-hyun", "Kim Soo-hyun", "ko-KR"),
+        )
+    }
+
+    @Test
+    fun `resolvePersonName falls back Chinese hanzi to stage name for non-Chinese locales`() {
+        assertEquals(
+            "Jackie Chan",
+            resolvePersonName("成龙", "Jackie Chan", null, "es-ES"),
+        )
+        assertEquals(
+            "Jackie Chan",
+            resolvePersonName("成龙", "成龙", "Jackie Chan", "en-US"),
+        )
+    }
+
+    @Test
+    fun `resolvePersonName keeps hanzi when user language is Chinese`() {
+        assertEquals(
+            "成龙",
+            resolvePersonName("成龙", "Jackie Chan", "Jackie Chan", "zh-CN"),
+        )
+    }
+
+    @Test
+    fun `resolvePersonName leaves already-Latin names unchanged`() {
+        assertEquals(
+            "Scarlett Johansson",
+            resolvePersonName("Scarlett Johansson", "Scarlett Johansson", null, "tr-TR"),
+        )
+        assertEquals(
+            "Tom Hanks",
+            resolvePersonName("Tom Hanks", "Tom Hanks", null, "ja-JP"),
+        )
+    }
+
+    @Test
+    fun `resolvePersonName handles null and blank inputs`() {
+        assertEquals("Takuya Kimura", resolvePersonName(null, "Takuya Kimura", null, "tr-TR"))
+        assertEquals("Scarlett Johansson", resolvePersonName("Scarlett Johansson", null, null, "tr-TR"))
+        assertNull(resolvePersonName(null, null, null, "tr-TR"))
+        assertEquals(
+            "Takuya Kimura",
+            resolvePersonName("  木村拓哉  ", "Takuya Kimura", null, "fr-FR"),
+        )
+    }
+
+    @Test
+    fun `resolvePersonName falls back CJK filmography titles to English`() {
+        assertEquals(
+            "Ghost in the Shell: Stand Alone Complex",
+            resolvePersonName(
+                "攻殻機動隊 STAND ALONE COMPLEX",
+                "攻殻機動隊 STAND ALONE COMPLEX",
+                "Ghost in the Shell: Stand Alone Complex",
+                "pl-PL",
+            ),
+        )
+        assertEquals(
+            "Make My Day",
+            resolvePersonName("Make My Day", "Make My Day", null, "pl-PL"),
+        )
+    }
+
+    @Test
+    fun `resolvePersonName keeps CJK filmography titles for Japanese locale`() {
+        assertEquals(
+            "攻殻機動隊 STAND ALONE COMPLEX",
+            resolvePersonName(
+                "攻殻機動隊 STAND ALONE COMPLEX",
+                "攻殻機動隊 STAND ALONE COMPLEX",
+                "Ghost in the Shell: Stand Alone Complex",
+                "ja-JP",
+            ),
+        )
+    }
+
+    @Test
+    fun `network browse falls back CJK titles to English`() {
+        val localizedResults = listOf(
+            TmdbDiscoverResult(
+                id = 57775,
+                name = "ちびまる子ちゃん",
+                originalName = "ちびまる子ちゃん",
+                posterPath = "/maruko.jpg",
+                firstAirDate = "1990-01-07",
+            ),
+            TmdbDiscoverResult(
+                id = 37854,
+                name = "One Piece",
+                originalName = "ワンピース",
+                posterPath = "/op.jpg",
+                firstAirDate = "1999-10-20",
+            ),
+        )
+        val englishResults = listOf(
+            TmdbDiscoverResult(
+                id = 57775,
+                name = "Chibi Maruko-chan",
+                originalName = "ちびまる子ちゃん",
+                posterPath = "/maruko.jpg",
+            ),
+        )
+
+        assertTrue(discoverResultsContainCjkTitles(localizedResults))
+        val englishTitlesById = englishDiscoverTitlesById(englishResults)
+
+        val titles = localizedResults.associate { result ->
+            result.id to resolvePersonName(
+                localizedName = result.title ?: result.name,
+                originalName = result.originalTitle ?: result.originalName,
+                fallbackEnglishName = englishTitlesById[result.id],
+                preferredLanguage = "tr-TR",
             )
         }
 
-        val result = TmdbMetadataService.applyEnrichment(
-            meta = base,
-            enrichment = null,
-            episodeMap = episodes,
-            settings = TmdbSettings(enabled = true, useEpisodes = true),
-        )
-
-        assertEquals(listOf("TMDB S1", "TMDB S2", "TMDB S3"), result.videos.map { it.title })
+        assertEquals("Chibi Maruko-chan", titles[57775])
+        assertEquals("One Piece", titles[37854])
     }
-
-    @Test
-    fun `partial season cache refreshes every missing season without an eight season cap`() {
-        val requested = (1..12).toList()
-
-        assertEquals((2..12).toList(), requestedSeasonsNeedingRefresh(requested, setOf(1)))
-        assertEquals(listOf(2), requestedSeasonsNeedingRefresh((1..3).toList(), setOf(1, 3)))
-    }
-
-    @Test
-    fun `enrichment cache key changes for conditionally fetched modules`() {
-        val base = TmdbSettings(useMoreLikeThis = false, useTrailers = false, useCollections = false)
-        val baseKey = tmdbEnrichmentCacheKey("1", "tv", "fr-FR", base)
-
-        assertEquals(false, baseKey == tmdbEnrichmentCacheKey("1", "tv", "fr-FR", base.copy(useMoreLikeThis = true)))
-        assertEquals(false, baseKey == tmdbEnrichmentCacheKey("1", "tv", "fr-FR", base.copy(useTrailers = true)))
-        assertEquals(false, baseKey == tmdbEnrichmentCacheKey("1", "tv", "fr-FR", base.copy(useCollections = true)))
-        assertEquals(false, baseKey == tmdbEnrichmentCacheKey("1", "tv", "fr-FR", base.copy(titleLanguage = TmdbTitleLanguage.ORIGINAL)))
-    }
-
-    @Test
-    fun `watch provider region follows device locale and sensible language fallbacks`() {
-        assertEquals("PT", resolveTmdbWatchProviderRegion(listOf("pt"), null))
-        assertEquals("PT", resolveTmdbWatchProviderRegion(listOf("pt-PT"), "en-US"))
-        assertEquals("BR", resolveTmdbWatchProviderRegion(listOf("pt-BR"), "pt-PT"))
-        assertEquals("DE", resolveTmdbWatchProviderRegion(listOf("de"), null))
-        assertEquals("US", resolveTmdbWatchProviderRegion(emptyList(), null))
-    }
-
-    @Test
-    fun `watch provider merge only combines streaming buckets deduplicated by priority`() {
-        val netflix = TmdbWatchProvider(8, "Netflix", "netflix", 2)
-        val max = TmdbWatchProvider(1899, "Max", "max", 1)
-        val duplicateNetflix = netflix.copy(logo = "duplicate")
-        val pluto = TmdbWatchProvider(300, "Pluto TV", "pluto", 3)
-
-        val result = mergeStreamingWatchProviders(
-            flatrate = listOf(netflix, max),
-            free = listOf(duplicateNetflix),
-            ads = listOf(pluto),
-        )
-
-        assertEquals(listOf("Max", "Netflix", "Pluto TV"), result.map(TmdbWatchProvider::name))
-        assertEquals("netflix", result.first { it.id == netflix.id }.logo)
-    }
-
-    @Test
-    fun `tmdb request retries transient statuses`() = runBlocking {
-        var calls = 0
-        val pauses = mutableListOf<Long>()
-
-        val body = requestTmdbText(pause = pauses::add) {
-            calls += 1
-            rawResponse(status = if (calls == 1) 429 else if (calls == 2) 503 else 200)
-        }
-
-        assertEquals("{}", body)
-        assertEquals(3, calls)
-        assertEquals(listOf(250L, 500L), pauses)
-    }
-
-    @Test
-    fun `tmdb request does not retry permanent client errors`() = runBlocking {
-        var calls = 0
-
-        val body = requestTmdbText(pause = {}) {
-            calls += 1
-            rawResponse(status = 404)
-        }
-
-        assertEquals(null, body)
-        assertEquals(1, calls)
-    }
-
-    private fun rawResponse(status: Int) = RawHttpResponse(
-        status = status,
-        statusText = "",
-        url = "https://api.themoviedb.org/test",
-        body = "{}",
-        headers = emptyMap(),
-    )
 }

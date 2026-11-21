@@ -1,5 +1,9 @@
 package com.nuvio.app.core.ui
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
+import android.view.WindowManager
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.navigationBars
@@ -19,6 +23,9 @@ internal actual val nuvioPlatformExtraBottomPadding: Dp = 0.dp
 internal actual val nuvioBottomNavigationExtraVerticalPadding: Dp = 6.dp
 @Composable
 internal actual fun nuvioBottomNavigationBarInsets(): WindowInsets = WindowInsets.navigationBars
+
+@Composable
+internal actual fun platformNativeBarButtonAnchor(): NativeBarButtonAnchor? = null
 
 @Composable
 internal actual fun platformPhysicalTopInset(): Dp =

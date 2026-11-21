@@ -443,11 +443,23 @@ final class RootComposeViewController: UIViewController, UITabBarDelegate {
         let bottomToViewBottom = contentController.view.bottomAnchor.constraint(equalTo: view.bottomAnchor)
         self.contentBottomToViewBottom = bottomToViewBottom
         NSLayoutConstraint.activate([
-            contentController.view.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            contentController.view.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             contentController.view.topAnchor.constraint(equalTo: view.topAnchor),
             bottomToViewBottom,
         ])
+        self.leadingConstraint = leadingConstraint
+        self.trailingConstraint = trailingConstraint
+        if #available(iOS 27.1, *) {
+            registerForTraitChanges(UITraitCollection.systemTraitsAffectingVerticalBarEdge) {
+                (controller: RootComposeViewController, _: UITraitCollection) in
+                controller.updateVerticalBar()
+            }
+            if hinge != nil {
+                view.addInteraction(UIHingeInteraction { [weak self] _, update in
+                    self?.isHalfOpen = update.hinge?.status == .partiallyOpen
+                    self?.updateFold()
+                })
+            }
+        }
         contentController.didMove(toParent: self)
 
         configureNativeTabBar()
@@ -481,27 +493,37 @@ final class RootComposeViewController: UIViewController, UITabBarDelegate {
     }
 
     override var childForHomeIndicatorAutoHidden: UIViewController? {
-        immersiveController(in: contentController) ?? contentController
+        nil
     }
 
     override var childForScreenEdgesDeferringSystemGestures: UIViewController? {
-        immersiveController(in: contentController) ?? contentController
+        nil
     }
 
     override var childForStatusBarHidden: UIViewController? {
-        immersiveController(in: contentController) ?? contentController
+        nil
     }
 
     override var prefersHomeIndicatorAutoHidden: Bool {
-        immersiveController(in: contentController)?.prefersHomeIndicatorAutoHidden ?? false
+        SystemUI.shared.activePlayer?.prefersHomeIndicatorAutoHidden
+            ?? immersiveController(in: contentController)?.prefersHomeIndicatorAutoHidden
+            ?? false
     }
 
     override var preferredScreenEdgesDeferringSystemGestures: UIRectEdge {
-        immersiveController(in: contentController)?.preferredScreenEdgesDeferringSystemGestures ?? []
+        SystemUI.shared.activePlayer?.preferredScreenEdgesDeferringSystemGestures
+            ?? immersiveController(in: contentController)?.preferredScreenEdgesDeferringSystemGestures
+            ?? []
     }
 
     override var prefersStatusBarHidden: Bool {
-        immersiveController(in: contentController)?.prefersStatusBarHidden ?? false
+        SystemUI.shared.activePlayer?.prefersStatusBarHidden
+            ?? immersiveController(in: contentController)?.prefersStatusBarHidden
+            ?? false
+    }
+
+    override var preferredStatusBarStyle: UIStatusBarStyle {
+        .lightContent
     }
 
     override var preferredStatusBarUpdateAnimation: UIStatusBarAnimation {
@@ -509,9 +531,14 @@ final class RootComposeViewController: UIViewController, UITabBarDelegate {
     }
 
     func refreshImmersiveSystemUI() {
-        setNeedsUpdateOfHomeIndicatorAutoHidden()
-        setNeedsUpdateOfScreenEdgesDeferringSystemGestures()
-        setNeedsStatusBarAppearanceUpdate()
+        var controller: UIViewController? = self
+        while let current = controller {
+            current.setNeedsUpdateOfHomeIndicatorAutoHidden()
+            current.setNeedsUpdateOfScreenEdgesDeferringSystemGestures()
+            current.setNeedsStatusBarAppearanceUpdate()
+            controller = current.parent
+        }
+        SystemUI.shared.refresh()
     }
 
     private func immersiveController(in controller: UIViewController?) -> UIViewController? {

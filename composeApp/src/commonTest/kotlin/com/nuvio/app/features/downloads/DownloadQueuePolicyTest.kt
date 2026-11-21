@@ -8,7 +8,7 @@ import kotlin.test.assertTrue
 class DownloadQueuePolicyTest {
     private fun item(
         id: String,
-        status: DownloadStatus = DownloadStatus.Waiting,
+        status: DownloadStatus = DownloadStatus.Queued,
         createdAt: Long = 0,
         show: String? = "show",
         episode: Int? = 1,
@@ -37,7 +37,7 @@ class DownloadQueuePolicyTest {
     @Test fun `queued items remain queued while network policy disallows downloads`() {
         val queued = listOf(item("first", createdAt = 1), item("second", createdAt = 2))
         assertEquals(null, DownloadQueuePolicy(3, 2, 2, false).nextToStart(queued))
-        assertEquals(2, queued.count { it.status == DownloadStatus.Waiting })
+        assertEquals(2, queued.count { it.status == DownloadStatus.Queued })
     }
 
     @Test fun `total limit blocks starts`() {
