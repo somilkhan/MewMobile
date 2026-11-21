@@ -7,7 +7,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.asPaddingValues
@@ -39,8 +38,8 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.kyant.backdrop.Backdrop
-import com.nuvio.app.core.ui.glass.liquidGlassSurface
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeEffect
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 
@@ -96,9 +95,7 @@ fun rememberNuvioNavBarScrollState(): NuvioNavBarScrollState =
 fun NuvioNavigationBar(
     modifier: Modifier = Modifier,
     scrollState: NuvioNavBarScrollState? = null,
-    backdrop: Backdrop? = null,
-    contentPadding: PaddingValues = floatingNavigationBarPadding(),
-    compactSize: Boolean = false,
+    hazeState: HazeState? = null,
     content: @Composable NuvioNavigationBarScope.() -> Unit,
 ) {
     val labelFraction by animateFloatAsState(
@@ -119,24 +116,23 @@ fun NuvioNavigationBar(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(contentPadding),
+            .padding(bottom = bottomSafePadding + nuvioBottomNavigationExtraVerticalPadding + NuvioTokens.Space.s8),
         contentAlignment = Alignment.BottomCenter,
     ) {
         val pillModifier = Modifier
             .padding(horizontal = horizontalPadding)
-            // On a phone the horizontal padding alone shapes the pill, but on a tablet or in
-            // landscape it would stretch to nearly the full width and stop reading as a pill.
-            .widthIn(max = NuvioNavigationBarMaxWidth)
             .fillMaxWidth()
             .clip(RoundedCornerShape(NuvioTokens.Radius.full))
-            .liquidGlassSurface(
-                backdrop = backdrop,
-                shape = RoundedCornerShape(NuvioTokens.Radius.full),
-                tint = Color(0xFF1C1C1E).copy(alpha = 0.55f),
-                fallback = Color(0xFF1C1C1E).copy(alpha = 0.82f),
-                blurRadius = 24.dp,
-                refractionHeight = 24.dp,
+            .then(
+                if (hazeState != null) {
+                    Modifier.hazeEffect(state = hazeState) {
+                        blurRadius = 24.dp
+                    }
+                } else {
+                    Modifier
+                },
             )
+            .background(Color(0xFF1C1C1E).copy(alpha = if (hazeState != null) 0.55f else 0.82f))
 
         Box(modifier = pillModifier) {
             Row(
@@ -152,7 +148,6 @@ fun NuvioNavigationBar(
                 NuvioNavigationBarScopeImpl(
                     rowScope = this,
                     labelFraction = labelFraction,
-                    compactSize = compactSize,
                 ).content()
             }
         }
@@ -193,10 +188,7 @@ interface NuvioNavigationBarScope {
 private class NuvioNavigationBarScopeImpl(
     private val rowScope: androidx.compose.foundation.layout.RowScope,
     private val labelFraction: Float,
-    private val compactSize: Boolean,
 ) : NuvioNavigationBarScope {
-    private val iconSize = if (compactSize) 24.dp else 28.dp
-    private val itemVerticalPadding = if (compactSize) 4.dp else NuvioTokens.Space.s6
 
     @Composable
     override fun NavItem(
@@ -236,7 +228,7 @@ private class NuvioNavigationBarScopeImpl(
                         role = Role.Tab,
                         onClick = onClick,
                     )
-                    .padding(vertical = itemVerticalPadding),
+                    .padding(vertical = NuvioTokens.Space.s6),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Icon(
@@ -247,7 +239,7 @@ private class NuvioNavigationBarScopeImpl(
                     contentDescription = contentDescription,
                     tint = if (useGradient) Color.White else iconColor,
                 )
-                NavItemLabel(label = label, labelFraction = labelFraction, iconColor = iconColor, selected = selected, compactSize = compactSize)
+                NavItemLabel(label = label, labelFraction = labelFraction, iconColor = iconColor, selected = selected)
             }
         }
     }
@@ -290,7 +282,7 @@ private class NuvioNavigationBarScopeImpl(
                         role = Role.Tab,
                         onClick = onClick,
                     )
-                    .padding(vertical = itemVerticalPadding),
+                    .padding(vertical = NuvioTokens.Space.s6),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Icon(
@@ -301,7 +293,7 @@ private class NuvioNavigationBarScopeImpl(
                     contentDescription = contentDescription,
                     tint = if (useGradient) Color.White else iconColor,
                 )
-                NavItemLabel(label = label, labelFraction = labelFraction, iconColor = iconColor, selected = selected, compactSize = compactSize)
+                NavItemLabel(label = label, labelFraction = labelFraction, iconColor = iconColor, selected = selected)
             }
         }
     }
@@ -341,15 +333,11 @@ private class NuvioNavigationBarScopeImpl(
                         role = Role.Tab,
                         onClick = onClick,
                     )
-                    .padding(vertical = itemVerticalPadding),
+                    .padding(vertical = NuvioTokens.Space.s6),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                if (compactSize) {
-                    Box(Modifier.size(iconSize), contentAlignment = Alignment.Center) { content() }
-                } else {
-                    content()
-                }
-                NavItemLabel(label = label, labelFraction = labelFraction, iconColor = iconColor, selected = selected, compactSize = compactSize)
+                content()
+                NavItemLabel(label = label, labelFraction = labelFraction, iconColor = iconColor, selected = selected)
             }
         }
     }
@@ -361,10 +349,9 @@ private fun NavItemLabel(
     labelFraction: Float,
     iconColor: Color,
     selected: Boolean,
-    compactSize: Boolean,
 ) {
     if (label == null || labelFraction <= 0f) return
-    Spacer(modifier = Modifier.height((if (compactSize) 2.dp else NuvioTokens.Space.s3) * labelFraction))
+    Spacer(modifier = Modifier.height(NuvioTokens.Space.s3 * labelFraction))
     Box(
         modifier = Modifier
             .height(NuvioTokens.Space.s14 * labelFraction)

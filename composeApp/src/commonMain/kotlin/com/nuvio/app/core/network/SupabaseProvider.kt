@@ -1,143 +1,73 @@
 package com.nuvio.app.core.network
 
 import com.nuvio.app.core.build.AppVersionConfig
-import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.annotations.SupabaseInternal
 import io.github.jan.supabase.auth.Auth
 import io.github.jan.supabase.createSupabaseClient
+import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.functions.Functions
 import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.realtime.Realtime
 import io.github.jan.supabase.realtime.websocket.KtorRealtimeWebsocketFactory
-import io.github.jan.supabase.storage.Storage
+import io.ktor.client.plugins.websocket.WebSockets
+import io.ktor.serialization.kotlinx.KotlinxWebsocketSerializationConverter
 import io.github.jan.supabase.supabaseJson
+import kotlin.time.Duration.Companion.seconds
 import io.ktor.client.plugins.HttpRequestRetry
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.defaultRequest
-import io.ktor.client.plugins.websocket.WebSockets
 import io.ktor.http.HttpHeaders
 import io.ktor.http.takeFrom
-import io.ktor.serialization.kotlinx.KotlinxWebsocketSerializationConverter
-import kotlinx.atomicfu.locks.SynchronizedObject
-import kotlinx.atomicfu.locks.synchronized
-import kotlin.time.Duration.Companion.seconds
 
 object SupabaseProvider {
-    private val clientLock = SynchronizedObject()
-    private var cachedClient: SupabaseClient? = null
-    private val rateLimitCoordinator = BackendRateLimitCoordinator()
-
     @OptIn(SupabaseInternal::class)
-    val client: SupabaseClient
-        get() = synchronized(clientLock) {
-            cachedClient ?: createClient().also { cachedClient = it }
-        }
-
-    @OptIn(SupabaseInternal::class)
-    private fun createClient(): SupabaseClient {
-        val configuration = ServerConfigurationRepository.active.value
+    val client: SupabaseClient by lazy {
         val userAgent = "NuvioMobile/${AppVersionConfig.VERSION_NAME.ifBlank { "dev" }}"
-        lateinit var client: SupabaseClient
-        client = createSupabaseClient(
-            supabaseUrl = configuration.backendUrl,
-            supabaseKey = configuration.publishableKey,
+        createSupabaseClient(
+            supabaseUrl = SupabaseConfig.URL,
+            supabaseKey = SupabaseConfig.ANON_KEY,
         ) {
-            platformHttpEngine()?.let { httpEngine = it }
             httpConfig {
-                install(BackendRateLimitPlugin) {
-                    coordinator = rateLimitCoordinator
+                install(HttpTimeout) {
+                    requestTimeoutMillis = 60_000
+                    connectTimeoutMillis = 30_000
+                    socketTimeoutMillis = 60_000
                 }
-                install(HttpRequestRetry) {
-                    retryOnExceptionIf(maxRetries = 1) { request, cause ->
-                        isSafeBackendRetryRequest(
-                            method = request.method.value,
-                            encodedPath = request.url.build().encodedPath,
-                        ) && SupabaseEndpointConfig.shouldRetryWithFallback(
-                            requestUrl = request.url.buildString(),
-                            cause = cause,
-                        )
-                    }
-                    retryIf(maxRetries = 1) { request, response ->
-                        val safeToRetry = isSafeBackendRetryRequest(
-                            method = request.method.value,
-                            encodedPath = request.url.encodedPath,
-                        )
-                        val retryableResponse = isRetryableBackendResponse(response.status.value)
-                        val fallbackEligible = SupabaseEndpointConfig.shouldRetryWithFallback(
-                            requestUrl = request.url.toString(),
-                            statusCode = response.status.value,
-                        )
-                        safeToRetry && (retryableResponse || fallbackEligible)
-                    }
-                    modifyRequest { request ->
-                        val retryResponse = response
-                        val retryCause = cause
-                        val shouldUseFallback = when {
-                            retryResponse != null && shouldApplyBackendCooldown(
-                                retryResponse.status.value,
-                                retryResponse.headers[HttpHeaders.RetryAfter],
-                            ) -> false
-                            retryResponse != null -> SupabaseEndpointConfig.shouldRetryWithFallback(
+                install(WebSockets) { contentConverter = KotlinxWebsocketSerializationConverter(supabaseJson) }
+                if (SupabaseEndpointConfig.hasFallback) {
+                    install(HttpRequestRetry) {
+                        retryOnExceptionIf(maxRetries = 1) { request, cause ->
+                            SupabaseEndpointConfig.shouldRetryWithFallback(
                                 requestUrl = request.url.buildString(),
-                                statusCode = retryResponse.status.value,
+                                cause = cause,
                             )
-                            retryCause != null -> SupabaseEndpointConfig.shouldRetryWithFallback(
-                                requestUrl = request.url.buildString(),
-                                cause = retryCause,
-                            )
-                            else -> false
                         }
-                        if (shouldUseFallback) {
+                        retryIf(maxRetries = 1) { request, response ->
+                            SupabaseEndpointConfig.shouldRetryWithFallback(
+                                requestUrl = request.url.toString(),
+                                statusCode = response.status.value,
+                            )
+                        }
+                        modifyRequest { request ->
                             SupabaseEndpointConfig.fallbackUrlFor(request.url.buildString())?.let { fallbackUrl ->
                                 request.url.takeFrom(fallbackUrl)
                             }
                         }
-                    }
-                    delayMillis(respectRetryAfterHeader = false) { retryCount ->
-                        val retryResponse = response
-                        if (retryResponse != null && isRetryableBackendResponse(retryResponse.status.value)) {
-                            backendRetryDelayMillis(
-                                retryCount = retryCount,
-                                retryAfterHeader = retryResponse.headers[HttpHeaders.RetryAfter],
-                            )
-                        } else {
-                            100L
-                        }
+                        constantDelay(millis = 100)
                     }
                 }
                 defaultRequest {
                     headers.append(HttpHeaders.UserAgent, userAgent)
                 }
-                install(HttpTimeout) {
-                    requestTimeoutMillis = 30_000L
-                    connectTimeoutMillis = 15_000L
-                }
-                install(WebSockets) {
-                    contentConverter = KotlinxWebsocketSerializationConverter(supabaseJson)
-                }
             }
             install(Auth)
             install(Postgrest)
             install(Functions)
-            install(Storage)
             install(Realtime) {
-                customUrl = SupabaseEndpointConfig.realtimeUrl(configuration.backendUrl)
+                customUrl = SupabaseEndpointConfig.realtimeUrl(SupabaseConfig.URL)
                 reconnectDelay = 3.seconds
-                websocketFactory = RealtimeSocketFactory { url ->
-                    KtorRealtimeWebsocketFactory(client.httpClient.httpClient).create(url)
-                }
+                websocketFactory = RealtimeSocketFactory { url -> KtorRealtimeWebsocketFactory(client.httpClient.httpClient).create(url) }
             }
         }
-        return client
-    }
-
-    suspend fun reset() {
-        val previous = synchronized(clientLock) {
-            cachedClient.also {
-                cachedClient = null
-                rateLimitCoordinator.clear()
-            }
-        }
-        previous?.close()
     }
 }
