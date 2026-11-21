@@ -1,5 +1,10 @@
 package com.nuvio.app.features.player
 
+import com.nuvio.app.features.addons.AddonRepository
+import com.nuvio.app.features.addons.AddonResource
+import com.nuvio.app.features.addons.buildAddonResourceUrl
+import com.nuvio.app.features.addons.enabledAddons
+import com.nuvio.app.features.addons.httpGetText
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -21,10 +26,12 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.compose_player_no_subtitles_found
+import nuvio.composeapp.generated.resources.player_addon_subtitle_display_format
 import org.jetbrains.compose.resources.getString
 
 object SubtitleRepository {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val json = Json { ignoreUnknownKeys = true }
 
     private val _addonSubtitles = MutableStateFlow<List<AddonSubtitle>>(emptyList())
     val addonSubtitles: StateFlow<List<AddonSubtitle>> = _addonSubtitles.asStateFlow()
@@ -32,39 +39,13 @@ object SubtitleRepository {
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
-    private val _loadingProgress = MutableStateFlow<SubtitleLoadingProgress?>(null)
-    internal val loadingProgress: StateFlow<SubtitleLoadingProgress?> = _loadingProgress.asStateFlow()
-
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
     private var activeFetchJob: Job? = null
     private var fetchGeneration = 0L
 
-    fun fetchAddonSubtitles(
-        type: String,
-        videoId: String,
-        extras: SubtitleRequestExtras? = null,
-    ) {
-        activeFetchJob?.cancel()
-        _loadingProgress.value = null
-        activeFetchJob = scope.launch {
-            executeSubtitleFetch(type, videoId, extras)
-        }
-    }
-
-    /**
-     * Like [fetchAddonSubtitles], but first computes the OpenSubtitles video hash
-     * when the stream extras do not already contain one.
-     */
-    fun fetchAddonSubtitlesWithHashComputation(
-        type: String,
-        videoId: String,
-        extras: SubtitleRequestExtras?,
-        sourceUrl: String,
-        sourceHeaders: Map<String, String>,
-        onExtrasUpdated: (SubtitleRequestExtras) -> Unit,
-    ) {
+    fun fetchAddonSubtitles(type: String, videoId: String) {
         activeFetchJob?.cancel()
         val generation = ++fetchGeneration
         activeFetchJob = scope.launch {
@@ -169,6 +150,7 @@ object SubtitleRepository {
         _isLoading.value = false
         _error.value = null
     }
+}
 
 internal fun <T> aggregateOrderedSubtitleBlocks(
     blocks: List<List<T>?>,
@@ -182,19 +164,14 @@ internal fun <T> aggregateOrderedSubtitleBlocks(
 private fun canonicalSubtitleType(type: String): String =
     if (type.equals("tv", ignoreCase = true)) "series" else type.lowercase()
 
-        _loadingProgress.value = SubtitleLoadingProgress(total = requests.size)
-        loadAddonSubtitles(requests) { request, subtitles ->
-            _addonSubtitles.update { it + subtitles }
-            _loadingProgress.update { progress ->
-                progress?.copy(completed = progress.completed + 1, addonName = request.addonName)
-            }
-        }
+private fun String.isSubtitleResourceName(): Boolean =
+    equals("subtitles", ignoreCase = true) || equals("subtitle", ignoreCase = true)
 
-        if (_addonSubtitles.value.isEmpty()) {
-            _error.value = getString(Res.string.compose_player_no_subtitles_found)
-        }
-        _isLoading.value = false
-    }
+private fun AddonResource.supportsSubtitleType(type: String, videoId: String): Boolean {
+    val canonical = canonicalSubtitleType(type)
+    val typeMatches = types.isEmpty() || types.any { canonicalSubtitleType(it).equals(canonical, ignoreCase = true) }
+    if (!typeMatches) return false
+    return idPrefixes.isEmpty() || idPrefixes.any { prefix -> videoId.startsWith(prefix) }
 }
 
 private fun JsonObject.subtitleLanguage(): String? =

@@ -3,16 +3,13 @@ package com.nuvio.app.core.ui
 import platform.Foundation.NSNotificationCenter
 import platform.Foundation.NSUserDefaults
 import platform.UIKit.UIDevice
-import platform.UIKit.UIUserInterfaceIdiomPad
 import platform.UIKit.UIUserInterfaceIdiomPhone
 
 private const val liquidGlassNativeTabBarEnabledKey = "NuvioLiquidGlassNativeTabBarEnabled"
-private const val nativeTabBarBehaviorKey = "NuvioNativeTabBarBehavior"
 private const val nativeTabBarVisibleKey = "NuvioNativeTabBarVisible"
 private const val nativeLiveTvEnabledKey = "NuvioNativeLiveTvEnabled"
 private const val nativeSelectedTabKey = "NuvioNativeSelectedTab"
 private const val nativeTabAccentColorKey = "NuvioNativeTabAccentColor"
-private const val nativeTabAccentGradientKey = "NuvioNativeTabAccentGradient"
 private const val nativeTabTitleHomeKey = "NuvioNativeTabTitleHome"
 private const val nativeTabTitleSearchKey = "NuvioNativeTabTitleSearch"
 private const val nativeTabTitleLiveTvKey = "NuvioNativeTabTitleLiveTv"
@@ -25,18 +22,12 @@ private const val nativeProfileAvatarBackgroundColorKey = "NuvioNativeProfileAva
 private const val nativeTabChromeDidChangeNotification = "NuvioNativeTabChromeDidChange"
 
 internal actual fun isLiquidGlassNativeTabBarSupported(): Boolean {
-    val idiom = UIDevice.currentDevice.userInterfaceIdiom
-    return (idiom == UIUserInterfaceIdiomPhone || idiom == UIUserInterfaceIdiomPad) &&
+    return UIDevice.currentDevice.userInterfaceIdiom == UIUserInterfaceIdiomPhone &&
         (UIDevice.currentDevice.systemVersion.substringBefore(".").toIntOrNull() ?: 0) >= 26
 }
 
 internal actual fun publishLiquidGlassNativeTabBarEnabled(enabled: Boolean) {
     publishBool(liquidGlassNativeTabBarEnabledKey, enabled)
-}
-
-internal actual fun publishNativeTabBarBehavior(behaviorKey: String) {
-    NSUserDefaults.standardUserDefaults.setObject(behaviorKey, forKey = nativeTabBarBehaviorKey)
-    notifyNativeTabChromeChanged()
 }
 
 internal actual fun publishNativeTabBarVisible(visible: Boolean) {
@@ -52,12 +43,8 @@ internal actual fun publishNativeSelectedTab(tabName: String) {
     notifyNativeTabChromeChanged()
 }
 
-internal actual fun publishNativeTabAccentColor(hexColor: String, gradientHexColors: List<String>) {
+internal actual fun publishNativeTabAccentColor(hexColor: String) {
     NSUserDefaults.standardUserDefaults.setObject(hexColor, forKey = nativeTabAccentColorKey)
-    NSUserDefaults.standardUserDefaults.setObject(
-        gradientHexColors.joinToString(separator = ","),
-        forKey = nativeTabAccentGradientKey,
-    )
     notifyNativeTabChromeChanged()
 }
 

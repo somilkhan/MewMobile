@@ -13,17 +13,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
-import androidx.compose.ui.window.DialogWindowProvider
 import androidx.core.app.PictureInPictureModeChangedInfo
 import androidx.core.util.Consumer
 import androidx.core.view.WindowCompat
@@ -59,9 +54,6 @@ actual fun LockPlayerToLandscape() {
         }
         if (activity.requestedOrientation != target) activity.requestedOrientation = target
     }
-    SideEffect {
-        if (activity.requestedOrientation != target) activity.requestedOrientation = target
-    }
 }
 
 @Composable
@@ -73,10 +65,9 @@ actual fun rememberPlayerOrientationToggleSupported(): Boolean {
 @Composable
 actual fun EnterImmersivePlayerMode(keepScreenAwake: Boolean) {
     val activity = LocalContext.current.findActivity() ?: return
-    val view = LocalView.current
-    val window = (view.parent as? DialogWindowProvider)?.window ?: activity.window
 
-    DisposableEffect(window) {
+    DisposableEffect(activity) {
+        val window = activity.window
         val controller = WindowCompat.getInsetsController(window, window.decorView)
         val previousBehavior = controller.systemBarsBehavior
 
@@ -90,9 +81,6 @@ actual fun EnterImmersivePlayerMode(keepScreenAwake: Boolean) {
         }
     }
 }
-
-@Composable
-actual fun EnterImmersivePlayerMode(keepScreenAwake: Boolean) = Unit
 
 @Composable
 actual fun ManagePlayerPictureInPicture(
@@ -137,7 +125,7 @@ actual fun rememberIsInPictureInPicture(): Boolean {
 }
 
 @Composable
-internal actual fun rememberPlatformPlayerGestureController(): PlayerGestureController? {
+actual fun rememberPlayerGestureController(): PlayerGestureController? {
     val context = LocalContext.current
     val activity = context.findActivity() ?: return null
     val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return null
@@ -199,14 +187,14 @@ private class AndroidPlayerGestureController(
     override fun currentBrightness(): Float {
         val windowValue = activity.window.attributes.screenBrightness
         return if (windowValue in 0f..1f) {
-            windowValue.coerceIn(0f, 1f)
+            windowValue.coerceIn(0.02f, 1f)
         } else {
             readSystemBrightness()
         }
     }
 
     override fun setBrightness(level: Float): Float {
-        val target = level.coerceIn(0f, 1f)
+        val target = level.coerceIn(0.02f, 1f)
         val attributes = activity.window.attributes
         attributes.screenBrightness = target
         activity.window.attributes = attributes
@@ -258,6 +246,6 @@ private class AndroidPlayerGestureController(
                 Settings.System.SCREEN_BRIGHTNESS,
             )
         }.getOrDefault(127)
-            .coerceIn(0, 255)
+            .coerceIn(1, 255)
             .toFloat() / 255f
 }

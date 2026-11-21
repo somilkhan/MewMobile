@@ -10,10 +10,6 @@ interface PlayerEngineController {
     fun seekTo(positionMs: Long)
     fun seekBy(offsetMs: Long)
     fun retry()
-    fun isPictureInPictureSupported(): Boolean = false
-    fun startPictureInPicture() {}
-    fun setVideoZoom(scale: Float) {}
-    fun showCastDialog() {}
     fun setPlaybackSpeed(speed: Float)
     /** Applies a transient video zoom without changing the saved aspect-ratio mode. */
     fun setVideoZoom(scale: Float) {}
@@ -21,7 +17,6 @@ interface PlayerEngineController {
     fun setVolumeBoost(multiplier: Float) {}
     fun getAudioTracks(): List<AudioTrack>
     fun getSubtitleTracks(): List<SubtitleTrack>
-    fun applyAudioLanguagePreferences(languages: List<String>)
     fun selectAudioTrack(index: Int)
     fun selectSubtitleTrack(index: Int)
     fun setSubtitleUri(url: String)
@@ -90,9 +85,6 @@ expect fun PlatformPlayerSurface(
     resizeMode: PlayerResizeMode = PlayerResizeMode.Fit,
     playbackEngine: AndroidPlaybackEngine? = null,
     useNativeController: Boolean = false,
-    discPlaybackEnabled: Boolean = false,
-    /** A Live TV channel: an endless stream that gets live-specific buffering and recovery. */
-    liveStream: Boolean = false,
     onInitialPositionHandled: (key: String, handled: Boolean) -> Unit = { _, _ -> },
     onControllerReady: (PlayerEngineController) -> Unit,
     onSnapshot: (PlayerPlaybackSnapshot) -> Unit,

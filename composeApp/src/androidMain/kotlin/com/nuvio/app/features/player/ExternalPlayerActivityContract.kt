@@ -1,6 +1,5 @@
 package com.nuvio.app.features.player
 
-import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import androidx.activity.result.contract.ActivityResultContract
@@ -34,17 +33,9 @@ class ExternalPlayerActivityContract : ActivityResultContract<Intent, ExternalPl
         // Some players return RESULT_OK, others return RESULT_CANCELED even on normal exit.
         // We try to parse position regardless of resultCode.
         val data = intent ?: return null
-        val endedByUser = parseEndReason(data)
+        val position = parsePosition(data) ?: return null
         val duration = parseDuration(data)
-        // MX Player omits both "position" and "duration" once a file has played to completion, so a
-        // completed playback must not be discarded just because it carries no position. Completion is
-        // additionally gated on RESULT_OK so an errored playback cannot be recorded as watched.
-        val parsedPosition = parsePosition(data)
-        val position = when {
-            parsedPosition != null -> parsedPosition
-            !endedByUser && resultCode == Activity.RESULT_OK -> duration ?: 0L
-            else -> return null
-        }
+        val endedByUser = parseEndReason(data)
 
         return ExternalPlayerResult(
             positionMs = position,

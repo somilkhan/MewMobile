@@ -78,35 +78,10 @@ object PlayerNextEpisodeRules {
         thresholdPercent: Float,
         thresholdMinutesBeforeEnd: Float,
     ): Boolean {
-        if (isShortPlaceholderDuration(durationMs)) return false
         val outroSegments = skipIntervals.filter { it.type in OUTRO_SEGMENT_TYPES }
 
         if (outroSegments.isNotEmpty()) {
             if (durationMs <= 0L) return false
-
-            // Use the same post-credits detection as the skip button so the
-            // next-episode card never appears over a post-credits scene.
-            val latestOutro = outroSegments.maxByOrNull { it.endTime }
-            val postCreditsScene = latestOutro?.findFollowingPostCreditsScene(skipIntervals, durationMs)
-
-            if (postCreditsScene != null) {
-                val sceneEndMs = (postCreditsScene.endTime * 1_000.0).toLong()
-                    .coerceAtMost(durationMs)
-                val userTriggerMs = userThresholdPositionMs(
-                    durationMs, thresholdMode, thresholdPercent, thresholdMinutesBeforeEnd
-                )
-                val isHeuristic = postCreditsScene.provider == "heuristic"
-                val sceneDurationMs = sceneEndMs - (postCreditsScene.startTime * 1_000.0).toLong()
-                val userThresholdFromEndMs = durationMs - userTriggerMs
-                return if (isHeuristic && sceneDurationMs < userThresholdFromEndMs) {
-                    false
-                } else if (isHeuristic) {
-                    positionMs >= userTriggerMs
-                } else {
-                    positionMs >= maxOf(sceneEndMs, userTriggerMs)
-                }
-            }
-
             val latestOutroEndMs = (outroSegments.maxOf { it.endTime } * 1_000.0).toLong()
             val postOutroGapMs = durationMs - latestOutroEndMs
 
@@ -154,28 +129,6 @@ object PlayerNextEpisodeRules {
             }
         }
     }
-
-    /**
-     * How far a movie is into its ending, for the More Like This card:
-     * 0 = not yet, 1 = last 4 minutes, 2 = last 30 seconds, 3 = playback ended.
-     * The card shows while the stage is above the one the user last dismissed it at, so a
-     * dismissal in the 4-minute window brings it back at 30 seconds, and it always returns
-     * when playback really ends.
-     */
-    fun movieRecommendationStage(positionMs: Long, durationMs: Long, isEnded: Boolean): Int {
-        if (isEnded) return MOVIE_RECOMMENDATION_STAGE_ENDED
-        if (durationMs <= 0L) return 0
-        val remainingMs = durationMs - positionMs
-        return when {
-            remainingMs <= MOVIE_RECOMMENDATION_FINAL_MS -> 2
-            remainingMs <= MOVIE_RECOMMENDATION_FIRST_MS -> 1
-            else -> 0
-        }
-    }
-
-    const val MOVIE_RECOMMENDATION_STAGE_ENDED = 3
-    private const val MOVIE_RECOMMENDATION_FIRST_MS = 4L * 60_000L
-    private const val MOVIE_RECOMMENDATION_FINAL_MS = 30_000L
 
     fun hasEpisodeAired(raw: String?): Boolean {
         val value = raw?.trim()?.takeIf { it.isNotEmpty() } ?: return true

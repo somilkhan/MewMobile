@@ -24,18 +24,3 @@ enum class NavBarStyle(
             entries.firstOrNull { it.key.equals(key, ignoreCase = true) } ?: ADAPTIVE
     }
 }
-
-/** Where the floating pill sits. CLASSIC ignores it. */
-enum class NavBarPosition(
-    val key: String,
-    val labelRes: StringResource,
-) {
-    BOTTOM("bottom", Res.string.settings_nav_bar_position_bottom),
-    TOP("top", Res.string.settings_nav_bar_position_top),
-    ;
-
-    companion object {
-        fun fromKey(key: String?): NavBarPosition =
-            entries.firstOrNull { it.key.equals(key, ignoreCase = true) } ?: BOTTOM
-    }
-}

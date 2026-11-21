@@ -9,7 +9,6 @@ import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.staticCFunction
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.suspendCancellableCoroutine
-import platform.Foundation.NSUserDefaults
 import kotlin.coroutines.resume
 
 @OptIn(ExperimentalForeignApi::class)

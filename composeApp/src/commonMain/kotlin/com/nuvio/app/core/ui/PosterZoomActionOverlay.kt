@@ -24,15 +24,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.AbsoluteAlignment
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.BlurredEdgeTreatment
@@ -75,9 +72,7 @@ data class PosterZoomAnchor(
     val boundsInRoot: Rect,
     val imageUrl: String?,
     val cornerRadius: Dp,
-) {
-    internal var source: PosterLiftSource? = null
-}
+)
 
 /**
  * Hand-off slot between the pressed card and the overlay host. The card stashes
@@ -140,11 +135,10 @@ fun NuvioPosterZoomActionOverlay(
     subtitle: String?,
     synopsis: String? = null,
     isWatched: Boolean = false,
-    blurred: Boolean = false,
     depthSurface: NuvioCardDepthSurface = NuvioCardDepthSurface.Posters,
     anchor: PosterZoomAnchor?,
     actions: List<PosterZoomOverlayAction>,
-    backdrop: Backdrop,
+    hazeState: HazeState,
     onDismissed: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -152,8 +146,6 @@ fun NuvioPosterZoomActionOverlay(
     val previewShape = RoundedCornerShape(PosterZoomFinalCornerRadius)
     val hapticFeedback = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
-    val source = remember(anchor) { anchor?.source }
-    val currentOnDismissed by rememberUpdatedState(onDismissed)
 
     // A context menu shows a snapshot of the moment it was invoked; don't let
     // repository updates mid-animation relabel or reorder the rows.
@@ -164,22 +156,11 @@ fun NuvioPosterZoomActionOverlay(
     val menu = remember { Animatable(0f) }
     val shadowFade = remember { Animatable(1f) }
     var phase by remember { mutableStateOf(PosterZoomPhase.Open) }
-    var destructiveAction by remember { mutableStateOf<PosterZoomOverlayAction?>(null) }
-    var returnBounds by remember { mutableStateOf<Rect?>(null) }
-    var lifted by remember { mutableStateOf(false) }
-    var showFallback by remember { mutableStateOf(source == null) }
 
     var rootOrigin by remember { mutableStateOf(Offset.Zero) }
     var slotBounds by remember { mutableStateOf<Rect?>(null) }
 
-    DisposableEffect(source) {
-        onDispose { source?.land() }
-    }
-
-    LaunchedEffect(slotBounds != null, phase) {
-        if (slotBounds == null || phase != PosterZoomPhase.Open) return@LaunchedEffect
-        lifted = source?.lift() == true
-        showFallback = !lifted
+    LaunchedEffect(Unit) {
         launch { scrim.animateTo(1f, tween(durationMillis = 260, easing = NuvioTokens.Motion.standard)) }
         launch { zoom.animateTo(1f, PosterZoomExpandSpring) }
         launch {
@@ -188,9 +169,8 @@ fun NuvioPosterZoomActionOverlay(
         }
     }
 
-    fun close(afterClose: (() -> Unit)? = null) {
+    fun close() {
         if (phase != PosterZoomPhase.Open) return
-        returnBounds = source?.bounds
         phase = PosterZoomPhase.Closing
         scope.launch {
             coroutineScope {
@@ -201,8 +181,7 @@ fun NuvioPosterZoomActionOverlay(
                 }
                 launch { zoom.animateTo(0f, PosterZoomCollapseSpring) }
             }
-            currentOnDismissed()
-            afterClose?.invoke()
+            onDismissed()
         }
     }
 
@@ -210,14 +189,15 @@ fun NuvioPosterZoomActionOverlay(
         if (phase != PosterZoomPhase.Open) return
         if (action.disintegratesPreview) {
             phase = PosterZoomPhase.Disintegrating
-            destructiveAction = action
             hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+            action.onSelected()
             scope.launch {
                 launch { menu.animateTo(0f, tween(durationMillis = 160)) }
                 launch { shadowFade.animateTo(0f, tween(durationMillis = 350)) }
             }
         } else {
-            close(afterClose = action.onSelected)
+            action.onSelected()
+            close()
         }
     }
 
@@ -276,11 +256,15 @@ fun NuvioPosterZoomActionOverlay(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .liquidGlassBlur(
-                    backdrop = backdrop,
-                    radius = 36.dp,
-                    alphaProvider = { scrim.value.coerceIn(0f, 1f) },
-                ),
+                .hazeEffect(state = hazeState) {
+                    blurRadius = 36.dp
+                    inputScale = HazeInputScale.Auto
+                    noiseFactor = 0f
+                    blurredEdgeTreatment = BlurredEdgeTreatment.Rectangle
+                    clipToAreasBounds = false
+                    expandLayerBounds = true
+                    alpha = scrim.value.coerceIn(0f, 1f)
+                },
         )
         Box(
             modifier = Modifier
@@ -410,7 +394,6 @@ fun NuvioPosterZoomActionOverlay(
         // The travelling poster itself, drawn above the slot column.
         Box(
             modifier = Modifier
-                .align(AbsoluteAlignment.TopLeft)
                 .size(width = posterWidth, height = posterHeight)
                 .graphicsLayer {
                     val slot = slotBounds
@@ -420,109 +403,88 @@ fun NuvioPosterZoomActionOverlay(
                     }
                     val progress = zoom.value
                     val clamped = progress.coerceIn(0f, 1f)
-                    val start = returnBounds ?: posterStartBounds(anchor = anchor, slot = slot)
-                    val scale = lerp(start.width / slot.width, 1f, progress)
+                    val start = posterStartBounds(anchor = anchor, slot = slot)
+                    val scale = posterScale(anchor = anchor, slot = slot, progress = progress)
                     scaleX = scale
-                    scaleY = lerp(start.height / slot.height, 1f, progress)
+                    scaleY = scale
                     transformOrigin = TransformOrigin(0f, 0f)
                     translationX = lerp(start.left, slot.left, progress) - rootOrigin.x
                     translationY = lerp(start.top, slot.top, progress) - rootOrigin.y
-                    alpha = when {
-                        lifted -> 1f
-                        !showFallback -> 0f
-                        anchor == null -> clamped
-                        else -> (clamped / 0.08f).coerceIn(0f, 1f)
+                    alpha = if (anchor == null) {
+                        clamped
+                    } else {
+                        (clamped / 0.08f).coerceIn(0f, 1f)
                     }
-                    shape = RoundedCornerShape(
-                        if (lifted && anchor != null) {
-                            anchor.cornerRadius.toPx() * slot.width / anchor.boundsInRoot.width
-                        } else {
-                            posterCornerRadiusPx(anchor, clamped, scale)
-                        },
-                    )
+                    shape = RoundedCornerShape(posterCornerRadiusPx(anchor, clamped, scale))
                     clip = false
                     shadowElevation = NuvioTokens.Space.s24.toPx() * clamped * shadowFade.value
                 },
         ) {
             DisintegratingContainer(
                 disintegrating = phase == PosterZoomPhase.Disintegrating,
-                onDisintegrationStarted = {
-                    destructiveAction?.onSelected?.invoke()
-                    destructiveAction = null
-                },
                 onDisintegrated = {
                     scope.launch {
                         scrim.animateTo(0f, tween(durationMillis = 300, easing = NuvioTokens.Motion.standard))
-                        currentOnDismissed()
+                        onDismissed()
                     }
                 },
                 modifier = Modifier.fillMaxSize(),
             ) {
-                if (!showFallback && source != null) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .drawBehind { drawLiftedPoster(source) },
-                    )
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .graphicsLayer {
-                                val clamped = zoom.value.coerceIn(0f, 1f)
-                                val slot = slotBounds
-                                val scale = if (slot != null && slot.width > 0f) {
-                                    posterScale(anchor = anchor, slot = slot, progress = zoom.value)
-                                } else {
-                                    1f
-                                }
-                                shape = RoundedCornerShape(posterCornerRadiusPx(anchor, clamped, scale))
-                                clip = true
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            val clamped = zoom.value.coerceIn(0f, 1f)
+                            val slot = slotBounds
+                            val scale = if (slot != null && slot.width > 0f) {
+                                posterScale(anchor = anchor, slot = slot, progress = zoom.value)
+                            } else {
+                                1f
                             }
-                            .background(tokens.colors.surfaceCard)
-                            .nuvioCardDepth(
-                                shape = previewShape,
-                                surface = depthSurface,
-                            ),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        if (imageUrl != null) {
-                            AsyncImage(
-                                model = imageUrl,
-                                contentDescription = title,
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .then(if (blurred) Modifier.blur(NuvioTokens.Space.s18) else Modifier),
-                                contentScale = ContentScale.Crop,
-                            )
-                        } else {
-                            Text(
-                                text = title,
-                                modifier = Modifier.padding(NuvioTokens.Space.s14),
-                                style = MaterialTheme.typography.titleMedium,
-                                color = tokens.colors.textMuted,
-                                textAlign = TextAlign.Center,
-                                maxLines = 4,
-                                overflow = TextOverflow.Ellipsis,
-                            )
+                            shape = RoundedCornerShape(posterCornerRadiusPx(anchor, clamped, scale))
+                            clip = true
                         }
-                        NuvioPosterWatchedOverlay(
-                            isWatched = isWatched,
-                            modifier = Modifier.graphicsLayer {
-                                val slot = slotBounds
-                                if (slot != null && slot.width > 0f) {
-                                    val scale = posterScale(
-                                        anchor = anchor,
-                                        slot = slot,
-                                        progress = zoom.value,
-                                    ).coerceAtLeast(0.001f)
-                                    scaleX = 1f / scale
-                                    scaleY = 1f / scale
-                                    transformOrigin = TransformOrigin(1f, 0f)
-                                }
-                            },
+                        .background(tokens.colors.surfaceCard)
+                        .nuvioCardDepth(
+                            shape = previewShape,
+                            surface = depthSurface,
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (imageUrl != null) {
+                        AsyncImage(
+                            model = imageUrl,
+                            contentDescription = title,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop,
+                        )
+                    } else {
+                        Text(
+                            text = title,
+                            modifier = Modifier.padding(NuvioTokens.Space.s14),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = tokens.colors.textMuted,
+                            textAlign = TextAlign.Center,
+                            maxLines = 4,
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
+                    NuvioPosterWatchedOverlay(
+                        isWatched = isWatched,
+                        modifier = Modifier.graphicsLayer {
+                            val slot = slotBounds
+                            if (slot != null && slot.width > 0f) {
+                                val scale = posterScale(
+                                    anchor = anchor,
+                                    slot = slot,
+                                    progress = zoom.value,
+                                ).coerceAtLeast(0.001f)
+                                scaleX = 1f / scale
+                                scaleY = 1f / scale
+                                transformOrigin = TransformOrigin(1f, 0f)
+                            }
+                        },
+                    )
                 }
             }
         }

@@ -8,7 +8,6 @@ import android.content.Intent
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
-import androidx.core.content.IntentCompat
 import com.nuvio.app.core.build.AppFeaturePolicy
 import com.nuvio.app.core.concurrent.ConflatedTaskDispatcher
 import java.util.concurrent.Executors
@@ -18,7 +17,6 @@ internal const val NOW_PLAYING_TAG = "NuvioNowPlaying"
 internal const val NOW_PLAYING_CHANNEL_ID = "nuvio_playback"
 internal const val NOW_PLAYING_NOTIFICATION_ID = 0x4E55
 private const val ACTION_START_FOREGROUND = "com.nuvio.app.nowplaying.START_FOREGROUND"
-private const val EXTRA_START_NOTIFICATION = "com.nuvio.app.nowplaying.START_NOTIFICATION"
 
 class PlayerNowPlayingService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
@@ -128,9 +126,12 @@ private object PlayerNowPlayingServiceController {
             PlayerNowPlayingServiceState.pendingStartNotification = command.notification
             val intent = Intent(command.context, PlayerNowPlayingService::class.java)
                 .setAction(ACTION_START_FOREGROUND)
-                .putExtra(EXTRA_START_NOTIFICATION, command.notification)
             val started = runCatching {
-                startPlaybackService(command.context, intent)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    command.context.startForegroundService(intent)
+                } else {
+                    command.context.startService(intent)
+                }
             }.onFailure { error ->
                 Log.w(NOW_PLAYING_TAG, "Unable to start playback service", error)
             }.isSuccess
@@ -146,15 +147,6 @@ private object PlayerNowPlayingServiceController {
                 ?.notify(NOW_PLAYING_NOTIFICATION_ID, command.notification)
         }.onFailure { error ->
             Log.w(NOW_PLAYING_TAG, "Unable to publish playback notification", error)
-        }
-    }
-
-    private fun startPlaybackService(context: Context, intent: Intent) {
-        try {
-            context.startService(intent)
-        } catch (error: IllegalStateException) {
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) throw error
-            context.startForegroundService(intent)
         }
     }
 

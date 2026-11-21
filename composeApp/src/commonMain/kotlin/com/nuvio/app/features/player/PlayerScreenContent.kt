@@ -1,13 +1,8 @@
 package com.nuvio.app.features.player
 
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.systemGestures
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.CompositionLocalProvider
@@ -23,11 +18,9 @@ import com.nuvio.app.core.ui.PlatformBackHandler
 import com.nuvio.app.core.ui.isTvLayoutProfileEnabled
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.nuvio.app.core.ui.LocalFold
 import com.nuvio.app.features.addons.AddonRepository
 import com.nuvio.app.features.details.MetaDetailsRepository
 import com.nuvio.app.features.details.MetaScreenSettingsRepository
-import com.nuvio.app.features.livetv.LiveTvRepository
 import com.nuvio.app.features.p2p.P2pSettingsRepository
 import com.nuvio.app.features.p2p.P2pStreamingEngine
 import com.nuvio.app.features.settings.NuvioEnhancedSettingsRepository
@@ -50,11 +43,11 @@ import nuvio.composeapp.generated.resources.parental_severity_severe
 import nuvio.composeapp.generated.resources.parental_violence
 import nuvio.composeapp.generated.resources.compose_player_tba
 import org.jetbrains.compose.resources.stringResource
-import com.nuvio.app.core.ui.glass.LocalLiquidGlassBackdrop
-import com.nuvio.app.core.ui.glass.isLiquidGlassSupported
 
 @Composable
 internal fun PlayerScreenContent(args: PlayerScreenArgs) {
+    LockPlayerToLandscape()
+
     val playerSettingsUiState by remember {
         PlayerSettingsRepository.ensureLoaded()
         PlayerSettingsRepository.uiState
@@ -79,10 +72,6 @@ internal fun PlayerScreenContent(args: PlayerScreenArgs) {
     val watchProgressUiState by remember {
         WatchProgressRepository.ensureLoaded()
         WatchProgressRepository.uiState
-    }.collectAsStateWithLifecycle()
-    val liveTvUiState by remember {
-        LiveTvRepository.ensureLoaded()
-        LiveTvRepository.uiState
     }.collectAsStateWithLifecycle()
     val sourceStreamsState by PlayerStreamsRepository.sourceState.collectAsStateWithLifecycle()
     val episodeStreamsRepoState by PlayerStreamsRepository.episodeStreamsState.collectAsStateWithLifecycle()
@@ -119,13 +108,7 @@ internal fun PlayerScreenContent(args: PlayerScreenArgs) {
 
         runtime.scope = rememberCoroutineScope()
         runtime.hapticFeedback = LocalHapticFeedback.current
-        runtime.gestureController = if (runtime.isMiniPresentation) {
-            null
-        } else {
-            rememberPlayerGestureController(
-                restoreBrightness = playerSettingsUiState.touchGesturesEnabled,
-            )
-        }
+        runtime.gestureController = rememberPlayerGestureController()
         runtime.playerSettingsUiState = playerSettingsUiState
         runtime.nuvioEnhancedSettingsUiState = nuvioEnhancedSettingsUiState
         runtime.p2pSettingsUiState = p2pSettingsUiState
@@ -133,34 +116,19 @@ internal fun PlayerScreenContent(args: PlayerScreenArgs) {
         runtime.metaScreenSettingsUiState = metaScreenSettingsUiState
         runtime.watchedUiState = watchedUiState
         runtime.watchProgressUiState = watchProgressUiState
-        runtime.liveTvUiState = liveTvUiState
         runtime.sourceStreamsState = sourceStreamsState
         runtime.episodeStreamsRepoState = episodeStreamsRepoState
         runtime.metaUiState = metaUiState
         runtime.addonsUiState = addonsUiState
-        runtime.addonSubtitles = mergeStreamAndAddonSubtitles(addonSubtitles, runtime.externalSubtitles)
+        runtime.addonSubtitles = addonSubtitles
         runtime.isLoadingAddonSubtitles = isLoadingAddonSubtitles
         runtime.horizontalSafePadding = horizontalSafePadding
         runtime.metrics = metrics
         runtime.sliderEdgePadding = horizontalSafePadding + metrics.horizontalPadding
-        runtime.overlayBottomPadding = if (playerSettingsUiState.useLegacyPlayerLayout) {
-            sliderOverlayBottomPadding(metrics)
-        } else {
-            playerTimelineBottomInsets(metrics).asPaddingValues().calculateBottomPadding() +
-                72.dp + PlayerSliderOverlayGap
-        }
+        runtime.overlayBottomPadding = sliderOverlayBottomPadding(metrics)
         runtime.sideGestureSystemEdgeExclusionPx = with(density) {
             PlayerSideGestureSystemEdgeExclusion.toPx()
         }
-        // Left/right system gesture insets are only non-zero when the device uses
-        // gesture navigation, so this keeps the edge back swipe working there and
-        // changes nothing for 3-button navigation.
-        val systemGestureInsets = WindowInsets.systemGestures
-        val layoutDirection = LocalLayoutDirection.current
-        runtime.horizontalSeekSystemEdgeExclusionPx = maxOf(
-            systemGestureInsets.getLeft(density, layoutDirection),
-            systemGestureInsets.getRight(density, layoutDirection),
-        ).toFloat()
         runtime.resizeModeFitLabel = stringResource(Res.string.compose_player_resize_fit)
         runtime.resizeModeFillLabel = stringResource(Res.string.compose_player_resize_fill)
         runtime.resizeModeZoomLabel = stringResource(Res.string.compose_player_resize_zoom)
