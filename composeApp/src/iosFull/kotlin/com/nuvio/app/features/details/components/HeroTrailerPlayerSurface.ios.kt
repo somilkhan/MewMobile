@@ -1,5 +1,8 @@
 package com.nuvio.app.features.details.components
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -27,6 +30,7 @@ actual fun HeroTrailerPlayerSurface(
     playWhenReady: Boolean,
     muted: Boolean,
     modifier: Modifier,
+    startPositionMs: Long,
     onReady: () -> Unit,
     onEnded: () -> Unit,
     onError: () -> Unit,

@@ -30,6 +30,7 @@ internal fun SubtitleModal(
     onStyleChanged: ((SubtitleStyleState) -> SubtitleStyleState) -> Unit,
     onSubtitleDelayChanged: (Int) -> Unit,
     onSubtitleDelayReset: () -> Unit,
+    onSyncByEarClick: () -> Unit,
     onAutoSyncCapture: () -> Unit,
     onSyncByEarClick: () -> Unit,
     onAutoSyncCueSelected: (SubtitleSyncCue) -> Unit,
@@ -135,4 +136,10 @@ internal fun SubtitleModal(
             modifier = modifier,
         )
     }
+}
+
+private suspend fun LazyListState.scrollItemIntoViewIfNeeded(targetIndex: Int) {
+    if (targetIndex < 0) return
+    if (layoutInfo.visibleItemsInfo.any { it.index == targetIndex }) return
+    scrollToItem(targetIndex)
 }

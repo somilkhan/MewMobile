@@ -1,7 +1,9 @@
 package com.nuvio.app.core.ui
 
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 
 internal enum class NativeNavigationTab {
@@ -9,6 +11,7 @@ internal enum class NativeNavigationTab {
     Search,
     LiveTv,
     Library,
+    LiveTv,
     Settings,
     ;
 
@@ -24,6 +27,17 @@ internal object NativeTabBridge {
     private val _profileTabLongPresses = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val profileTabLongPresses: SharedFlow<Unit> = _profileTabLongPresses.asSharedFlow()
 
+    private val _activeTab = MutableStateFlow(NativeNavigationTab.Home)
+    val activeTab: StateFlow<NativeNavigationTab> = _activeTab.asStateFlow()
+
+    fun markActiveTab(tab: NativeNavigationTab) {
+        _activeTab.value = tab
+    }
+
+    fun requestPopToRoot(tabName: String) {
+        swiftPopToRootListener?.invoke(tabName)
+    }
+
     fun requestTab(tabName: String) {
         _requestedTabs.tryEmit(NativeNavigationTab.fromName(tabName))
     }
@@ -37,7 +51,9 @@ internal object NativeTabBridge {
     }
 
     fun publishTabBarVisible(visible: Boolean) {
-        publishNativeTabBarVisible(visible && isLiquidGlassNativeTabBarSupported())
+        val supported = isLiquidGlassNativeTabBarSupported()
+        swiftTabBarVisibilityListener?.invoke(visible && supported)
+        publishNativeTabBarVisible(visible && supported)
     }
 
     fun publishLiveTvEnabled(enabled: Boolean) {
@@ -48,8 +64,17 @@ internal object NativeTabBridge {
         publishLiquidGlassNativeTabBarEnabled(enabled && isLiquidGlassNativeTabBarSupported())
     }
 
-    fun publishAccentColor(hexColor: String) {
-        publishNativeTabAccentColor(hexColor)
+    fun publishTabBarBehavior(behavior: NuvioTabBarBehavior) {
+        val supported = isLiquidGlassNativeTabBarSupported()
+        publishLiquidGlassNativeTabBarEnabled(behavior.isEnabled && supported)
+        publishNativeTabBarBehavior(if (supported) behavior.key else NuvioTabBarBehavior.OFF.key)
+    }
+
+    fun publishAccentColor(hexColor: String, gradientHexColors: List<String> = listOf(hexColor)) {
+        publishNativeTabAccentColor(
+            hexColor = hexColor,
+            gradientHexColors = gradientHexColors.ifEmpty { listOf(hexColor) },
+        )
     }
 
     fun publishTabTitles(
@@ -75,6 +100,14 @@ internal object NativeTabBridge {
             avatarBackgroundColorHex = avatarBackgroundColorHex,
         )
     }
+
+    private val _profileTabIconFrame = MutableStateFlow<ProfileTabIconFrame?>(null)
+
+    val profileTabIconFrame: StateFlow<ProfileTabIconFrame?> = _profileTabIconFrame.asStateFlow()
+
+    fun receiveProfileTabIconFrame(xDp: Float, yDp: Float, widthDp: Float, heightDp: Float) {
+        _profileTabIconFrame.value = ProfileTabIconFrame(xDp, yDp, widthDp, heightDp)
+    }
 }
 
 fun nativeTabSelect(tabName: String) {
@@ -89,13 +122,15 @@ internal expect fun isLiquidGlassNativeTabBarSupported(): Boolean
 
 internal expect fun publishLiquidGlassNativeTabBarEnabled(enabled: Boolean)
 
+internal expect fun publishNativeTabBarBehavior(behaviorKey: String)
+
 internal expect fun publishNativeTabBarVisible(visible: Boolean)
 
 internal expect fun publishNativeLiveTvEnabled(enabled: Boolean)
 
 internal expect fun publishNativeSelectedTab(tabName: String)
 
-internal expect fun publishNativeTabAccentColor(hexColor: String)
+internal expect fun publishNativeTabAccentColor(hexColor: String, gradientHexColors: List<String>)
 
 internal expect fun publishNativeTabTitles(
     home: String,

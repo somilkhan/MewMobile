@@ -5,12 +5,15 @@ import android.graphics.Matrix
 import android.view.TextureView
 import android.widget.FrameLayout
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.setValue
@@ -46,6 +49,7 @@ actual fun HeroTrailerPlayerSurface(
     playWhenReady: Boolean,
     muted: Boolean,
     modifier: Modifier,
+    startPositionMs: Long,
     onReady: () -> Unit,
     onEnded: () -> Unit,
     onError: () -> Unit,
@@ -84,15 +88,23 @@ actual fun HeroTrailerPlayerSurface(
                             mediaSourceFactory.createMediaSource(MediaItem.fromUri(sourceUrl)),
                             mediaSourceFactory.createMediaSource(MediaItem.fromUri(sourceAudioUrl)),
                         ),
+                        startPositionMs.coerceAtLeast(0L),
                     )
                 } else {
-                    setMediaItem(MediaItem.fromUri(sourceUrl))
+                    setMediaItem(MediaItem.fromUri(sourceUrl), startPositionMs.coerceAtLeast(0L))
                 }
                 repeatMode = Player.REPEAT_MODE_OFF
                 volume = if (muted) 0f else 1f
                 prepare()
             }
     }
+    var hasRenderedFirstFrame by remember(exoPlayer) { mutableStateOf(false) }
+    var letterboxZoom by remember(exoPlayer) { mutableFloatStateOf(1f) }
+    val letterboxZoomState = animateFloatAsState(
+        targetValue = letterboxZoom,
+        animationSpec = tween(durationMillis = 400),
+        label = "heroTrailerLetterboxZoom",
+    )
 
     var hasRenderedFirstFrame by remember(exoPlayer) { mutableStateOf(false) }
     var letterboxZoom by remember(exoPlayer) { mutableFloatStateOf(1f) }
@@ -141,6 +153,10 @@ actual fun HeroTrailerPlayerSurface(
                 playerContainer?.setVideoSize(videoSize)
             }
 
+            override fun onRenderedFirstFrame() {
+                hasRenderedFirstFrame = true
+            }
+
             override fun onPlayerError(error: PlaybackException) {
                 detachVideoSurface()
                 latestOnError.value()
@@ -171,6 +187,7 @@ actual fun HeroTrailerPlayerSurface(
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
             exoPlayer.removeListener(listener)
+            latestOnPositionUpdate.value(exoPlayer.currentPosition)
             detachVideoSurface()
             exoPlayer.stop()
             exoPlayer.release()
@@ -233,6 +250,33 @@ actual fun HeroTrailerPlayerSurface(
         val sampler = LetterboxSampler()
         try {
             while (isActive) {
+                delay(LetterboxDetector.SAMPLE_INTERVAL_MS)
+                if (LetterboxDetector.isSampleWindowOver(exoPlayer.currentPosition, exoPlayer.duration)) break
+                if (!exoPlayer.isPlaying) continue
+                val textureView = playerContainer?.textureView ?: continue
+                val bar = sampler.sample(textureView) ?: continue
+                letterboxZoom = tracker.onSample(bar) ?: continue
+                break
+            }
+        } finally {
+            sampler.release()
+        }
+    }
+
+    LaunchedEffect(exoPlayer) {
+        while (isActive) {
+            latestOnPositionUpdate.value(exoPlayer.currentPosition)
+            delay(500L)
+        }
+    }
+
+    LaunchedEffect(exoPlayer, hasRenderedFirstFrame) {
+        letterboxZoom = 1f
+        if (!hasRenderedFirstFrame) return@LaunchedEffect
+        val tracker = LetterboxTracker()
+        val sampler = LetterboxSampler()
+        try {
+            while (true) {
                 delay(LetterboxDetector.SAMPLE_INTERVAL_MS)
                 if (LetterboxDetector.isSampleWindowOver(exoPlayer.currentPosition, exoPlayer.duration)) break
                 if (!exoPlayer.isPlaying) continue

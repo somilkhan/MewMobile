@@ -3,21 +3,40 @@ package com.nuvio.app.features.player
 import kotlin.math.max
 
 object PlayerSubtitleCueParser {
-    fun parse(text: String, sourceUrl: String? = null): List<SubtitleSyncCue> {
-        val normalized = text
-            .removePrefix("\uFEFF")
-            .replace("\r\n", "\n")
-            .replace('\r', '\n')
-            .trim()
-        if (normalized.isBlank()) return emptyList()
+    private val timestampRegex = Regex("""(?:(\d+):)?(\d{1,2}):(\d{2})([.,](\d+))?""")
 
-        return when (detectSubtitleFormat(sourceUrl, normalized)) {
-            SubtitleFormatHint.WebVtt -> parseWebVtt(normalized)
-            SubtitleFormatHint.Ass -> parseAss(normalized)
-            SubtitleFormatHint.Ttml -> parseTtml(normalized)
-            SubtitleFormatHint.Srt -> parseSrt(normalized)
+    fun parse(text: String, sourceUrl: String? = null): List<SubtitleSyncCue> {
+        val cleanedText = cleanText(text)
+        return when (detectSubtitleFormat(sourceUrl, cleanedText)) {
+            SubtitleFormatHint.WebVtt -> parseVtt(cleanedText)
+            SubtitleFormatHint.Ass -> parseAss(cleanedText)
+            SubtitleFormatHint.Ttml -> parseTtml(cleanedText)
+            SubtitleFormatHint.Srt -> parseSrt(cleanedText)
         }
     }
+
+    fun parseFromText(rawText: String, sourceUrl: String): List<SubtitleSyncCue> {
+        val cleanedText = cleanText(rawText)
+        return when (detectSubtitleFormat(sourceUrl, cleanedText)) {
+            SubtitleFormatHint.WebVtt -> parseVtt(cleanedText)
+            SubtitleFormatHint.Srt -> parseSrt(cleanedText)
+            SubtitleFormatHint.Ass, SubtitleFormatHint.Ttml -> emptyList()
+        }
+    }
+
+    internal fun fileExtension(text: String, sourceUrl: String): String =
+        when (detectSubtitleFormat(sourceUrl, cleanText(text))) {
+            SubtitleFormatHint.Srt -> "srt"
+            SubtitleFormatHint.WebVtt -> "vtt"
+            SubtitleFormatHint.Ass -> "ass"
+            SubtitleFormatHint.Ttml -> "ttml"
+        }
+
+    private fun cleanText(rawText: String): String =
+        rawText
+            .replace("\uFEFF", "")
+            .replace("\r\n", "\n")
+            .replace('\r', '\n')
 
     private enum class SubtitleFormatHint {
         Srt,
@@ -35,7 +54,7 @@ object PlayerSubtitleCueParser {
         val sample = text.take(4_096).lowercase()
 
         return when {
-            sourcePath.endsWith(".vtt") || sourcePath.endsWith(".webvtt") || text.startsWith("WEBVTT") ->
+            sourcePath.endsWith(".vtt") || sourcePath.endsWith(".webvtt") || text.trimStart().startsWith("WEBVTT") ->
                 SubtitleFormatHint.WebVtt
             sourcePath.endsWith(".ass") || sourcePath.endsWith(".ssa") ||
                 (sample.contains("[events]") && sample.contains("dialogue:")) ->
@@ -61,7 +80,17 @@ object PlayerSubtitleCueParser {
                     .cleanSubtitleCueText()
                 if (body.isBlank()) null else SubtitleSyncCue(start, end, body)
             }
-            .sortedBy { it.startTimeMs }
+            val timing = lines.getOrNull(index) ?: continue
+            if (!timing.contains("-->")) continue
+            val (startTimeMs, endTimeMs) = parseStartEndTimeMs(timing) ?: continue
+            if (endTimeMs - startTimeMs <= 0) continue
+            val textLines = lines.drop(index + 1)
+            val cueText = normalizeCueText(textLines.joinToString("\n"))
+            if (cueText.isBlank()) continue
+            cues += SubtitleSyncCue(startTimeMs = startTimeMs, endTimeMs = endTimeMs, text = cueText)
+        }
+        return cues
+    }
 
     private fun parseWebVtt(text: String): List<SubtitleSyncCue> =
         text.lines()
@@ -80,7 +109,44 @@ object PlayerSubtitleCueParser {
                     .cleanSubtitleCueText()
                 if (body.isBlank()) null else SubtitleSyncCue(start, end, body)
             }
-            .sortedBy { it.startTimeMs }
+
+            val (startTimeMs, endTimeMs) = parseStartEndTimeMs(timingLine) ?: run {
+                cursor++
+                continue
+            }
+            if (endTimeMs - startTimeMs <= 0) {
+                cursor++
+                continue
+            }
+
+            val textParts = mutableListOf<String>()
+            var i = textStart
+            while (i < lines.size && lines[i].isNotBlank()) {
+                textParts += lines[i].trim()
+                i++
+            }
+            val cueText = normalizeCueText(textParts.joinToString("\n"))
+            if (cueText.isNotBlank()) {
+                cues += SubtitleSyncCue(startTimeMs = startTimeMs, endTimeMs = endTimeMs, text = cueText)
+            }
+            cursor = i + 1
+        }
+
+        return cues
+    }
+
+    private val defaultAssFormatFields = listOf(
+        "Layer",
+        "Start",
+        "End",
+        "Style",
+        "Name",
+        "MarginL",
+        "MarginR",
+        "MarginV",
+        "Effect",
+        "Text",
+    )
 
     private fun parseAss(text: String): List<SubtitleSyncCue> {
         var inEventsSection = false
@@ -131,13 +197,14 @@ object PlayerSubtitleCueParser {
     }
 
     private fun parseTtml(text: String): List<SubtitleSyncCue> =
-        Regex("""<p\b([^>]*)>([\s\S]*?)</p>""", RegexOption.IGNORE_CASE)
+        Regex("""(?is)<p\b([^>]*)>(.*?)</p>""")
             .findAll(text)
             .mapNotNull { match ->
                 val attrs = match.groupValues[1]
                 val startRaw = attrs.attributeValue("begin")
                     ?: attrs.attributeValue("start")
                     ?: return@mapNotNull null
+                val endRaw = attrs.attributeValue("end")
                 val start = parseTtmlTimestamp(startRaw) ?: return@mapNotNull null
                 val end = attrs.attributeValue("end")
                     ?.let(::parseTtmlTimestamp)
@@ -184,7 +251,7 @@ object PlayerSubtitleCueParser {
         if (cleaned.isBlank()) return null
 
         parseClockTimeWithFrames(cleaned)?.let { return it }
-        parseTimestamp(cleaned)?.let { return it }
+        parseTimestampMs(cleaned)?.let { return it }
 
         val match = Regex("""^([0-9]+(?:\.[0-9]+)?)(ms|h|m|s)$""", RegexOption.IGNORE_CASE)
             .matchEntire(cleaned)
@@ -211,18 +278,44 @@ object PlayerSubtitleCueParser {
         return max(0L, hours * 3_600_000L + minutes * 60_000L + seconds * 1_000L + frames * 1_000L / 30L)
     }
 
-    private val defaultAssFormatFields = listOf(
-        "Layer",
-        "Start",
-        "End",
-        "Style",
-        "Name",
-        "MarginL",
-        "MarginR",
-        "MarginV",
-        "Effect",
-        "Text",
-    )
+    private fun isWebVttMetadataBlockHeader(line: String): Boolean {
+        return line == "STYLE" ||
+            line == "REGION" ||
+            line == "NOTE" ||
+            line.startsWith("NOTE ") ||
+            line.startsWith("NOTE\t")
+    }
+
+    private fun skipWebVttBlock(lines: List<String>, start: Int): Int {
+        var cursor = start
+        while (cursor < lines.size && lines[cursor].isNotBlank()) {
+            cursor++
+        }
+        return if (cursor < lines.size) cursor + 1 else cursor
+    }
+
+    private fun parseStartEndTimeMs(timingLine: String): Pair<Long, Long>? {
+        val parts = timingLine.split("-->")
+        if (parts.size != 2) return null
+        val startTimeMs = parseTimestampMs(parts[0].trim().substringBefore(' ')) ?: return null
+        val endTimeMs = parseTimestampMs(parts[1].trim().substringBefore(' ')) ?: return null
+        return startTimeMs to endTimeMs
+    }
+
+    private fun parseTimestampMs(rawTimestamp: String): Long? {
+        val match = timestampRegex.matchEntire(rawTimestamp.trim()) ?: return null
+        val hours = match.groupValues[1].toLongOrNull() ?: 0L
+        val minutes = match.groupValues[2].toLongOrNull() ?: 0L
+        val seconds = match.groupValues[3].toLongOrNull() ?: 0L
+        val millisRaw = match.groupValues[5]
+        val millis = when (millisRaw.length) {
+            0 -> 0L
+            1 -> "${millisRaw}00".toLong()
+            2 -> "${millisRaw}0".toLong()
+            else -> millisRaw.take(3).toLongOrNull() ?: 0L
+        }
+        return ((hours * 3600L) + (minutes * 60L) + seconds) * 1000L + millis
+    }
 
     private fun List<String>.indexOfField(name: String): Int =
         indexOfFirst { it.equals(name, ignoreCase = true) }
@@ -234,20 +327,18 @@ object PlayerSubtitleCueParser {
             ?.getOrNull(1)
             ?.takeIf { it.isNotBlank() }
 
-    private fun String.cleanAssCueText(): String =
-        replace(Regex("""\{[^}]*}"""), "")
-            .replace("\\N", " ")
-            .replace("\\n", " ")
-            .replace("\\h", " ")
-
-    private fun String.cleanSubtitleCueText(): String =
-        replace(Regex("<[^>]+>"), "")
+    private fun normalizeCueText(text: String): String {
+        return text
+            .replace(Regex("""<(?:\d+:)?\d{1,2}:\d{2}(?:[.,]\d+)?>"""), "")
+            .replace(Regex("""</?[a-zA-Z0-9._-]+(?: [^>]*)?>"""), "")
             .replace("&nbsp;", " ")
             .replace("&amp;", "&")
             .replace("&lt;", "<")
             .replace("&gt;", ">")
             .replace("&quot;", "\"")
-            .replace("&apos;", "'")
-            .replace(Regex("\\s+"), " ")
-            .trim()
+            .lines()
+            .map { it.replace(Regex("""[ \t]+"""), " ").trim() }
+            .filter { it.isNotBlank() }
+            .joinToString("\n")
+    }
 }

@@ -21,13 +21,19 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.getString
+
+private const val KEY_HAD_ACCOUNT_SESSION = "had_account_session"
+private const val KEY_SIGNED_OUT_NOTICE = "signed_out_notice"
 
 object AuthRepository {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -40,6 +46,7 @@ object AuthRepository {
     val error: StateFlow<String?> = _error.asStateFlow()
 
     private var initialized = false
+    private var sessionStatusJob: Job? = null
     private var validatedRemoteUserId: String? = null
     private var remoteValidationJob: Job? = null
 
@@ -57,7 +64,10 @@ object AuthRepository {
             )
         }
 
-        scope.launch {
+        sessionStatusJob = scope.launch {
+            if (AuthStorage.loadFlag(KEY_SIGNED_OUT_NOTICE)) {
+                _error.value = getString(Res.string.auth_notice_signed_out)
+            }
             SupabaseProvider.client.auth.sessionStatus.collect { status ->
                 if (AuthStorage.loadAnonymousUserId() != null) return@collect
                 when (status) {
@@ -129,7 +139,8 @@ object AuthRepository {
             validatedRemoteUserId = userId
             true
         }.getOrElse { e ->
-            if (isInvalidRemoteSessionError(e)) {
+            val invalid = if (e.isJwtExpiredError()) refreshRejected() else e.isInvalidSessionError()
+            if (invalid) {
                 log.w(e) { "Stored Supabase session no longer belongs to an active account; clearing local auth" }
                 clearLocalSessionAfterRemoteInvalidation()
                 false
@@ -204,6 +215,7 @@ object AuthRepository {
             this.email = email
             this.password = password
         }
+        trustNextSessionWithoutValidation = true
         Unit
     }.onFailure { e ->
         log.e(e) { "Email sign-up failed" }
@@ -217,6 +229,7 @@ object AuthRepository {
             this.email = email
             this.password = password
         }
+        trustNextSessionWithoutValidation = true
     }.onFailure { e ->
         log.e(e) { "Email sign-in failed" }
         _error.value = e.safeAuthErrorDescription()
@@ -225,6 +238,7 @@ object AuthRepository {
 
     suspend fun signOut(): Result<Unit> {
         _error.value = null
+        val accountUserId = (state.value as? AuthState.Authenticated)?.userId
         val anonymousRead = runCatching { AuthStorage.loadAnonymousUserId() }
         val wasAnonymous = anonymousRead.getOrNull() != null
         val anonymousClear = runCatching { AuthStorage.clearAnonymousUserId() }
@@ -267,12 +281,47 @@ object AuthRepository {
         }
     }
 
+    suspend fun prepareForServerSwitch(): Result<Unit> {
+        _error.value = null
+        val anonymousClear = runCatching { AuthStorage.clearAnonymousUserId() }
+        AuthStorage.saveFlag(KEY_HAD_ACCOUNT_SESSION, false)
+        validatedRemoteUserId = null
+        val sessionClear = runCatching { SupabaseProvider.client.auth.clearSession() }
+        _state.value = AuthState.Unauthenticated
+        val failure = anonymousClear.exceptionOrNull() ?: sessionClear.exceptionOrNull()
+        val cancellation = sessionClear.exceptionOrNull() as? CancellationException
+        if (cancellation != null) throw cancellation
+        return if (failure == null) Result.success(Unit) else Result.failure(failure)
+    }
+
+    fun reinitialize() {
+        sessionStatusJob?.cancel()
+        sessionStatusJob = null
+        initialized = false
+        validatedRemoteUserId = null
+        _state.value = AuthState.Loading
+        initialize()
+    }
+
     suspend fun signOutIfSessionInvalid(error: Throwable, source: String): Boolean {
-        if (!isInvalidRemoteSessionError(error)) return false
+        val invalid = if (error.isJwtExpiredError()) refreshRejected() else error.isDeletedAccountError()
+        if (!invalid) return false
 
         log.w(error) { "$source failed because the current Supabase account/session is no longer valid; clearing local auth" }
         clearLocalSessionAfterRemoteInvalidation()
         return true
+    }
+
+    private suspend fun refreshRejected(): Boolean = refreshMutex.withLock {
+        try {
+            SupabaseProvider.client.auth.refreshCurrentSession()
+            false
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Throwable) {
+            log.w(e) { "Supabase session refresh failed" }
+            e.isInvalidRefreshError()
+        }
     }
 
     private suspend fun clearLocalSessionAfterRemoteInvalidation() {
@@ -294,13 +343,15 @@ object AuthRepository {
 
     suspend fun deleteAccount(): Result<Unit> = runCatching {
         _error.value = null
+        val accountUserId = (state.value as? AuthState.Authenticated)?.userId
         SupabaseProvider.client.functions.invoke("delete-account")
+        AuthStorage.saveFlag(KEY_HAD_ACCOUNT_SESSION, false)
         SupabaseProvider.client.auth.signOut()
         remoteValidationJob?.cancel()
         remoteValidationJob = null
         validatedRemoteUserId = null
         try {
-            LocalAccountDataCleaner.wipe()
+            LocalAccountDataCleaner.wipe(accountUserId)
         } finally {
             AuthStorage.clearLocalDataOwnerUserId()
             _state.value = AuthState.Unauthenticated

@@ -3,15 +3,9 @@ package com.nuvio.app.features.player
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeContent
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
@@ -19,6 +13,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.nuvio.app.features.p2p.P2pLoadingStatus
+import com.nuvio.app.features.home.MetaPreview
+import com.nuvio.app.features.player.skip.MovieRecommendationCard
 import com.nuvio.app.features.player.skip.NextEpisodeCard
 import com.nuvio.app.features.player.skip.NextEpisodeInfo
 import com.nuvio.app.features.player.skip.SkipIntroButton
@@ -27,7 +23,9 @@ import com.nuvio.app.features.player.skip.SkipInterval
 @Composable
 internal fun BoxScope.PlayerPlaybackOverlays(
     playerControlsLocked: Boolean,
+    useLegacyLayout: Boolean,
     lockedOverlayVisible: Boolean,
+    showRemainingTime: Boolean = false,
     playbackSnapshot: PlayerPlaybackSnapshot,
     displayedPositionMs: Long,
     metrics: PlayerLayoutMetrics,
@@ -38,7 +36,8 @@ internal fun BoxScope.PlayerPlaybackOverlays(
     logo: String?,
     title: String,
     onBackWithProgress: () -> Unit,
-    p2pInitialLoadingMessage: String?,
+    openingLoadingMessage: String?,
+    openingNetworkSpeed: String? = null,
     p2pInitialLoadingProgress: Float?,
     showP2pRebufferStats: Boolean,
     p2pRebufferMessage: String?,
@@ -48,6 +47,7 @@ internal fun BoxScope.PlayerPlaybackOverlays(
     initialLoadCompleted: Boolean,
     pausedOverlayVisible: Boolean,
     activeSkipInterval: SkipInterval?,
+    skipsToPostCredits: Boolean,
     skipIntervalDismissed: Boolean,
     controlsVisible: Boolean,
     onSkipInterval: (SkipInterval) -> Unit,
@@ -61,6 +61,7 @@ internal fun BoxScope.PlayerPlaybackOverlays(
     nextEpisodeAutoPlayReady: Boolean,
     nextEpisodeAutoPlaySourceName: String?,
     nextEpisodeAutoPlayCountdown: Int?,
+    blurUnwatchedEpisodes: Boolean,
     onPlayNextEpisode: () -> Unit,
     onDismissNextEpisode: () -> Unit,
     nextEpisodeSwipeDismissEnabled: Boolean = false,
@@ -80,6 +81,8 @@ internal fun BoxScope.PlayerPlaybackOverlays(
             metrics = metrics,
             horizontalSafePadding = horizontalSafePadding,
             onUnlock = onUnlock,
+            useLegacyLayout = useLegacyLayout,
+            showRemainingTime = showRemainingTime,
             modifier = Modifier.fillMaxSize(),
         )
     }
@@ -123,30 +126,18 @@ internal fun BoxScope.PlayerPlaybackOverlays(
             .padding(top = 58.dp),
     )
 
-    AnimatedVisibility(
-        visible = currentGestureFeedback != null,
-        enter = fadeIn(),
-        exit = fadeOut(),
-    ) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-        ) {
-            renderedGestureFeedback?.let { feedback ->
-                GestureFeedbackPill(
-                    feedback = feedback,
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .windowInsetsPadding(WindowInsets.safeContent.only(WindowInsetsSides.Top))
-                        .padding(horizontal = horizontalSafePadding)
-                        .padding(top = 40.dp),
-                )
-            }
-        }
-    }
+    PlayerGestureOverlay(
+        currentFeedback = currentGestureFeedback,
+        renderedFeedback = renderedGestureFeedback,
+        useLegacyLayout = useLegacyLayout,
+        horizontalSafePadding = horizontalSafePadding,
+        horizontalPadding = metrics.horizontalPadding,
+    )
 
     if (!playerControlsLocked) {
         SkipIntroButton(
             interval = if (!initialLoadCompleted || pausedOverlayVisible) null else activeSkipInterval,
+            skipsToPostCredits = skipsToPostCredits,
             dismissed = skipIntervalDismissed,
             controlsVisible = controlsVisible,
             onSkip = {
@@ -162,14 +153,29 @@ internal fun BoxScope.PlayerPlaybackOverlays(
     if (isSeries && !playerControlsLocked) {
         NextEpisodeCard(
             nextEpisode = nextEpisodeInfo,
-            visible = showNextEpisodeCard,
+            visible = showNextEpisodeCard || nextEpisodeAutoPlaySearching || nextEpisodeAutoPlayCountdown != null,
             isAutoPlaySearching = nextEpisodeAutoPlaySearching,
             isAutoPlayReady = nextEpisodeAutoPlayReady,
             autoPlaySourceName = nextEpisodeAutoPlaySourceName,
             autoPlayCountdownSec = nextEpisodeAutoPlayCountdown,
+            blurred = blurUnwatchedEpisodes && nextEpisodeInfo?.isWatched == false,
             onPlayNext = onPlayNextEpisode,
             onDismiss = onDismissNextEpisode,
             swipeDismissEnabled = nextEpisodeSwipeDismissEnabled,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = sliderEdgePadding, bottom = overlayBottomPadding),
+        )
+    }
+
+    if (!isSeries && !playerControlsLocked) {
+        MovieRecommendationCard(
+            recommendations = movieRecommendations,
+            stage = movieRecommendationStage,
+            dismissed = !showMovieRecommendationCard,
+            controlsVisible = controlsVisible,
+            onOpen = onOpenMovieRecommendation,
+            onDismiss = onDismissMovieRecommendations,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(end = sliderEdgePadding, bottom = overlayBottomPadding),

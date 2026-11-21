@@ -15,11 +15,20 @@ internal expect fun nuvioBottomNavigationBarInsets(): WindowInsets
 @Composable
 internal expect fun platformPhysicalTopInset(): Dp
 
+@Composable
+internal expect fun ResizeForKeyboard()
+
+data class NativeBarButtonAnchor(val centerY: Dp, val trailingCenterX: Dp)
+
+@Composable
+internal expect fun platformNativeBarButtonAnchor(): NativeBarButtonAnchor?
+
 internal val LocalNuvioBottomNavigationOverlayPadding = staticCompositionLocalOf { 0.dp }
 val LocalNuvioNavBarScrollState = staticCompositionLocalOf<NuvioNavBarScrollState?> { null }
 
 @Composable
 internal fun nuvioSafeBottomPadding(extra: Dp = 0.dp): Dp {
+	if (LocalBottomInsetsConsumed.current) return extra
 	val navigationBarBottom = nuvioBottomNavigationBarInsets()
 		.asPaddingValues()
 		.calculateBottomPadding()

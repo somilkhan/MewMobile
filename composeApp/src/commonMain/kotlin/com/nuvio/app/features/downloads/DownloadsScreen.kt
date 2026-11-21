@@ -85,9 +85,11 @@ import org.jetbrains.compose.resources.stringResource
 fun DownloadsScreen(
     onBack: () -> Unit,
     onOpenDownload: (DownloadItem) -> Unit,
+    onOpenDetails: (DownloadItem) -> Unit,
     initialShowId: String? = null,
     onNavigateToShow: ((showId: String, title: String) -> Unit)? = null,
     onBackFromShow: (() -> Unit)? = null,
+    onOpenSettings: (() -> Unit)? = null,
 ) {
     val uiState by remember {
         DownloadsRepository.ensureLoaded()
@@ -158,17 +160,15 @@ fun DownloadsScreen(
                     }
                 },
                 actions = {
-                    IconButton(
-                        onClick = {
-                            if (!DownloadsPlatformDownloader.openDownloadsDirectory()) {
-                                NuvioToastController.show(openDownloadsDirectoryFailedText)
-                            }
-                        },
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Folder,
-                            contentDescription = stringResource(Res.string.downloads_open_directory),
-                        )
+                    OpenDownloadsFolderButton(tint = MaterialTheme.nuvio.colors.textPrimary)
+                    if (selectedShowId == null && onOpenSettings != null) {
+                        IconButton(onClick = onOpenSettings) {
+                            Icon(
+                                imageVector = Icons.Rounded.Settings,
+                                contentDescription = stringResource(Res.string.compose_settings_page_root),
+                                tint = MaterialTheme.nuvio.colors.textPrimary,
+                            )
+                        }
                     }
                 },
             )
@@ -201,6 +201,7 @@ fun DownloadsScreen(
                     group.searches.forEach { DownloadsRepository.removePendingSourceSearch(it.id) }
                     NuvioToastController.show(pendingCancelledText)
                 },
+                onOpenActions = onOpenActions,
             )
         } else {
             downloadsShowContent(
@@ -313,6 +314,7 @@ private fun LazyListScope.downloadsRootContent(
                 onOpenActions = { onOpenActions(item) },
             )
         }
+        return
     }
 
     if (pendingGroups.isNotEmpty()) {

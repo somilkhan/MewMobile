@@ -27,6 +27,7 @@ object DownloadsRepository {
     private val stateLock = SynchronizedObject()
     private val activeHandles = mutableMapOf<String, DownloadsTaskHandle>()
     private var hasLoaded = false
+    private var isObservingInputs = false
     private var nextDownloadOrdinal = 0L
     private var lastProgressPersistAtEpochMs = 0L
     private val networkScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -224,7 +225,7 @@ object DownloadsRepository {
             episodeTitle = episodeTitle,
             fallbackTitle = stream.streamLabel,
             sourceUrl = sourceUrl,
-            nowEpochMs = now,
+            downloadId = downloadId,
         )
         val detailsSnapshot = snapshotCurrentDetails(
             contentType = contentType,
@@ -233,7 +234,7 @@ object DownloadsRepository {
             videoId = videoId,
         )
 
-        val item = DownloadItem(
+        val queuedItem = DownloadItem(
             id = downloadId,
             contentType = contentType,
             parentMetaId = parentMetaId,
@@ -257,6 +258,12 @@ object DownloadsRepository {
             sourceUrl = sourceUrl,
             sourceHeaders = sanitizeRequestHeaders(stream.behaviorHints.proxyHeaders?.request),
             sourceResponseHeaders = sanitizeResponseHeaders(stream.behaviorHints.proxyHeaders?.response),
+            subtitleRequests = addonSubtitleRequests(
+                type = contentType,
+                videoId = videoId,
+                extras = SubtitleRequestExtras.from(stream.behaviorHints, sourceUrl),
+            ),
+            sourceSubtitles = stream.externalSubtitles,
             localFileUri = null,
             fileName = fileName,
             status = DownloadStatus.Waiting,
@@ -312,7 +319,9 @@ object DownloadsRepository {
                 (if (replacedExisting) "(replaced)" else "(new)")
         }
 
-        return if (replacedExisting) {
+        return if (item.status == DownloadStatus.Queued) {
+            DownloadEnqueueResult.Queued
+        } else if (replacedExisting) {
             DownloadEnqueueResult.Replaced
         } else {
             DownloadEnqueueResult.Started
@@ -429,6 +438,15 @@ object DownloadsRepository {
     }
 
     fun pauseDownload(downloadId: String) {
+        pauseDownloads(listOf(downloadId))
+    }
+
+    fun pauseActiveDownloads() {
+        pauseActiveDownloadsMatching { true }
+    }
+
+    /** Pauses the download if it is running or queued; otherwise resumes or retries it. */
+    fun togglePause(downloadId: String) {
         ensureLoaded()
         val log = Logger.withTag("Downloads")
         val item = _uiState.value.items.firstOrNull { it.id == downloadId } ?: return
@@ -450,12 +468,52 @@ object DownloadsRepository {
         promoteWaitingDownload()
     }
 
-    fun pauseActiveDownloads() {
+    /** Pauses every matching active item in one update before advancing the queue. */
+    private fun pauseActiveDownloadsMatching(predicate: (DownloadItem) -> Boolean) {
+        ensureLoaded()
+        val current = _uiState.value.items
+        val targets = current.filter { it.isActive && predicate(it) }
+        if (targets.isEmpty()) return
+        val ids = targets.mapTo(mutableSetOf()) { it.id }
+        setStatus(ids, DownloadStatus.Paused)
+        advanceDownloadQueue()
+    }
+
+    private fun setStatus(ids: Set<String>, status: DownloadStatus) {
+        if (ids.isEmpty()) return
+        val current = _uiState.value.items
+        ids.forEach { dropHandle(it)?.cancel() }
+        val now = DownloadsClock.nowEpochMs()
+        publish(current.map { item ->
+            if (item.id in ids) item.copy(status = status, updatedAtEpochMs = now, errorMessage = null) else item
+        })
+        persist()
+    }
+
+    /** Resumes paused episodes of [seriesId] and retries its failed ones. */
+    private fun resumeOrRetrySeriesDownloads(seriesId: String) {
         ensureLoaded()
         _uiState.value.items
-            .filter { it.status == DownloadStatus.Downloading }
+            .filter { it.parentMetaId == seriesId && it.isResumable }
             .map { it.id }
-            .forEach(::pauseDownload)
+            .let(::resumeDownloads)
+    }
+
+    /** Resumes every paused download and retries every failed one. */
+    fun resumeOrRetryAllDownloads() {
+        ensureLoaded()
+        _uiState.value.items
+            .filter { it.isResumable }
+            .map { it.id }
+            .let(::resumeDownloads)
+    }
+
+    fun resumePausedDownloads() {
+        ensureLoaded()
+        _uiState.value.items
+            .filter { it.status == DownloadStatus.Paused }
+            .map { it.id }
+            .forEach(::resumeDownload)
     }
 
     fun resumePausedDownloads() {
@@ -467,6 +525,11 @@ object DownloadsRepository {
     }
 
     fun resumeDownload(downloadId: String) {
+        resumeDownloads(listOf(downloadId))
+    }
+
+    /** Requeues paused and failed downloads; the queue starts items in persisted creation order. */
+    fun resumeDownloads(ids: Collection<String>) {
         ensureLoaded()
         val log = Logger.withTag("Downloads")
         val item = _uiState.value.items.firstOrNull { it.id == downloadId } ?: return
@@ -488,7 +551,7 @@ object DownloadsRepository {
             updatedAtEpochMs = DownloadsClock.nowEpochMs(),
         )
 
-        replaceItem(reset)
+        publish(current.map { resetById[it.id] ?: it })
         persist()
         if (resumeImmediately) {
             startDownload(reset)
@@ -499,13 +562,19 @@ object DownloadsRepository {
         }
     }
 
-    fun retryDownload(downloadId: String) {
-        resumeDownload(downloadId)
+    fun pauseDownloads(downloadIds: Collection<String>) {
+        pauseActiveDownloadsMatching { it.id in downloadIds }
     }
 
-    fun cancelDownload(downloadId: String) {
-        ensureLoaded()
+    internal fun reattachBackgroundDownload(downloadId: String) {
+        if (!hasLoaded) return
         val item = _uiState.value.items.firstOrNull { it.id == downloadId } ?: return
+        dropHandle(downloadId)?.cancel()
+        val restored = DownloadsPlatformDownloader.restoreItem(item)
+        replaceItem(restored)
+        persist()
+        if (restored.status == DownloadStatus.Downloading) startDownload(restored)
+    }
 
         removeActiveHandle(downloadId)?.cancel()
         DownloadsPlatformDownloader.removeFile(playableLocalFileUri(item) ?: item.localFileUri)
@@ -559,10 +628,15 @@ object DownloadsRepository {
     private fun loadFromDisk() {
         val payload = DownloadsStorage.loadPayload().orEmpty().trim()
         if (payload.isEmpty()) {
+            OfflineMetadataRepository.ensureLoaded()
             _uiState.value = DownloadsUiState()
+            OfflineMetadataRepository.setDownloads(emptyList())
             notifyLiveStatusPlatform()
             return
         }
+
+        val decoded = DownloadsCodec.decodePayload(payload)
+        OfflineMetadataRepository.migrateLegacy(decoded.showMetadata)
 
         var shouldPersistNormalized = false
         val decoded = DownloadsCodec.decode(payload)
@@ -618,6 +692,10 @@ object DownloadsRepository {
         if (shouldPersistNormalized) {
             persist()
         }
+        queuedNormalized
+            .filter { it.status == DownloadStatus.Downloading && it.id !in activeHandles }
+            .forEach(::startDownload)
+        advanceDownloadQueue()
     }
 
     private fun startDownload(item: DownloadItem) {
@@ -660,8 +738,10 @@ object DownloadsRepository {
                             downloadSpeedBytesPerSecond = smoothedSpeed,
                             updatedAtEpochMs = now,
                             errorMessage = null,
+                            updatedAtEpochMs = DownloadsClock.nowEpochMs(),
                         )
                     }
+                    advanceDownloadQueue()
                 }
                 log.d {
                     "progress: id=${item.id} videoId=${item.videoId} " +
@@ -777,6 +857,20 @@ object DownloadsRepository {
             notifyLiveStatusPlatform()
             if (persist) persist()
         }
+    }
+
+    /** Forgets a transfer's handle and its progress-save timestamp. */
+    private fun dropHandle(downloadId: String): DownloadsTaskHandle? {
+        lastProgressPersistAt.remove(downloadId)
+        return activeHandles.remove(downloadId)
+    }
+
+    private fun shouldPersistProgress(item: DownloadItem): Boolean {
+        val now = DownloadsClock.nowEpochMs()
+        val previous = lastProgressPersistAt[item.id] ?: 0L
+        if (now - previous < PROGRESS_PERSIST_INTERVAL_MS) return false
+        lastProgressPersistAt[item.id] = now
+        return true
     }
 
     private fun replaceItem(item: DownloadItem) {
@@ -896,22 +990,25 @@ object DownloadsRepository {
             item
         }
     }
-
-    private fun DownloadItem.hasPlayableLocalFile(): Boolean =
-        status == DownloadStatus.Completed &&
-            DownloadsPlatformDownloader.resolveLocalFileUri(
-                localFileUri = localFileUri,
-                destinationFileName = fileName,
-            ) != null
 }
 
+internal fun DownloadItem.hasPlayableLocalFile(): Boolean =
+    status == DownloadStatus.Completed &&
+        DownloadsPlatformDownloader.resolveLocalFileUri(
+            localFileUri = localFileUri,
+            destinationFileName = fileName,
+        ) != null
+
 @Serializable
-private data class StoredDownloadsPayload(
+internal data class StoredDownloadsPayload(
     val items: List<DownloadItem> = emptyList(),
     val pendingSourceSearches: List<PendingEpisodeDownload> = emptyList(),
 )
 
-private object DownloadsCodec {
+@Serializable
+private data class StoredDownloadItemsPayload(val items: List<DownloadItem> = emptyList())
+
+internal object DownloadsCodec {
     private val json = Json {
         ignoreUnknownKeys = true
         encodeDefaults = true
@@ -933,6 +1030,8 @@ private object DownloadsCodec {
             ),
         )
 }
+
+private const val PROGRESS_PERSIST_INTERVAL_MS = 5_000L
 
 private fun sanitizeRequestHeaders(headers: Map<String, String>?): Map<String, String> =
     headers
@@ -967,7 +1066,7 @@ private fun sanitizeResponseHeaders(headers: Map<String, String>?): Map<String, 
         }
         .toMap()
 
-private fun buildLogicalKey(
+internal fun buildLogicalKey(
     parentMetaId: String,
     seasonNumber: Int?,
     episodeNumber: Int?,
@@ -980,7 +1079,7 @@ private fun buildFileName(
     episodeTitle: String?,
     fallbackTitle: String,
     sourceUrl: String,
-    nowEpochMs: Long,
+    downloadId: String,
 ): String {
     val baseTitle = if (seasonNumber != null && episodeNumber != null) {
         buildString {
@@ -1002,7 +1101,7 @@ private fun buildFileName(
     return buildString {
         append(baseTitle.sanitizeFileName().ifBlank { "download" }.take(92))
         append('_')
-        append(nowEpochMs.toString(36))
+        append(downloadId)
         append('.')
         append(extension)
     }

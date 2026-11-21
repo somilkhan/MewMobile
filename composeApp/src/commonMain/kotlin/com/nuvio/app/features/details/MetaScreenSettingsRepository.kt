@@ -105,6 +105,16 @@ enum class MetaEpisodeCardStyle {
     }
 }
 
+internal fun MetaScreenSectionItem.tabGroupForRendering(
+    episodeCardStyle: MetaEpisodeCardStyle,
+): Int? = if (
+    key == MetaScreenSectionKey.EPISODES && episodeCardStyle == MetaEpisodeCardStyle.List
+) {
+    null
+} else {
+    tabGroup
+}
+
 @Serializable
 private data class StoredMetaScreenSectionPreference(
     val key: String,
@@ -145,6 +155,11 @@ private data class MetaScreenSectionDefinition(
 )
 
 object MetaScreenSettingsRepository {
+    /** Bounds for the "start hero trailer after N seconds" preference. */
+    const val MIN_HERO_TRAILER_START_DELAY_SECONDS = 0
+    const val MAX_HERO_TRAILER_START_DELAY_SECONDS = 10
+    const val DEFAULT_HERO_TRAILER_START_DELAY_SECONDS = 0
+
     private val json = Json {
         ignoreUnknownKeys = true
         encodeDefaults = true
@@ -387,6 +402,10 @@ object MetaScreenSettingsRepository {
         showDownloadAction: Boolean = false,
         showAnimeTrackingPencil: Boolean = false,
         backgroundMode: MetaScreenBackgroundMode? = null,
+        posterTransitionEnabled: Boolean = false,
+        showOverallRatings: Boolean = true,
+        episodeRatingsVisibility: EpisodeRatingsVisibility = EpisodeRatingsVisibility.SHOW_ALL,
+        showRatingMap: Boolean = true,
     ) {
         ensureLoaded()
         this.backgroundMode = backgroundMode ?: MetaScreenBackgroundMode.fromLegacyCinematic(cinematicBackground)

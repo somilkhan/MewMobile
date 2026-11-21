@@ -3,7 +3,6 @@ package com.nuvio.app.core.ui
 import androidx.compose.foundation.border
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.Path
@@ -19,8 +18,9 @@ import androidx.compose.ui.graphics.drawscope.clipPath
 @Composable
 fun rememberCardDepthStyleUiState(): CardDepthStyleUiState {
     CardDepthStyleRepository.ensureLoaded()
-    val uiState by CardDepthStyleRepository.uiState.collectAsState()
-    return uiState
+    val shared = LocalCardDepthStyleState.current
+    if (shared != null) return shared.value
+    return CardDepthStyleRepository.uiState.collectAsState().value
 }
 
 @Composable

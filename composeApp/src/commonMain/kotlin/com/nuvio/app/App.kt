@@ -64,7 +64,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
@@ -90,13 +89,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation3.runtime.NavKey
-import androidx.navigation3.runtime.entryProvider
-import androidx.navigation3.runtime.rememberNavBackStack
-import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
-import androidx.navigation3.ui.LocalNavAnimatedContentScope
-import androidx.navigation3.ui.NavDisplay
-import androidx.savedstate.serialization.SavedStateConfiguration
 import coil3.ImageLoader
 import coil3.annotation.ExperimentalCoilApi
 import coil3.compose.AsyncImage
@@ -318,94 +310,8 @@ import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
-private val navigationSavedStateConfiguration = SavedStateConfiguration {
-    serializersModule = SerializersModule {
-        polymorphic(NavKey::class) {
-            subclass(TabsRoute::class, TabsRoute.serializer())
-            subclass(DetailRoute::class, DetailRoute.serializer())
-            subclass(PersonDetailRoute::class, PersonDetailRoute.serializer())
-            subclass(EntityBrowseRoute::class, EntityBrowseRoute.serializer())
-            subclass(SettingsPageRoute::class, SettingsPageRoute.serializer())
-            subclass(HomescreenSettingsRoute::class, HomescreenSettingsRoute.serializer())
-            subclass(MetaScreenSettingsRoute::class, MetaScreenSettingsRoute.serializer())
-            subclass(ContinueWatchingSettingsRoute::class, ContinueWatchingSettingsRoute.serializer())
-            subclass(DownloadsSettingsRoute::class, DownloadsSettingsRoute.serializer())
-            subclass(DownloadShowRoute::class, DownloadShowRoute.serializer())
-            subclass(AddonsSettingsRoute::class, AddonsSettingsRoute.serializer())
-            subclass(PluginsSettingsRoute::class, PluginsSettingsRoute.serializer())
-            subclass(AccountSettingsRoute::class, AccountSettingsRoute.serializer())
-            subclass(SupportersContributorsSettingsRoute::class, SupportersContributorsSettingsRoute.serializer())
-            subclass(LicensesAttributionsSettingsRoute::class, LicensesAttributionsSettingsRoute.serializer())
-            subclass(CollectionsRoute::class, CollectionsRoute.serializer())
-            subclass(CollectionEditorRoute::class, CollectionEditorRoute.serializer())
-            subclass(CollectionEditorPageRoute::class, CollectionEditorPageRoute.serializer())
-            subclass(FolderDetailRoute::class, FolderDetailRoute.serializer())
-            subclass(StreamRoute::class, StreamRoute.serializer())
-            subclass(CatalogRoute::class, CatalogRoute.serializer())
-            subclass(PlayerRoute::class, PlayerRoute.serializer())
-        }
-    }
-}
-
-private data class PendingP2pStreamOpen(
-    val stream: StreamItem,
-    val resumePositionMs: Long?,
-    val resumeProgressFraction: Float?,
-    val forceExternal: Boolean,
-    val forceInternal: Boolean,
-    val isAutoPlay: Boolean,
-)
-
-private data class CatalogLaunch(
-    val title: String,
-    val subtitle: String,
-    val target: CatalogTarget,
-)
-
-private object CatalogLaunchStore {
-    private var nextLaunchId = 1L
-    private val launches = mutableMapOf<Long, CatalogLaunch>()
-
-    fun put(launch: CatalogLaunch): Long {
-        val launchId = nextLaunchId++
-        launches[launchId] = launch
-        return launchId
-    }
-
-    fun get(launchId: Long): CatalogLaunch? = launches[launchId]
-
-    fun remove(launchId: Long) {
-        launches.remove(launchId)
-    }
-}
-
-/** Idempotent cleanup used by both Navigation 3 and SwiftUI interactive-pop handling. */
 fun disposeRoute(route: AppRoute) {
-    when (route) {
-        is StreamRoute -> {
-            StreamsRepository.clear()
-            StreamLaunchStore.remove(route.launchId)
-        }
-
-        is PlayerRoute -> {
-            ResumePromptRepository.markPlayerExitedNormally()
-            PlayerLaunchStore.remove(route.launchId)
-        }
-
-        is CatalogRoute -> {
-            CatalogRepository.clear()
-            CatalogLaunchStore.remove(route.launchId)
-        }
-
-        is CollectionEditorRoute -> CollectionEditorRepository.clear()
-        is CollectionEditorPageRoute -> {
-            runCatching { CollectionEditorPage.valueOf(route.pageName) }
-                .getOrNull()
-                ?.let(::disposeCollectionEditorPage)
-        }
-        is FolderDetailRoute -> FolderDetailRepository.clear()
-        else -> Unit
-    }
+    disposeRouteResources(route)
 }
 
 private data class PosterActionTarget(
@@ -4252,7 +4158,8 @@ private fun AppTabHost(
                         onCollectionsClick = onCollectionsSettingsClick,
                     )
                 }
-            }
+                .configurePlatformImageLoader()
+                .build()
         }
     }
 
