@@ -99,3 +99,8 @@ private fun sha256(input: ByteArray): ByteArray {
 
 private fun Int.rotateRight(bits: Int): Int = (this ushr bits) or (this shl (32 - bits))
 
+
+internal fun isCloudStreamPackageVerified(
+    expectedHash: CloudStreamFileHash?,
+    bytes: ByteArray,
+): Boolean = expectedHash?.matches(bytes) == true

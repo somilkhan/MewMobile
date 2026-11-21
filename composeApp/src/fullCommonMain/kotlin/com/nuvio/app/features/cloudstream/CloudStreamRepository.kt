@@ -791,7 +791,7 @@ private fun cancelInFlightLoadLinksRequests() {
             val inspection = CloudStreamPackageInspector.inspect(bytes)
             CloudStreamPlatformRuntime.validatePackage(bytes, inspection)
             val expectedHash = item.metadata.fileHash
-            val verified = expectedHash?.matches(bytes) ?: true
+            val verified = isCloudStreamPackageVerified(expectedHash, bytes)
             if (expectedHash != null) require(verified) { ".cs3 SHA-256 hash mismatch" }
             currentCoroutineContext().ensureActive()
             synchronized(profileMutationLock) {
