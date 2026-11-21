@@ -18,7 +18,6 @@ import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -476,11 +475,12 @@ private fun DownloadRow(
                             }
                         }
                         DownloadStatus.Waiting -> {
-                            Icon(
-                                imageVector = Icons.Rounded.Schedule,
-                                contentDescription = stringResource(Res.string.downloads_status_waiting),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+                            IconButton(onClick = onPause) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Pause,
+                                    contentDescription = stringResource(Res.string.compose_action_pause),
+                                )
+                            }
                         }
                         DownloadStatus.Paused -> {
                             IconButton(onClick = onResume) {

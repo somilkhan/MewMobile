@@ -400,7 +400,7 @@ object DownloadsRepository {
         ensureLoaded()
         val log = Logger.withTag("Downloads")
         val item = _uiState.value.items.firstOrNull { it.id == downloadId } ?: return
-        if (item.status != DownloadStatus.Downloading) return
+        if (item.status != DownloadStatus.Downloading && item.status != DownloadStatus.Waiting) return
 
         removeActiveHandle(downloadId)?.cancel()
         mutateItem(downloadId) { current ->
