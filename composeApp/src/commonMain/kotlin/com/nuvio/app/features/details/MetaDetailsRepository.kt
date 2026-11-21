@@ -262,6 +262,22 @@ object MetaDetailsRepository {
         _uiState.value = MetaDetailsUiState()
     }
 
+    fun onProfileChanged() {
+        activeCloudStreamJob?.cancel()
+        activeCloudStreamJob = null
+        val cloudStreamKeys = cachedMetaByRequestKey.keys.filter { requestKey ->
+            parseCloudStreamRouteId(requestKey.substringAfter(':', missingDelimiterValue = "")) != null
+        }
+        cloudStreamKeys.forEach(cachedMetaByRequestKey::remove)
+        val currentMetaIsCloudStream = _uiState.value.meta?.id?.let(::parseCloudStreamRouteId) != null
+        val activeRequestIsCloudStream =
+            activeRequestKey?.substringAfter(':', missingDelimiterValue = "")?.let(::parseCloudStreamRouteId) != null
+        if (currentMetaIsCloudStream || activeRequestIsCloudStream) {
+            activeRequestKey = null
+            _uiState.value = MetaDetailsUiState()
+        }
+    }
+
     suspend fun fetch(
         type: String,
         id: String,
@@ -483,7 +499,7 @@ object MetaDetailsRepository {
     }
 
     private const val FETCH_TIMEOUT_MS = 5_000L
-private const val CLOUDSTREAM_DETAIL_TIMEOUT_MS = 120_000L
+    private const val CLOUDSTREAM_DETAIL_TIMEOUT_MS = 120_000L
     private const val ADDON_META_TIMEOUT_MS = 10_000L
     private const val METADATA_PROVIDER_READY_TIMEOUT_MS = 10_000L
     private const val TMDB_ENRICH_TIMEOUT_MS = 5_000L

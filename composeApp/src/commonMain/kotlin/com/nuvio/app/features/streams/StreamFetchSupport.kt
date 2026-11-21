@@ -113,6 +113,9 @@ internal fun cloudStreamProviderGroupsForRequest(
     if (!isCloudStreamDiscoveryAllowed(TmdbSettingsRepository.snapshot().enabled)) {
         return emptyList()
     }
+    if (directRoute == null && request?.title.isNullOrBlank()) {
+        return emptyList()
+    }
     CloudStreamRepository.initialize()
     val state = CloudStreamRepository.uiState.value
     val repositoryNames = state.repositories.associate { repository ->

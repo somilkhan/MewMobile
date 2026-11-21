@@ -186,6 +186,8 @@ object ProfileRepository {
         WatchProgressRepository.onProfileChanged(profileIndex)
         AddonRepository.onProfileChanged(profileIndex)
         com.nuvio.app.features.cloudstream.CloudStreamRepository.onProfileChanged(profileIndex)
+        com.nuvio.app.features.details.MetaDetailsRepository.onProfileChanged()
+        com.nuvio.app.features.streams.StreamsRepository.clear()
         if (com.nuvio.app.core.build.AppFeaturePolicy.pluginsEnabled) {
             PluginRepository.onProfileChanged(profileIndex)
         }
