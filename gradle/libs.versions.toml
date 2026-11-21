@@ -1,5 +1,4 @@
 [versions]
-androidx-savedstate = "1.4.0"
 agp = "9.4.0"
 android-compileSdk = "37"
 android-compileSdkMinor = "1"
