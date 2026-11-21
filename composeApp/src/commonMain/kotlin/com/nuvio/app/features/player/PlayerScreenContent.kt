@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -81,6 +82,11 @@ internal fun PlayerScreenContent(args: PlayerScreenArgs) {
 
     val runtime = remember { PlayerScreenRuntime(args) }
     runtime.args = args
+    runtime.isMiniPresentation = args.miniPresentation
+    DisposableEffect(runtime) {
+        MiniPlayerController.attach(runtime)
+        onDispose { MiniPlayerController.detach(runtime) }
+    }
 
     BoxWithConstraints(
         modifier = args.modifier
@@ -155,12 +161,15 @@ internal fun PlayerScreenContent(args: PlayerScreenArgs) {
         val keepScreenAwake = runtime.errorMessage == null &&
             (runtime.playbackSnapshot.isPlaying ||
                 (runtime.shouldPlay && runtime.playbackSnapshot.isLoading))
-        EnterImmersivePlayerMode(keepScreenAwake = keepScreenAwake)
+        if (!runtime.isMiniPresentation) {
+            EnterImmersivePlayerMode(keepScreenAwake = keepScreenAwake)
+        } else {
+        }
         ManagePlayerPictureInPicture(
             isPlaying = runtime.playbackSnapshot.isPlaying,
             videoSize = runtime.layoutSize,
         )
-        PlatformBackHandler(enabled = playerSettingsUiState.miniPlayerEnabled) {
+        PlatformBackHandler(enabled = playerSettingsUiState.miniPlayerEnabled && !runtime.isMiniPresentation) {
             runtime.flushWatchProgress()
             runtime.handOffToMiniPlayerIfEnabled()
             args.onBack()

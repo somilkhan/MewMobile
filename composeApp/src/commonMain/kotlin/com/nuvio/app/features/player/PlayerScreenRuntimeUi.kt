@@ -129,7 +129,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
         modifier = Modifier
             .fillMaxSize()
             .onSizeChanged { layoutSize = it }
-            .playerSurfaceTapGestures(
+            .then(if (isMiniPresentation) Modifier else Modifier.playerSurfaceTapGestures(
                 layoutSize = layoutSize,
                 playerControlsLockedState = gestureCallbacks.playerControlsLocked,
                 onSurfaceTap = gestureCallbacks.onSurfaceTap,
@@ -162,7 +162,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
                 playerControlsLockedState = gestureCallbacks.playerControlsLocked,
                 touchGesturesEnabledState = gestureCallbacks.touchGesturesEnabled,
                 onPinchZoomState = onPinchZoom,
-            ),
+            )),
     ) {
         val playerSurfaceSourceUrl = currentPlaybackSurfaceSourceUrl
         val initialPositionRequestKey = currentInitialPositionRequestKey()
@@ -215,6 +215,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
             )
         }
 
+        if (!isMiniPresentation) {
         AnimatedVisibility(
             visible = playerSettingsUiState.pauseOverlayEnabled && pausedOverlayVisible && !controlsVisible && !playerControlsLocked,
             enter = fadeIn(animationSpec = tween(durationMillis = 220)),
@@ -285,6 +286,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi() {
                     )
                 }
             }
+        }
         }
     }
 }

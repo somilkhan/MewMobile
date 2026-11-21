@@ -79,6 +79,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalDensity
@@ -2003,6 +2004,103 @@ private fun MainAppContent(
             selectedContinueWatchingForActions = item
         }
 
+        var miniPlayerBottomBarHeightPx by remember { mutableIntStateOf(0) }
+        val miniPlayerOnBack: () -> Unit = {
+            if (navController.currentRoute is PlayerRoute) navController.popBackStack()
+        }
+        val renderPlayerScreen: @Composable (PlayerLaunch, () -> Unit, Modifier, Boolean) -> Unit = { launch, onBack, modifier, miniPresentation ->
+            PlayerScreen(
+                profileId = launch.profileId,
+                miniPlayerLaunch = launch,
+                title = launch.title,
+                sourceUrl = launch.sourceUrl,
+                sourceAudioUrl = launch.sourceAudioUrl,
+                sourceHeaders = launch.sourceHeaders,
+                sourceResponseHeaders = launch.sourceResponseHeaders,
+                externalSubtitles = launch.externalSubtitles,
+                streamType = launch.streamType,
+                logo = launch.logo,
+                poster = launch.poster,
+                background = launch.background,
+                seasonNumber = launch.seasonNumber,
+                episodeNumber = launch.episodeNumber,
+                episodeTitle = launch.episodeTitle,
+                episodeThumbnail = launch.episodeThumbnail,
+                streamTitle = launch.streamTitle,
+                streamSubtitle = launch.streamSubtitle,
+                initialBingeGroup = launch.bingeGroup,
+                pauseDescription = launch.pauseDescription,
+                providerName = launch.providerName,
+                providerAddonId = launch.providerAddonId,
+                contentType = launch.contentType,
+                videoId = launch.videoId,
+                parentMetaId = launch.parentMetaId,
+                parentMetaType = launch.parentMetaType,
+                torrentInfoHash = launch.torrentInfoHash,
+                torrentFileIdx = launch.torrentFileIdx,
+                torrentFilename = launch.torrentFilename,
+                torrentTrackers = launch.torrentTrackers,
+                initialStreamFilename = launch.initialStreamFilename,
+                initialStreamInfoHash = launch.initialStreamInfoHash,
+                initialPositionMs = launch.initialPositionMs,
+                initialProgressFraction = launch.initialProgressFraction,
+                contentLanguage = launch.contentLanguage,
+                onBack = onBack,
+                onOpenPartyMedia = { media -> navController.navigate(DetailRoute(media.metaType, media.metaId, media.title)) },
+                onOpenInExternalPlayer = { request ->
+                    val playerLaunch = PlayerLaunch(
+                        profileId = launch.profileId,
+                        title = launch.title,
+                        sourceUrl = request.sourceUrl,
+                        sourceHeaders = request.sourceHeaders,
+                        logo = launch.logo,
+                        poster = launch.poster,
+                        background = launch.background,
+                        seasonNumber = launch.seasonNumber,
+                        episodeNumber = launch.episodeNumber,
+                        episodeTitle = launch.episodeTitle,
+                        episodeThumbnail = launch.episodeThumbnail,
+                        streamTitle = request.streamTitle ?: launch.streamTitle,
+                        streamSubtitle = launch.streamSubtitle,
+                        bingeGroup = launch.bingeGroup,
+                        initialStreamFilename = launch.initialStreamFilename,
+                        initialStreamInfoHash = launch.initialStreamInfoHash,
+                        pauseDescription = launch.pauseDescription,
+                        providerName = launch.providerName,
+                        providerAddonId = launch.providerAddonId,
+                        contentType = launch.contentType,
+                        videoId = launch.videoId,
+                        parentMetaId = launch.parentMetaId,
+                        parentMetaType = launch.parentMetaType,
+                        initialPositionMs = request.resumePositionMs,
+                    )
+                    lastExternalPlayerLaunch = playerLaunch
+                    val intentResult = ExternalPlayerPlatform.buildIntent(
+                        request = request,
+                        playerId = playerSettingsUiState.externalPlayerId,
+                    )
+                    when (intentResult) {
+                        is ExternalPlayerIntentResult.Success -> {
+                            val launched = launchExternalPlayer(intentResult)
+                            if (!launched) {
+                                NuvioToastController.show(externalPlayerFailedText)
+                            }
+                        }
+                        ExternalPlayerIntentResult.NotConfigured -> {
+                            NuvioToastController.show(externalPlayerNotConfiguredText)
+                        }
+                        ExternalPlayerIntentResult.Failed -> {
+                            NuvioToastController.show(externalPlayerFailedText)
+                        }
+                    }
+                },
+                onOpenExternalUrl = { url ->
+                    openExternalStreamUrl(url)
+                },
+                modifier = modifier,
+                miniPresentation = miniPresentation,
+            )
+        }
         AppUpdaterHost(
             controller = appUpdaterController,
             modifier = Modifier.fillMaxSize(),
@@ -2161,7 +2259,10 @@ private fun MainAppContent(
                             contentWindowInsets = WindowInsets(0),
                             bottomBar = {
                                 if (!isTabletLayout && !useTvLayout && !useNativeBottomTabs && navBarStyleSetting == NavBarStyle.CLASSIC) {
-                                    NuvioClassicNavigationBar {
+                                    DisposableEffect(Unit) { onDispose { miniPlayerBottomBarHeightPx = 0 } }
+                                    NuvioClassicNavigationBar(
+                                        modifier = Modifier.onSizeChanged { miniPlayerBottomBarHeightPx = it.height },
+                                    ) {
                                         NavItem(
                                             selected = selectedTab == AppScreenTab.Home,
                                             onClick = { handleRootTabClick(AppScreenTab.Home) },
@@ -2423,6 +2524,7 @@ private fun MainAppContent(
 
                                 // Floating pill navigation bar overlay
                                 if (!isTabletLayout && !useTvLayout && !useNativeBottomTabs && navBarStyleSetting != NavBarStyle.CLASSIC) {
+                                    DisposableEffect(Unit) { onDispose { miniPlayerBottomBarHeightPx = 0 } }
                                     when (navBarStyleSetting) {
                                         NavBarStyle.EXPANDED -> navBarScrollState.expand()
                                         NavBarStyle.COMPACT -> navBarScrollState.collapse()
@@ -2432,14 +2534,18 @@ private fun MainAppContent(
                                     if (navBarStyleSetting == NavBarStyle.LIQUID_GLASS) {
                                         FloatingNavigationBar(
                                             items = liquidGlassNavigationItems,
-                                            modifier = Modifier.align(Alignment.BottomCenter),
+                                            modifier = Modifier
+                                                .align(Alignment.BottomCenter)
+                                                .onSizeChanged { miniPlayerBottomBarHeightPx = it.height },
                                             scrollState = navBarScrollState,
                                             backdrop = navBarBackdrop,
                                             contentPadding = floatingNavigationBarPadding(),
                                         )
                                     } else {
                                                                                 NuvioNavigationBar(
-                                            modifier = Modifier.align(Alignment.BottomCenter),
+                                            modifier = Modifier
+                                                .align(Alignment.BottomCenter)
+                                                .onSizeChanged { miniPlayerBottomBarHeightPx = it.height },
                                             scrollState = navBarScrollState,
                                             hazeState = null,
                                         ) {
@@ -3343,96 +3449,12 @@ private fun MainAppContent(
                     LaunchedEffect(launch.videoId) {
                         launch.videoId?.let { ResumePromptRepository.markPlayerEntered(it) }
                     }
-                    PlayerScreen(
-                        profileId = launch.profileId,
-                        miniPlayerLaunch = launch,
-                        title = launch.title,
-                        sourceUrl = launch.sourceUrl,
-                        sourceAudioUrl = launch.sourceAudioUrl,
-                        sourceHeaders = launch.sourceHeaders,
-                        sourceResponseHeaders = launch.sourceResponseHeaders,
-                        externalSubtitles = launch.externalSubtitles,
-                        streamType = launch.streamType,
-                        logo = launch.logo,
-                        poster = launch.poster,
-                        background = launch.background,
-                        seasonNumber = launch.seasonNumber,
-                        episodeNumber = launch.episodeNumber,
-                        episodeTitle = launch.episodeTitle,
-                        episodeThumbnail = launch.episodeThumbnail,
-                        streamTitle = launch.streamTitle,
-                        streamSubtitle = launch.streamSubtitle,
-                        initialBingeGroup = launch.bingeGroup,
-                        pauseDescription = launch.pauseDescription,
-                        providerName = launch.providerName,
-                        providerAddonId = launch.providerAddonId,
-                        contentType = launch.contentType,
-                        videoId = launch.videoId,
-                        parentMetaId = launch.parentMetaId,
-                        parentMetaType = launch.parentMetaType,
-                        torrentInfoHash = launch.torrentInfoHash,
-                        torrentFileIdx = launch.torrentFileIdx,
-                        torrentFilename = launch.torrentFilename,
-                        torrentTrackers = launch.torrentTrackers,
-                        initialStreamFilename = launch.initialStreamFilename,
-                        initialStreamInfoHash = launch.initialStreamInfoHash,
-                        initialPositionMs = launch.initialPositionMs,
-                        initialProgressFraction = launch.initialProgressFraction,
-                        contentLanguage = launch.contentLanguage,
-                        onBack = onBack,
-                        onOpenPartyMedia = { media -> navController.navigate(DetailRoute(media.metaType, media.metaId, media.title)) },
-                        onOpenInExternalPlayer = { request ->
-                            val playerLaunch = PlayerLaunch(
-                                profileId = launch.profileId,
-                                title = launch.title,
-                                sourceUrl = request.sourceUrl,
-                                sourceHeaders = request.sourceHeaders,
-                                logo = launch.logo,
-                                poster = launch.poster,
-                                background = launch.background,
-                                seasonNumber = launch.seasonNumber,
-                                episodeNumber = launch.episodeNumber,
-                                episodeTitle = launch.episodeTitle,
-                                episodeThumbnail = launch.episodeThumbnail,
-                                streamTitle = request.streamTitle ?: launch.streamTitle,
-                                streamSubtitle = launch.streamSubtitle,
-                                bingeGroup = launch.bingeGroup,
-                                initialStreamFilename = launch.initialStreamFilename,
-                                initialStreamInfoHash = launch.initialStreamInfoHash,
-                                pauseDescription = launch.pauseDescription,
-                                providerName = launch.providerName,
-                                providerAddonId = launch.providerAddonId,
-                                contentType = launch.contentType,
-                                videoId = launch.videoId,
-                                parentMetaId = launch.parentMetaId,
-                                parentMetaType = launch.parentMetaType,
-                                initialPositionMs = request.resumePositionMs,
-                            )
-                            lastExternalPlayerLaunch = playerLaunch
-                            val intentResult = ExternalPlayerPlatform.buildIntent(
-                                request = request,
-                                playerId = playerSettingsUiState.externalPlayerId,
-                            )
-                            when (intentResult) {
-                                is ExternalPlayerIntentResult.Success -> {
-                                    val launched = launchExternalPlayer(intentResult)
-                                    if (!launched) {
-                                        NuvioToastController.show(externalPlayerFailedText)
-                                    }
-                                }
-                                ExternalPlayerIntentResult.NotConfigured -> {
-                                    NuvioToastController.show(externalPlayerNotConfiguredText)
-                                }
-                                ExternalPlayerIntentResult.Failed -> {
-                                    NuvioToastController.show(externalPlayerFailedText)
-                                }
-                            }
-                        },
-                        onOpenExternalUrl = { url ->
-                            openExternalStreamUrl(url)
-                        },
-                        modifier = Modifier.fillMaxSize(),
-                    )
+                    if (playerSettingsUiState.miniPlayerEnabled) {
+                        // MiniPlayerHost owns the live engine so it survives leaving this route.
+                        Box(modifier = Modifier.fillMaxSize().background(Color.Black))
+                        return@entry
+                    }
+                    renderPlayerScreen(launch, onBack, Modifier.fillMaxSize(), false)
                 }
                 entry<CatalogRoute> { route ->
                     val onBack = rememberGuardedPopBackStack(navController, route)
@@ -3723,10 +3745,15 @@ private fun MainAppContent(
             }
 
             MiniPlayerHost(
-                playerOnTop = currentRoute is PlayerRoute,
+                topLaunch = (currentRoute as? PlayerRoute)?.let { PlayerLaunchStore.get(it.launchId) },
+                enabled = playerSettingsUiState.miniPlayerEnabled,
+                bottomBarHeightPx = miniPlayerBottomBarHeightPx,
                 onExpand = { launch ->
                     val launchId = PlayerLaunchStore.put(launch)
                     navController.navigate(PlayerRoute(launchId = launchId, title = launch.title))
+                },
+                content = { launch, modifier, miniPresentation ->
+                    renderPlayerScreen(launch, miniPlayerOnBack, modifier, miniPresentation)
                 },
             )
 

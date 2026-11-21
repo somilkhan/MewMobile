@@ -46,6 +46,7 @@ fun PlayerScreen(
     initialStreamFilename: String? = null,
     initialStreamInfoHash: String? = null,
     miniPlayerLaunch: PlayerLaunch? = null,
+    miniPresentation: Boolean = false,
 ) {
     PlayerScreenContent(
         PlayerScreenArgs(
@@ -90,6 +91,7 @@ fun PlayerScreen(
             initialStreamFilename = initialStreamFilename,
             initialStreamInfoHash = initialStreamInfoHash,
             miniPlayerLaunch = miniPlayerLaunch,
+            miniPresentation = miniPresentation,
         )
     )
 }

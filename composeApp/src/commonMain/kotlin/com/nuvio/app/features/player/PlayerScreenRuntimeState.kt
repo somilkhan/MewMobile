@@ -35,6 +35,7 @@ internal class PlayerScreenRuntime(
     args: PlayerScreenArgs,
 ) {
     var args by mutableStateOf(args)
+    var isMiniPresentation by mutableStateOf(false)
 
     val title: String get() = args.title
     val profileId: Int get() = args.profileId
