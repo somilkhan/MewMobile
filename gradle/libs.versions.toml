@@ -7,7 +7,6 @@ android-targetSdk = "36"
 androidx-activity = "1.12.2"
 androidx-navigation = "2.9.2"
 androidx-navigation3 = "1.2.0-alpha02"
-androidx-navigation3 = "1.2.0"
 androidx-appcompat = "1.7.1"
 androidx-core = "1.17.0"
 androidx-core-splashscreen = "1.0.1"
@@ -26,9 +25,6 @@ compottie = "2.1.0"
 androidx-benchmark = "1.5.0"
 androidx-uiautomator = "2.3.0"
 androidx-profileinstaller = "1.4.1"
-composeMultiplatform = "1.13.0-beta01"
-coil = "3.6.3"
-backdrop = "2.0.1"
 kermit = "2.0.5"
 junit = "4.13.2"
 kotlin = "2.4.10"
@@ -39,7 +35,6 @@ kotlinxDatetime = "0.8.0"
 kmpalette = "4.0.0-beta02"
 ktor = "3.4.1"
 material3 = "1.12.0-alpha03"
-material3 = "1.13.0-beta01"
 androidx-media3 = "1.8.0"
 mpv-android-lib = "0.2.1"
 supabase = "3.4.1"
@@ -120,7 +115,6 @@ supabase-realtime = { module = "io.github.jan-tennert.supabase:realtime-kt", ver
 supabase-auth = { module = "io.github.jan-tennert.supabase:auth-kt", version.ref = "supabase" }
 supabase-functions = { module = "io.github.jan-tennert.supabase:functions-kt", version.ref = "supabase" }
 supabase-storage = { module = "io.github.jan-tennert.supabase:storage-kt", version.ref = "supabase" }
-supabase-realtime = { module = "io.github.jan-tennert.supabase:realtime-kt", version.ref = "supabase" }
 quickjs-kt = { module = "io.github.dokar3:quickjs-kt", version.ref = "quickjsKt" }
 ksoup = { module = "com.fleeksoft.ksoup:ksoup", version.ref = "ksoup" }
 reorderable = { module = "sh.calvin.reorderable:reorderable", version.ref = "reorderable" }
