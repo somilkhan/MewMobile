@@ -692,15 +692,14 @@ object DownloadsRepository {
     }
 
     /**
-     * In one-at-a-time mode, starts the oldest queued episode download once no other
-     * download is active. Newest items are stored at the front of the list, so the
-     * oldest queued item is the last Waiting entry.
+     * In one-at-a-time mode, starts the oldest waiting download once no other download
+     * is active. Selection is delegated to [DownloadQueuePolicy.oneAtATime].
      */
     private fun promoteWaitingDownload() {
         val promoted = synchronized(stateLock) {
             val state = _uiState.value
             if (state.items.any { it.status == DownloadStatus.Downloading }) return@synchronized null
-            val next = state.items.asReversed().firstOrNull { it.status == DownloadStatus.Waiting }
+            val next = DownloadQueuePolicy.oneAtATime.nextToStart(state.items)
                 ?: return@synchronized null
             val candidate = next.copy(
                 status = DownloadStatus.Downloading,
