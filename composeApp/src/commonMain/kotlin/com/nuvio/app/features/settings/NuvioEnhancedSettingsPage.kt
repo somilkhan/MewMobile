@@ -1147,12 +1147,20 @@ private fun NuvioEnhancedSettingsPageContent(
             }
         }
 
-        if (!isIos) {
-            SettingsSection(
-                title = stringResource(Res.string.nuvio_enhanced_section_downloads),
-                isTablet = isTablet,
-            ) {
-                SettingsGroup(isTablet = isTablet) {
+        SettingsSection(
+            title = stringResource(Res.string.nuvio_enhanced_section_downloads),
+            isTablet = isTablet,
+        ) {
+            SettingsGroup(isTablet = isTablet) {
+                SettingsSwitchRow(
+                    title = stringResource(Res.string.nuvio_enhanced_downloads_wifi_only_title),
+                    description = stringResource(Res.string.nuvio_enhanced_downloads_wifi_only_desc),
+                    checked = settings.downloadsWifiOnly,
+                    isTablet = isTablet,
+                    onCheckedChange = { NuvioEnhancedSettingsRepository.setDownloadsWifiOnly(it) },
+                )
+                if (!isIos) {
+                    SettingsGroupDivider(isTablet = isTablet)
                     SettingsNavigationRow(
                         title = stringResource(
                             if (externalFolderState.uri.isNullOrBlank()) {

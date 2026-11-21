@@ -62,6 +62,7 @@ import com.nuvio.app.features.details.SeasonViewModeStorage
 import com.nuvio.app.features.search.DiscoverSelectionStorage
 import com.nuvio.app.features.search.SearchHistoryStorage
 import com.nuvio.app.features.settings.SentrySettingsStorage
+import com.nuvio.app.features.downloads.DownloadNetworkGuard
 import com.nuvio.app.features.settings.AppIconPlatform
 import com.nuvio.app.features.settings.ThemeSettingsStorage
 import com.nuvio.app.features.settings.NuvioEnhancedBackupFileBridge
@@ -166,6 +167,7 @@ class MainActivity : AppCompatActivity() {
         DownloadsExternalFolderPlatform.initialize(applicationContext)
         DownloadsPlatformDownloader.initialize(applicationContext)
         DownloadsLiveStatusPlatform.initialize(applicationContext)
+        DownloadNetworkGuard.initialize(applicationContext)
         PendingDownloadSourceSearchPlatform.initialize(applicationContext)
         DownloadsLiveStatusPlatform.bindActivity(this)
         DownloadsExternalFolderPlatform.bindActivity(this)

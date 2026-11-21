@@ -19,6 +19,7 @@ internal data class NuvioEnhancedSettingsUiState(
     val liveTvEnabled: Boolean = true,
     val streamSourcePinningEnabled: Boolean = false,
     val backgroundStreamPrefetchEnabled: Boolean = false,
+    val downloadsWifiOnly: Boolean = false,
     val nuvioReadEnabled: Boolean = false,
     val cinematicDetailHeaderEnabled: Boolean = false,
     val cinematicHeaderContentMode: CinematicHeaderContentMode = CinematicHeaderContentMode.Productions,
@@ -154,6 +155,7 @@ private data class StoredNuvioEnhancedSettings(
     val liveTvEnabled: Boolean = true,
     val streamSourcePinningEnabled: Boolean = false,
     val backgroundStreamPrefetchEnabled: Boolean = false,
+    val downloadsWifiOnly: Boolean = false,
     val nuvioReadEnabled: Boolean = false,
     val cinematicDetailHeaderEnabled: Boolean = false,
     val cinematicHeaderContentMode: CinematicHeaderContentMode = CinematicHeaderContentMode.Productions,
@@ -280,6 +282,10 @@ internal object NuvioEnhancedSettingsRepository {
 
     fun setBackgroundStreamPrefetchEnabled(enabled: Boolean) = update {
         copy(backgroundStreamPrefetchEnabled = enabled)
+    }
+
+    fun setDownloadsWifiOnly(enabled: Boolean) = update {
+        copy(downloadsWifiOnly = enabled)
     }
 
     fun setNuvioReadEnabled(enabled: Boolean) = update {
@@ -455,6 +461,7 @@ internal object NuvioEnhancedSettingsRepository {
             liveTvEnabled = stored.liveTvEnabled,
             streamSourcePinningEnabled = stored.streamSourcePinningEnabled,
             backgroundStreamPrefetchEnabled = stored.backgroundStreamPrefetchEnabled,
+            downloadsWifiOnly = stored.downloadsWifiOnly,
             nuvioReadEnabled = stored.nuvioReadEnabled,
             cinematicDetailHeaderEnabled = stored.cinematicDetailHeaderEnabled,
             cinematicHeaderContentMode = stored.cinematicHeaderContentMode,

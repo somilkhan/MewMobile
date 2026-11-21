@@ -3,7 +3,12 @@ package com.nuvio.app.features.downloads
 import co.touchlab.kermit.Logger
 import com.nuvio.app.features.details.MetaDetails
 import com.nuvio.app.features.details.MetaDetailsRepository
+import com.nuvio.app.features.settings.NuvioEnhancedSettingsRepository
 import com.nuvio.app.features.streams.StreamItem
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,6 +29,7 @@ object DownloadsRepository {
     private var hasLoaded = false
     private var nextDownloadOrdinal = 0L
     private var lastProgressPersistAtEpochMs = 0L
+    private val networkScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     fun ensureLoaded() {
         val shouldLoad = synchronized(stateLock) {
@@ -32,7 +38,31 @@ object DownloadsRepository {
                 true
             }
         }
-        if (shouldLoad) loadFromDisk()
+        if (shouldLoad) {
+            loadFromDisk()
+            startNetworkWatch()
+        }
+    }
+
+    /** Starts queued downloads again once Wi-Fi returns, when the Wi-Fi-only setting is on. */
+    private fun startNetworkWatch() {
+        networkScope.launch {
+            DownloadNetworkGuard.transportState.collect { onWifi ->
+                if (onWifi && NuvioEnhancedSettingsRepository.uiState.value.downloadsWifiOnly) {
+                    promoteWaitingDownload()
+                }
+            }
+        }
+    }
+
+    /**
+     * False only when the Wi-Fi-only setting is on and the device is not on an unmetered network.
+     * With the setting off this never consults the network, so behaviour is unchanged.
+     */
+    private fun isDownloadNetworkAllowed(): Boolean {
+        NuvioEnhancedSettingsRepository.ensureLoaded()
+        return !NuvioEnhancedSettingsRepository.uiState.value.downloadsWifiOnly ||
+            DownloadNetworkGuard.isOnWifi()
     }
 
     fun onProfileChanged() {
@@ -251,8 +281,10 @@ object DownloadsRepository {
             }
             // Admission and publication must use the same state snapshot. Otherwise two
             // series started together can overwrite each other's progress/item list.
-            shouldStartNow = queueMode == DownloadQueueMode.AllAtOnce ||
-                currentItems.none { it.status == DownloadStatus.Downloading }
+            shouldStartNow = isDownloadNetworkAllowed() && (
+                queueMode == DownloadQueueMode.AllAtOnce ||
+                    currentItems.none { it.status == DownloadStatus.Downloading }
+                )
             val admitted = item.copy(
                 status = if (shouldStartNow) DownloadStatus.Downloading else DownloadStatus.Waiting,
             )
@@ -699,7 +731,8 @@ object DownloadsRepository {
         val promoted = synchronized(stateLock) {
             val state = _uiState.value
             if (state.items.any { it.status == DownloadStatus.Downloading }) return@synchronized null
-            val next = DownloadQueuePolicy.oneAtATime.nextToStart(state.items)
+            val policy = DownloadQueuePolicy.oneAtATime.copy(isNetworkAllowed = isDownloadNetworkAllowed())
+            val next = policy.nextToStart(state.items)
                 ?: return@synchronized null
             val candidate = next.copy(
                 status = DownloadStatus.Downloading,
