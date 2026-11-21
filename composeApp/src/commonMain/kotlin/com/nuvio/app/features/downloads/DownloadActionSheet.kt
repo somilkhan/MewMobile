@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Download
-import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Refresh
@@ -36,7 +35,6 @@ import nuvio.composeapp.generated.resources.action_play
 import nuvio.composeapp.generated.resources.action_resume
 import nuvio.composeapp.generated.resources.action_retry
 import nuvio.composeapp.generated.resources.compose_action_pause
-import nuvio.composeapp.generated.resources.cw_action_go_to_details
 import org.jetbrains.compose.resources.stringResource
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -47,7 +45,6 @@ internal fun DownloadActionSheet(
     onDismiss: () -> Unit,
     onPlay: () -> Unit,
     onToggleTransfer: () -> Unit,
-    onOpenDetails: () -> Unit,
     onDelete: () -> Unit,
 ) {
     if (item == null) return
@@ -85,7 +82,7 @@ internal fun DownloadActionSheet(
                     ),
                     onClick = { dismissAfter(onPlay) },
                 )
-                DownloadStatus.Downloading, DownloadStatus.Queued -> NuvioBottomSheetActionRow(
+                DownloadStatus.Downloading, DownloadStatus.Waiting -> NuvioBottomSheetActionRow(
                     icon = Icons.Rounded.Pause,
                     title = stringResource(Res.string.compose_action_pause),
                     onClick = { dismissAfter(onToggleTransfer) },
@@ -101,11 +98,6 @@ internal fun DownloadActionSheet(
                     onClick = { dismissAfter(onToggleTransfer) },
                 )
             }
-            NuvioBottomSheetActionRow(
-                icon = Icons.Rounded.Info,
-                title = stringResource(Res.string.cw_action_go_to_details),
-                onClick = { dismissAfter(onOpenDetails) },
-            )
             NuvioBottomSheetActionRow(
                 icon = Icons.Rounded.DeleteOutline,
                 title = stringResource(Res.string.action_delete),

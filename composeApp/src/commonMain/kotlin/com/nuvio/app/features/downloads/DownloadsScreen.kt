@@ -1,6 +1,7 @@
 package com.nuvio.app.features.downloads
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,8 +14,7 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Download
-import androidx.compose.material.icons.rounded.Settings
-import com.nuvio.app.core.ui.nuvio
+import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -29,28 +29,36 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nuvio.app.core.ui.NuvioActionLabel
+import com.nuvio.app.core.ui.NuvioPosterCard
 import com.nuvio.app.core.ui.NuvioScreen
 import com.nuvio.app.core.ui.NuvioScreenHeader
 import com.nuvio.app.core.ui.NuvioSectionLabel
 import com.nuvio.app.core.ui.NuvioStatusModal
 import com.nuvio.app.core.ui.NuvioToastController
 import com.nuvio.app.core.ui.NuvioTokens
-import com.nuvio.app.core.ui.PlatformBackHandler
 import com.nuvio.app.core.ui.nuvio
 import com.nuvio.app.core.ui.nuvioTypeScale
 import com.nuvio.app.features.watched.WatchedRepository
 import com.nuvio.app.features.watchprogress.WatchProgressRepository
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.action_cancel
 import nuvio.composeapp.generated.resources.action_delete
 import nuvio.composeapp.generated.resources.action_delete_confirm_message
-import nuvio.composeapp.generated.resources.compose_settings_page_root
 import nuvio.composeapp.generated.resources.compose_settings_root_downloads_title
+import nuvio.composeapp.generated.resources.downloads_awaiting_source_section_subtitle
+import nuvio.composeapp.generated.resources.downloads_awaiting_source_section_title
+import nuvio.composeapp.generated.resources.downloads_cancel_pending
+import nuvio.composeapp.generated.resources.downloads_choose_sources
+import nuvio.composeapp.generated.resources.downloads_continue_searching
 import nuvio.composeapp.generated.resources.downloads_delete_message
 import nuvio.composeapp.generated.resources.downloads_delete_title
 import nuvio.composeapp.generated.resources.downloads_empty_message
@@ -59,6 +67,9 @@ import nuvio.composeapp.generated.resources.downloads_episodes
 import nuvio.composeapp.generated.resources.downloads_open_directory
 import nuvio.composeapp.generated.resources.downloads_open_directory_failed
 import nuvio.composeapp.generated.resources.downloads_pause_all
+import nuvio.composeapp.generated.resources.downloads_pending_cancelled
+import nuvio.composeapp.generated.resources.downloads_pending_episode_count
+import nuvio.composeapp.generated.resources.downloads_pending_provider_quality
 import nuvio.composeapp.generated.resources.downloads_resume_all
 import nuvio.composeapp.generated.resources.downloads_section_active
 import nuvio.composeapp.generated.resources.downloads_section_downloaded
@@ -74,11 +85,9 @@ import org.jetbrains.compose.resources.stringResource
 fun DownloadsScreen(
     onBack: () -> Unit,
     onOpenDownload: (DownloadItem) -> Unit,
-    onOpenDetails: (DownloadItem) -> Unit,
     initialShowId: String? = null,
     onNavigateToShow: ((showId: String, title: String) -> Unit)? = null,
     onBackFromShow: (() -> Unit)? = null,
-    onOpenSettings: (() -> Unit)? = null,
 ) {
     val uiState by remember {
         DownloadsRepository.ensureLoaded()
@@ -92,27 +101,46 @@ fun DownloadsScreen(
         WatchedRepository.ensureLoaded()
         WatchedRepository.uiState
     }.collectAsStateWithLifecycle()
-    LaunchedEffect(uiState.completedItems.size) {
-        DownloadsRepository.markCompletedSeen()
+    LaunchedEffect(Unit) {
+        DownloadsRepository.removeMissingCompletedDownloads()
     }
 
     var selectedShowId by rememberSaveable(initialShowId) { mutableStateOf(initialShowId) }
     var actionsItemId by rememberSaveable { mutableStateOf<String?>(null) }
     var deleteItemId by rememberSaveable { mutableStateOf<String?>(null) }
+    val openDownloadsDirectoryFailedText = stringResource(Res.string.downloads_open_directory_failed)
+    val pendingCancelledText = stringResource(Res.string.downloads_pending_cancelled)
+    val scope = rememberCoroutineScope()
+
     val speeds = rememberDownloadSpeeds(uiState.items)
     val watchStatusOf = remember(watchProgressState, watchedState) {
         { item: DownloadItem -> item.watchStatus(watchProgressState) }
     }
+
+    val pendingGroups = remember(uiState.pendingSourceSearches) {
+        uiState.activeSourceSearches.groupByShow()
+    }
+    var pendingChoiceGroupId by rememberSaveable { mutableStateOf<String?>(null) }
+    var dismissedPromptKeys by rememberSaveable { mutableStateOf<List<String>>(emptyList()) }
+    val pendingChoiceGroup = remember(pendingChoiceGroupId, pendingGroups) {
+        pendingGroups.firstOrNull { it.parentMetaId == pendingChoiceGroupId }
+    }
+
+    LaunchedEffect(pendingGroups, pendingChoiceGroupId, dismissedPromptKeys) {
+        if (pendingChoiceGroupId != null) return@LaunchedEffect
+        val group = pendingGroups.firstOrNull { group ->
+            group.searches.any { it.manualChoicePrompted } &&
+                group.parentMetaId !in dismissedPromptKeys
+        }
+        pendingChoiceGroupId = group?.parentMetaId
+    }
+
     val selectedShowTitle = remember(selectedShowId, uiState.items) {
         selectedShowId?.let { showId ->
             uiState.items.firstOrNull { it.isEpisode && it.parentMetaId == showId }?.title
         }
     }
     val onOpenActions: (DownloadItem) -> Unit = { actionsItemId = it.id }
-
-    PlatformBackHandler(enabled = selectedShowId != null && onBackFromShow == null) {
-        selectedShowId = null
-    }
 
     NuvioScreen {
         stickyHeader {
@@ -130,15 +158,17 @@ fun DownloadsScreen(
                     }
                 },
                 actions = {
-                    OpenDownloadsFolderButton(tint = MaterialTheme.nuvio.colors.textPrimary)
-                    if (selectedShowId == null && onOpenSettings != null) {
-                        IconButton(onClick = onOpenSettings) {
-                            Icon(
-                                imageVector = Icons.Rounded.Settings,
-                                contentDescription = stringResource(Res.string.compose_settings_page_root),
-                                tint = MaterialTheme.nuvio.colors.textPrimary,
-                            )
-                        }
+                    IconButton(
+                        onClick = {
+                            if (!DownloadsPlatformDownloader.openDownloadsDirectory()) {
+                                NuvioToastController.show(openDownloadsDirectoryFailedText)
+                            }
+                        },
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Folder,
+                            contentDescription = stringResource(Res.string.downloads_open_directory),
+                        )
                     }
                 },
             )
@@ -148,6 +178,8 @@ fun DownloadsScreen(
         if (showId == null) {
             downloadsRootContent(
                 items = uiState.items,
+                activeItems = uiState.activeItems,
+                pendingGroups = pendingGroups,
                 speeds = speeds,
                 watchStatusOf = watchStatusOf,
                 onPlay = onOpenDownload,
@@ -155,6 +187,20 @@ fun DownloadsScreen(
                     onNavigateToShow?.invoke(item.parentMetaId, item.title) ?: run { selectedShowId = item.parentMetaId }
                 },
                 onOpenActions = onOpenActions,
+                onOpenPending = { group -> pendingChoiceGroupId = group.parentMetaId },
+                onContinueSearching = { group ->
+                    scope.launch {
+                        coroutineScope {
+                            group.searches.map { search ->
+                                async { EpisodeDownloadCoordinator.retryPending(search.id) }
+                            }.forEach { it.await() }
+                        }
+                    }
+                },
+                onCancelPending = { group ->
+                    group.searches.forEach { DownloadsRepository.removePendingSourceSearch(it.id) }
+                    NuvioToastController.show(pendingCancelledText)
+                },
             )
         } else {
             downloadsShowContent(
@@ -176,7 +222,6 @@ fun DownloadsScreen(
         onDismiss = { actionsItemId = null },
         onPlay = { actionsItem?.let(onOpenDownload) },
         onToggleTransfer = { actionsItem?.toggleTransfer() },
-        onOpenDetails = { actionsItem?.let(onOpenDetails) },
         onDelete = { deleteItemId = actionsItem?.id },
     )
 
@@ -191,17 +236,32 @@ fun DownloadsScreen(
             onDismiss = { deleteItemId = null },
         )
     }
+
+    pendingChoiceGroup?.let { group ->
+        PendingSourceChoiceSheet(
+            group = group,
+            onDismiss = {
+                pendingChoiceGroupId = null
+                dismissedPromptKeys = (dismissedPromptKeys + group.parentMetaId).distinct()
+            },
+        )
+    }
 }
 
 private fun LazyListScope.downloadsRootContent(
     items: List<DownloadItem>,
+    activeItems: List<DownloadItem>,
+    pendingGroups: List<PendingShowGroup>,
     speeds: Map<String, Long>,
     watchStatusOf: (DownloadItem) -> DownloadWatchStatus,
     onPlay: (DownloadItem) -> Unit,
     onOpenShow: (DownloadItem) -> Unit,
     onOpenActions: (DownloadItem) -> Unit,
+    onOpenPending: (PendingShowGroup) -> Unit,
+    onContinueSearching: (PendingShowGroup) -> Unit,
+    onCancelPending: (PendingShowGroup) -> Unit,
 ) {
-    if (items.isEmpty()) {
+    if (items.isEmpty() && pendingGroups.isEmpty()) {
         item(key = "empty") {
             DownloadsEmptyState(
                 title = stringResource(Res.string.downloads_empty_title),
@@ -211,11 +271,10 @@ private fun LazyListScope.downloadsRootContent(
         return
     }
 
-    val activeItems = items.filter { it.status != DownloadStatus.Completed }
     val entries = items.downloadedEntries()
 
     item(key = "summary") {
-        val titleCount = items.distinctBy { it.parentMetaId }.size
+        val titleCount = items.distinctBy { it.parentMetaId }.size + pendingGroups.size
         SummaryText(
             listOf(
                 pluralStringResource(Res.plurals.downloads_titles, titleCount, titleCount),
@@ -256,6 +315,28 @@ private fun LazyListScope.downloadsRootContent(
         }
     }
 
+    if (pendingGroups.isNotEmpty()) {
+        item(key = "pending_header") {
+            SectionHeader(title = stringResource(Res.string.downloads_awaiting_source_section_title))
+        }
+        item(key = "pending_subtitle") {
+            Text(
+                text = stringResource(Res.string.downloads_awaiting_source_section_subtitle),
+                modifier = Modifier.padding(bottom = NuvioTokens.Space.s4),
+                style = MaterialTheme.nuvioTypeScale.bodySm,
+                color = MaterialTheme.nuvio.colors.textMuted,
+            )
+        }
+        items(items = pendingGroups, key = { "pending:${it.parentMetaId}" }) { group ->
+            PendingShowRow(
+                group = group,
+                onChooseSources = { onOpenPending(group) },
+                onContinueSearching = { onContinueSearching(group) },
+                onCancel = { onCancelPending(group) },
+            )
+        }
+    }
+
     if (entries.isNotEmpty()) {
         item(key = "downloaded_header") {
             SectionHeader(title = stringResource(Res.string.downloads_section_downloaded))
@@ -277,13 +358,6 @@ private fun LazyListScope.downloadsRootContent(
                 )
             }
         }
-    }
-
-    item(key = "downloads_device_storage_bar") {
-        DeviceStorageBar(
-            appDownloadsBytes = items.sumOf { it.downloadedBytes },
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
-        )
     }
 }
 
@@ -432,6 +506,91 @@ private fun DownloadsEmptyState(
 }
 
 @Composable
+private fun PendingShowRow(
+    group: PendingShowGroup,
+    onChooseSources: () -> Unit,
+    onContinueSearching: () -> Unit,
+    onCancel: () -> Unit,
+) {
+    val tokens = MaterialTheme.nuvio
+    val first = group.searches.firstOrNull()
+    val episodeCountLabel = stringResource(Res.string.downloads_pending_episode_count, group.searches.size)
+    val providerQuality = first?.let {
+        stringResource(
+            Res.string.downloads_pending_provider_quality,
+            it.providerName,
+            it.qualityKey,
+        )
+    }
+    val chooseSourcesLabel = stringResource(Res.string.downloads_choose_sources)
+    val continueLabel = stringResource(Res.string.downloads_continue_searching)
+    val cancelLabel = stringResource(Res.string.downloads_cancel_pending)
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(NuvioTokens.Space.s12),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        NuvioPosterCard(
+            title = group.title,
+            imageUrl = group.poster ?: group.background,
+            modifier = Modifier.width(NuvioTokens.Space.s48),
+            showTitleBelow = false,
+        )
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(NuvioTokens.Space.s2),
+        ) {
+            Text(
+                text = group.title,
+                style = MaterialTheme.typography.titleMedium,
+                color = tokens.colors.textPrimary,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = listOfNotNull(episodeCountLabel, providerQuality).joinToString(DownloadTextSeparator),
+                style = MaterialTheme.nuvioTypeScale.bodySm,
+                color = tokens.colors.textSecondary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = NuvioTokens.Space.s4),
+                horizontalArrangement = Arrangement.spacedBy(NuvioTokens.Space.s14),
+            ) {
+                PendingRowAction(label = chooseSourcesLabel, onClick = onChooseSources)
+                PendingRowAction(label = continueLabel, onClick = onContinueSearching)
+                PendingRowAction(
+                    label = cancelLabel,
+                    color = tokens.colors.danger,
+                    onClick = onCancel,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PendingRowAction(
+    label: String,
+    onClick: () -> Unit,
+    color: androidx.compose.ui.graphics.Color = MaterialTheme.nuvio.colors.accent,
+) {
+    Text(
+        text = label,
+        style = MaterialTheme.typography.labelLarge,
+        color = color,
+        fontWeight = FontWeight.SemiBold,
+        modifier = Modifier
+            .clip(MaterialTheme.shapes.small)
+            .clickable(onClick = onClick)
+            .padding(vertical = NuvioTokens.Space.s4),
+    )
+}
+
+@Composable
 private fun DeleteDownloadDialog(
     item: DownloadItem,
     onConfirm: () -> Unit,
@@ -447,7 +606,6 @@ private fun DeleteDownloadDialog(
             stringResource(Res.string.action_delete_confirm_message)
         },
         isVisible = true,
-        destructive = true,
         confirmText = stringResource(Res.string.action_delete),
         dismissText = stringResource(Res.string.action_cancel),
         onConfirm = onConfirm,
@@ -495,8 +653,9 @@ private fun List<DownloadItem>.downloadedEntries(): List<DownloadedEntry> {
 
 private fun DownloadItem.toggleTransfer() {
     when (status) {
-        DownloadStatus.Downloading, DownloadStatus.Queued -> DownloadsRepository.pauseDownload(id)
-        DownloadStatus.Paused, DownloadStatus.Failed -> DownloadsRepository.resumeDownload(id)
+        DownloadStatus.Downloading, DownloadStatus.Waiting -> DownloadsRepository.pauseDownload(id)
+        DownloadStatus.Paused -> DownloadsRepository.resumeDownload(id)
+        DownloadStatus.Failed -> DownloadsRepository.retryDownload(id)
         DownloadStatus.Completed -> Unit
     }
 }

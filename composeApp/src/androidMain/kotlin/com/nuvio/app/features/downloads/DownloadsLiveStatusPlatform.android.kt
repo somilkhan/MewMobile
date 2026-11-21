@@ -18,6 +18,7 @@ import com.nuvio.app.core.deeplink.buildDownloadsDeepLinkUrl
 import kotlinx.coroutines.runBlocking
 import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.getString
+import kotlin.math.abs
 
 internal actual object DownloadsLiveStatusPlatform {
     private const val permissionRequestCode = 4708
@@ -88,10 +89,9 @@ internal actual object DownloadsLiveStatusPlatform {
             manager.cancel(notificationId(downloadId))
             lastRenderStateById.remove(downloadId)
         }
-        val managedIds = DownloadsPlatformDownloader.managedTransfers().map { it.item.id }.toSet()
 
-        val trackedNow = managedIds.toMutableSet()
-        activeItems.filterNot { it.id in managedIds }.forEach { item ->
+        val trackedNow = mutableSetOf<String>()
+        activeItems.forEach { item ->
             val renderState = RenderState(
                 status = item.status,
                 progressPercent = progressPercent(item),
@@ -123,28 +123,7 @@ internal actual object DownloadsLiveStatusPlatform {
             .apply()
     }
 
-    internal fun notifyTransfer(item: DownloadItem) {
-        val context = appContext ?: return
-        if (!canPostNotifications(context)) return
-        val manager = NotificationManagerCompat.from(context)
-        if (item.status == DownloadStatus.Completed) {
-            removeNotification(item.id)
-        } else {
-            val active = item.status == DownloadStatus.Downloading
-            manager.cancel(notificationId(if (active) "inactive:${item.id}" else item.id))
-            manager.notify(notificationId(if (active) item.id else "inactive:${item.id}"), buildNotification(context, item))
-        }
-    }
-
-    internal fun removeNotification(downloadId: String) {
-        val context = appContext ?: return
-        NotificationManagerCompat.from(context).apply {
-            cancel(notificationId(downloadId))
-            cancel(notificationId("inactive:$downloadId"))
-        }
-    }
-
-    internal fun buildNotification(context: Context, item: DownloadItem): android.app.Notification {
+    private fun buildNotification(context: Context, item: DownloadItem): android.app.Notification {
         val subtitle = buildSubtitle(item)
         val launchIntent = buildLaunchIntent(context)
         val launchPendingIntent = PendingIntent.getActivity(
@@ -175,7 +154,6 @@ internal actual object DownloadsLiveStatusPlatform {
                             context = context,
                             action = DownloadsNotificationActionReceiver.actionPause,
                             downloadId = item.id,
-                            fileName = item.fileName,
                         ),
                     )
 
@@ -191,7 +169,6 @@ internal actual object DownloadsLiveStatusPlatform {
             DownloadStatus.Paused,
             DownloadStatus.Failed,
             DownloadStatus.Completed,
-            DownloadStatus.Queued,
             -> {
                 notificationBuilder
                     .setOngoing(false)
@@ -211,7 +188,6 @@ internal actual object DownloadsLiveStatusPlatform {
                             context = context,
                             action = DownloadsNotificationActionReceiver.actionResume,
                             downloadId = item.id,
-                            fileName = item.fileName,
                         ),
                     )
             }
@@ -299,7 +275,6 @@ internal actual object DownloadsLiveStatusPlatform {
             DownloadStatus.Paused -> runBlocking { getString(Res.string.downloads_live_paused, detail) }
             DownloadStatus.Failed -> item.errorMessage?.takeIf { it.isNotBlank() } ?: runBlocking { getString(Res.string.downloads_live_failed) }
             DownloadStatus.Completed -> runBlocking { getString(Res.string.downloads_live_completed) }
-            DownloadStatus.Queued -> runBlocking { getString(Res.string.downloads_status_queued) }
         }
     }
 
@@ -338,12 +313,10 @@ internal actual object DownloadsLiveStatusPlatform {
         context: Context,
         action: String,
         downloadId: String,
-        fileName: String,
     ): PendingIntent {
         val intent = Intent(context, DownloadsNotificationActionReceiver::class.java).apply {
             this.action = action
             putExtra(DownloadsNotificationActionReceiver.extraDownloadId, downloadId)
-            putExtra(AndroidDownloadScheduler.FILE_NAME, fileName)
         }
         return PendingIntent.getBroadcast(
             context,
@@ -414,7 +387,33 @@ internal actual object DownloadsLiveStatusPlatform {
     private fun preferences(context: Context) =
         context.getSharedPreferences(notificationsPrefName, Context.MODE_PRIVATE)
 
-    internal fun notificationId(downloadId: String): Int = (downloadId.hashCode() and Int.MAX_VALUE).coerceAtLeast(1)
+    private fun syncForegroundService(context: Context, items: List<DownloadItem>) {
+        if (items.any { it.status == DownloadStatus.Downloading }) {
+            if (!foregroundServiceRequested) {
+                DownloadsForegroundService.start(context)
+                foregroundServiceRequested = true
+            }
+            runCatching {
+                NotificationManagerCompat.from(context).notify(
+                    foregroundNotificationId,
+                    buildForegroundNotification(context, items),
+                )
+            }
+        } else {
+            DownloadsForegroundService.stop(context)
+            foregroundServiceRequested = false
+            clearForegroundNotification(context)
+        }
+    }
+
+    internal fun clearForegroundNotification(context: Context? = null) {
+        val resolvedContext = context ?: appContext ?: return
+        runCatching {
+            NotificationManagerCompat.from(resolvedContext).cancel(foregroundNotificationId)
+        }
+    }
+
+    private fun notificationId(downloadId: String): Int = abs(downloadId.hashCode())
 
     private data class RenderState(
         val status: DownloadStatus,
