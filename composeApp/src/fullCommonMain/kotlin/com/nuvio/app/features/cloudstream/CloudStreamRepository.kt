@@ -62,13 +62,21 @@ actual object CloudStreamRepository {
     private val loadLinksRequestMutex = Mutex()
     private val loadLinksRequests =
         mutableMapOf<String, Deferred<Result<List<CloudStreamPlaybackSource>>>>()
-    private val loadLinksCache = LinkedHashMap<String, CachedCloudStreamLinks>(16, 0.75f, true)
+    private val loadLinksCache = LinkedHashMap<String, CachedCloudStreamLinks>()
     private val loadLinksCacheMutex = Mutex()
-    private val loadResultCache = LinkedHashMap<String, CloudStreamLoadItem>(16, 0.75f, true)
+    private val loadResultCache = LinkedHashMap<String, CloudStreamLoadItem>()
     private val loadResultCacheMutex = Mutex()
     private const val LOAD_LINKS_CACHE_MAX_ENTRIES = 16
     private const val LOAD_LINKS_CACHE_TTL_MS = 120_000L
     private const val LOAD_RESULT_CACHE_MAX_ENTRIES = 16
+
+    private fun <K, V> LinkedHashMap<K, V>.getAndRefresh(key: K): V? =
+        remove(key)?.also { put(key, it) }
+
+    private fun <K, V> LinkedHashMap<K, V>.putAndRefresh(key: K, value: V) {
+        remove(key)
+        put(key, value)
+    }
     private const val REPOSITORY_DISCOVERY_CONCURRENCY = 6
     private const val PROVIDER_REQUEST_CONCURRENCY = 4
 
@@ -673,7 +681,7 @@ actual object CloudStreamRepository {
         initialize()
         val cacheKey = "$providerId\\u0000$data"
         loadResultCacheMutex.withLock {
-            loadResultCache[cacheKey]
+            loadResultCache.getAndRefresh(cacheKey)
         }?.let { cached ->
             return Result.success(cached)
         }
@@ -690,8 +698,8 @@ actual object CloudStreamRepository {
         return providerResult(providerId) { load(data) }
             .onSuccess { item ->
                 loadResultCacheMutex.withLock {
-                    loadResultCache[cacheKey] = item
-                    loadResultCache["$providerId\\u0000${item.data}"] = item
+                    loadResultCache.putAndRefresh(cacheKey, item)
+                    loadResultCache.putAndRefresh("$providerId\\u0000${item.data}", item)
                     while (loadResultCache.size > LOAD_RESULT_CACHE_MAX_ENTRIES) {
                         loadResultCache.remove(loadResultCache.entries.first().key)
                     }
@@ -713,7 +721,7 @@ actual object CloudStreamRepository {
         val requestKey = "$providerId\\u0000$data"
         val now = currentEpochMillis()
         loadLinksCacheMutex.withLock {
-            loadLinksCache[requestKey]
+            loadLinksCache.getAndRefresh(requestKey)
                 ?.takeIf { it.expiresAtEpochMs > now }
                 ?.sources
         }?.let { cached ->
@@ -743,10 +751,10 @@ actual object CloudStreamRepository {
         }
         return request.await().onSuccess { sources ->
             loadLinksCacheMutex.withLock {
-                loadLinksCache[requestKey] = CachedCloudStreamLinks(
+                loadLinksCache.putAndRefresh(requestKey, CachedCloudStreamLinks(
                     sources = sources,
                     expiresAtEpochMs = currentEpochMillis() + LOAD_LINKS_CACHE_TTL_MS,
-                )
+                ))
                 while (loadLinksCache.size > LOAD_LINKS_CACHE_MAX_ENTRIES) {
                     loadLinksCache.remove(loadLinksCache.entries.first().key)
                 }
