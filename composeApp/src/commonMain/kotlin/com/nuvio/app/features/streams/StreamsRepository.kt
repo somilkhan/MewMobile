@@ -517,7 +517,7 @@ object StreamsRepository {
                             )
                         }
                     }
-                    updateAutoPlayAfterStreamsChanged()
+                    if (activeRequestKey == requestKey) updateAutoPlayAfterStreamsChanged()
                 }
             }
 

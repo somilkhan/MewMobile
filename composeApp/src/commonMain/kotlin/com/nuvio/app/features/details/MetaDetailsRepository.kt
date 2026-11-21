@@ -39,6 +39,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -445,6 +446,9 @@ object MetaDetailsRepository {
             }
         }
         activeCloudStreamJob = job
+        job.invokeOnCompletion {
+            if (activeCloudStreamJob === job) activeCloudStreamJob = null
+        }
     }
 
     private fun loadServerMeta(requestKey: String, ref: ServerItemRef) {
