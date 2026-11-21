@@ -1883,7 +1883,6 @@ private fun MetaDetails.isSeriesLikeForEpisodeRatings(): Boolean {
     return hasNumberedEpisodes && normalizedType in setOf("series", "show", "tv", "tvshow")
 }
 
-@Composable
 private fun enqueueSeasonBatch(
     scope: CoroutineScope,
     meta: MetaDetails,
@@ -1929,6 +1928,7 @@ private fun enqueueSeasonBatch(
     }
 }
 
+@Composable
 private fun selectedSeasonLabel(season: Int): String =
     if (season == 0) {
         stringResource(Res.string.episodes_specials)

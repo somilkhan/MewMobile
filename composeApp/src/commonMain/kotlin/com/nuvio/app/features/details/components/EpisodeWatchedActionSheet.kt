@@ -222,7 +222,7 @@ fun SeasonWatchedActionSheet(
                         EpisodeSheetDivider()
                         EpisodeSheetActionRow(
                             icon = Icons.Default.Download,
-                            title = stringResource(Res.string.details_download_season, seasonLabel),
+                            title = stringResource(Res.string.downloads_season_batch_action, seasonLabel),
                             onClick = {
                                 onDownloadSeason.invoke()
                                 onDismiss()
