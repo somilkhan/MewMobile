@@ -5,8 +5,6 @@ import kotlinx.atomicfu.locks.synchronized
 import com.nuvio.app.features.streams.AddonStreamGroup
 import com.nuvio.app.features.streams.StreamDebridCacheState
 import com.nuvio.app.features.streams.StreamItem
-import kotlinx.atomicfu.locks.SynchronizedObject
-import kotlinx.atomicfu.locks.synchronized
 
 object DebridStreamPresentation {
     private val formatter = DebridStreamFormatter()
