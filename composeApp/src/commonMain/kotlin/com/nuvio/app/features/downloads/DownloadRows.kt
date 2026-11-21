@@ -30,12 +30,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.style.TextOverflow
 import com.nuvio.app.core.ui.NuvioTokens
-import com.nuvio.app.core.ui.ThemeColors
 import com.nuvio.app.core.ui.accentBrush
-import com.nuvio.app.core.ui.appTheme
 import com.nuvio.app.core.ui.gradientMask
 import com.nuvio.app.core.ui.nuvio
 import com.nuvio.app.core.ui.nuvioTypeScale
+import com.nuvio.app.core.ui.themePalette
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.action_resume
 import nuvio.composeapp.generated.resources.action_retry
@@ -47,7 +46,6 @@ import nuvio.composeapp.generated.resources.downloads_speed
 import nuvio.composeapp.generated.resources.downloads_status_downloading
 import nuvio.composeapp.generated.resources.downloads_status_failed
 import nuvio.composeapp.generated.resources.downloads_status_paused
-import nuvio.composeapp.generated.resources.downloads_status_waiting
 import nuvio.composeapp.generated.resources.episodes_cd_watched
 import nuvio.composeapp.generated.resources.home_continue_watching_watched
 import nuvio.composeapp.generated.resources.media_movie
@@ -241,15 +239,14 @@ private fun TransferButton(
             )
         } else {
             val isDownloading = item.status == DownloadStatus.Downloading
-            val isActive = isDownloading || item.status == DownloadStatus.Waiting
             val trackColor = tokens.colors.borderStrong
             val strokeWidth = NuvioTokens.Space.s2
-            val ringColor = if (isActive) Color.White else tokens.colors.textMuted
+            val ringColor = if (isDownloading) Color.White else tokens.colors.textMuted
             val ringModifier = Modifier
                 .size(NuvioTokens.Space.s32)
                 .then(
-                    if (isActive) {
-                        Modifier.gradientMask(ThemeColors.getColorPalette(MaterialTheme.appTheme).accentBrush())
+                    if (isDownloading) {
+                        Modifier.gradientMask(MaterialTheme.themePalette.accentBrush())
                     } else {
                         Modifier
                     },
@@ -267,7 +264,7 @@ private fun TransferButton(
                     },
                 contentAlignment = Alignment.Center,
             ) {
-                if (isActive && !item.hasKnownSize) {
+                if (isDownloading && !item.hasKnownSize) {
                     CircularProgressIndicator(
                         modifier = ringModifier,
                         color = ringColor,
@@ -285,9 +282,9 @@ private fun TransferButton(
                     )
                 }
                 Icon(
-                    imageVector = if (isActive) Icons.Rounded.Pause else Icons.Rounded.Download,
+                    imageVector = if (isDownloading) Icons.Rounded.Pause else Icons.Rounded.Download,
                     contentDescription = stringResource(
-                        if (isActive) Res.string.compose_action_pause else Res.string.action_resume,
+                        if (isDownloading) Res.string.compose_action_pause else Res.string.action_resume,
                     ),
                     tint = tokens.colors.textPrimary,
                     modifier = Modifier.size(NuvioTokens.Icon.sm),
@@ -332,9 +329,6 @@ private fun activeStatusText(item: DownloadItem, speedBytesPerSecond: Long?): St
     }
     if (item.status == DownloadStatus.Paused) {
         return stringResource(Res.string.downloads_status_paused, transferred)
-    }
-    if (item.status == DownloadStatus.Waiting) {
-        return stringResource(Res.string.downloads_status_waiting)
     }
     val percent = "${(item.progressFraction * 100f).toInt()}%"
     val speed = speedBytesPerSecond?.takeIf { it > 0L }

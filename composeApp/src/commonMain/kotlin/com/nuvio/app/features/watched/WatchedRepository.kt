@@ -4,15 +4,17 @@ import co.touchlab.kermit.Logger
 import com.nuvio.app.core.auth.AuthRepository
 import com.nuvio.app.core.auth.AuthState
 import com.nuvio.app.core.tracking.ensureTrackingProvidersRegistered
+import com.nuvio.app.features.addons.ADDON_LIBRARY_RESOURCE
+import com.nuvio.app.features.addons.AddonEventDispatcher
+import com.nuvio.app.features.addons.AddonLibraryAction
+import com.nuvio.app.features.watchprogress.buildPlaybackVideoId
 import com.nuvio.app.features.details.MetaDetails
 import com.nuvio.app.features.details.MetaVideo
 import com.nuvio.app.features.profiles.ProfileRepository
+import com.nuvio.app.features.servers.ServerWatched
 import com.nuvio.app.features.tracking.TrackingProviderId
 import com.nuvio.app.features.tracking.TrackingProviderRegistry
-import com.nuvio.app.features.tracking.TrackingHistoryItem
-import com.nuvio.app.features.tracking.buildTrackingMediaReference
 import com.nuvio.app.features.tracking.TrackingSettingsRepository
-import com.nuvio.app.features.tracking.TrackingWatchedSnapshot
 import com.nuvio.app.features.tracking.WatchProgressSource
 import com.nuvio.app.features.tracking.effectiveWatchProgressSource
 import com.nuvio.app.features.tracking.providerId
@@ -157,7 +159,7 @@ object WatchedRepository {
     private var deltaCursorEventId: Long = 0L
     private var deltaInitialized: Boolean = false
     internal var syncAdapter: WatchedSyncAdapter = SupabaseWatchedSyncAdapter
-    private var providerSnapshotObserverJob: Job? = null
+    private var extraKeysObserverJob: Job? = null
 
     fun ensureLoaded() {
         ensureTrackingProvidersRegistered()
@@ -172,7 +174,7 @@ object WatchedRepository {
                 ),
             )
         }
-        startProviderSnapshotObserverIfNeeded()
+        startExtraKeysObserverIfNeeded()
     }
 
     fun onProfileChanged(profileId: Int) {
@@ -188,7 +190,7 @@ object WatchedRepository {
             }
         }
         previousAccountJob.cancel()
-        providerSnapshotObserverJob = null
+        extraKeysObserverJob = null
         hasLoaded = false
         currentProfileId = 1
         profileGeneration += 1L
@@ -303,13 +305,13 @@ object WatchedRepository {
         val previousSource = activeSource
         activeSource = source
         sourceGeneration += 1L
-        stopProviderSnapshotObserver()
+        stopExtraKeysObserver()
         log.i {
             "Watched source activated previous=$previousSource current=$source generation=$sourceGeneration " +
                 "provider=${source.providerId?.storageId}"
         }
         publish()
-        startProviderSnapshotObserverIfNeeded()
+        startExtraKeysObserverIfNeeded()
         return source
     }
 
@@ -757,11 +759,16 @@ object WatchedRepository {
     }
 
     fun markWatched(items: Collection<WatchedItem>) {
-        items.filter { it.isEpisode }
-            .map { it.id }
-            .distinct()
-            .forEach(ContinueWatchingPreferencesRepository::removeDismissedNextUpKeysForContent)
+        items.filter { it.isEpisode }.map { it.id }.distinct().forEach {
+            ContinueWatchingPreferencesRepository.removeDismissedNextUpKeysForContent(it)
+        }
+        val changedItems = if (AddonEventDispatcher.hasEnabledAddonFor(ADDON_LIBRARY_RESOURCE)) {
+            items.filterNot { isWatched(it.id, it.type, it.season, it.episode) }
+        } else {
+            emptyList()
+        }
         markWatched(items = items, trackerHistorySync = WatchedTrackerHistorySync.Mirror)
+        emitAddonWatchedEvents(changedItems, AddonLibraryAction.WATCHED)
     }
 
     internal fun markWatchedFromPlaybackCompletion(item: WatchedItem, syncRemote: Boolean = true) {
@@ -770,6 +777,14 @@ object WatchedRepository {
             trackerHistorySync = WatchedTrackerHistorySync.Skip,
             syncRemote = syncRemote,
         )
+    }
+
+    internal fun markWatchedLocally(items: Collection<WatchedItem>) {
+        markWatched(items = items, trackerHistorySync = WatchedTrackerHistorySync.Skip, syncRemote = false)
+    }
+
+    internal fun unmarkWatchedLocally(items: Collection<WatchedItem>) {
+        unmarkWatched(items = items, syncRemote = false)
     }
 
     private fun markWatched(
@@ -833,6 +848,38 @@ object WatchedRepository {
     }
 
     fun unmarkWatched(items: Collection<WatchedItem>) {
+        val changedItems = if (AddonEventDispatcher.hasEnabledAddonFor(ADDON_LIBRARY_RESOURCE)) {
+            items.filter { isWatched(it.id, it.type, it.season, it.episode) }
+        } else {
+            emptyList()
+        }
+        unmarkWatched(items = items, syncRemote = true)
+        emitAddonWatchedEvents(changedItems, AddonLibraryAction.UNWATCHED)
+    }
+
+    private fun emitAddonWatchedEvents(items: Collection<WatchedItem>, action: AddonLibraryAction) {
+        items.groupBy { it.type to it.id }.forEach { (key, groupItems) ->
+            val (type, id) = key
+            if (groupItems.any { !it.isEpisode }) {
+                AddonEventDispatcher.library(type = type, id = id, action = action)
+            } else {
+                AddonEventDispatcher.libraryVideos(
+                    type = type,
+                    id = id,
+                    action = action,
+                    videoIds = groupItems.map { item ->
+                        item.videoId?.takeIf(String::isNotBlank) ?: buildPlaybackVideoId(
+                            parentMetaId = item.id,
+                            seasonNumber = item.season,
+                            episodeNumber = item.episode,
+                        )
+                    },
+                )
+            }
+        }
+    }
+
+    private fun unmarkWatched(items: Collection<WatchedItem>, syncRemote: Boolean) {
         ensureLoaded()
         if (items.isEmpty()) return
         val source = activeSource
@@ -874,13 +921,13 @@ object WatchedRepository {
         if (removedItems.isNotEmpty()) {
             publish()
             persist()
-            pushDeleteToServer(items = removedItems, source = source)
+            if (syncRemote) pushDeleteToServer(items = removedItems, source = source)
         } else if (source.providerId != null) {
             if (removedExtraKeys) {
                 publish()
                 persist()
             }
-            pushDeleteToServer(items = items.toList(), source = source)
+            if (syncRemote) pushDeleteToServer(items = items.toList(), source = source)
         }
     }
 
@@ -931,10 +978,10 @@ object WatchedRepository {
         }
         if (shouldMarkSeriesWatched) {
             if (!hasSeriesWatchedMarker) {
-                markWatched(seriesWatchedItem)
+                markWatched(items = listOf(seriesWatchedItem), trackerHistorySync = WatchedTrackerHistorySync.Mirror)
             }
         } else if (hasSeriesWatchedMarker) {
-            unmarkWatched(seriesWatchedItem)
+            unmarkWatched(items = listOf(seriesWatchedItem), syncRemote = true)
         }
     }
 
@@ -1042,6 +1089,7 @@ object WatchedRepository {
     ) {
         val profileId = currentProfileId
         val operationGeneration = profileGeneration
+        if (trackerHistorySync == WatchedTrackerHistorySync.Mirror) ServerWatched.mirror(items, played = true)
         accountScopeSnapshot().launch {
             runCatching {
                 if (items.isEmpty()) return@runCatching
@@ -1069,6 +1117,7 @@ object WatchedRepository {
         source: WatchProgressSource,
     ) {
         val profileId = currentProfileId
+        ServerWatched.mirror(items, played = false)
         accountScopeSnapshot().launch {
             runCatching {
                 if (items.isEmpty()) return@runCatching
@@ -1132,58 +1181,61 @@ object WatchedRepository {
         }
 
     /**
-     * Applies provider snapshot changes that have already been committed locally.
-     * This keeps Home's watched input current after playback completion without
-     * scheduling an additional provider request.
+     * Observes provider extra watched keys (e.g. Simkl anime alternate IDs).
+     * When the provider's snapshot changes (after mutations, syncs), recomputes
+     * extra keys, re-pulls watched items, and re-publishes so watchedKeys and
+     * items stay reactive and current.
      */
-    private fun startProviderSnapshotObserverIfNeeded() {
-        if (providerSnapshotObserverJob != null) return
+    private fun startExtraKeysObserverIfNeeded() {
+        if (extraKeysObserverJob != null) return
         val providerId = activeSource.providerId ?: return
         val adapter = TrackingProviderRegistry.connectedWatchedProviders()
             .firstOrNull { it.providerId == providerId } ?: return
-        val profileId = currentProfileId
-        providerSnapshotObserverJob = accountScopeSnapshot().launch {
-            adapter.observeWatchedSnapshot(profileId).collectLatest { snapshot ->
-                if (
-                    activeSource.providerId != providerId ||
-                    currentProfileId != profileId ||
-                    ProfileRepository.activeProfileId != profileId
-                ) {
-                    return@collectLatest
+        extraKeysObserverJob = accountScopeSnapshot().launch {
+            adapter.observeExtraWatchedKeys(currentProfileId)
+                .distinctUntilChanged()
+                .collectLatest { extraKeys ->
+                    val keysChanged = extraWatchedKeysChanged(
+                        previous = providerExtraWatchedKeys[providerId],
+                        current = extraKeys,
+                    )
+                    if (keysChanged) {
+                        val freshItems = watchedProviderRefreshOrNull(
+                            refresh = {
+                                adapter.pull(
+                                    profileId = currentProfileId,
+                                    pageSize = watchedItemsPageSize,
+                                )
+                            },
+                            onFailure = { error ->
+                                log.w(error) { "Failed to refresh watched items from ${providerId.storageId}" }
+                            },
+                        ) ?: return@collectLatest
+                        providerExtraWatchedKeys[providerId] = extraKeys
+                        itemsStore.update { _, providerItems, _, dirtyProviderKeys ->
+                            val dirtyKeys = dirtyProviderKeys.getOrPut(providerId, ::mutableSetOf)
+                            val merged = mergeWatchedSnapshot(
+                                serverItems = freshItems,
+                                localItems = providerItems[providerId]?.values.orEmpty().toList(),
+                                dirtyKeys = dirtyKeys,
+                                acknowledgeDirtyByPresence = true,
+                            )
+                            providerItems[providerId] = merged.items.toMutableMap()
+                            dirtyKeys.clear()
+                            dirtyKeys += merged.dirtyKeys
+                        }
+                        loadedProviders += providerId
+                        providersLoadedFromRemote += providerId
+                        publish()
+                        persist()
+                    }
                 }
-                applyProviderWatchedSnapshot(providerId, snapshot)
-            }
         }
     }
 
-    private fun applyProviderWatchedSnapshot(
-        providerId: TrackingProviderId,
-        snapshot: TrackingWatchedSnapshot,
-    ) {
-        itemsStore.update { _, providerItems, _, dirtyProviderKeys ->
-            val dirtyKeys = dirtyProviderKeys.getOrPut(providerId, ::mutableSetOf)
-            val merged = mergeWatchedSnapshot(
-                serverItems = snapshot.items,
-                localItems = providerItems[providerId]?.values.orEmpty().toList(),
-                dirtyKeys = dirtyKeys,
-                acknowledgeDirtyByPresence = true,
-            )
-            providerItems[providerId] = merged.items.toMutableMap()
-            dirtyKeys.clear()
-            dirtyKeys += merged.dirtyKeys
-        }
-        snapshot.fullyWatchedSeriesKeys?.let { keys ->
-            providerFullyWatchedSeriesKeys[providerId] = keys
-        }
-        providerExtraWatchedKeys[providerId] = snapshot.extraWatchedKeys
-        loadedProviders += providerId
-        publish()
-        persist()
-    }
-
-    private fun stopProviderSnapshotObserver() {
-        providerSnapshotObserverJob?.cancel()
-        providerSnapshotObserverJob = null
+    private fun stopExtraKeysObserver() {
+        extraKeysObserverJob?.cancel()
+        extraKeysObserverJob = null
     }
 
     private fun persist() {
@@ -1216,7 +1268,7 @@ object WatchedRepository {
                         extraWatchedKeyGroups = compactExtraWatchedKeys(
                             providerExtraWatchedKeys[providerId].orEmpty(),
                         ),
-                        dirtyWatchedKeys = dirtyProviderKeys[providerId].orEmpty(),
+                        dirtyWatchedKeys = dirtyProviderKeys[providerId].orEmpty().toSet(),
                     )
                 },
             )
@@ -1266,6 +1318,9 @@ object WatchedRepository {
         trackerHistorySync: WatchedTrackerHistorySync,
         source: WatchProgressSource,
     ): WatchedPushOutcome {
+        val (serverItems, items) = items.partition(ServerWatched::isServerItem)
+        if (trackerHistorySync == WatchedTrackerHistorySync.Mirror) ServerWatched.apply(serverItems, played = true)
+        if (items.isEmpty()) return WatchedPushOutcome(nuvioSyncSucceeded = true)
         var nuvioSyncSucceeded = false
         val succeededTrackerProviderIds = linkedSetOf<TrackingProviderId>()
         if (source.providerId == null) {
@@ -1290,28 +1345,6 @@ object WatchedRepository {
                     log.e(error) { "Failed to push watched items to ${provider.providerId.storageId}" }
                 }
             }
-            TrackingProviderRegistry.connectedHistoryWriters()
-                .filterNot { writer -> writer.providerId in succeededTrackerProviderIds }
-                .forEach { writer ->
-                    try {
-                        val historyItems = items.map { item ->
-                            TrackingHistoryItem(
-                                media = item.toTrackingMediaReference(),
-                                watchedAtEpochMs = item.markedAtEpochMs,
-                            )
-                        }
-                        val result = writer.addToHistory(profileId = profileId, items = historyItems)
-                        check(result.isComplete) {
-                            "${writer.providerId.storageId} could not match ${result.notFoundCount} " +
-                                "of ${result.attemptedCount} watched items"
-                        }
-                        succeededTrackerProviderIds += writer.providerId
-                    } catch (error: CancellationException) {
-                        throw error
-                    } catch (error: Throwable) {
-                        log.e(error) { "Failed to push watched items to ${writer.providerId.storageId}" }
-                    }
-                }
         }
         return WatchedPushOutcome(
             nuvioSyncSucceeded = nuvioSyncSucceeded,
@@ -1324,6 +1357,9 @@ object WatchedRepository {
         items: Collection<WatchedItem>,
         source: WatchProgressSource,
     ) {
+        val (serverItems, items) = items.partition(ServerWatched::isServerItem)
+        ServerWatched.apply(serverItems, played = false)
+        if (items.isEmpty()) return
         if (source.providerId == null) {
             try {
                 syncAdapter.delete(profileId = profileId, items = items)
@@ -1343,54 +1379,6 @@ object WatchedRepository {
                 log.e(error) { "Failed to delete watched items from ${provider.providerId.storageId}" }
             }
         }
-        val watchedProviderIds = TrackingProviderRegistry.connectedWatchedProviders()
-            .mapTo(linkedSetOf()) { provider -> provider.providerId }
-        TrackingProviderRegistry.connectedHistoryWriters()
-            .filterNot { writer -> writer.providerId in watchedProviderIds }
-            .forEach { writer ->
-                try {
-                    val result = writer.removeFromHistory(
-                        profileId = profileId,
-                        items = items.map { item -> item.toTrackingMediaRemovalReference() },
-                    )
-                    check(result.isComplete) {
-                        "${writer.providerId.storageId} could not match ${result.notFoundCount} " +
-                            "of ${result.attemptedCount} watched items"
-                    }
-                } catch (error: CancellationException) {
-                    throw error
-                } catch (error: Throwable) {
-                    log.e(error) { "Failed to delete watched items from ${writer.providerId.storageId}" }
-                }
-            }
-    }
-
-    private fun WatchedItem.toTrackingMediaReference() = buildTrackingMediaReference(
-        contentType = type,
-        parentMetaId = id,
-        videoId = videoId,
-        title = name,
-        releaseInfo = releaseInfo,
-        seasonNumber = season,
-        episodeNumber = episode,
-    )
-
-    private fun WatchedItem.toTrackingMediaRemovalReference() = toTrackingMediaReference().let { media ->
-        val episodeInfo = media.episode ?: return@let media
-        val remainingEpisodes = uiState.value.items
-            .asSequence()
-            .filter { remaining ->
-                remaining.id == id &&
-                    remaining.season == season &&
-                    remaining.episode != null
-            }
-            .mapNotNull { remaining -> remaining.episode }
-            .filter { number -> number > 0 }
-            .toSet()
-        val continuousProgress = continuousWatchedProgress(remainingEpisodes)
-        media.copy(
-            episode = episodeInfo.copy(continuousProgressAfterRemoval = continuousProgress),
-        )
     }
 
     private fun accountScopeSnapshot(): CoroutineScope =
@@ -1402,10 +1390,6 @@ object WatchedRepository {
         TrackingProviderRegistry.connectedWatchedProviders()
             .mapTo(linkedSetOf()) { provider -> provider.providerId }
 }
-
-internal fun continuousWatchedProgress(watchedEpisodes: Set<Int>): Int =
-    generateSequence(1) { number -> number + 1 }
-        .first { number -> number !in watchedEpisodes } - 1
 
 internal data class WatchedSnapshotMerge(
     val items: Map<String, WatchedItem>,
