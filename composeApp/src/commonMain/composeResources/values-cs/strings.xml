@@ -1936,7 +1936,6 @@
     <string name="action_delete_confirm_title">Smazat?</string>
     <string name="action_remove_anyway">Přesto odebrat</string>
     <string name="addons_delete_confirm_title">Smazat doplněk?</string>
-    <string name="collections_copy_json_error">Data kolekce jsou pro schránku tohoto zařízení příliš velká.</string>
     <string name="collections_editor_tmdb_without_genres">Vyloučená ID žánrů</string>
     <string name="collections_editor_tmdb_without_genres_helper">Vyloučí tituly odpovídající těmto číslům žánrů TMDB.</string>
     <string name="collections_editor_tmdb_without_genres_placeholder">16 pro animaci</string>

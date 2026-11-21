@@ -2050,7 +2050,6 @@
     <string name="action_remove_anyway">Usuń mimo to</string>
     <string name="action_support_nuvio">Wesprzyj Nuvio</string>
     <string name="addons_delete_confirm_title">Usunąć dodatek?</string>
-    <string name="collections_copy_json_error">Dane kolekcji są zbyt duże dla schowka na tym urządzeniu.</string>
     <string name="collections_editor_tmdb_without_genres">Wykluczone ID gatunków</string>
     <string name="collections_editor_tmdb_without_genres_helper">Wyklucz tytuły pasujące do podanych numerów gatunków TMDB.</string>
     <string name="collections_editor_tmdb_without_genres_placeholder">16 dla Animacji</string>

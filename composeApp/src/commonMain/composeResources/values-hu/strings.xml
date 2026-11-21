@@ -2164,7 +2164,6 @@
     <string name="action_delete_confirm_message">Biztosan törölni szeretnéd?</string>
     <string name="action_delete_confirm_title">Törlés?</string>
     <string name="addons_delete_confirm_title">Kiegészítő törlése?</string>
-    <string name="collections_copy_json_error">A gyűjtemény adatai túl nagyok a vágólaphoz ezen az eszközön.</string>
     <string name="trailer_enter_fullscreen">Teljes képernyő</string>
     <string name="trailer_exit_fullscreen">Kilépés a teljes képernyőből</string>
     <string name="player_seek_position">Lejátszási pozíció</string>

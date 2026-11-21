@@ -2150,7 +2150,6 @@ Bu özelliği tamamen kendi sorumluluğunuzda kullanırsınız. P2P istediğiniz
     <string name="action_delete_confirm_message">Silmek istediğinizden emin misiniz?</string>
     <string name="action_delete_confirm_title">Silinsin mi?</string>
     <string name="addons_delete_confirm_title">Eklenti silinsin mi?</string>
-    <string name="collections_copy_json_error">Koleksiyon verisi bu cihazdaki pano için çok büyük.</string>
     <string name="collections_editor_tmdb_without_genres">Hariç tutulan tür kimlikleri</string>
     <string name="collections_editor_tmdb_without_genres_helper">Bu TMDB tür numaralarıyla eşleşen başlıkları hariç tutun.</string>
     <string name="collections_editor_tmdb_without_genres_placeholder">Animasyon için 16</string>

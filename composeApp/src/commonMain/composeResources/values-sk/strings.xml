@@ -2172,7 +2172,6 @@
     <string name="action_delete_confirm_message">Naozaj to chcete odstrániť?</string>
     <string name="action_delete_confirm_title">Odstrániť?</string>
     <string name="addons_delete_confirm_title">Odstrániť doplnok?</string>
-    <string name="collections_copy_json_error">Údaje kolekcie sú pre schránku tohto zariadenia príliš veľké.</string>
     <string name="collections_editor_tmdb_without_genres">Vylúčené ID žánrov</string>
     <string name="collections_editor_tmdb_without_genres_helper">Vylúčiť tituly zodpovedajúce týmto číslam žánrov TMDB.</string>
     <string name="collections_editor_tmdb_without_genres_placeholder">16 pre Animované</string>

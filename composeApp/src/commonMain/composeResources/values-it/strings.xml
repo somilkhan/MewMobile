@@ -2273,7 +2273,6 @@
     <string name="action_collapse">Comprimi</string>
     <string name="action_expand">Espandi</string>
     <string name="action_delete_confirm_title">Eliminare?</string>
-    <string name="collections_copy_json_error">I dati della collezione sono troppo grandi per essere copiati negli appunti su questo dispositivo.</string>
     <string name="collections_editor_tmdb_without_keywords_placeholder">9715</string>
     <string name="collections_editor_tmdb_without_companies_placeholder">420</string>
     <string name="collections_editor_tmdb_without_watch_providers_placeholder">8|337|350</string>
