@@ -1310,7 +1310,6 @@
     <string name="settings_tmdb_module_season_posters_description">Utiliser les affiches de saison TMDB dans le sélecteur de saisons de l’écran de métadonnées pour les séries.</string>
     <string name="settings_tmdb_module_trailers">Bandes-annonces</string>
     <string name="settings_tmdb_module_trailers_description">Récupérer et afficher la section des bandes-annonces TMDB sur les pages de détails.</string>
-    <string name="settings_tmdb_personal_api_key">Clé API personnelle</string>
     <string name="settings_tmdb_preferred_language">Langue préférée</string>
     <string name="settings_tmdb_preferred_language_description">Configurez le code de langue TMDB utilisé pour les métadonnées localisées, ex. `en`, `en-US` ou `pt-BR`.</string>
     <string name="settings_tmdb_original_title_language">Langue d’origine</string>
@@ -2371,7 +2370,6 @@
     <string name="theme_blossom">Floraison</string>
     <string name="theme_lagoon">Lagon</string>
     <string name="theme_sunset">Coucher de soleil</string>
-    <string name="theme_custom">Personnalisé</string>
     <string name="settings_appearance_theme_classic">Thèmes classiques</string>
     <string name="settings_appearance_theme_enhanced">Mew themes</string>
     <string name="settings_appearance_theme_custom_first">Première couleur</string>
