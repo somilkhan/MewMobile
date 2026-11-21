@@ -643,10 +643,6 @@ actual object CloudStreamRepository {
         }
 
         return request.await()
-            .onSuccess { sections ->
-            }
-            .onFailure { error ->
-            }
     }
     private fun cancelInFlightMainPageRequests() {
         val requests = synchronized(mainPageRequestMutex) {
@@ -661,15 +657,12 @@ actual object CloudStreamRepository {
     ): List<Result<List<CloudStreamSearchItem>>> {
         initialize()
         val activeIds = runnableProviderIds().filter { providerId == null || it == providerId }
-        val startedAt = currentEpochMillis()
         val results = coroutineScope {
             val gate = Semaphore(PROVIDER_REQUEST_CONCURRENCY)
             activeIds.map { id ->
                 async {
                     gate.withPermit {
                         providerResult(id) { search(query.trim()) }
-                            .onSuccess { items -> }
-                            .onFailure { error -> }
                     }
                 }
             }.map { it.await() }
@@ -686,15 +679,6 @@ actual object CloudStreamRepository {
             return Result.success(cached)
         }
 
-        val normalizedData = data.trimStart()
-        val dataKind = when {
-            normalizedData.startsWith("http://", ignoreCase = true) ||
-                normalizedData.startsWith("https://", ignoreCase = true) -> "url"
-            normalizedData.startsWith("[") -> "json-array"
-            normalizedData.startsWith("{") -> "json-object"
-            normalizedData.isBlank() -> "blank"
-            else -> "other"
-        }
         return providerResult(providerId) { load(data) }
             .onSuccess { item ->
                 loadResultCacheMutex.withLock {
@@ -704,8 +688,6 @@ actual object CloudStreamRepository {
                         loadResultCache.remove(loadResultCache.entries.first().key)
                     }
                 }
-            }
-            .onFailure { error ->
             }
     }
 
@@ -728,17 +710,13 @@ actual object CloudStreamRepository {
             return Result.success(cached)
         }
 
-        var created = false
         val request = loadLinksRequestMutex.withLock {
             loadLinksRequests[requestKey]
                 ?: scope.async(start = CoroutineStart.LAZY) {
                     providerResult(providerId) { loadLinks(data) }
                 }.also { deferred ->
                     loadLinksRequests[requestKey] = deferred
-                    created = true
                 }
-        }
-        if (!created) {
         }
         request.invokeOnCompletion {
             scope.launch {
