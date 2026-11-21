@@ -42,7 +42,7 @@ data class PlayerSettingsUiState(
     val chapterTitleEnabled: Boolean = false,
     val playerLiquidGlassEnabled: Boolean = false,
     val nextEpisodeSwipeDismissEnabled: Boolean = false,
-    val miniPlayerEnabled: Boolean = false,
+    val miniPlayerEnabled: Boolean = true,
     val skipBackwardSeconds: Int = PLAYER_SKIP_SECONDS_DEFAULT,
     val skipForwardSeconds: Int = PLAYER_SKIP_SECONDS_DEFAULT,
     val toolbarLayout: PlayerToolbarLayout = PlayerToolbarLayout.Default,
@@ -125,7 +125,7 @@ object PlayerSettingsRepository {
     private var chapterTitleEnabled = false
     private var playerLiquidGlassEnabled = false
     private var nextEpisodeSwipeDismissEnabled = false
-    private var miniPlayerEnabled = false
+    private var miniPlayerEnabled = true
     private var skipBackwardSeconds = PLAYER_SKIP_SECONDS_DEFAULT
     private var skipForwardSeconds = PLAYER_SKIP_SECONDS_DEFAULT
     private var toolbarLayout = PlayerToolbarLayout.Default
@@ -213,7 +213,7 @@ object PlayerSettingsRepository {
         chapterTitleEnabled = false
         playerLiquidGlassEnabled = false
         nextEpisodeSwipeDismissEnabled = false
-        miniPlayerEnabled = false
+        miniPlayerEnabled = true
         skipBackwardSeconds = PLAYER_SKIP_SECONDS_DEFAULT
         skipForwardSeconds = PLAYER_SKIP_SECONDS_DEFAULT
         toolbarLayout = PlayerToolbarLayout.Default
@@ -294,7 +294,7 @@ object PlayerSettingsRepository {
         chapterTitleEnabled = PlayerSettingsStorage.loadChapterTitleEnabled() ?: false
         playerLiquidGlassEnabled = PlayerSettingsStorage.loadPlayerLiquidGlassEnabled() ?: false
         nextEpisodeSwipeDismissEnabled = PlayerSettingsStorage.loadNextEpisodeSwipeDismissEnabled() ?: false
-        miniPlayerEnabled = PlayerSettingsStorage.loadMiniPlayerEnabled() ?: false
+        miniPlayerEnabled = PlayerSettingsStorage.loadMiniPlayerEnabled() ?: true
         skipBackwardSeconds = normalizePlayerSkipSeconds(PlayerSettingsStorage.loadSkipBackwardSeconds())
         skipForwardSeconds = normalizePlayerSkipSeconds(PlayerSettingsStorage.loadSkipForwardSeconds())
         toolbarLayout = PlayerToolbarLayout.decode(PlayerSettingsStorage.loadToolbarLayout())
