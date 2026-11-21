@@ -13,8 +13,6 @@ import com.nuvio.app.features.tracking.TrackingWatchedProvider
 import com.nuvio.app.features.tracking.TrackingWatchedSnapshot
 import com.nuvio.app.features.watched.WatchedItem
 import com.nuvio.app.features.watchprogress.WatchProgressEntry
-import kotlinx.atomicfu.locks.SynchronizedObject
-import kotlinx.atomicfu.locks.synchronized
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -31,7 +29,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 object SimklWatchedSyncAdapter : TrackingWatchedProvider {
-    private val log = Logger.withTag("SimklWatched")
     override val providerId: TrackingProviderId = TrackingProviderId.SIMKL
     private val log = Logger.withTag("SimklWatchedSyncAdapter")
     override suspend fun pull(profileId: Int, pageSize: Int): List<WatchedItem> {
@@ -51,6 +48,8 @@ object SimklWatchedSyncAdapter : TrackingWatchedProvider {
     }
 
     override suspend fun pullFullyWatchedSeriesKeys(profileId: Int): Set<String>? {
+        // Simkl "completed" = all episodes watched; Nuvio "completed" = all
+        // *available* episodes watched. Let local revalidation decide.
         return null
     }
 
@@ -88,13 +87,10 @@ object SimklWatchedSyncAdapter : TrackingWatchedProvider {
 
     override suspend fun push(profileId: Int, items: Collection<WatchedItem>) {
         if (profileId != ProfileRepository.activeProfileId || items.isEmpty()) return
-        val pushableItems = simklHistoryPushItems(items)
-        if (pushableItems.isEmpty()) {
-            log.i { "Skipped ${items.size} Simkl history items: nothing but whole-series marks" }
-            return
-        }
         SimklSyncRepository.ensureLoaded()
         val snapshot = SimklSyncRepository.state.value.snapshot
+        val pushableItems = simklHistoryPushItems(items)
+        if (pushableItems.isEmpty()) return
         val historyItems = pushableItems.map { item ->
             TrackingHistoryItem(
                 media = snapshot.mediaReference(
@@ -105,7 +101,6 @@ object SimklWatchedSyncAdapter : TrackingWatchedProvider {
                     season = item.season,
                     episode = item.episode,
                     videoId = item.videoId,
-                    posterUrl = item.poster,
                 ),
                 watchedAtEpochMs = item.markedAtEpochMs,
             )
@@ -130,7 +125,6 @@ object SimklWatchedSyncAdapter : TrackingWatchedProvider {
                 contentType = item.type,
                 title = item.name,
                 releaseInfo = item.releaseInfo,
-                posterUrl = item.poster,
             )
         }
         runCatching {
@@ -139,9 +133,9 @@ object SimklWatchedSyncAdapter : TrackingWatchedProvider {
                 items = media,
                 destination = TrackingListStatus.COMPLETED,
             )
-        }.onSuccess { result ->
-            if (!result.isComplete) {
-                log.w { "Simkl could not move ${result.notFoundCount} of ${result.attemptedCount} series to Completed" }
+        }.onSuccess { moveResult ->
+            if (!moveResult.isComplete) {
+                log.w { "Simkl could not move ${moveResult.notFoundCount} of ${moveResult.attemptedCount} series to Completed" }
             }
         }.onFailure { error ->
             if (error is CancellationException) throw error
@@ -153,6 +147,7 @@ object SimklWatchedSyncAdapter : TrackingWatchedProvider {
         if (profileId != ProfileRepository.activeProfileId || items.isEmpty()) return
         val episodeItems = items.filter { item -> item.season != null && item.episode != null }
         if (episodeItems.isEmpty()) return
+        // Optimistically mark video IDs as removed so fallback won't show them as watched
         episodeItems.forEach { item -> item.videoId?.let(SimklAnimeWatchedFallback::markOptimisticallyRemoved) }
         SimklSyncRepository.ensureLoaded()
         val snapshot = SimklSyncRepository.state.value.snapshot
@@ -199,34 +194,14 @@ data class SimklProgressUiState(
     val isLoading: Boolean = false,
     val hasLoadedRemoteProgress: Boolean = false,
     val errorMessage: String? = null,
-    val hiddenContentIds: Set<String> = emptySet(),
 )
-
-internal fun simklHistoryPushItems(items: Collection<WatchedItem>): List<WatchedItem> =
-    items.filterNot(WatchedItem::isWholeSeriesMark)
-
-internal fun simklExplicitlyCompletedSeries(items: Collection<WatchedItem>): List<WatchedItem> {
-    val episodeParents = items
-        .filter { item -> item.season != null && item.episode != null }
-        .mapTo(hashSetOf()) { item -> item.id }
-    return items
-        .filter { item -> item.isWholeSeriesMark() && item.id in episodeParents }
-        .distinctBy { item -> item.id }
-}
-
-private fun WatchedItem.isWholeSeriesMark(): Boolean =
-    season == null && episode == null && type.trim().lowercase() !in MOVIE_LIKE_WATCHED_TYPES
-
-private val MOVIE_LIKE_WATCHED_TYPES = setOf("movie", "film")
 
 object SimklProgressRepository {
     private val log = Logger.withTag("SimklProgress")
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val _uiState = MutableStateFlow(SimklProgressUiState())
     val uiState: StateFlow<SimklProgressUiState> = _uiState.asStateFlow()
-    private val publicationLock = SynchronizedObject()
-    private val projectionCache = SimklSnapshotProjectionCache(SimklSyncSnapshot::toSimklProgressEntries)
-    private var publishedSyncState: SimklSyncUiState? = null
+    private val optimisticEntries = MutableStateFlow<Map<String, WatchProgressEntry>>(emptyMap())
 
     init {
         scope.launch {
@@ -333,44 +308,21 @@ object SimklProgressRepository {
     }
 
     private fun publish(syncState: SimklSyncUiState) {
-        synchronized(publicationLock) {
-            if (syncState === publishedSyncState || syncState !== SimklSyncRepository.state.value) return
-            _uiState.value = SimklProgressUiState(
-                entries = projectionCache.get(syncState),
-                isLoading = syncState.isLoading,
-                hasLoadedRemoteProgress = syncState.hasLoaded && syncState.errorMessage == null,
-                errorMessage = syncState.errorMessage,
-                hiddenContentIds = syncState.snapshot.hiddenFromContinueWatchingContentIds(),
-            )
-            publishedSyncState = syncState
-        }
-    }
-}
-
-internal class SimklSnapshotProjectionCache<T : Any>(
-    private val project: (SimklSyncSnapshot) -> T,
-) {
-    private var snapshot: SimklSyncSnapshot? = null
-    private var projectionVersion = 0L
-    private var projection: T? = null
-
-    fun get(state: SimklSyncUiState): T {
-        val current = projection
-        if (current != null && snapshot === state.snapshot && projectionVersion == state.projectionVersion) {
-            return current
-        }
-        return project(state.snapshot).also { updated ->
-            snapshot = state.snapshot
-            projectionVersion = state.projectionVersion
-            projection = updated
-        }
+        _uiState.value = SimklProgressUiState(
+            entries = mergeSimklOptimisticProgress(
+                providerEntries = syncState.snapshot.toSimklProgressEntries(),
+                optimisticEntries = optimisticEntries.value.values,
+            ),
+            isLoading = syncState.isLoading,
+            hasLoadedRemoteProgress = syncState.hasLoaded && syncState.errorMessage == null,
+            errorMessage = syncState.errorMessage,
+        )
     }
 }
 
 object SimklTrackingProgressProvider : TrackingProgressProvider {
     override val providerId: TrackingProviderId = TrackingProviderId.SIMKL
     override val changes: Flow<Unit> = SimklProgressRepository.uiState.map { Unit }
-    override fun showIdSiblings() = SimklSyncRepository.state.value.snapshot.toSimklShowIdSiblings()
 
     override fun ensureLoaded() = SimklProgressRepository.ensureLoaded()
 
@@ -385,7 +337,8 @@ object SimklTrackingProgressProvider : TrackingProgressProvider {
         val state = SimklProgressRepository.uiState.value
         return TrackingProgressSnapshot(
             entries = state.entries,
-            hiddenContentIds = state.hiddenContentIds,
+            hiddenContentIds = SimklSyncRepository.state.value.snapshot
+                .hiddenFromContinueWatchingContentIds(),
             hasLoadedRemoteProgress = state.hasLoadedRemoteProgress,
             errorMessage = state.errorMessage,
         )
@@ -417,8 +370,38 @@ object SimklTrackingProgressProvider : TrackingProgressProvider {
         return resolvedId ?: parentContentId
     }
 
-    override fun nextUpSeedContentId(contentId: String): String =
-        SimklSyncRepository.state.value.snapshot.canonicalSeriesContentId(contentId) ?: contentId
+    override suspend fun refreshEpisodeProgress(contentId: String, forceRefresh: Boolean) =
+        SimklProgressRepository.refresh(
+            resolveSimklProgressRefreshIntent(force = forceRefresh, sourceChanged = false),
+        )
+}
+
+internal fun mergeSimklOptimisticProgress(
+    providerEntries: Collection<WatchProgressEntry>,
+    optimisticEntries: Collection<WatchProgressEntry>,
+): List<WatchProgressEntry> = (providerEntries + optimisticEntries)
+    .groupBy(WatchProgressEntry::simklProgressIdentityKey)
+    .mapNotNull { (_, candidates) -> candidates.maxByOrNull(WatchProgressEntry::lastUpdatedEpochMs) }
+    .sortedByDescending(WatchProgressEntry::lastUpdatedEpochMs)
+
+private fun WatchProgressEntry.simklProgressIdentityKey(): String = if (seasonNumber != null && episodeNumber != null) {
+    "${parentMetaType.simklProgressTypeKey()}:${parentMetaId.trim()}:$seasonNumber:$episodeNumber"
+} else {
+    "${parentMetaType.simklProgressTypeKey()}:${parentMetaId.trim()}:${videoId.trim()}"
+}
+
+private fun String.simklProgressTypeKey(): String = when (trim().lowercase()) {
+    "series", "show", "tv", "tvshow" -> "series"
+    "movie", "film" -> "movie"
+    else -> trim().lowercase()
+}
+
+private fun SimklMedia.allContentIdsForOptimisticReconciliation(): Set<String> = buildSet {
+    ids.idValue("imdb")?.let(::add)
+    listOf("tmdb", "tvdb", "mal", "anidb", "anilist", "kitsu").forEach { type ->
+        ids.idValue(type)?.let { id -> add("$type:$id") }
+    }
+    ids.simklIdValue()?.let { id -> add("simkl:$id") }
 }
 
 private const val SIMKL_PLAYBACK_PROGRESS_KEY_PREFIX = "simkl-playback:"

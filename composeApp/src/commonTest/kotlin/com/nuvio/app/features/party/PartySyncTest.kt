@@ -52,6 +52,14 @@ class PartySyncTest {
     }
 
     @Test
+    fun behindPresenceRequiresParticipantToExceedSeekThreshold() {
+        assertEquals(null, PartySync.behindByMs(11_500, 10_000, isHost = false))
+        assertEquals(1_501, PartySync.behindByMs(11_501, 10_000, isHost = false))
+        assertEquals(null, PartySync.behindByMs(20_000, 10_000, isHost = true))
+        assertEquals(null, PartySync.behindByMs(9_000, 10_000, isHost = false))
+    }
+
+    @Test
     fun higherSequenceWins() {
         assertTrue(PartySync.isNewer(playback(seq = 3), playback(seq = 2)))
         assertFalse(PartySync.isNewer(playback(seq = 2), playback(seq = 3)))

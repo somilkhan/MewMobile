@@ -178,7 +178,7 @@ class StreamBadgePresentationTest {
     }
 
     @Test
-    fun `applies new rules after reusing the previous ones`() {
+    fun `reuses compiled badge rules until the rules change`() {
         fun rules(name: String, pattern: String) = StreamBadgeRules(
             imports = listOf(
                 StreamBadgeImport(

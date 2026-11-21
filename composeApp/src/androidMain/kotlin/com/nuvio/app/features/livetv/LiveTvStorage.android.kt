@@ -2,143 +2,203 @@ package com.nuvio.app.features.livetv
 
 import android.content.Context
 import android.content.SharedPreferences
-import com.nuvio.app.core.storage.ProfileScopedKey
+import java.io.File
+import java.security.MessageDigest
 
 actual object LiveTvStorage {
     private const val preferencesName = "nuvio_live_tv"
-    private const val playlistUrlKey = "playlist_url"
-    private const val playlistsBlobKey = "playlists_blob"
-    private const val favoriteChannelIdsBlobKey = "favorite_channel_ids_blob"
-    private const val lastWatchedChannelIdKey = "last_watched_channel_id"
-    private const val recentChannelIdsBlobKey = "recent_channel_ids"
-    private const val channelViewModeKey = "channel_view_mode"
-    private const val navigationEnabledKey = "navigation_enabled"
-    private const val stalkerSettingsKey = "stalker_settings"
-    private const val xtreamSettingsKey = "xtream_settings"
-    private const val epgSourcesBlobKey = "epg_sources_blob"
-    private const val epgAutoDetectEnabledKey = "epg_auto_detect_enabled"
+    private const val sourceTypeKey = "source_type"
+    private const val sourceUrlKey = "m3u_source_url"
+    private const val localPlaylistDataKey = "m3u_local_playlist_data"
+    private const val stalkerPortalUrlKey = "stalker_portal_url"
+    private const val stalkerMacAddressKey = "stalker_mac_address"
+    private const val stalkerUsernameKey = "stalker_username"
+    private const val stalkerPasswordKey = "stalker_password"
+    private const val xtreamServerUrlKey = "xtream_server_url"
+    private const val xtreamUsernameKey = "xtream_username"
+    private const val xtreamPasswordKey = "xtream_password"
+    private const val favoriteUrlsKey = "favorite_channel_urls"
+    private const val recentChannelUrlKey = "recent_channel_url"
+    private const val recentChannelNameKey = "recent_channel_name"
+    private const val recentChannelLogoKey = "recent_channel_logo"
+    private const val recentChannelGroupKey = "recent_channel_group"
+    private const val recentChannelTvgIdKey = "recent_channel_tvg_id"
+    private const val epgCacheMagic = "NUVIO_XMLTV_1"
 
     private var preferences: SharedPreferences? = null
+    private var appContext: Context? = null
+
+    private fun resolvedProfileId(): Int = resolveLiveTvStorageProfileId()
+
+    private fun scopedKey(baseKey: String, profileId: Int = resolvedProfileId()): String = "${baseKey}_$profileId"
+
+    private fun SharedPreferences.getScopedString(baseKey: String): String? {
+        val profileId = resolvedProfileId()
+        return getString(scopedKey(baseKey, profileId), null)
+            ?: if (profileId == 1) getString(baseKey, null) else null
+    }
+
+    private fun SharedPreferences.Editor.putScopedString(baseKey: String, value: String?) {
+        val profileId = resolvedProfileId()
+        val profileKey = scopedKey(baseKey, profileId)
+        if (value.isNullOrBlank()) {
+            remove(profileKey)
+            if (profileId == 1) remove(baseKey)
+        } else {
+            putString(profileKey, value)
+            if (profileId == 1) putString(baseKey, value)
+        }
+    }
 
     fun initialize(context: Context) {
-        preferences = context.getSharedPreferences(preferencesName, Context.MODE_PRIVATE)
+        appContext = context.applicationContext
+        preferences = appContext?.getSharedPreferences(preferencesName, Context.MODE_PRIVATE)
+        LiveTvEpgStorageBridge.readCache = ::readEpgCacheEntry
+        LiveTvEpgStorageBridge.writeCache = ::writeEpgCacheEntry
     }
 
-    actual fun loadPlaylistUrl(): String? =
-        preferences?.getString(ProfileScopedKey.of(playlistUrlKey), null)
+    actual fun loadSourceType(): LiveTvSourceType =
+        when (preferences?.getScopedString(sourceTypeKey) ?: LiveTvSourceType.M3u.name) {
+            LiveTvSourceType.Stalker.name -> LiveTvSourceType.Stalker
+            LiveTvSourceType.Xtream.name -> LiveTvSourceType.Xtream
+            else -> LiveTvSourceType.M3u
+        }
 
-    actual fun savePlaylistUrl(url: String) {
-        preferences
-            ?.edit()
-            ?.putString(ProfileScopedKey.of(playlistUrlKey), url)
-            ?.apply()
+    actual fun saveSourceType(type: LiveTvSourceType) {
+        preferences?.edit()?.apply {
+            putScopedString(sourceTypeKey, type.name)
+        }?.apply()
     }
 
-    actual fun loadPlaylistsBlob(): String? =
-        preferences?.getString(ProfileScopedKey.of(playlistsBlobKey), null)
+    actual fun loadSourceUrl(): String? =
+        preferences?.getScopedString(sourceUrlKey)
 
-    actual fun savePlaylistsBlob(blob: String) {
-        preferences
-            ?.edit()
-            ?.putString(ProfileScopedKey.of(playlistsBlobKey), blob)
-            ?.apply()
+    actual fun saveSourceUrl(url: String) {
+        preferences?.edit()?.apply {
+            putScopedString(sourceUrlKey, url)
+        }?.apply()
     }
 
-    actual fun loadFavoriteChannelIdsBlob(): String? =
-        preferences?.getString(ProfileScopedKey.of(favoriteChannelIdsBlobKey), null)
+    actual fun loadLocalPlaylistData(): String? =
+        preferences?.getScopedString(localPlaylistDataKey)
 
-    actual fun saveFavoriteChannelIdsBlob(blob: String) {
-        preferences
-            ?.edit()
-            ?.putString(ProfileScopedKey.of(favoriteChannelIdsBlobKey), blob)
-            ?.apply()
-    }
-
-    actual fun loadLastWatchedChannelId(): String? =
-        preferences?.getString(ProfileScopedKey.of(lastWatchedChannelIdKey), null)
-
-    actual fun saveLastWatchedChannelId(channelId: String) {
-        preferences
-            ?.edit()
-            ?.putString(ProfileScopedKey.of(lastWatchedChannelIdKey), channelId)
-            ?.apply()
-    }
-
-    actual fun loadRecentChannelIdsBlob(): String? =
-        preferences?.getString(ProfileScopedKey.of(recentChannelIdsBlobKey), null)
-
-    actual fun saveRecentChannelIdsBlob(blob: String) {
-        preferences
-            ?.edit()
-            ?.putString(ProfileScopedKey.of(recentChannelIdsBlobKey), blob)
-            ?.apply()
-    }
-
-    actual fun loadChannelViewMode(): String? =
-        preferences?.getString(ProfileScopedKey.of(channelViewModeKey), null)
-
-    actual fun saveChannelViewMode(mode: String) {
-        preferences
-            ?.edit()
-            ?.putString(ProfileScopedKey.of(channelViewModeKey), mode)
-            ?.apply()
-    }
-
-    actual fun loadNavigationEnabled(): Boolean? {
-        val preferences = preferences ?: return null
-        val key = ProfileScopedKey.of(navigationEnabledKey)
-        return if (preferences.contains(key)) preferences.getBoolean(key, true) else null
-    }
-
-    actual fun saveNavigationEnabled(enabled: Boolean) {
-        preferences
-            ?.edit()
-            ?.putBoolean(ProfileScopedKey.of(navigationEnabledKey), enabled)
-            ?.apply()
+    actual fun saveLocalPlaylistData(data: String) {
+        preferences?.edit()?.apply {
+            putScopedString(localPlaylistDataKey, data)
+        }?.apply()
     }
 
     actual fun loadStalkerSettings(): LiveTvStalkerSettings =
-        preferences?.getString(ProfileScopedKey.of(stalkerSettingsKey), null)
-            ?.split('\u001F')
-            ?.let { LiveTvStalkerSettings(it.getOrNull(0).orEmpty(), it.getOrNull(1).orEmpty(), it.getOrNull(2).orEmpty(), it.getOrNull(3).orEmpty(), it.getOrNull(4) != "false") }
-            ?: LiveTvStalkerSettings()
+        LiveTvStalkerSettings(
+            portalUrl = preferences?.getScopedString(stalkerPortalUrlKey).orEmpty(),
+            macAddress = preferences?.getScopedString(stalkerMacAddressKey).orEmpty(),
+            username = preferences?.getScopedString(stalkerUsernameKey).orEmpty(),
+            password = preferences?.getScopedString(stalkerPasswordKey).orEmpty(),
+        )
 
     actual fun saveStalkerSettings(settings: LiveTvStalkerSettings) {
-        preferences?.edit()?.putString(ProfileScopedKey.of(stalkerSettingsKey), listOf(settings.portalUrl, settings.macAddress, settings.username, settings.password, settings.isEnabled).joinToString("\u001F"))?.apply()
+        preferences?.edit()?.apply {
+            putScopedString(stalkerPortalUrlKey, settings.portalUrl)
+            putScopedString(stalkerMacAddressKey, settings.macAddress)
+            putScopedString(stalkerUsernameKey, settings.username)
+            putScopedString(stalkerPasswordKey, settings.password)
+        }?.apply()
     }
 
     actual fun loadXtreamSettings(): LiveTvXtreamSettings =
-        preferences?.getString(ProfileScopedKey.of(xtreamSettingsKey), null)
-            ?.split('\u001F')
-            ?.let { LiveTvXtreamSettings(it.getOrNull(0).orEmpty(), it.getOrNull(1).orEmpty(), it.getOrNull(2).orEmpty(), it.getOrNull(3) != "false") }
-            ?: LiveTvXtreamSettings()
+        LiveTvXtreamSettings(
+            serverUrl = preferences?.getScopedString(xtreamServerUrlKey).orEmpty(),
+            username = preferences?.getScopedString(xtreamUsernameKey).orEmpty(),
+            password = preferences?.getScopedString(xtreamPasswordKey).orEmpty(),
+        )
 
     actual fun saveXtreamSettings(settings: LiveTvXtreamSettings) {
-        preferences?.edit()?.putString(ProfileScopedKey.of(xtreamSettingsKey), listOf(settings.serverUrl, settings.username, settings.password, settings.isEnabled).joinToString("\u001F"))?.apply()
+        preferences?.edit()?.apply {
+            putScopedString(xtreamServerUrlKey, settings.serverUrl)
+            putScopedString(xtreamUsernameKey, settings.username)
+            putScopedString(xtreamPasswordKey, settings.password)
+        }?.apply()
     }
 
-    actual fun publishNavigationVisibility(visible: Boolean) = Unit
+    actual fun loadFavoriteUrls(): Set<String> =
+        preferences?.getScopedString(favoriteUrlsKey)
+            ?.lineSequence()
+            ?.map(String::trim)
+            ?.filter(String::isNotBlank)
+            ?.toSet()
+            .orEmpty()
 
-    actual fun loadEpgSourcesBlob(): String? =
-        preferences?.getString(ProfileScopedKey.of(epgSourcesBlobKey), null)
-
-    actual fun saveEpgSourcesBlob(blob: String) {
-        preferences
-            ?.edit()
-            ?.putString(ProfileScopedKey.of(epgSourcesBlobKey), blob)
-            ?.apply()
+    actual fun saveFavoriteUrls(urls: Set<String>) {
+        preferences?.edit()?.apply {
+            putScopedString(favoriteUrlsKey, urls.sorted().joinToString("\n"))
+        }?.apply()
     }
 
-    actual fun loadEpgAutoDetectEnabled(): Boolean? {
-        val preferences = preferences ?: return null
-        val key = ProfileScopedKey.of(epgAutoDetectEnabledKey)
-        return if (preferences.contains(key)) preferences.getBoolean(key, true) else null
+    actual fun loadRecentChannel(): LiveTvRecentChannel? {
+        val prefs = preferences ?: return null
+        val streamUrl = prefs.getScopedString(recentChannelUrlKey).orEmpty().trim()
+        val name = prefs.getScopedString(recentChannelNameKey).orEmpty().trim()
+        if (streamUrl.isBlank() || name.isBlank()) return null
+        return LiveTvRecentChannel(
+            streamUrl = streamUrl,
+            name = name,
+            logoUrl = prefs.getScopedString(recentChannelLogoKey)?.takeIf(String::isNotBlank),
+            group = prefs.getScopedString(recentChannelGroupKey).orEmpty(),
+            tvgId = prefs.getScopedString(recentChannelTvgIdKey)?.takeIf(String::isNotBlank),
+        )
     }
 
-    actual fun saveEpgAutoDetectEnabled(enabled: Boolean) {
-        preferences
-            ?.edit()
-            ?.putBoolean(ProfileScopedKey.of(epgAutoDetectEnabledKey), enabled)
-            ?.apply()
+    actual fun saveRecentChannel(channel: LiveTvRecentChannel?) {
+        preferences?.edit()?.apply {
+            putScopedString(recentChannelUrlKey, channel?.streamUrl)
+            putScopedString(recentChannelNameKey, channel?.name)
+            putScopedString(recentChannelLogoKey, channel?.logoUrl)
+            putScopedString(recentChannelGroupKey, channel?.group)
+            putScopedString(recentChannelTvgIdKey, channel?.tvgId)
+        }?.apply()
+    }
+
+    private fun readEpgCacheEntry(profileId: Int, url: String): LiveTvEpgCacheEntry? = runCatching {
+        val file = epgCacheFile(profileId, url) ?: return null
+        if (!file.isFile || file.length() > MAX_DECOMPRESSED_EPG_BYTES + 4096L) return null
+        file.bufferedReader(Charsets.UTF_8).use { reader ->
+            if (reader.readLine() != epgCacheMagic) return null
+            val savedAt = reader.readLine()?.toLongOrNull() ?: return null
+            val storedUrl = reader.readLine() ?: return null
+            if (storedUrl != url) return null
+            val content = reader.readText()
+            if (!isValidXmlTvContent(content)) return null
+            LiveTvEpgCacheEntry(url = storedUrl, content = content, savedAtEpochMs = savedAt)
+        }
+    }.getOrNull()
+
+    private fun writeEpgCacheEntry(profileId: Int, entry: LiveTvEpgCacheEntry) {
+        runCatching {
+            val file = epgCacheFile(profileId, entry.url) ?: return
+            file.parentFile?.mkdirs()
+            val temporary = File(file.parentFile, "${file.name}.tmp")
+            temporary.bufferedWriter(Charsets.UTF_8).use { writer ->
+                writer.append(epgCacheMagic).append('\n')
+                writer.append(entry.savedAtEpochMs.toString()).append('\n')
+                writer.append(entry.url).append('\n')
+                writer.append(entry.content)
+            }
+            if (temporary.length() > MAX_DECOMPRESSED_EPG_BYTES + 4096L) {
+                temporary.delete()
+                return
+            }
+            if (!temporary.renameTo(file)) {
+                temporary.copyTo(file, overwrite = true)
+                temporary.delete()
+            }
+        }
+    }
+
+    private fun epgCacheFile(profileId: Int, url: String): File? {
+        val context = appContext ?: return null
+        val digest = MessageDigest.getInstance("SHA-256")
+            .digest("$profileId\n$url".toByteArray())
+            .joinToString("") { byte -> "%02x".format(byte) }
+        return File(context.filesDir, "live_tv_epg/$profileId/$digest.xmltvcache")
     }
 }

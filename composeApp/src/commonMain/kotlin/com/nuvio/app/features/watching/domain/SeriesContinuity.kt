@@ -165,20 +165,16 @@ fun decideSeriesPrimaryAction(
             todayIsoDate = todayIsoDate,
             showUnairedNextUp = showUnairedNextUp,
         )
-    } else {
-        null
     }
 
     if (latestCompletedEpisode != null && nextEpisode == null && !allowRewatch) return null
 
     val playbackEpisode = nextEpisode ?: run {
-        val sorted = episodes
-            .sortedWith(compareBy<WatchingReleasedEpisode>({ normalizeSeasonNumber(it.seasonNumber) }, { it.episodeNumber ?: 0 }))
+        val sorted = episodes.sortedWith(compareBy<WatchingReleasedEpisode>({ normalizeSeasonNumber(it.seasonNumber) }, { it.episodeNumber ?: 0 }))
         val released = sorted.filter { episode ->
             isReleasedBy(todayIsoDate = todayIsoDate, releasedDate = episode.releasedDate, available = episode.available)
         }
-        defaultVideoId?.takeIf { latestCompletedEpisode == null }
-            ?.let { videoId -> released.firstOrNull { it.videoId == videoId } }
+        defaultVideoId?.takeIf { latestCompletedEpisode == null }?.let { videoId -> released.firstOrNull { it.videoId == videoId } }
             ?: released.firstOrNull { normalizeSeasonNumber(it.seasonNumber) > 0 }
             ?: released.firstOrNull()
     }

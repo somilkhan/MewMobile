@@ -17,7 +17,7 @@ class DebridStreamFormatter(
         settings: DebridSettings,
     ): StreamItem = format(stream, settings, facts = null)
 
-    /** [facts] are the ones computed while filtering; without them they are computed here. */
+    /** [facts] are computed during filtering when available. */
     internal fun format(
         stream: StreamItem,
         settings: DebridSettings,

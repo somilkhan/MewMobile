@@ -83,10 +83,12 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.nuvio.app.core.format.formatLocalTime
 import com.nuvio.app.core.ui.ResizeForKeyboard
 import com.nuvio.app.core.ui.nuvio
 import kotlinx.coroutines.launch
+import kotlinx.datetime.Instant
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.party_chat_empty_message
 import nuvio.composeapp.generated.resources.party_chat_empty_title
@@ -215,7 +217,7 @@ private fun MessageList(
 }
 
 @Composable
-internal fun MessageRow(
+private fun MessageRow(
     row: PartyChatRow,
     members: List<PartyMember>,
     bubbleWidth: Dp,
@@ -614,3 +616,8 @@ private val BUBBLE_JOIN_RADIUS = 6.dp
 private val CONTROL_SIZE = 44.dp
 private val CROWDED_HEIGHT = 340.dp
 private const val TIME_GAP_MS = 10 * 60 * 1000L
+
+private fun formatLocalTime(epochMillis: Long): String {
+    val local = Instant.fromEpochMilliseconds(epochMillis).toLocalDateTime(TimeZone.currentSystemDefault())
+    return "${local.hour.toString().padStart(2, '0')}:${local.minute.toString().padStart(2, '0')}"
+}

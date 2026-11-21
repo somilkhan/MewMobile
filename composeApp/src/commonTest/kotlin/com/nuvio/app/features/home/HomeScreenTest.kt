@@ -10,7 +10,6 @@ import com.nuvio.app.features.debrid.DebridProviders
 import com.nuvio.app.features.details.MetaDetails
 import com.nuvio.app.features.watchprogress.CachedInProgressItem
 import com.nuvio.app.features.watchprogress.CachedNextUpItem
-import com.nuvio.app.features.watchprogress.ContinueWatchingClickAction
 import com.nuvio.app.features.watchprogress.ContinueWatchingItem
 import com.nuvio.app.features.watchprogress.ContinueWatchingSortMode
 import com.nuvio.app.features.watchprogress.WatchProgressEntry
@@ -30,55 +29,6 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class HomeScreenTest {
-
-    @Test
-    fun `home remains loading while initial addon manifests are pending`() {
-        assertTrue(
-            shouldShowInitialHomeLoading(
-                hasRenderableHomeRows = false,
-                addonManifestsLoading = true,
-                homeCatalogLoading = false,
-            ),
-        )
-    }
-
-    @Test
-    fun `home does not show loading over rows or a terminal empty state`() {
-        assertFalse(
-            shouldShowInitialHomeLoading(
-                hasRenderableHomeRows = true,
-                addonManifestsLoading = true,
-                homeCatalogLoading = true,
-            ),
-        )
-        assertFalse(
-            shouldShowInitialHomeLoading(
-                hasRenderableHomeRows = false,
-                addonManifestsLoading = false,
-                homeCatalogLoading = false,
-            ),
-        )
-    }
-
-    @Test
-    fun `home collapses hero space for terminal empty content`() {
-        assertFalse(
-            shouldShowHomeHeroSlot(
-                heroEnabled = true,
-                hasHeroItems = false,
-                isResolvingHeroSources = false,
-                hasRenderableHomeRows = false,
-            ),
-        )
-        assertTrue(
-            shouldShowHomeHeroSlot(
-                heroEnabled = true,
-                hasHeroItems = false,
-                isResolvingHeroSources = true,
-                hasRenderableHomeRows = false,
-            ),
-        )
-    }
 
     @Test
     fun `home trakt continue watching candidate limits match TV`() {
@@ -165,7 +115,7 @@ class HomeScreenTest {
         )
 
         assertEquals(listOf("tt0944947:1:4", "movie-1"), result.map(ContinueWatchingItem::videoId))
-        assertEquals("S1 E4 • Cripples, Bastards, and Broken Things", result.first().subtitle)
+        assertEquals("S1E4 • Cripples, Bastards, and Broken Things", result.first().subtitle)
     }
 
     @Test
@@ -188,7 +138,7 @@ class HomeScreenTest {
         )
 
         assertEquals(1, result.size)
-        assertEquals("S1 E5 • The Wolf and the Lion", result.single().subtitle)
+        assertEquals("S1E5 • The Wolf and the Lion", result.single().subtitle)
     }
 
     @Test
@@ -238,7 +188,7 @@ class HomeScreenTest {
         )
 
         assertEquals(listOf("show:1:4"), result.map(ContinueWatchingItem::videoId))
-        assertEquals("S1 E4 • Current", result.single().subtitle)
+        assertEquals("S1E4 • Current", result.single().subtitle)
     }
 
     @Test
@@ -282,39 +232,6 @@ class HomeScreenTest {
         assertEquals(
             listOf("sooner:1:2", "later:1:2"),
             upcoming.map(ContinueWatchingItem::videoId),
-        )
-    }
-
-    @Test
-    fun `continue watching click action opens details as chosen`() {
-        val nowEpochMs = requireNotNull(parseReleaseDateToEpochMs("2026-07-19T12:00:00Z"))
-        val inProgress = progressEntry(
-            videoId = "movie-1",
-            title = "Movie",
-            lastUpdatedEpochMs = 500L,
-            seasonNumber = null,
-            episodeNumber = null,
-            episodeTitle = null,
-        ).toContinueWatchingItem()
-        val aired = continueWatchingItem(
-            videoId = "aired:1:2",
-            subtitle = "S1E2 • Aired",
-        ).copy(released = "2026-07-19T11:59:59Z")
-        val unknownRelease = continueWatchingItem(
-            videoId = "unknown:1:2",
-            subtitle = "S1E2 • Unknown",
-        )
-        val upcoming = continueWatchingItem(
-            videoId = "later:1:2",
-            subtitle = "S1E2 • Later",
-        ).copy(released = "2026-07-21T00:00:00Z")
-        val items = listOf(inProgress, aired, unknownRelease, upcoming)
-
-        assertTrue(items.none { ContinueWatchingClickAction.STREAM.opensDetails(it, nowEpochMs) })
-        assertTrue(items.all { ContinueWatchingClickAction.DETAILS.opensDetails(it, nowEpochMs) })
-        assertEquals(
-            listOf(upcoming),
-            items.filter { ContinueWatchingClickAction.DETAILS_FOR_UPCOMING.opensDetails(it, nowEpochMs) },
         )
     }
 
@@ -380,7 +297,7 @@ class HomeScreenTest {
     }
 
     @Test
-    fun `build home continue watching items preserves cached in progress identity and metadata`() {
+    fun `build home continue watching items preserves cached in progress artwork fallback`() {
         val progress = progressEntry(
             videoId = "show:1:4",
             title = "Show",
@@ -396,9 +313,9 @@ class HomeScreenTest {
         val cached = ContinueWatchingItem(
             parentMetaId = "show",
             parentMetaType = "series",
-            videoId = "stable-show:1:4",
+            videoId = "show:1:4",
             title = "Cached Show",
-            subtitle = "Cached S1E4",
+            subtitle = "S1E4",
             imageUrl = "https://example.test/cached.jpg",
             logo = "https://example.test/logo.png",
             poster = "https://example.test/poster.jpg",
@@ -420,8 +337,6 @@ class HomeScreenTest {
             nextUpItemsBySeries = emptyMap(),
         )
 
-        assertEquals("stable-show:1:4", result.single().videoId)
-        assertEquals("Cached S1E4", result.single().subtitle)
         assertEquals("https://example.test/cached.jpg", result.single().imageUrl)
         assertEquals("https://example.test/logo.png", result.single().logo)
         assertEquals("https://example.test/poster.jpg", result.single().poster)
@@ -1137,26 +1052,6 @@ class HomeScreenTest {
         )
 
         assertFalse(hasUsableHomeNextUpMetadata(decision.item))
-        assertEquals(HomeNextUpCandidateMetadataOutcome.Dismissed, decision.outcome)
-    }
-
-    @Test
-    fun `dismissed next up stays hidden after its seed episode changes`() {
-        val laterEpisode = continueWatchingItem(
-            videoId = "show:1:4",
-            subtitle = "S1E4 • Later",
-            seasonNumber = 1,
-            episodeNumber = 4,
-            seedSeasonNumber = 1,
-            seedEpisodeNumber = 3,
-        )
-
-        val decision = classifyHomeNextUpCandidateMetadata(
-            freshItem = laterEpisode,
-            cachedFallbackItem = null,
-            dismissedNextUpKeys = setOf(nextUpDismissKey("show", 1, 1)),
-        )
-
         assertEquals(HomeNextUpCandidateMetadataOutcome.Dismissed, decision.outcome)
     }
 

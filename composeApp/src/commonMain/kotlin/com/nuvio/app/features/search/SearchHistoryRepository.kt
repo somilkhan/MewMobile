@@ -18,9 +18,6 @@ object SearchHistoryRepository {
     private val _uiState = MutableStateFlow<List<String>>(emptyList())
     val uiState: StateFlow<List<String>> = _uiState.asStateFlow()
 
-    private val _enabled = MutableStateFlow(true)
-    val enabled: StateFlow<Boolean> = _enabled.asStateFlow()
-
     private var hasLoaded = false
     private var recentSearches: List<String> = emptyList()
 
@@ -33,17 +30,8 @@ object SearchHistoryRepository {
         loadFromDisk()
     }
 
-    fun setEnabled(enabled: Boolean) {
-        ensureLoaded()
-        if (_enabled.value == enabled) return
-        _enabled.value = enabled
-        SearchHistoryStorage.saveEnabled(enabled)
-        publish()
-    }
-
     fun recordSearch(query: String) {
         ensureLoaded()
-        if (!_enabled.value) return
         val normalizedQuery = query.trim()
         if (normalizedQuery.length < 2) return
 
@@ -80,7 +68,6 @@ object SearchHistoryRepository {
 
     private fun loadFromDisk() {
         hasLoaded = true
-        _enabled.value = SearchHistoryStorage.loadEnabled() ?: true
         val payload = SearchHistoryStorage.loadPayload().orEmpty().trim()
         recentSearches = if (payload.isEmpty()) {
             emptyList()
@@ -97,7 +84,7 @@ object SearchHistoryRepository {
     }
 
     private fun publish() {
-        _uiState.value = if (_enabled.value) recentSearches else emptyList()
+        _uiState.value = recentSearches
     }
 
     private fun persist() {

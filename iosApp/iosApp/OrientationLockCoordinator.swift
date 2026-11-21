@@ -4,8 +4,6 @@ import ComposeApp
 
 private let lockPlayerToLandscapeNotification = Notification.Name("NuvioPlayerLockLandscape")
 private let unlockPlayerOrientationNotification = Notification.Name("NuvioPlayerUnlockOrientation")
-private let preferPlayerPortraitNotification = Notification.Name("NuvioPlayerPreferPortrait")
-private let preferPlayerLandscapeNotification = Notification.Name("NuvioPlayerPreferLandscape")
 
 final class OrientationLockAppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
     func application(
@@ -65,9 +63,6 @@ final class OrientationLockCoordinator {
 
     private(set) var supportedOrientations: UIInterfaceOrientationMask = .allButUpsideDown
     private var observers: [NSObjectProtocol] = []
-    private var landscapeLockRequested = false
-    private var parkedPlayerSuspension = false
-    private var playerPrefersPortrait = false
 
     private init() {}
 
@@ -85,46 +80,12 @@ final class OrientationLockCoordinator {
                 self?.setLandscapeLock(enabled: false)
             }
         )
-        observers.append(
-            center.addObserver(forName: preferPlayerPortraitNotification, object: nil, queue: .main) { [weak self] _ in
-                self?.setPlayerPrefersPortrait(true)
-            }
-        )
-        observers.append(
-            center.addObserver(forName: preferPlayerLandscapeNotification, object: nil, queue: .main) { [weak self] _ in
-                self?.setPlayerPrefersPortrait(false)
-            }
-        )
     }
 
     private func setLandscapeLock(enabled: Bool) {
-        landscapeLockRequested = enabled
-        if !enabled {
-            parkedPlayerSuspension = false
-            playerPrefersPortrait = false
-        }
-        applyLandscapeLock()
-    }
-
-    private func setPlayerPrefersPortrait(_ portrait: Bool) {
-        guard playerPrefersPortrait != portrait else { return }
-        playerPrefersPortrait = portrait
-        applyLandscapeLock()
-    }
-
-    func setParkedPlayerSuspension(_ suspended: Bool) {
-        guard parkedPlayerSuspension != suspended else { return }
-        parkedPlayerSuspension = suspended
-        applyLandscapeLock()
-    }
-
-    private func applyLandscapeLock() {
-        let locked = landscapeLockRequested && !parkedPlayerSuspension
-        let lockedOrientations: UIInterfaceOrientationMask = playerPrefersPortrait ? .portrait : .landscape
-        let nextOrientations: UIInterfaceOrientationMask = locked ? lockedOrientations : .allButUpsideDown
-        guard nextOrientations != supportedOrientations else { return }
+        let nextOrientations: UIInterfaceOrientationMask = enabled ? .landscape : .allButUpsideDown
         supportedOrientations = nextOrientations
-        requestOrientationUpdate(for: nextOrientations, forceRotate: locked)
+        requestOrientationUpdate(for: nextOrientations, forceRotate: enabled)
     }
 
     private func requestOrientationUpdate(for mask: UIInterfaceOrientationMask, forceRotate: Bool) {

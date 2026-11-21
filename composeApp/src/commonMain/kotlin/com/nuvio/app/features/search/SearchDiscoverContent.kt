@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import com.nuvio.app.core.ui.NuvioLoadingIndicator
 import androidx.compose.material3.MaterialTheme
@@ -31,7 +32,6 @@ import org.jetbrains.compose.resources.stringResource
 
 internal fun LazyListScope.discoverContent(
     state: DiscoverUiState,
-    isSourceLoading: Boolean,
     columns: Int,
     networkCondition: NetworkCondition,
     onTypeSelected: (String) -> Unit,
@@ -43,6 +43,18 @@ internal fun LazyListScope.discoverContent(
     onPosterClick: ((MetaPreview) -> Unit)? = null,
     onPosterLongClick: ((MetaPreview) -> Unit)? = null,
 ) {
+    item {
+        DiscoverSectionHeader(modifier = Modifier.padding(horizontal = 16.dp))
+    }
+    item {
+        DiscoverFilterRow(
+            state = state,
+            modifier = Modifier.padding(horizontal = 16.dp),
+            onTypeSelected = onTypeSelected,
+            onCatalogSelected = onCatalogSelected,
+            onGenreSelected = onGenreSelected,
+        )
+    }
     state.selectedCatalog?.let { selectedCatalog ->
         item {
             Text(
@@ -62,8 +74,8 @@ internal fun LazyListScope.discoverContent(
     }
 
     when {
-        (state.isLoading || isSourceLoading) && state.items.isEmpty() -> {
-            items(2, contentType = { DiscoverSkeletonRowContentType }) {
+        state.isLoading && state.items.isEmpty() -> {
+            items(2) {
                 PosterGridSkeletonRow(
                     columns = columns,
                     modifier = Modifier.padding(horizontal = 16.dp),
@@ -84,13 +96,9 @@ internal fun LazyListScope.discoverContent(
         }
 
         else -> {
-            items(
-                count = (state.items.size + columns - 1) / columns,
-                contentType = { DiscoverPosterRowContentType },
-            ) { rowIndex ->
-                val firstIndex = rowIndex * columns
+            items(state.items.chunked(columns)) { rowItems ->
                 PosterGridRow(
-                    items = state.items.subList(firstIndex, minOf(firstIndex + columns, state.items.size)),
+                    items = rowItems,
                     columns = columns,
                     modifier = Modifier.padding(horizontal = 16.dp),
                     watchedKeys = watchedKeys,
@@ -110,11 +118,18 @@ internal fun LazyListScope.discoverContent(
     }
 }
 
-private const val DiscoverPosterRowContentType = "discover_poster_row"
-private const val DiscoverSkeletonRowContentType = "discover_skeleton_row"
+@Composable
+private fun DiscoverSectionHeader(modifier: Modifier = Modifier) {
+    Text(
+        text = stringResource(Res.string.compose_search_discover_title),
+        modifier = modifier,
+        style = MaterialTheme.typography.displaySmall,
+        color = MaterialTheme.colorScheme.onBackground,
+    )
+}
 
 @Composable
-internal fun DiscoverFilterRow(
+private fun DiscoverFilterRow(
     state: DiscoverUiState,
     onTypeSelected: (String) -> Unit,
     onCatalogSelected: (String) -> Unit,
@@ -172,6 +187,7 @@ private fun CatalogLoadingFooter(modifier: Modifier = Modifier) {
     ) {
         NuvioLoadingIndicator(
             modifier = Modifier.size(22.dp),
+            color = MaterialTheme.colorScheme.primary,
         )
     }
 }
@@ -184,10 +200,7 @@ private fun DiscoverEmptyStateCard(
     onRetry: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
-    if (
-        reason == DiscoverEmptyStateReason.RequestFailed &&
-        (networkCondition == NetworkCondition.NoInternet || networkCondition == NetworkCondition.ServersUnreachable)
-    ) {
+    if (networkCondition == NetworkCondition.NoInternet || networkCondition == NetworkCondition.ServersUnreachable) {
         NuvioNetworkOfflineCard(
             condition = networkCondition,
             modifier = modifier,
@@ -201,8 +214,8 @@ private fun DiscoverEmptyStateCard(
 
     when (reason) {
         DiscoverEmptyStateReason.NoActiveAddons -> {
-            title = stringResource(Res.string.home_empty_no_sources_title)
-            message = stringResource(Res.string.search_empty_no_sources_message)
+            title = stringResource(Res.string.compose_search_empty_no_active_addons_title)
+            message = stringResource(Res.string.discover_empty_no_active_addons_message)
         }
 
         DiscoverEmptyStateReason.NoDiscoverCatalogs -> {
@@ -225,12 +238,6 @@ private fun DiscoverEmptyStateCard(
         modifier = modifier,
         title = title,
         message = message,
-        actionLabel = if (reason == DiscoverEmptyStateReason.RequestFailed) {
-            stringResource(Res.string.action_retry)
-        } else {
-            null
-        },
-        onActionClick = if (reason == DiscoverEmptyStateReason.RequestFailed) onRetry else null,
     )
 }
 

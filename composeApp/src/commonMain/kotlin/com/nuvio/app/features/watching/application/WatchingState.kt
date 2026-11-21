@@ -77,20 +77,15 @@ object WatchingState {
                 add(WatchingContentRef(type = item.type, id = item.id))
             }
         }
-        val progressRecordsByContent = progressEntries
-            .asSequence()
+        val progressRecords = progressEntries
             .filter { entry -> entry.shouldUseAsCompletedSeedForContinueWatching() }
             .map(WatchProgressEntry::toDomainProgressRecord)
-            .groupBy(WatchingProgressRecord::content)
-        val watchedRecordsByContent = watchedItems
-            .asSequence()
-            .map(WatchedItem::toDomainWatchedRecord)
-            .groupBy(WatchingWatchedRecord::content)
+        val watchedRecords = watchedItems.map(WatchedItem::toDomainWatchedRecord)
         return contentRefs.mapNotNull { content ->
             latestCompletedSeriesEpisode(
                 content = content,
-                progressRecords = progressRecordsByContent[content].orEmpty(),
-                watchedRecords = watchedRecordsByContent[content].orEmpty(),
+                progressRecords = progressRecords,
+                watchedRecords = watchedRecords,
                 preferFurthestEpisode = preferFurthestEpisode,
             )?.let { completed -> content to completed }
         }.toMap()

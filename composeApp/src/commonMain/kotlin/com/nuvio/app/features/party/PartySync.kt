@@ -35,6 +35,9 @@ internal object PartySync {
         return if (durationMs > 0L) clamped.coerceAtMost(durationMs) else clamped
     }
 
+    fun behindByMs(expectedPositionMs: Long, localPositionMs: Long, isHost: Boolean): Long? =
+        (expectedPositionMs - localPositionMs).takeIf { !isHost && it > SEEK_THRESHOLD_MS }
+
     fun isNewer(candidate: PartyPlayback, current: PartyPlayback?): Boolean {
         if (current == null) return true
         if (candidate.seq != current.seq) return candidate.seq > current.seq

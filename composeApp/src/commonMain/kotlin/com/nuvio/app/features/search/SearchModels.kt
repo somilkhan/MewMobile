@@ -1,6 +1,5 @@
 package com.nuvio.app.features.search
 
-import com.nuvio.app.features.catalog.CatalogTarget
 import com.nuvio.app.features.home.MetaPreview
 import com.nuvio.app.features.home.HomeCatalogSection
 import com.nuvio.app.features.tmdb.TmdbPersonSearchResult
@@ -37,7 +36,7 @@ data class DiscoverCatalogOption(
     val genreOptions: List<String> = emptyList(),
     val genreRequired: Boolean = false,
     val supportsPagination: Boolean = false,
-    val server: CatalogTarget.Server? = null,
+    val cloudStreamProviderId: String? = null,
 )
 
 data class DiscoverUiState(
