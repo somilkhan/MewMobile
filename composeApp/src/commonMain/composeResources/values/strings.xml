@@ -1085,9 +1085,11 @@
     <string name="settings_playback_player_liquid_glass_description">Use translucent glass surfaces on player controls. Video-frame capture is only active while this option is enabled and controls are visible.</string>
     <string name="settings_playback_next_episode_swipe_dismiss">Swipe to dismiss next episode card</string>
     <string name="settings_playback_mini_player">Mini player</string>
-    <string name="settings_playback_mini_player_description">Keep a small floating player when you leave playback, and tap it to return to the same position. Off by default.</string>
+    <string name="settings_playback_mini_player_description">Keep playback running in a small floating card with live video when you leave the player. Tap the card to return to the same position. On by default.</string>
     <string name="mini_player_expand">Return to player</string>
     <string name="mini_player_close">Close mini player</string>
+    <string name="mini_player_play">Play</string>
+    <string name="mini_player_pause">Pause</string>
     <string name="settings_playback_next_episode_swipe_dismiss_description">Swipe the Next Episode card to the right, or press back, to hide it for this episode. Off by default.</string>
     <string name="compose_player_seek_back_seconds">Seek backward %1$d seconds</string>
     <string name="compose_player_seek_forward_seconds">Seek forward %1$d seconds</string>

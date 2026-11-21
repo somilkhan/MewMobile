@@ -44,4 +44,5 @@ internal data class PlayerScreenArgs(
     val initialStreamFilename: String? = null,
     val initialStreamInfoHash: String? = null,
     val miniPlayerLaunch: PlayerLaunch? = null,
+    val miniPresentation: Boolean = false,
 )
