@@ -8,6 +8,11 @@ import com.nuvio.app.features.details.MetaPerson
 import com.nuvio.app.features.details.MetaVideo
 import com.nuvio.app.features.streams.StreamSubtitle
 import kotlinx.serialization.Serializable
+import nuvio.composeapp.generated.resources.Res
+import nuvio.composeapp.generated.resources.downloads_resolution_1080p
+import nuvio.composeapp.generated.resources.downloads_resolution_2160p
+import nuvio.composeapp.generated.resources.downloads_resolution_720p
+import org.jetbrains.compose.resources.StringResource
 
 @Serializable
 enum class DownloadStatus {
@@ -506,3 +511,22 @@ private fun DownloadVideoSnapshot.toMetaVideo(): MetaVideo =
         overview = overview,
         runtime = runtime,
     )
+
+enum class DownloadPreferredResolution(
+    val resolution: Int,
+    val label: StringResource,
+) {
+    P720(720, Res.string.downloads_resolution_720p),
+    P1080(1080, Res.string.downloads_resolution_1080p),
+    P2160(2160, Res.string.downloads_resolution_2160p);
+
+    companion object {
+        val DEFAULT = P1080
+
+        fun fromStorage(value: String?): DownloadPreferredResolution =
+            entries.firstOrNull { it.name == value?.trim() } ?: DEFAULT
+    }
+}
+
+internal fun isDownloadableDirectUrl(url: String?): Boolean =
+    url?.trim()?.takeIf { it.isNotBlank() }?.isSupportedDownloadUrl() == true

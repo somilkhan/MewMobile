@@ -110,7 +110,9 @@ import com.nuvio.app.features.details.components.DetailProductionSection
 import com.nuvio.app.features.details.components.DetailSeriesContent
 import com.nuvio.app.features.details.components.DetailTrailersSection
 import com.nuvio.app.features.details.components.readableDetailContentColor
-import com.nuvio.app.features.details.components.EpisodeDownloadFlowSheet
+import com.nuvio.app.features.details.components.BatchDownloadDialog
+import com.nuvio.app.features.downloads.BatchDownloadCoordinator
+import com.nuvio.app.features.downloads.BatchQueueResult
 import com.nuvio.app.features.details.components.EpisodeWatchedActionSheet
 import com.nuvio.app.features.details.components.SeasonWatchedActionSheet
 import com.nuvio.app.features.details.components.TrailerPlayerPopup
@@ -159,11 +161,6 @@ import org.jetbrains.compose.resources.getString
 import org.jetbrains.compose.resources.stringResource
 
 private const val RANDOM_EPISODE_HISTORY_LIMIT = 8
-
-private data class EpisodeDownloadRequest(
-    val initialEpisodes: List<MetaVideo>,
-    val showStartPrompt: Boolean,
-)
 
 private data class AnimeTrackingEditorRequest(
     val season: Int? = null,
@@ -253,7 +250,6 @@ fun MetaDetailsScreen(
     var observedOfflineState by remember(type, id) { mutableStateOf(false) }
     var selectedEpisodeForActions by remember(type, id) { mutableStateOf<MetaVideo?>(null) }
     var selectedSeasonForActions by remember(type, id) { mutableStateOf<Int?>(null) }
-    var episodeDownloadRequest by remember(type, id) { mutableStateOf<EpisodeDownloadRequest?>(null) }
     val commentsEnabled by remember {
         TraktCommentsSettings.ensureLoaded()
         TraktCommentsSettings.enabled
@@ -741,9 +737,9 @@ fun MetaDetailsScreen(
                         label = stringResource(Res.string.streams_download_file),
                         icon = Icons.Default.Download,
                         onClick = {
-                            episodeDownloadRequest = EpisodeDownloadRequest(
-                                initialEpisodes = emptyList(),
-                                showStartPrompt = true,
+                            BatchDownloadCoordinator.openPlan(
+                                meta = meta,
+                                season = meta.videos.mapNotNull { it.season }.firstOrNull { it > 0 } ?: 1,
                             )
                         },
                     )
@@ -752,10 +748,7 @@ fun MetaDetailsScreen(
                         label = stringResource(Res.string.streams_download_file),
                         icon = Icons.Default.Download,
                         onClick = {
-                            episodeDownloadRequest = EpisodeDownloadRequest(
-                                initialEpisodes = emptyList(),
-                                showStartPrompt = false,
-                            )
+                            BatchDownloadCoordinator.openPlan(meta = meta)
                         },
                     )
                 } else {
@@ -1650,9 +1643,9 @@ fun MetaDetailsScreen(
                                     )
                                 },
                                 onDownload = {
-                                    episodeDownloadRequest = EpisodeDownloadRequest(
-                                        initialEpisodes = listOf(selectedEpisode),
-                                        showStartPrompt = false,
+                                    BatchDownloadCoordinator.openPlan(
+                                        meta = meta,
+                                        season = selectedEpisode.season ?: 1,
                                     )
                                 },
                                 showPlayManually = showManualPlayOption,
@@ -1681,13 +1674,28 @@ fun MetaDetailsScreen(
                             )
                         }
 
-                        episodeDownloadRequest?.let { request ->
-                            EpisodeDownloadFlowSheet(
-                                meta = meta,
-                                defaultEpisode = seriesActionVideo,
-                                initialEpisodes = request.initialEpisodes,
-                                showStartPrompt = request.showStartPrompt,
-                                onDismiss = { episodeDownloadRequest = null },
+                        val activeBatchPlan by BatchDownloadCoordinator.activePlan.collectAsStateWithLifecycle()
+                        activeBatchPlan?.let { plan ->
+                            BatchDownloadDialog(
+                                plan = plan,
+                                isEpisodeWatched = { ep ->
+                                    isEpisodeWatchedForActions(
+                                        meta = meta,
+                                        episode = ep,
+                                        watchedKeys = watchedUiState.watchedKeys,
+                                        progressByVideoId = progressByVideoId,
+                                    )
+                                },
+                                onDismissRequest = {
+                                    BatchDownloadCoordinator.closePlan()
+                                },
+                                onConfirm = {
+                                    val message = when (BatchDownloadCoordinator.queuePlan()) {
+                                        BatchQueueResult.Queued -> Res.string.downloads_enqueue_queued_multiple
+                                        BatchQueueResult.NothingToQueue -> Res.string.season_download_no_source_found
+                                    }
+                                    detailsScope.launch { NuvioToastController.show(getString(message)) }
+                                },
                             )
                         }
 
