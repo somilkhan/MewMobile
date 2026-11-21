@@ -7,17 +7,11 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.produceState
-import androidx.compose.runtime.withFrameNanos
-import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.uikit.LocalUIViewController
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.useContents
-import platform.UIKit.UIViewController
-import platform.UIKit.navigationController
 
 internal actual val nuvioPlatformExtraTopPadding: Dp = 0.dp
 internal actual val nuvioPlatformExtraBottomPadding: Dp = 0.dp

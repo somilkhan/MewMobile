@@ -8,7 +8,6 @@ import com.nuvio.app.core.diagnostics.MetadataPublicationStage
 import com.nuvio.app.core.diagnostics.RuntimeDiagnostics
 import com.nuvio.app.features.addons.AddonManifest
 import com.nuvio.app.features.addons.AddonRepository
-import com.nuvio.app.features.downloads.OfflineMetadataRepository
 import com.nuvio.app.features.addons.buildAddonResourceUrl
 import com.nuvio.app.features.addons.enabledAddons
 import com.nuvio.app.features.addons.httpGetText
@@ -21,23 +20,15 @@ import com.nuvio.app.features.home.HomeCatalogSettingsRepository
 import com.nuvio.app.features.home.filterReleasedItems
 import com.nuvio.app.features.mdblist.MdbListMetadataService
 import com.nuvio.app.features.mdblist.MdbListSettingsRepository
-import com.nuvio.app.features.servers.ServerCatalog
-import com.nuvio.app.features.servers.ServerItemRef
-import com.nuvio.app.features.servers.ServerUserStateProjection
-import com.nuvio.app.features.servers.message
-import com.nuvio.app.features.servers.serverFailure
 import com.nuvio.app.features.tmdb.TmdbMetadataService
 import com.nuvio.app.features.tmdb.TmdbService
 import com.nuvio.app.features.tmdb.TmdbSettings
 import com.nuvio.app.features.tmdb.TmdbSettingsRepository
-import com.nuvio.app.features.tmdb.TMDB_RECOMMENDATIONS_PAGE_SIZE
 import com.nuvio.app.features.trakt.TraktAuthRepository
 import com.nuvio.app.features.trakt.TraktConnectionMode
 import com.nuvio.app.features.trakt.TraktRelatedRepository
-import com.nuvio.app.features.trakt.MoreLikeThisSourcePreference
 import com.nuvio.app.features.tracking.TrackingSettingsRepository
 import com.nuvio.app.features.trakt.shouldUseTraktMoreLikeThis
-import com.nuvio.app.features.watched.WatchedClock
 import com.nuvio.app.features.watchprogress.CurrentDateProvider
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -45,8 +36,6 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -208,23 +197,8 @@ object MetaDetailsRepository {
             return
         }
 
-        val savedOfflineMeta = OfflineMetadataRepository.getSavedMetaDetails(id)
-        val isOffline = NetworkStatusRepository.uiState.value.isOfflineLike
-
-        if (isOffline && publishSavedOfflineMeta(savedOfflineMeta, type, id, requestKey, "Offline")) return
-        if (savedOfflineMeta != null) {
-            if (currentState.meta?.type != type || currentState.meta.id != id) {
-                log.d { "Using saved download metadata while refreshing for type=$type id=$id" }
-                _uiState.value = MetaDetailsUiState(
-                    isLoading = true,
-                    meta = savedOfflineMeta.withUnreleasedFilter(),
-                )
-            }
-        }
-
         if (currentState.meta?.type == type && currentState.meta.id == id && !currentState.isLoading) {
             log.d { "Skipping reload for cached meta — type=$type id=$id" }
-            InAppLogger.debug("Metadata/MetaDetailsRepository", "Skipping reload for current meta type=$type id=$id")
             activeRequestKey = requestKey
             RuntimeDiagnostics.recordMetadataCacheHit(trigger)
             return
@@ -301,21 +275,6 @@ object MetaDetailsRepository {
                 finishCurrentRequest(requestKey, metaScreenSettingsFingerprint, requestGeneration)
             }
         }
-    }
-
-    /** Publishes saved offline details as the final metadata fallback. */
-    private fun publishSavedOfflineMeta(
-        savedMeta: MetaDetails?,
-        type: String,
-        id: String,
-        requestKey: String,
-        reason: String,
-    ): Boolean {
-        savedMeta ?: return false
-        log.i { "$reason, using saved download metadata type=$type id=$id" }
-        _uiState.value = MetaDetailsUiState(meta = savedMeta.withUnreleasedFilter())
-        activeRequestKey = requestKey
-        return true
     }
 
     fun peek(type: String, id: String): MetaDetails? {
@@ -681,58 +640,11 @@ object MetaDetailsRepository {
         if (cached) RuntimeDiagnostics.recordMetadataPublication(MetadataPublicationStage.CacheOnly)
     }
 
-    private suspend fun fetchFirstAvailableMeta(
-        manifests: List<AddonManifest>,
-        type: String,
-        id: String,
-    ): MetaDetails? = coroutineScope {
-        TmdbSettingsRepository.ensureLoaded()
-        val tmdbWarmup = async {
-            runCatching {
-                TmdbMetadataService.prefetchEnrichment(
-                    type = type,
-                    id = id,
-                    settings = TmdbSettingsRepository.snapshot(),
-                )
-            }.onFailure { if (it is CancellationException) throw it }
-        }
-        val attempts = manifests.map { manifest ->
-            async {
-                withTimeoutOrNull(ADDON_META_TIMEOUT_MS) {
-                    fetchAddonMeta(manifest, type, id)
-                }
-            }
-        }
-        var selected: Pair<AddonManifest, MetaDetails>? = null
-        for ((index, attempt) in attempts.withIndex()) {
-            val meta = attempt.await() ?: continue
-            selected = manifests[index] to meta
-            break
-        }
-        attempts.forEach { it.cancel() }
-        val (manifest, meta) = selected ?: run {
-            tmdbWarmup.cancel()
-            return@coroutineScope null
-        }
-        val enriched = enrichFetchedMeta(manifest, meta, id, includeMdbList = false, tmdbWarmup = tmdbWarmup)
-        tmdbWarmup.cancel()
-        enriched
-    }
-
     private suspend fun tryFetchMeta(
         manifest: AddonManifest,
         type: String,
         id: String,
         includeMdbList: Boolean,
-    ): MetaDetails? {
-        val meta = fetchAddonMeta(manifest, type, id) ?: return null
-        return enrichFetchedMeta(manifest, meta, id, includeMdbList)
-    }
-
-    private suspend fun fetchAddonMeta(
-        manifest: AddonManifest,
-        type: String,
-        id: String,
     ): MetaDetails? {
         val url = buildAddonResourceUrl(
             manifestUrl = manifest.transportUrl,
@@ -742,9 +654,9 @@ object MetaDetailsRepository {
         )
 
         return try {
+            TmdbSettingsRepository.ensureLoaded()
             log.d { "Fetching meta from: $url" }
-            InAppLogger.info("Metadata/AddonFetch", "Fetching meta type=$type id=$id url=${InAppLogger.redactUrl(url)}")
-            val payload = fetchAddonResponseText(url)
+            val payload = httpGetText(url)
             log.d { "Raw payload length=${payload.length}, first 500 chars: ${payload.take(500)}" }
             val result = MetaDetailsParser.parse(payload)
             val enriched = if (includeMdbList) {
@@ -770,7 +682,6 @@ object MetaDetailsRepository {
             log.e(e) { "Failed to fetch/parse meta from $url (manifest=${manifest.transportUrl})" }
             null
         }
-        return enriched
     }
 
     private suspend fun findReadyMetaManifests(type: String, id: String): List<AddonManifest> {
@@ -796,7 +707,13 @@ object MetaDetailsRepository {
         state.addons
             .enabledAddons()
             .mapNotNull { it.manifest }
-            .filter { manifest -> manifest.supportsResource("meta", type, id) }
+            .filter { manifest ->
+                manifest.resources.any { resource ->
+                    resource.name == "meta" &&
+                        resource.types.contains(type) &&
+                        (resource.idPrefixes.isEmpty() || resource.idPrefixes.any { id.startsWith(it) })
+                }
+            }
 
     private fun com.nuvio.app.features.addons.AddonsUiState.hasPendingEnabledAddonManifests(): Boolean =
         addons.enabledAddons().any { addon -> addon.manifest == null && addon.isRefreshing }
@@ -809,13 +726,11 @@ object MetaDetailsRepository {
             ?.toIntOrNull()
             ?: return itemId
 
-        val resolved = withTimeoutOrNull(FETCH_TIMEOUT_MS) {
+        return withTimeoutOrNull(FETCH_TIMEOUT_MS) {
             TmdbService.tmdbToImdb(tmdbId = tmdbId, mediaType = itemType)
         }
             ?.takeIf { it.isNotBlank() }
             ?: itemId
-        InAppLogger.debug("Metadata/MetaDetailsRepository", "TMDB lookup tmdb:$tmdbId mediaType=$itemType resolved=$resolved")
-        return resolved
     }
 
     private suspend fun tryFetchTmdbFallbackMeta(type: String, id: String): MetaDetails? =
@@ -826,13 +741,6 @@ object MetaDetailsRepository {
                 settings = TmdbSettingsRepository.snapshot(),
             )
         }
-        if (result == null) {
-            InAppLogger.warn("Metadata/TMDB", "Standalone fallback returned empty type=$type id=$id")
-        } else {
-            InAppLogger.info("Metadata/TMDB", "Standalone fallback loaded type=${result.type} id=${result.id} name=${result.name}")
-        }
-        return result
-    }
 
     private suspend fun publishLoadedMeta(
         requestKey: String,
@@ -925,11 +833,6 @@ object MetaDetailsRepository {
         val enrichedMeta = applyMoreLikeThisSource(
             meta = mdbListEnrichedMeta,
             fallbackItemId = fallbackItemId,
-            settings = TmdbSettingsRepository.snapshot(),
-        )
-        val enrichedMeta = applyMoreLikeThisSource(
-            meta = imdbRatedMeta,
-            fallbackItemId = fallbackItemId,
             fallbackItemType = fallbackItemType,
         )
 
@@ -985,37 +888,6 @@ object MetaDetailsRepository {
 
         val trackingSettings = TrackingSettingsRepository.uiState.value
         val isTraktAuthenticated = TraktAuthRepository.uiState.value.mode == TraktConnectionMode.CONNECTED
-        val tmdbSettings = TmdbSettingsRepository.snapshot()
-
-        log.d {
-            "More like this source=${trackingSettings.moreLikeThisSource} simkl=${shouldUseSimklMoreLikeThis(trackingSettings.moreLikeThisSource)} " +
-                "type=${meta.type} fallbackType=$fallbackItemType id=${meta.id}"
-        }
-        // Simkl source
-        if (shouldUseSimklMoreLikeThis(trackingSettings.moreLikeThisSource) &&
-            supportsMoreLikeThis(meta, fallbackItemType)
-        ) {
-            val items = runCatching {
-                com.nuvio.app.features.simkl.SimklRelatedRepository.getRelated(
-                    meta = meta,
-                    fallbackItemId = fallbackItemId,
-                    fallbackItemType = fallbackItemType,
-                )
-            }.onFailure { error ->
-                log.w { "Failed to load Simkl related titles for ${meta.id}: ${error.message}" }
-            }.getOrDefault(emptyList())
-            InAppLogger.info("Metadata/Simkl", "Related titles id=${meta.id} count=${items.size}")
-
-            if (items.isNotEmpty()) {
-                return meta.copy(
-                    moreLikeThis = items,
-                    moreLikeThisSource = MoreLikeThisSource.SIMKL,
-                    moreLikeThisHasMore = false,
-                )
-            }
-        }
-
-        // Trakt source
         val shouldUseTrakt = shouldUseTraktMoreLikeThis(
             isAuthenticated = isTraktAuthenticated,
             source = trackingSettings.moreLikeThisSource,
@@ -1042,21 +914,13 @@ object MetaDetailsRepository {
             )
         }
 
+        val tmdbSettings = TmdbSettingsRepository.snapshot()
         if (!tmdbSettings.enabled || !tmdbSettings.useMoreLikeThis) {
-            return meta.copy(
-                moreLikeThis = emptyList(),
-                moreLikeThisSource = null,
-                moreLikeThisHasMore = false,
-            )
+            return meta.copy(moreLikeThis = emptyList(), moreLikeThisSource = null)
         }
 
-        InAppLogger.info(
-            "Metadata/TMDB",
-            "More Like This fallback id=${meta.id} count=${meta.moreLikeThis.size}",
-        )
         return meta.copy(
             moreLikeThisSource = MoreLikeThisSource.TMDB.takeIf { meta.moreLikeThis.isNotEmpty() },
-            moreLikeThisHasMore = meta.moreLikeThis.size >= TMDB_RECOMMENDATIONS_PAGE_SIZE,
         )
     }
 
@@ -1076,8 +940,6 @@ object MetaDetailsRepository {
         settings: com.nuvio.app.features.mdblist.MdbListSettings,
     ): Boolean {
         if (shouldFetchMdbListOnMetaScreen(meta, fallbackItemId, settings)) return true
-        TmdbSettingsRepository.ensureLoaded()
-        if (OmdbEpisodeRatingsService.shouldApply(meta, TmdbSettingsRepository.snapshot())) return true
         return shouldApplyMoreLikeThisSource(meta)
     }
 
@@ -1089,7 +951,7 @@ object MetaDetailsRepository {
         val trackingSettings = TrackingSettingsRepository.uiState.value
         val isTraktAuthenticated = TraktAuthRepository.uiState.value.mode == TraktConnectionMode.CONNECTED
         val tmdbSettings = TmdbSettingsRepository.snapshot()
-        return shouldUseSimklMoreLikeThis(trackingSettings.moreLikeThisSource) || shouldUseTraktMoreLikeThis(
+        return shouldUseTraktMoreLikeThis(
             isAuthenticated = isTraktAuthenticated,
             source = trackingSettings.moreLikeThisSource,
         ) || !tmdbSettings.enabled || !tmdbSettings.useMoreLikeThis || meta.moreLikeThisSource == null && meta.moreLikeThis.isNotEmpty()
@@ -1114,12 +976,6 @@ object MetaDetailsRepository {
 
     private fun supportsMoreLikeThis(meta: MetaDetails, fallbackItemType: String): Boolean =
         normalizeMoreLikeThisType(meta.type) != null || normalizeMoreLikeThisType(fallbackItemType) != null
-
-    private fun shouldUseSimklMoreLikeThis(source: MoreLikeThisSourcePreference): Boolean {
-        if (source != MoreLikeThisSourcePreference.SIMKL) return false
-        com.nuvio.app.features.simkl.SimklAuthRepository.ensureLoaded()
-        return com.nuvio.app.features.simkl.SimklAuthRepository.isAuthenticated.value
-    }
 
     private fun normalizeMoreLikeThisType(value: String?): String? =
         when (value?.trim()?.lowercase()) {
@@ -1151,66 +1007,48 @@ object MetaDetailsRepository {
     }
 
     private fun MetaDetails.withUnreleasedFilter(): MetaDetails {
-        val posterPattern = com.nuvio.app.core.poster.CustomPosterUrlRepository.let {
-            it.ensureLoaded()
-            it.patternForScreen(com.nuvio.app.core.poster.CustomPosterScreen.DETAILS)
-        }
-        val base = withCustomPosterUrls(posterPattern)
-        if (!HomeCatalogSettingsRepository.snapshot().hideUnreleasedContent) return base
+        if (!HomeCatalogSettingsRepository.snapshot().hideUnreleasedContent) return this
         val todayIsoDate = CurrentDateProvider.todayIsoDate()
-        val releasedMoreLikeThis = base.moreLikeThis.filterReleasedItems(todayIsoDate)
-        return base.copy(
+        val releasedMoreLikeThis = moreLikeThis.filterReleasedItems(todayIsoDate)
+        return copy(
             moreLikeThis = releasedMoreLikeThis,
-            moreLikeThisSource = base.moreLikeThisSource.takeIf { releasedMoreLikeThis.isNotEmpty() },
-            collectionItems = base.collectionItems.filterReleasedItems(todayIsoDate),
+            moreLikeThisSource = moreLikeThisSource.takeIf { releasedMoreLikeThis.isNotEmpty() },
+            collectionItems = collectionItems.filterReleasedItems(todayIsoDate),
         )
     }
 
    
-    fun findEmbeddedStreams(videoId: String): List<com.nuvio.app.features.streams.StreamItem> =
-        _uiState.value.meta?.findEmbeddedStreams(videoId).orEmpty()
-}
+    fun findEmbeddedStreams(videoId: String): List<com.nuvio.app.features.streams.StreamItem> {
+        val meta = _uiState.value.meta ?: return emptyList()
+        val videosWithStreams = meta.videos.filter { it.streams.isNotEmpty() }
+        if (videosWithStreams.isEmpty()) return emptyList()
 
-/** Streams the addon embedded in this title's metadata for [videoId], if any. */
-internal fun MetaDetails.findEmbeddedStreams(videoId: String): List<com.nuvio.app.features.streams.StreamItem> {
-    val videosWithStreams = videos.filter { it.streams.isNotEmpty() }
-    if (videosWithStreams.isEmpty()) return emptyList()
+        val directMatch = videosWithStreams.firstOrNull { it.id == videoId }
+        if (directMatch != null) return directMatch.streams
 
-    val directMatch = videosWithStreams.firstOrNull { it.id == videoId }
-    if (directMatch != null) return directMatch.streams
-
-    val parts = videoId.split(":")
-    if (parts.size >= 3) {
-        val season = parts[parts.size - 2].toIntOrNull()
-        val episode = parts[parts.size - 1].toIntOrNull()
-        if (season != null && episode != null) {
-            val episodeMatch = videosWithStreams.firstOrNull { it.season == season && it.episode == episode }
-            if (episodeMatch != null) return episodeMatch.streams
+        val parts = videoId.split(":")
+        if (parts.size >= 3) {
+            val season = parts[parts.size - 2].toIntOrNull()
+            val episode = parts[parts.size - 1].toIntOrNull()
+            if (season != null && episode != null) {
+                val episodeMatch = videosWithStreams.firstOrNull { it.season == season && it.episode == episode }
+                if (episodeMatch != null) return episodeMatch.streams
+            }
         }
+
+        val prefixMatch = videosWithStreams.firstOrNull { it.id.startsWith("$videoId:") }
+        if (prefixMatch != null) return prefixMatch.streams
+
+        if (videoId == meta.id && videosWithStreams.size == 1) {
+            return videosWithStreams.first().streams
+        }
+
+        if (videoId == meta.id && videosWithStreams.isNotEmpty()) {
+            return videosWithStreams.flatMap { it.streams }
+        }
+
+        return emptyList()
     }
-
-    val prefixMatch = videosWithStreams.firstOrNull { it.id.startsWith("$videoId:") }
-    if (prefixMatch != null) return prefixMatch.streams
-
-    if (videoId == id && videosWithStreams.size == 1) {
-        return videosWithStreams.first().streams
-    }
-
-    if (videoId == id && videosWithStreams.isNotEmpty()) {
-        return videosWithStreams.flatMap { it.streams }
-    }
-
-    return emptyList()
-}
-
-internal sealed interface MetaLookupOutcome {
-    class Loaded(val meta: MetaDetails) : MetaLookupOutcome
-
-    class Throttled(val retryAtEpochMs: Long) : MetaLookupOutcome
-
-    object Unavailable : MetaLookupOutcome
-
-    object Failed : MetaLookupOutcome
 }
 
 internal fun tmdbEnrichmentSettingsFingerprint(settings: TmdbSettings): String = with(settings) {

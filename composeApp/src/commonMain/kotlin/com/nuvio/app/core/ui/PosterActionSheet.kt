@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -38,7 +37,7 @@ fun NuvioWatchedBadge(
         contentAlignment = Alignment.Center,
     ) {
         Icon(
-            imageVector = Icons.Default.Visibility,
+            imageVector = Icons.Default.Check,
             contentDescription = stringResource(Res.string.episodes_cd_watched),
             tint = if (useGradient) palette.onSecondary else tokens.colors.onAccent,
             modifier = Modifier.size(NuvioTokens.Icon.xs),

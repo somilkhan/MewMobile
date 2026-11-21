@@ -47,12 +47,11 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.nuvio.app.core.ui.NuvioPosterCard
 import com.nuvio.app.core.ui.NuvioPosterShape
-import com.nuvio.app.core.ui.platformPhysicalTopInset
-import com.nuvio.app.features.home.components.rememberPosterGridColumnCount
 import com.nuvio.app.core.ui.NuvioScreenHeader
 import com.nuvio.app.core.ui.nuvioSafeBottomPadding
 import com.nuvio.app.core.ui.withDuplicateSafeLazyKeys
@@ -194,8 +193,6 @@ fun FolderDetailScreen(
     }
 }
 
-private val NativeNavigationBarHeight = 44.dp
-
 @Composable
 private fun FolderCoverImage(
     imageUrl: String?,
@@ -292,7 +289,7 @@ private fun TabbedGridContent(
         if (selectedTab == null) return
 
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-            val columns = rememberPosterGridColumnCount(maxWidth)
+            val columns = remember(maxWidth) { folderDetailGridColumnsForWidth(maxWidth) }
 
             when {
                 selectedTab.isLoading && selectedTab.items.isEmpty() -> LoadingIndicator()
@@ -319,7 +316,6 @@ private fun TabbedGridContent(
                             NuvioPosterCard(
                                 title = item.name,
                                 imageUrl = item.poster,
-                                fallbackImageUrl = item.rawPosterUrl,
                                 shape = NuvioPosterShape.Poster,
                                 detailLine = item.releaseInfo,
                                 isWatched = WatchingState.isPosterWatched(
@@ -399,9 +395,19 @@ private fun PaginationLoadingFooter() {
     ) {
         NuvioLoadingIndicator(
             modifier = Modifier.size(28.dp),
+            color = MaterialTheme.colorScheme.primary,
         )
     }
 }
+
+private fun folderDetailGridColumnsForWidth(screenWidth: Dp): Int =
+    when {
+        screenWidth >= 1400.dp -> 7
+        screenWidth >= 1200.dp -> 6
+        screenWidth >= 1000.dp -> 5
+        screenWidth >= 840.dp -> 4
+        else -> 3
+    }
 
 @Composable
 private fun LoadingIndicator() {
@@ -411,6 +417,7 @@ private fun LoadingIndicator() {
     ) {
         NuvioLoadingIndicator(
             modifier = Modifier.size(32.dp),
+            color = MaterialTheme.colorScheme.primary,
         )
     }
 }

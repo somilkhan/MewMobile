@@ -96,14 +96,13 @@ object SupabaseLibrarySyncAdapter : LibrarySyncAdapter {
 }
 
 @Serializable
-internal data class LibrarySyncItem(
+private data class LibrarySyncItem(
     @SerialName("content_id") override val contentId: String,
     @SerialName("content_type") override val contentType: String,
     override val name: String = "",
     override val poster: String? = null,
     @SerialName("poster_shape") override val posterShape: String = "POSTER",
     override val background: String? = null,
-    override val logo: String? = null,
     override val description: String? = null,
     @SerialName("release_info") override val releaseInfo: String? = null,
     @SerialName("imdb_rating") override val imdbRating: Float? = null,
@@ -113,7 +112,7 @@ internal data class LibrarySyncItem(
 ) : LibrarySyncFields
 
 @Serializable
-internal data class LibraryDeltaSyncItem(
+private data class LibraryDeltaSyncItem(
     @SerialName("event_id") val eventId: Long,
     val operation: String,
     @SerialName("content_id") override val contentId: String,
@@ -122,7 +121,6 @@ internal data class LibraryDeltaSyncItem(
     override val poster: String? = null,
     @SerialName("poster_shape") override val posterShape: String = "POSTER",
     override val background: String? = null,
-    override val logo: String? = null,
     override val description: String? = null,
     @SerialName("release_info") override val releaseInfo: String? = null,
     @SerialName("imdb_rating") override val imdbRating: Float? = null,
@@ -131,14 +129,13 @@ internal data class LibraryDeltaSyncItem(
     @SerialName("added_at") override val addedAt: Long = 0,
 ) : LibrarySyncFields
 
-internal interface LibrarySyncFields {
+private interface LibrarySyncFields {
     val contentId: String
     val contentType: String
     val name: String
     val poster: String?
     val posterShape: String
     val background: String?
-    val logo: String?
     val description: String?
     val releaseInfo: String?
     val imdbRating: Float?
@@ -147,14 +144,13 @@ internal interface LibrarySyncFields {
     val addedAt: Long
 }
 
-internal fun LibrarySyncFields.toLibraryItem(): LibraryItem =
+private fun LibrarySyncFields.toLibraryItem(): LibraryItem =
     LibraryItem(
         id = contentId,
         type = contentType,
         name = name,
         poster = poster,
         banner = background,
-        logo = logo,
         description = description,
         releaseInfo = releaseInfo,
         imdbRating = imdbRating?.toString(),
@@ -164,7 +160,7 @@ internal fun LibrarySyncFields.toLibraryItem(): LibraryItem =
         savedAtEpochMs = addedAt,
     )
 
-internal fun LibraryItem.toSyncItem(): LibrarySyncItem =
+private fun LibraryItem.toSyncItem(): LibrarySyncItem =
     LibrarySyncItem(
         contentId = id,
         contentType = type,
@@ -172,7 +168,6 @@ internal fun LibraryItem.toSyncItem(): LibrarySyncItem =
         poster = poster,
         posterShape = posterShape.toSyncName(),
         background = banner,
-        logo = logo,
         description = description,
         releaseInfo = releaseInfo,
         imdbRating = imdbRating?.toFloatOrNull(),

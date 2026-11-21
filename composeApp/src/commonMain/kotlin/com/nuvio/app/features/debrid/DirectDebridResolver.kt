@@ -29,22 +29,13 @@ object DirectDebridPlaybackResolver {
     private val resolvedCache = mutableMapOf<String, CachedDirectDebridResolve>()
     private val inFlightResolves = mutableMapOf<String, Deferred<DirectDebridResolveResult>>()
 
-    /** [forceRefresh] drops the in-memory resolved link first, so a new one is requested from the provider. */
-    suspend fun resolve(
-        stream: StreamItem,
-        season: Int?,
-        episode: Int?,
-        forceRefresh: Boolean = false,
-    ): DirectDebridResolveResult {
+    suspend fun resolve(stream: StreamItem, season: Int?, episode: Int?): DirectDebridResolveResult {
         if (!shouldResolveToPlayableStream(stream)) {
             return DirectDebridResolveResult.Stale
         }
         val cacheKey = stream.debridResolveCacheKey(season, episode)
         if (cacheKey == null) {
             return resolveUncached(stream, season, episode)
-        }
-        if (forceRefresh) {
-            mutex.withLock { resolvedCache.remove(cacheKey) }
         }
         getCachedResult(cacheKey)?.let {
             return it
@@ -156,12 +147,11 @@ object DirectDebridPlaybackResolver {
         stream: StreamItem,
         season: Int?,
         episode: Int?,
-        forceRefresh: Boolean = false,
     ): DirectDebridPlayableResult {
         if (!shouldResolveToPlayableStream(stream)) {
             return DirectDebridPlayableResult.Success(stream)
         }
-        return when (val result = resolve(stream, season, episode, forceRefresh)) {
+        return when (val result = resolve(stream, season, episode)) {
             is DirectDebridResolveResult.Success -> DirectDebridPlayableResult.Success(stream.withResolvedDebridUrl(result))
             DirectDebridResolveResult.MissingApiKey -> DirectDebridPlayableResult.MissingApiKey
             DirectDebridResolveResult.NotCached -> DirectDebridPlayableResult.NotCached
@@ -352,6 +342,7 @@ private fun StreamItem.toResolveMetadata(season: Int?, episode: Int?, providerId
         fileIdx = fileIdx,
         magnetUri = torrentMagnetUri,
         sources = sources,
+        torrentName = title ?: name,
         filename = behaviorHints.filename,
         season = season,
         episode = episode,
@@ -376,7 +367,6 @@ private fun StreamItem.withResolvedDebridUrl(result: DirectDebridResolveResult.S
         url = result.url,
         externalUrl = null,
         behaviorHints = behaviorHints.mergeResolvedDebridHints(result),
-        debridResolved = true,
     )
 
 private fun StreamBehaviorHints.mergeResolvedDebridHints(result: DirectDebridResolveResult.Success): StreamBehaviorHints =

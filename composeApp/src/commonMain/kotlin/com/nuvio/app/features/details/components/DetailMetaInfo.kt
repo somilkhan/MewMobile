@@ -10,6 +10,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -33,7 +34,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -445,32 +449,16 @@ private fun DetailStandardOverview(
 }
 
 @Composable
-internal fun DetailRatingsRow(
+private fun DetailRatingsRow(
     ratings: List<MetaExternalRating>,
     horizontalScrollPadding: Dp,
     onClick: (() -> Unit)?,
 ) {
-    RatingsRow(
-        ratings = ratings,
-        modifier = modifier
-            .nuvioHorizontalScrollBleed(horizontalScrollPadding)
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState())
-            .padding(horizontal = horizontalScrollPadding),
-    )
-}
-
-@Composable
-internal fun RatingsRow(
-    ratings: List<MetaExternalRating>,
-    modifier: Modifier = Modifier,
-    maxItems: Int = Int.MAX_VALUE,
-) {
-    val orderedRatings = remember(ratings, maxItems) {
+    val orderedRatings = remember(ratings) {
         val bySource = ratings.associateBy { it.source }
         ratingVisuals.mapNotNull { visuals ->
             bySource[visuals.source]?.let { rating -> visuals to rating }
-        }.take(maxItems)
+        }
     }
 
     if (orderedRatings.isEmpty()) return
@@ -502,16 +490,15 @@ internal fun RatingsRow(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 if (visuals.source == PROVIDER_IMDB && !AppFeaturePolicy.imdbRatingLogoEnabled) {
-                    ImdbRatingSourceLabel(storeTextStyle = ratingTextStyle)
+                    ImdbRatingSourceLabel(
+                        storeTextStyle = ratingTextStyle,
+                        storeTextColor = visuals.valueColor,
+                    )
                 } else {
-                    val logoHeight = when (rating.rottenTomatoesStatus) {
-                        RottenTomatoesStatus.CERTIFIED_FRESH, RottenTomatoesStatus.VERIFIED_HOT -> 24.dp
-                        else -> 16.dp
-                    }
                     Image(
-                        painter = painterResource(visuals.logoFor(rating)),
+                        painter = painterResource(visuals.logo),
                         contentDescription = visuals.displayName,
-                        modifier = Modifier.size(width = maxOf(visuals.logoWidth, logoHeight), height = logoHeight),
+                        modifier = Modifier.size(width = visuals.logoWidth, height = 16.dp),
                     )
                 }
                 Spacer(modifier = Modifier.width(4.dp))
@@ -786,25 +773,38 @@ private val EpisodeRatingBad = Color(0xFFFF1744)
 private val EpisodeRatingGarbage = Color(0xFF9C4DCC)
 
 @Composable
-internal fun ImdbRatingSourceLabel(storeTextStyle: TextStyle) {
+private fun ImdbRatingSourceLabel(
+    storeTextStyle: TextStyle,
+    storeTextColor: Color,
+) {
     if (AppFeaturePolicy.imdbRatingLogoEnabled) {
-        Image(
-            painter = painterResource(Res.drawable.rating_imdb),
-            contentDescription = stringResource(Res.string.source_imdb),
-            modifier = Modifier.size(width = 30.dp, height = 16.dp),
-        )
+        Surface(
+            shape = RoundedCornerShape(4.dp),
+            color = ImdbYellow,
+        ) {
+            Text(
+                text = stringResource(Res.string.source_imdb),
+                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                style = MaterialTheme.typography.labelMedium.copy(
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 0.sp,
+                ),
+                color = ImdbBlack,
+            )
+        }
     } else {
         Text(
             text = stringResource(Res.string.source_imdb),
             style = storeTextStyle,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = storeTextColor,
             maxLines = 1,
         )
     }
 }
 
 @Composable
-internal fun MetaLabelValueRow(
+private fun MetaLabelValueRow(
     label: String,
     value: String,
 ) {
@@ -827,29 +827,23 @@ internal fun MetaLabelValueRow(
 internal fun DetailHeroMetaBadge(
     text: String,
     contentColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
-    secondaryText: String? = null,
 ) {
-    val borderColor = contentColor.copy(alpha = 0.55f)
-    Row(
+    Box(
         modifier = Modifier
             .border(
-                border = BorderStroke(1.dp, borderColor),
+                border = BorderStroke(1.dp, contentColor.copy(alpha = 0.55f)),
                 shape = RoundedCornerShape(6.dp),
             )
             .padding(horizontal = 8.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        contentAlignment = Alignment.Center,
     ) {
-        MetaBadgeText(text = text, color = contentColor)
-        secondaryText?.let { secondary ->
-            Box(
-                modifier = Modifier
-                    .width(1.dp)
-                    .height(12.dp)
-                    .background(borderColor),
-            )
-            MetaBadgeText(text = secondary, color = contentColor)
-        }
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelMedium,
+            color = contentColor,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
@@ -888,17 +882,6 @@ private data class RatingVisuals(
     val valueColor: Color,
     val format: (Double) -> String,
 )
-
-private fun RatingVisuals.logoFor(rating: MetaExternalRating): DrawableResource =
-    when (rating.rottenTomatoesStatus) {
-        RottenTomatoesStatus.FRESH -> Res.drawable.rating_rotten_tomatoes
-        RottenTomatoesStatus.ROTTEN -> Res.drawable.rating_rotten_tomatoes_rotten
-        RottenTomatoesStatus.CERTIFIED_FRESH -> Res.drawable.rating_rotten_tomatoes_certified
-        RottenTomatoesStatus.HOT -> Res.drawable.rating_audience_score
-        RottenTomatoesStatus.STALE -> Res.drawable.rating_audience_stale
-        RottenTomatoesStatus.VERIFIED_HOT -> Res.drawable.rating_audience_verified_hot
-        null -> logo
-    }
 
 private val ratingVisuals = listOf(
     RatingVisuals(
@@ -967,7 +950,7 @@ private val ratingVisuals = listOf(
     ),
 )
 
-internal fun formatOneDecimal(value: Double): String {
+private fun formatOneDecimal(value: Double): String {
     val rounded = (value * 10.0).roundToInt()
     val whole = rounded / 10
     val decimal = (rounded % 10).absoluteValue

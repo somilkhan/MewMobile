@@ -53,7 +53,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
@@ -71,7 +70,6 @@ import platform.Foundation.NSLog
 
 private const val StatsPollIntervalMs = 250L
 private const val StartupStatsPollIntervalMs = 1_000L
-private const val CacheStatsPollIntervalMs = 1_000L
 private const val MemoryCacheCapacityBytes = 64L * 1024L * 1024L
 
 actual object P2pStreamingEngine {
@@ -108,7 +106,6 @@ actual object P2pStreamingEngine {
         val payloadDownloaded: Long,
         val diskUsed: Long,
         val diskProtected: Long,
-        val diskReclaimed: Long,
     )
 
     private data class StreamStats(
@@ -130,7 +127,6 @@ actual object P2pStreamingEngine {
     private var currentTorrentId: String? = null
     private var currentStream: NativeStream? = null
     private var statsJob: Job? = null
-    private var cacheStatsJob: Job? = null
     private var generation = 0L
     private val knownTorrentIds = mutableMapOf<String, String>()
 
@@ -214,7 +210,7 @@ actual object P2pStreamingEngine {
             val after = readAggregateStats(activeEngine)
             updateCacheState(after)
             P2pCacheClearResult(
-                reclaimedBytes = (after.diskReclaimed - before.diskReclaimed).coerceAtLeast(0L),
+                reclaimedBytes = (before.diskUsed - after.diskUsed).coerceAtLeast(0L),
                 remainingBytes = after.diskUsed,
                 protectedBytes = after.diskProtected,
             )
@@ -237,7 +233,7 @@ actual object P2pStreamingEngine {
 
     private suspend fun stopLocked(shutdownEngine: Boolean) {
         generation += 1
-        statsJob?.cancelAndJoin()
+        statsJob?.cancel()
         statsJob = null
         val stream = currentStream
         currentStream = null
@@ -262,6 +258,7 @@ actual object P2pStreamingEngine {
                         peers = stats.peers,
                         seeds = stats.seeds,
                     )
+                    updateCacheState(stats)
                 }
             }
             delay(StartupStatsPollIntervalMs)
@@ -280,6 +277,7 @@ actual object P2pStreamingEngine {
                 try {
                     val aggregate = readAggregateStats(activeEngine)
                     val route = readStreamStats(activeEngine, stream.id)
+                    updateCacheState(aggregate)
                     publishStreaming(streamGeneration, stream, aggregate, payloadBaseline, route)
                 } catch (error: Throwable) {
                     if (error is CancellationException) throw error
@@ -329,10 +327,9 @@ actual object P2pStreamingEngine {
         closeEngine()
 
         val stateDirectory = "${NSHomeDirectory()}/Library/Application Support/NuvioEngine/state"
-        val cacheDirectory = "${NSHomeDirectory()}/Library/Caches/NuvioEngine"
+        val cacheDirectory = "${NSHomeDirectory()}/Library/Caches/NuvioEngine/payload"
         createDirectory(stateDirectory)
         createDirectory(cacheDirectory)
-        migrateNestedPayloadDirectory(cacheDirectory)
         val created = memScoped {
             val config = alloc<nuvio_engine_config>()
             nuvio_engine_config_init_sized(config.ptr, sizeOf<nuvio_engine_config>().toUInt())
@@ -360,29 +357,16 @@ actual object P2pStreamingEngine {
         }
         engine = created
         engineConfigurationKey = configuration
-        startCacheStatsPolling(created)
         log("engine created configuration=$configuration")
         return created
     }
 
-    private suspend fun closeEngine() {
+    private fun closeEngine() {
         val activeEngine = engine ?: return
         engine = null
         engineConfigurationKey = null
         knownTorrentIds.clear()
-        cacheStatsJob?.cancelAndJoin()
-        cacheStatsJob = null
         nuvio_engine_destroy(activeEngine)
-    }
-
-    private fun startCacheStatsPolling(activeEngine: CPointer<nuvio_engine>) {
-        cacheStatsJob?.cancel()
-        cacheStatsJob = scope.launch {
-            while (isActive) {
-                runCatching { readAggregateStats(activeEngine) }.getOrNull()?.let(::updateCacheState)
-                delay(CacheStatsPollIntervalMs)
-            }
-        }
     }
 
     private suspend fun addMagnet(activeEngine: CPointer<nuvio_engine>, magnet: String): String {
@@ -502,7 +486,6 @@ actual object P2pStreamingEngine {
             payloadDownloaded = stats.total_payload_download_bytes.toLong(),
             diskUsed = stats.disk_cache_used_bytes.toLong(),
             diskProtected = stats.disk_cache_protected_bytes.toLong(),
-            diskReclaimed = stats.disk_cache_reclaimed_bytes.toLong(),
         )
     }
 
@@ -547,23 +530,6 @@ actual object P2pStreamingEngine {
             attributes = null,
             error = null,
         )) { "Could not create Nuvio Engine directory" }
-    }
-
-    private fun migrateNestedPayloadDirectory(cacheDirectory: String) {
-        val manager = NSFileManager.defaultManager
-        val payloadDirectory = "$cacheDirectory/payload"
-        val nestedDirectory = "$payloadDirectory/payload"
-        val entries = manager.contentsOfDirectoryAtPath(nestedDirectory, error = null) ?: return
-        entries.filterIsInstance<String>().forEach { name ->
-            val source = "$nestedDirectory/$name"
-            val target = "$payloadDirectory/$name"
-            if (manager.fileExistsAtPath(target) ||
-                !manager.moveItemAtPath(source, toPath = target, error = null)
-            ) {
-                manager.removeItemAtPath(source, error = null)
-            }
-        }
-        manager.removeItemAtPath(nestedDirectory, error = null)
     }
 
     private fun ratio(value: Long, total: Long): Float =

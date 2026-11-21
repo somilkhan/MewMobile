@@ -9,8 +9,6 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import platform.Foundation.NSUserDefaults
-import platform.UIKit.UIDevice
-import platform.UIKit.UIUserInterfaceIdiomPad
 
 actual object ThemeSettingsStorage {
     private const val selectedThemeKey = "selected_theme"
@@ -26,7 +24,6 @@ actual object ThemeSettingsStorage {
         customThemeFirstColorKey,
         customThemeSecondColorKey,
         amoledEnabledKey,
-        navBarGlowEnabledKey,
         liquidGlassNativeTabBarEnabledKey,
         liquidGlassAutoHideOnScrollEnabledKey,
     )
@@ -70,57 +67,6 @@ actual object ThemeSettingsStorage {
 
     actual fun saveAmoledEnabled(enabled: Boolean) {
         NSUserDefaults.standardUserDefaults.setBool(enabled, forKey = ProfileScopedKey.of(amoledEnabledKey))
-    }
-
-    actual fun loadNavBarGlowEnabled(): Boolean? {
-        val defaults = NSUserDefaults.standardUserDefaults
-        val key = ProfileScopedKey.of(navBarGlowEnabledKey)
-        return if (defaults.objectForKey(key) != null) {
-            defaults.boolForKey(key)
-        } else {
-            null
-        }
-    }
-
-    actual fun loadNavBarDefaultIconColorEnabled(): Boolean? {
-        val defaults = NSUserDefaults.standardUserDefaults
-        val key = ProfileScopedKey.of(navBarDefaultIconColorEnabledKey)
-        return if (defaults.objectForKey(key) != null) {
-            defaults.boolForKey(key)
-        } else {
-            null
-        }
-    }
-
-    actual fun saveNavBarDefaultIconColorEnabled(enabled: Boolean) {
-        NSUserDefaults.standardUserDefaults.setBool(
-            enabled,
-            forKey = ProfileScopedKey.of(navBarDefaultIconColorEnabledKey),
-        )
-    }
-
-    actual fun loadNavBarDefaultIconColor(): String? = loadRawString(navBarDefaultIconColorKey)
-
-    actual fun saveNavBarDefaultIconColor(color: String) {
-        saveRawString(navBarDefaultIconColorKey, color)
-    }
-
-    actual fun saveNavBarGlowEnabled(enabled: Boolean) {
-        NSUserDefaults.standardUserDefaults.setBool(enabled, forKey = ProfileScopedKey.of(navBarGlowEnabledKey))
-    }
-
-
-    actual fun loadNavBarLiquidGlassBarEffects(): String? = loadRawString(navBarLiquidGlassBarEffectsKey)
-
-    actual fun saveNavBarLiquidGlassBarEffects(settings: String) {
-        saveRawString(navBarLiquidGlassBarEffectsKey, settings)
-    }
-
-    actual fun loadNavBarLiquidGlassSelectionEffects(): String? =
-        loadRawString(navBarLiquidGlassSelectionEffectsKey)
-
-    actual fun saveNavBarLiquidGlassSelectionEffects(settings: String) {
-        saveRawString(navBarLiquidGlassSelectionEffectsKey, settings)
     }
 
     actual fun loadLiquidGlassNativeTabBarEnabled(): Boolean? {

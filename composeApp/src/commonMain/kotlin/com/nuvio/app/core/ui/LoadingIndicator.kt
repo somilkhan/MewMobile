@@ -27,11 +27,10 @@ import kotlin.math.sin
 @Composable
 fun NuvioLoadingIndicator(
     modifier: Modifier = Modifier,
-    color: Color = Color.Unspecified,
+    color: Color = MaterialTheme.nuvio.colors.textSecondary,
     size: Dp = NuvioTokens.Space.s40,
     active: Boolean = LocalScreenActive.current,
 ) {
-    val brush = if (color == Color.Unspecified) MaterialTheme.themePalette.accentBrush() else SolidColor(color)
     Box(
         modifier = modifier.size(size),
         contentAlignment = Alignment.Center,
@@ -94,16 +93,3 @@ private fun loadingSpokeAlpha(index: Int, frame: Float): Float {
     }
     return opacity / 100f
 }
-
-@Composable
-internal fun rememberLoadingIndicatorFrame(active: Boolean): State<Float> =
-    if (active) {
-        rememberInfiniteTransition(label = "loading_indicator").animateFloat(
-            initialValue = 0f,
-            targetValue = 60f,
-            animationSpec = infiniteRepeatable(tween(durationMillis = 2000, easing = LinearEasing)),
-            label = "loading_frame",
-        )
-    } else {
-        remember { mutableFloatStateOf(0f) }
-    }

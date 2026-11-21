@@ -165,14 +165,12 @@ private fun CollectionFolderCard(
             ) {
                 when {
                     !imageUrl.isNullOrBlank() -> {
-                        NuvioAsyncImage(
+                        CollectionCardRemoteImage(
                             imageUrl = imageUrl,
                             contentDescription = folder.title,
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop,
-                            animateIfPossible = animateGifs &&
-                                isAnimatedCollectionFolderImage(folder, imageUrl) &&
-                                LocalScreenActive.current,
+                            animateIfPossible = animateGifs && isAnimatedCollectionFolderImage(folder, imageUrl),
                         )
                     }
                     !folder.coverEmoji.isNullOrBlank() -> {

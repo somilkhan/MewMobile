@@ -15,11 +15,6 @@ import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.network_empty_response_body
 import nuvio.composeapp.generated.resources.network_request_failed_http
 import org.jetbrains.compose.resources.getString
-import okhttp3.Cache
-import okhttp3.Call
-import okhttp3.Callback
-import okhttp3.Dispatcher
-import okhttp3.Response
 import okhttp3.ResponseBody
 import okhttp3.Call
 import okhttp3.Callback
@@ -31,7 +26,6 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.net.Proxy
 import java.io.ByteArrayOutputStream
-import java.io.File
 import java.io.InputStream
 import kotlin.text.Charsets
 import java.util.concurrent.TimeUnit
@@ -291,45 +285,10 @@ private suspend fun executeTextRequest(
         if (!response.isSuccessful) {
             error(runBlocking { getString(Res.string.network_request_failed_http, response.code) })
         }
-        call.enqueue(
-            object : Callback {
-                override fun onFailure(call: Call, e: IOException) {
-                    if (!continuation.isActive) return
-                    val failure = if (call.isCanceled()) {
-                        CancellationException("Cancelled HTTP request", e)
-                    } else {
-                        e
-                    }
-                    continuation.resumeWith(Result.failure(failure))
-                }
-
-                override fun onResponse(call: Call, response: Response) {
-                    if (!continuation.isActive) {
-                        response.close()
-                        return
-                    }
-                    val result = runCatching {
-                        response.use { current ->
-                            val payload = readResponseBody(current.body)
-                            if (!current.isSuccessful) {
-                                error(runBlocking { getString(Res.string.network_request_failed_http, current.code) })
-                            }
-                            if (payload.isBlank()) {
-                                throw IllegalStateException(runBlocking { getString(Res.string.network_empty_response_body) })
-                            }
-                            payload
-                        }
-                    }
-                    if (!continuation.isActive) return
-                    val failure = result.exceptionOrNull()
-                    if (failure != null && call.isCanceled() && failure !is CancellationException) {
-                        continuation.resumeWith(Result.failure(CancellationException("Cancelled HTTP request", failure)))
-                    } else {
-                        continuation.resumeWith(result)
-                    }
-                }
-            },
-        )
+        if (payload.isBlank()) {
+            throw IllegalStateException(runBlocking { getString(Res.string.network_empty_response_body) })
+        }
+        payload
     }
 }
 

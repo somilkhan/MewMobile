@@ -13,17 +13,12 @@ import com.nuvio.app.core.sync.encodeSyncInt
 import com.nuvio.app.core.sync.encodeSyncString
 import com.nuvio.app.core.sync.encodeSyncStringSet
 import com.nuvio.app.core.storage.ProfileScopedKey
-import com.nuvio.app.features.profiles.MAX_PROFILES
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
 actual object PlayerSettingsStorage {
     private const val preferencesName = "nuvio_player_settings"
-    private const val pendingExternalPlaybackKey = "pending_external_playback"
-    private const val playbackBrightnessKey = "playback_brightness"
-    private const val useLegacyPlayerLayoutKey = "use_legacy_player_layout"
-    private const val showPlayerTitleLogoKey = "show_player_title_logo"
     private const val showLoadingOverlayKey = "show_loading_overlay"
     private const val pauseOverlayEnabledKey = "pause_overlay_enabled"
     private const val stableOpeningOverlayEnabledKey = "stable_opening_overlay_enabled"
@@ -38,12 +33,6 @@ actual object PlayerSettingsStorage {
     private const val resizeModeKey = "resize_mode"
     private const val holdToSpeedEnabledKey = "hold_to_speed_enabled"
     private const val holdToSpeedValueKey = "hold_to_speed_value"
-    private const val skipBackwardSecondsKey = "skip_backward_seconds"
-    private const val skipIntroOffsetSecondsKey = "skip_intro_offset_seconds"
-    private const val toolbarLayoutKey = "player_toolbar_layout"
-    private const val legacyBottomButtonsKey = "legacy_player_bottom_buttons"
-    private const val legacyTopButtonsKey = "legacy_player_top_buttons"
-    private const val skipForwardSecondsKey = "skip_forward_seconds"
     private const val touchGesturesEnabledKey = "touch_gestures_enabled"
     private const val rememberPlayerBrightnessEnabledKey = "remember_player_brightness_enabled"
     private const val rememberedPlayerBrightnessKey = "remembered_player_brightness"
@@ -57,7 +46,6 @@ actual object PlayerSettingsStorage {
     private const val preferredSubtitleLanguageKey = "preferred_subtitle_language"
     private const val secondaryPreferredSubtitleLanguageKey = "secondary_preferred_subtitle_language"
     private const val subtitleTextColorKey = "subtitle_text_color"
-    private const val subtitleAppearanceKey = "subtitle_appearance"
     private const val subtitleBackgroundColorKey = "subtitle_background_color"
     private const val subtitleOutlineColorKey = "subtitle_outline_color"
     private const val subtitleOutlineEnabledKey = "subtitle_outline_enabled"
@@ -78,7 +66,6 @@ actual object PlayerSettingsStorage {
     private const val androidPlaybackEngineKey = "android_playback_engine"
     private const val androidLibmpvVideoOutputKey = "android_libmpv_video_output"
     private const val androidLibmpvHardwareDecodingEnabledKey = "android_libmpv_hardware_decoding_enabled"
-    private const val androidLibmpvVideoOutputKey = "android_libmpv_video_output"
     private const val androidLibmpvYuv420pEnabledKey = "android_libmpv_yuv420p_enabled"
     private const val androidMemorySafeBufferEnabledKey = "android_memory_safe_buffer_enabled"
     private const val exoNativeMemoryEnabledKey = "exo_native_memory_enabled"
@@ -104,14 +91,6 @@ actual object PlayerSettingsStorage {
     private const val skipIntroEnabledKey = "skip_intro_enabled"
     private const val animeSkipEnabledKey = "animeskip_enabled"
     private const val animeSkipClientIdKey = "animeskip_client_id"
-    private const val animeSkipEnabledKey = "animeskip_enabled"
-    private const val autoSkipMovieCreditsKey = "auto_skip_movie_credits"
-    private const val autoSkipPostCreditsKey = "auto_skip_post_credits"
-    private const val autoSkipSegmentTypesKey = "auto_skip_segment_types"
-    private const val autoSwitchPlaybackEngineOnErrorKey = "auto_switch_playback_engine_on_error"
-    private const val customPlaybackBuffersEnabledKey = "custom_playback_buffers_enabled"
-    private const val decoderPriorityKey = "decoder_priority"
-    private const val exoNativeMemoryEnabledKey = "exo_native_memory_enabled"
     private const val introDbApiKeyKey = "introdb_api_key"
     private const val introSubmitEnabledKey = "intro_submit_enabled"
     private const val streamAutoPlayNextEpisodeEnabledKey = "stream_auto_play_next_episode_enabled"
@@ -132,65 +111,16 @@ actual object PlayerSettingsStorage {
     private const val iosTargetTransferKey = "ios_target_transfer"
     private const val iosHardwareDecoderModeKey = "ios_hardware_decoder_mode"
     private const val iosAudioOutputModeKey = "ios_audio_output_mode"
+    private const val iosExtendedDynamicRangeEnabledKey = "ios_extended_dynamic_range_enabled"
+    private const val iosTargetColorspaceHintEnabledKey = "ios_target_colorspace_hint_enabled"
+    private const val iosHdrComputePeakEnabledKey = "ios_hdr_compute_peak_enabled"
+    private const val iosDebandEnabledKey = "ios_deband_enabled"
+    private const val iosInterpolationEnabledKey = "ios_interpolation_enabled"
     private const val iosBrightnessKey = "ios_brightness"
     private const val iosContrastKey = "ios_contrast"
-    private const val iosDebandEnabledKey = "ios_deband_enabled"
-    private const val iosExtendedDynamicRangeEnabledKey = "ios_extended_dynamic_range_enabled"
-    private const val iosGammaKey = "ios_gamma"
-    private const val iosHardwareDecoderModeKey = "ios_hardware_decoder_mode"
-    private const val iosHdrComputePeakEnabledKey = "ios_hdr_compute_peak_enabled"
-    private const val iosInterpolationEnabledKey = "ios_interpolation_enabled"
     private const val iosSaturationKey = "ios_saturation"
-    private const val iosTargetColorspaceHintEnabledKey = "ios_target_colorspace_hint_enabled"
-    private const val iosTargetPrimariesKey = "ios_target_primaries"
-    private const val iosTargetTransferKey = "ios_target_transfer"
-    private const val iosToneMappingModeKey = "ios_tone_mapping_mode"
-    private const val iosVideoOutputPresetKey = "ios_video_output_preset"
-    private const val libassRenderModeKey = "libass_render_mode"
-    private const val libassRenderScaleKey = "libass_render_scale"
-    private const val libassRenderTypeKey = "libass_render_type"
-    private const val mapDV7ToHevcKey = "map_dv7_to_hevc"
-    private const val miniPlayerEnabledKey = "mini_player_enabled"
-    private const val nextEpisodeThresholdMinutesBeforeEndKey = "next_episode_threshold_minutes_before_end_v2"
-    private const val nextEpisodeThresholdModeKey = "next_episode_threshold_mode"
-    private const val nextEpisodeThresholdPercentKey = "next_episode_threshold_percent_v2"
-    private const val nightModeButtonEnabledKey = "night_mode_button_enabled"
-    private const val nightModeEnabledKey = "night_mode_enabled"
-    private const val playbackBackBufferSecondsKey = "playback_back_buffer_seconds"
-    private const val playbackMaxBufferSecondsKey = "playback_max_buffer_seconds"
-    private const val playbackMinBufferSecondsKey = "playback_min_buffer_seconds"
-    private const val playbackRebufferSecondsKey = "playback_rebuffer_seconds"
-    private const val playbackStartBufferSecondsKey = "playback_start_buffer_seconds"
-    private const val playbackTargetBufferMbKey = "playback_target_buffer_mb"
-    private const val preloadNextEpisodeSourcesKey = "preload_next_episode_sources"
-    private const val privateViewingEnabledKey = "private_viewing_enabled"
-    private const val skipIntroEnabledKey = "skip_intro_enabled"
-    private const val streamAutoPlayModeKey = "stream_auto_play_mode"
-    private const val streamAutoPlayNextEpisodeEnabledKey = "stream_auto_play_next_episode_enabled"
-    private const val streamAutoPlayNextEpisodeFallbackEnabledKey = "stream_auto_play_next_episode_fallback_enabled"
-    private const val streamAutoPlayPreferBingeGroupKey = "stream_auto_play_prefer_binge_group"
-    private const val streamAutoPlayRegexKey = "stream_auto_play_regex"
-    private const val streamAutoPlayReuseBingeGroupKey = "stream_auto_play_reuse_binge_group"
-    private const val streamAutoPlaySelectedAddonsKey = "stream_auto_play_selected_addons"
-    private const val streamAutoPlaySelectedPluginsKey = "stream_auto_play_selected_plugins"
-    private const val streamAutoPlaySourceKey = "stream_auto_play_source"
-    private const val streamAutoPlayTimeoutSecondsKey = "stream_auto_play_timeout_seconds"
-    private const val streamReuseLastLinkCacheHoursKey = "stream_reuse_last_link_cache_hours"
-    private const val streamReuseLastLinkEnabledKey = "stream_reuse_last_link_enabled"
-    private const val subtitleBoldKey = "subtitle_bold"
-    private const val subtitleBottomOffsetKey = "subtitle_bottom_offset"
-    private const val subtitleFontSizeSpKey = "subtitle_font_size_sp"
-    private const val subtitleShowOnlyPreferredLanguagesKey = "subtitle_show_only_preferred_languages"
-    private const val subtitleStripSdhKey = "subtitle_strip_sdh"
-    private const val subtitleUseForcedSubtitlesKey = "subtitle_use_forced_subtitles"
-    private const val tunnelingEnabledKey = "tunneling_enabled"
-    private const val useLibassKey = "use_libass"
-    private const val useLibmpvAssKey = "use_libmpv_ass"
-    private const val vodDiskCacheAutoSizeKey = "vod_disk_cache_auto_size"
-    private const val vodDiskCacheEnabledKey = "vod_disk_cache_enabled"
-    private const val vodDiskCacheSizeMbKey = "vod_disk_cache_size_mb"
+    private const val iosGammaKey = "ios_gamma"
     private val syncKeys = listOf(
-        showPlayerTitleLogoKey,
         showLoadingOverlayKey,
         pauseOverlayEnabledKey,
         stableOpeningOverlayEnabledKey,
@@ -232,9 +162,6 @@ actual object PlayerSettingsStorage {
         streamReuseLastLinkEnabledKey,
         streamReuseLastLinkCacheHoursKey,
         androidPlaybackEngineKey,
-        streamAutoPlayFallbackOnFailureKey,
-        streamAutoPlayFallbackMaxSourcesKey,
-        streamAutoPlayFallbackStartupTimeoutSecondsKey,
         androidLibmpvVideoOutputKey,
         androidLibmpvHardwareDecodingEnabledKey,
         androidLibmpvYuv420pEnabledKey,
@@ -260,9 +187,6 @@ actual object PlayerSettingsStorage {
         streamAutoPlayRegexKey,
         streamAutoPlayTimeoutSecondsKey,
         skipIntroEnabledKey,
-        autoSkipMovieCreditsKey,
-        autoSkipSegmentTypesKey,
-        autoSkipPostCreditsKey,
         animeSkipEnabledKey,
         animeSkipClientIdKey,
         streamAutoPlayNextEpisodeEnabledKey,
@@ -275,11 +199,8 @@ actual object PlayerSettingsStorage {
         nextEpisodeThresholdModeKey,
         nextEpisodeThresholdPercentKey,
         nextEpisodeThresholdMinutesBeforeEndKey,
-        preloadNextEpisodeSourcesKey,
-        miniPlayerEnabledKey,
         useLibassKey,
         libassRenderTypeKey,
-        useLibmpvAssKey,
         iosVideoOutputPresetKey,
         iosToneMappingModeKey,
         iosTargetPrimariesKey,
@@ -295,33 +216,14 @@ actual object PlayerSettingsStorage {
         iosContrastKey,
         iosSaturationKey,
         iosGammaKey,
-        autoSwitchPlaybackEngineOnErrorKey,
     )
+
     private var preferences: SharedPreferences? = null
     private var appContext: Context? = null
 
     fun initialize(context: Context) {
         appContext = context.applicationContext
         preferences = context.getSharedPreferences(preferencesName, Context.MODE_PRIVATE)
-        SubtitleDevicePreferencesStorage.initialize(context.applicationContext)
-    }
-
-    internal fun applicationContext(): Context? = appContext
-
-    actual fun loadPendingExternalPlayback(): String? = preferences?.getString(pendingExternalPlaybackKey, null)
-
-    actual fun savePendingExternalPlayback(value: String?) {
-        preferences?.edit()?.putString(pendingExternalPlaybackKey, value)?.apply()
-    }
-
-    actual fun loadPlaybackBrightness(): Float? =
-        preferences?.let { sharedPreferences ->
-            val key = ProfileScopedKey.of(playbackBrightnessKey)
-            if (sharedPreferences.contains(key)) sharedPreferences.getFloat(key, 0f) else null
-        }
-
-    actual fun savePlaybackBrightness(level: Float) {
-        preferences?.edit()?.putFloat(ProfileScopedKey.of(playbackBrightnessKey), level)?.apply()
     }
 
     internal fun applicationContext(): Context? = appContext
@@ -421,60 +323,6 @@ actual object PlayerSettingsStorage {
             ?.apply()
     }
 
-    actual fun loadShowPlayerLoadingStatus(): Boolean? =
-        preferences?.let { sharedPreferences ->
-            val key = ProfileScopedKey.of(showPlayerLoadingStatusKey)
-            if (sharedPreferences.contains(key)) sharedPreferences.getBoolean(key, true) else null
-        }
-
-    actual fun saveShowPlayerLoadingStatus(enabled: Boolean) {
-        preferences?.edit()?.putBoolean(ProfileScopedKey.of(showPlayerLoadingStatusKey), enabled)?.apply()
-    }
-
-    actual fun loadPauseOverlayEnabled(): Boolean? =
-        preferences?.let { sharedPreferences ->
-            val key = ProfileScopedKey.of(pauseOverlayEnabledKey)
-            if (sharedPreferences.contains(key)) {
-                sharedPreferences.getBoolean(key, true)
-            } else {
-                null
-            }
-        }
-
-    actual fun savePauseOverlayEnabled(enabled: Boolean) {
-        preferences
-            ?.edit()
-            ?.putBoolean(ProfileScopedKey.of(pauseOverlayEnabledKey), enabled)
-            ?.apply()
-    }
-
-    actual fun loadUseLegacyPlayerLayout(): Boolean? =
-        preferences?.let { sharedPreferences ->
-            val key = ProfileScopedKey.of(useLegacyPlayerLayoutKey)
-            if (sharedPreferences.contains(key)) {
-                sharedPreferences.getBoolean(key, false)
-            } else {
-                null
-            }
-        }
-
-    actual fun saveUseLegacyPlayerLayout(enabled: Boolean) {
-        preferences
-            ?.edit()
-            ?.putBoolean(ProfileScopedKey.of(useLegacyPlayerLayoutKey), enabled)
-            ?.apply()
-    }
-
-    actual fun loadShowPlayerTitleLogo(): Boolean? =
-        preferences?.let { prefs ->
-            val key = ProfileScopedKey.of(showPlayerTitleLogoKey)
-            if (prefs.contains(key)) prefs.getBoolean(key, false) else null
-        }
-
-    actual fun saveShowPlayerTitleLogo(enabled: Boolean) {
-        preferences?.edit()?.putBoolean(ProfileScopedKey.of(showPlayerTitleLogoKey), enabled)?.apply()
-    }
-
     actual fun loadShowParentalGuide(): Boolean? =
         preferences?.let { sharedPreferences ->
             val key = ProfileScopedKey.of(showParentalGuideKey)
@@ -535,49 +383,6 @@ actual object PlayerSettingsStorage {
             ?.putFloat(ProfileScopedKey.of(holdToSpeedValueKey), speed)
             ?.apply()
     }
-
-    private fun loadLocalInt(keyBase: String): Int? =
-        preferences?.let { sharedPreferences ->
-            val key = ProfileScopedKey.of(keyBase)
-            if (sharedPreferences.contains(key)) sharedPreferences.getInt(key, 0) else null
-        }
-
-    private fun saveLocalInt(keyBase: String, value: Int) {
-        preferences?.edit()?.putInt(ProfileScopedKey.of(keyBase), value)?.apply()
-    }
-
-    actual fun loadToolbarLayout(): String? =
-        preferences?.getString(ProfileScopedKey.of(toolbarLayoutKey), null)
-
-    actual fun saveToolbarLayout(layout: String) {
-        preferences?.edit()?.putString(ProfileScopedKey.of(toolbarLayoutKey), layout)?.apply()
-    }
-
-    actual fun loadLegacyBottomButtons(): String? =
-        preferences?.getString(ProfileScopedKey.of(legacyBottomButtonsKey), null)
-
-    actual fun saveLegacyBottomButtons(layout: String) {
-        preferences?.edit()?.putString(ProfileScopedKey.of(legacyBottomButtonsKey), layout)?.apply()
-    }
-
-    actual fun loadLegacyTopButtons(): String? =
-        preferences?.getString(ProfileScopedKey.of(legacyTopButtonsKey), null)
-
-    actual fun saveLegacyTopButtons(layout: String) {
-        preferences?.edit()?.putString(ProfileScopedKey.of(legacyTopButtonsKey), layout)?.apply()
-    }
-
-    actual fun loadSkipBackwardSeconds(): Int? = loadLocalInt(skipBackwardSecondsKey)
-
-    actual fun saveSkipBackwardSeconds(seconds: Int) = saveLocalInt(skipBackwardSecondsKey, seconds)
-
-    actual fun loadSkipIntroOffsetSeconds(): Int? = loadLocalInt(skipIntroOffsetSecondsKey)
-
-    actual fun saveSkipIntroOffsetSeconds(seconds: Int) = saveLocalInt(skipIntroOffsetSecondsKey, seconds)
-
-    actual fun loadSkipForwardSeconds(): Int? = loadLocalInt(skipForwardSecondsKey)
-
-    actual fun saveSkipForwardSeconds(seconds: Int) = saveLocalInt(skipForwardSecondsKey, seconds)
 
     actual fun loadTouchGesturesEnabled(): Boolean? =
         preferences?.let { sharedPreferences ->
@@ -779,13 +584,6 @@ actual object PlayerSettingsStorage {
             ?.apply()
     }
 
-    actual fun loadSubtitleAppearance(): String? =
-        preferences?.getString(ProfileScopedKey.of(subtitleAppearanceKey), null)
-
-    actual fun saveSubtitleAppearance(value: String) {
-        preferences?.edit()?.putString(ProfileScopedKey.of(subtitleAppearanceKey), value)?.apply()
-    }
-
     actual fun loadSubtitleBackgroundColor(): String? =
         preferences?.getString(ProfileScopedKey.of(subtitleBackgroundColorKey), null)
 
@@ -840,6 +638,26 @@ actual object PlayerSettingsStorage {
             ?.apply()
     }
 
+    actual fun loadSubtitleShadowEnabled(): Boolean? =
+        preferences?.let { sharedPreferences ->
+            val key = ProfileScopedKey.of(subtitleShadowEnabledKey)
+            if (sharedPreferences.contains(key)) sharedPreferences.getBoolean(key, SubtitleStyleState.DEFAULT.shadowEnabled) else null
+        }
+
+    actual fun saveSubtitleShadowEnabled(enabled: Boolean) {
+        preferences?.edit()?.putBoolean(ProfileScopedKey.of(subtitleShadowEnabledKey), enabled)?.apply()
+    }
+
+    actual fun loadSubtitleShadowStrength(): Int? =
+        preferences?.let { sharedPreferences ->
+            val key = ProfileScopedKey.of(subtitleShadowStrengthKey)
+            if (sharedPreferences.contains(key)) sharedPreferences.getInt(key, SubtitleStyleState.DEFAULT.shadowStrength) else null
+        }
+
+    actual fun saveSubtitleShadowStrength(strength: Int) {
+        preferences?.edit()?.putInt(ProfileScopedKey.of(subtitleShadowStrengthKey), normalizeSubtitleShadowStrength(strength))?.apply()
+    }
+
     actual fun loadSubtitleBold(): Boolean? =
         preferences?.let { sharedPreferences ->
             val key = ProfileScopedKey.of(subtitleBoldKey)
@@ -874,6 +692,42 @@ actual object PlayerSettingsStorage {
             ?.apply()
     }
 
+    actual fun loadSubtitleFontFamily(): String? =
+        preferences?.getString(ProfileScopedKey.of(subtitleFontFamilyKey), null)
+
+    actual fun saveSubtitleFontFamily(fontFamily: String) {
+        preferences
+            ?.edit()
+            ?.putString(ProfileScopedKey.of(subtitleFontFamilyKey), fontFamily)
+            ?.apply()
+    }
+
+    actual fun loadSubtitleCustomFontName(): String? =
+        preferences?.getString(ProfileScopedKey.of(subtitleCustomFontNameKey), null)
+
+    actual fun saveSubtitleCustomFontName(fontName: String?) {
+        preferences
+            ?.edit()
+            ?.apply {
+                val key = ProfileScopedKey.of(subtitleCustomFontNameKey)
+                if (fontName.isNullOrBlank()) remove(key) else putString(key, fontName)
+            }
+            ?.apply()
+    }
+
+    actual fun loadSubtitleCustomFontPath(): String? =
+        preferences?.getString(ProfileScopedKey.of(subtitleCustomFontPathKey), null)
+
+    actual fun saveSubtitleCustomFontPath(fontPath: String?) {
+        preferences
+            ?.edit()
+            ?.apply {
+                val key = ProfileScopedKey.of(subtitleCustomFontPathKey)
+                if (fontPath.isNullOrBlank()) remove(key) else putString(key, fontPath)
+            }
+            ?.apply()
+    }
+
     actual fun loadSubtitleBottomOffset(): Int? =
         preferences?.let { sharedPreferences ->
             val key = ProfileScopedKey.of(subtitleBottomOffsetKey)
@@ -888,23 +742,6 @@ actual object PlayerSettingsStorage {
         preferences
             ?.edit()
             ?.putInt(ProfileScopedKey.of(subtitleBottomOffsetKey), bottomOffset)
-            ?.apply()
-    }
-
-    actual fun loadSubtitleStripSdh(): Boolean? =
-        preferences?.let { sharedPreferences ->
-            val key = ProfileScopedKey.of(subtitleStripSdhKey)
-            if (sharedPreferences.contains(key)) {
-                sharedPreferences.getBoolean(key, SubtitleStyleState.DEFAULT.stripSdh)
-            } else {
-                null
-            }
-        }
-
-    actual fun saveSubtitleStripSdh(enabled: Boolean) {
-        preferences
-            ?.edit()
-            ?.putBoolean(ProfileScopedKey.of(subtitleStripSdhKey), enabled)
             ?.apply()
     }
 
@@ -939,6 +776,16 @@ actual object PlayerSettingsStorage {
         preferences
             ?.edit()
             ?.putBoolean(ProfileScopedKey.of(subtitleShowOnlyPreferredLanguagesKey), enabled)
+            ?.apply()
+    }
+
+    actual fun loadAddonSubtitleStartupMode(): String? =
+        preferences?.getString(ProfileScopedKey.of(addonSubtitleStartupModeKey), null)
+
+    actual fun saveAddonSubtitleStartupMode(mode: String) {
+        preferences
+            ?.edit()
+            ?.putString(ProfileScopedKey.of(addonSubtitleStartupModeKey), mode)
             ?.apply()
     }
 
@@ -986,74 +833,6 @@ actual object PlayerSettingsStorage {
             ?.apply()
     }
 
-    actual fun loadAutoSwitchPlaybackEngineOnError(): Boolean? =
-        preferences?.let { sharedPreferences ->
-            val key = ProfileScopedKey.of(autoSwitchPlaybackEngineOnErrorKey)
-            if (sharedPreferences.contains(key)) {
-                sharedPreferences.getBoolean(key, true)
-            } else {
-                null
-            }
-        }
-
-    actual fun saveAutoSwitchPlaybackEngineOnError(enabled: Boolean) {
-        preferences
-            ?.edit()
-            ?.putBoolean(ProfileScopedKey.of(autoSwitchPlaybackEngineOnErrorKey), enabled)
-            ?.apply()
-    }
-
-    actual fun loadStreamAutoPlayFallbackOnFailure(): Boolean? =
-        preferences?.let { sharedPreferences ->
-            val key = ProfileScopedKey.of(streamAutoPlayFallbackOnFailureKey)
-            if (sharedPreferences.contains(key)) {
-                sharedPreferences.getBoolean(key, false)
-            } else {
-                null
-            }
-        }
-
-    actual fun saveStreamAutoPlayFallbackOnFailure(enabled: Boolean) {
-        preferences
-            ?.edit()
-            ?.putBoolean(ProfileScopedKey.of(streamAutoPlayFallbackOnFailureKey), enabled)
-            ?.apply()
-    }
-
-    actual fun loadStreamAutoPlayFallbackMaxSources(): Int? =
-        preferences?.let { sharedPreferences ->
-            val key = ProfileScopedKey.of(streamAutoPlayFallbackMaxSourcesKey)
-            if (sharedPreferences.contains(key)) {
-                sharedPreferences.getInt(key, 3)
-            } else {
-                null
-            }
-        }
-
-    actual fun saveStreamAutoPlayFallbackMaxSources(count: Int) {
-        preferences
-            ?.edit()
-            ?.putInt(ProfileScopedKey.of(streamAutoPlayFallbackMaxSourcesKey), count)
-            ?.apply()
-    }
-
-    actual fun loadStreamAutoPlayFallbackStartupTimeoutSeconds(): Int? =
-        preferences?.let { sharedPreferences ->
-            val key = ProfileScopedKey.of(streamAutoPlayFallbackStartupTimeoutSecondsKey)
-            if (sharedPreferences.contains(key)) {
-                sharedPreferences.getInt(key, 15)
-            } else {
-                null
-            }
-        }
-
-    actual fun saveStreamAutoPlayFallbackStartupTimeoutSeconds(seconds: Int) {
-        preferences
-            ?.edit()
-            ?.putInt(ProfileScopedKey.of(streamAutoPlayFallbackStartupTimeoutSecondsKey), seconds)
-            ?.apply()
-    }
-
     actual fun loadAndroidLibmpvVideoOutput(): String? =
         preferences?.getString(ProfileScopedKey.of(androidLibmpvVideoOutputKey), null)
 
@@ -1091,484 +870,10 @@ actual object PlayerSettingsStorage {
             }
         }
 
-    actual fun loadAndroidAnimeUpscaleEnabled(): Boolean? =
-        preferences?.let { sharedPreferences ->
-            val key = ProfileScopedKey.of(androidAnimeUpscaleEnabledKey)
-            if (sharedPreferences.contains(key)) {
-                sharedPreferences.getBoolean(key, false)
-            } else {
-                null
-            }
-        }
-
-    actual fun loadAndroidAnimeLineSharpenEnabled(): Boolean? =
-        preferences?.let { sharedPreferences ->
-            val key = ProfileScopedKey.of(androidAnimeLineSharpenEnabledKey)
-            if (sharedPreferences.contains(key)) {
-                sharedPreferences.getBoolean(key, false)
-            } else {
-                null
-            }
-        }
-
-    actual fun loadAndroidExoChaptersEnabled(): Boolean? =
-        preferences?.let { sharedPreferences ->
-            val key = ProfileScopedKey.of(androidExoChaptersEnabledKey)
-            if (sharedPreferences.contains(key)) {
-                sharedPreferences.getBoolean(key, false)
-            } else {
-                null
-            }
-        }
-
     actual fun saveAndroidLibmpvYuv420pEnabled(enabled: Boolean) {
         preferences
             ?.edit()
             ?.putBoolean(ProfileScopedKey.of(androidLibmpvYuv420pEnabledKey), enabled)
-            ?.apply()
-    }
-
-    actual fun saveAndroidAnimeUpscaleEnabled(enabled: Boolean) {
-        preferences
-            ?.edit()
-            ?.putBoolean(ProfileScopedKey.of(androidAnimeUpscaleEnabledKey), enabled)
-            ?.apply()
-    }
-
-    actual fun saveAndroidAnimeLineSharpenEnabled(enabled: Boolean) {
-        preferences
-            ?.edit()
-            ?.putBoolean(ProfileScopedKey.of(androidAnimeLineSharpenEnabledKey), enabled)
-            ?.apply()
-    }
-
-    actual fun saveAndroidExoChaptersEnabled(enabled: Boolean) {
-        preferences
-            ?.edit()
-            ?.putBoolean(ProfileScopedKey.of(androidExoChaptersEnabledKey), enabled)
-            ?.apply()
-    }
-
-    actual fun loadChapterTitleEnabled(): Boolean? =
-        preferences?.let { sharedPreferences ->
-            val key = ProfileScopedKey.of(chapterTitleEnabledKey)
-            if (sharedPreferences.contains(key)) {
-                sharedPreferences.getBoolean(key, true)
-            } else {
-                null
-            }
-        }
-
-    actual fun saveChapterTitleEnabled(enabled: Boolean) {
-        preferences
-            ?.edit()
-            ?.putBoolean(ProfileScopedKey.of(chapterTitleEnabledKey), enabled)
-            ?.apply()
-    }
-
-    actual fun loadRememberAudioDelayPerDevice(): Boolean? =
-        preferences?.let { sharedPreferences ->
-            val key = ProfileScopedKey.of(rememberAudioDelayPerDeviceKey)
-            if (sharedPreferences.contains(key)) {
-                sharedPreferences.getBoolean(key, true)
-            } else {
-                null
-            }
-        }
-
-    actual fun saveRememberAudioDelayPerDevice(enabled: Boolean) {
-        preferences
-            ?.edit()
-            ?.putBoolean(ProfileScopedKey.of(rememberAudioDelayPerDeviceKey), enabled)
-            ?.apply()
-    }
-
-    actual fun loadPersistAudioAmplification(): Boolean? =
-        preferences?.let { sharedPreferences ->
-            val key = ProfileScopedKey.of(persistAudioAmplificationKey)
-            if (sharedPreferences.contains(key)) {
-                sharedPreferences.getBoolean(key, false)
-            } else {
-                null
-            }
-        }
-
-    actual fun savePersistAudioAmplification(enabled: Boolean) {
-        preferences
-            ?.edit()
-            ?.putBoolean(ProfileScopedKey.of(persistAudioAmplificationKey), enabled)
-            ?.apply()
-    }
-
-    actual fun loadAudioAmplificationDb(): Int? =
-        preferences?.let { sharedPreferences ->
-            val key = ProfileScopedKey.of(audioAmplificationDbKey)
-            if (sharedPreferences.contains(key)) {
-                sharedPreferences.getInt(key, 0)
-            } else {
-                null
-            }
-        }
-
-    actual fun saveAudioAmplificationDb(db: Int) {
-        preferences
-            ?.edit()
-            ?.putInt(ProfileScopedKey.of(audioAmplificationDbKey), db)
-            ?.apply()
-    }
-
-    actual fun loadDownmixEnabled(): Boolean? =
-        preferences?.let { sharedPreferences ->
-            val key = ProfileScopedKey.of(downmixEnabledKey)
-            if (sharedPreferences.contains(key)) {
-                sharedPreferences.getBoolean(key, false)
-            } else {
-                null
-            }
-        }
-
-    actual fun saveDownmixEnabled(enabled: Boolean) {
-        preferences
-            ?.edit()
-            ?.putBoolean(ProfileScopedKey.of(downmixEnabledKey), enabled)
-            ?.apply()
-    }
-
-    actual fun loadAudioOutputChannels(): String? =
-        preferences?.getString(ProfileScopedKey.of(audioOutputChannelsKey), null)
-
-    actual fun saveAudioOutputChannels(value: String) {
-        preferences
-            ?.edit()
-            ?.putString(ProfileScopedKey.of(audioOutputChannelsKey), value)
-            ?.apply()
-    }
-
-    actual fun loadMaintainOriginalAudioOnDownmix(): Boolean? =
-        preferences?.let { sharedPreferences ->
-            val key = ProfileScopedKey.of(maintainOriginalAudioOnDownmixKey)
-            if (sharedPreferences.contains(key)) {
-                sharedPreferences.getBoolean(key, true)
-            } else {
-                null
-            }
-        }
-
-    actual fun saveMaintainOriginalAudioOnDownmix(enabled: Boolean) {
-        preferences
-            ?.edit()
-            ?.putBoolean(ProfileScopedKey.of(maintainOriginalAudioOnDownmixKey), enabled)
-            ?.apply()
-    }
-
-    actual fun loadCenterMixLevelDb(): Int? =
-        preferences?.let { sharedPreferences ->
-            val key = ProfileScopedKey.of(centerMixLevelDbKey)
-            if (sharedPreferences.contains(key)) {
-                sharedPreferences.getInt(key, 0)
-            } else {
-                null
-            }
-        }
-
-    actual fun saveCenterMixLevelDb(db: Int) {
-        preferences
-            ?.edit()
-            ?.putInt(ProfileScopedKey.of(centerMixLevelDbKey), db)
-            ?.apply()
-    }
-
-    actual fun loadDecoderPriority(): Int? =
-        preferences?.let { sharedPreferences ->
-            val key = ProfileScopedKey.of(decoderPriorityKey)
-            if (sharedPreferences.contains(key)) {
-                sharedPreferences.getInt(key, 1)
-            } else {
-                null
-            }
-        }
-
-    actual fun saveDecoderPriority(priority: Int) {
-        preferences
-            ?.edit()
-            ?.putInt(ProfileScopedKey.of(decoderPriorityKey), priority)
-            ?.apply()
-    }
-
-    actual fun loadAndroidAudioPassthroughEnabled(): Boolean? =
-        preferences?.let { sharedPreferences ->
-            val key = ProfileScopedKey.of(androidAudioPassthroughEnabledKey)
-            if (sharedPreferences.contains(key)) {
-                sharedPreferences.getBoolean(key, false)
-            } else {
-                null
-            }
-        }
-
-    actual fun saveAndroidAudioPassthroughEnabled(enabled: Boolean) {
-        preferences
-            ?.edit()
-            ?.putBoolean(ProfileScopedKey.of(androidAudioPassthroughEnabledKey), enabled)
-            ?.apply()
-    }
-
-    actual fun loadSubtitleShadowEnabled(): Boolean? =
-        preferences?.let { sharedPreferences ->
-            val key = ProfileScopedKey.of(subtitleShadowEnabledKey)
-            if (sharedPreferences.contains(key)) sharedPreferences.getBoolean(key, SubtitleStyleState.DEFAULT.shadowEnabled) else null
-        }
-
-    actual fun saveSubtitleShadowEnabled(enabled: Boolean) {
-        preferences?.edit()?.putBoolean(ProfileScopedKey.of(subtitleShadowEnabledKey), enabled)?.apply()
-    }
-
-    actual fun loadSubtitleShadowStrength(): Int? =
-        preferences?.let { sharedPreferences ->
-            val key = ProfileScopedKey.of(subtitleShadowStrengthKey)
-            if (sharedPreferences.contains(key)) sharedPreferences.getInt(key, SubtitleStyleState.DEFAULT.shadowStrength) else null
-        }
-
-    actual fun saveSubtitleShadowStrength(strength: Int) {
-        preferences?.edit()?.putInt(ProfileScopedKey.of(subtitleShadowStrengthKey), normalizeSubtitleShadowStrength(strength))?.apply()
-    }
-
-    actual fun loadSubtitleBold(): Boolean? =
-        preferences?.let { sharedPreferences ->
-            val key = ProfileScopedKey.of(nightModeButtonEnabledKey)
-            if (sharedPreferences.contains(key)) {
-                sharedPreferences.getBoolean(key, true)
-            } else {
-                null
-            }
-        }
-
-    actual fun saveNightModeButtonEnabled(enabled: Boolean) {
-        preferences
-            ?.edit()
-            ?.putBoolean(ProfileScopedKey.of(nightModeButtonEnabledKey), enabled)
-            ?.apply()
-    }
-
-    actual fun loadNightModeEnabled(): Boolean? =
-        preferences?.let { sharedPreferences ->
-            val key = ProfileScopedKey.of(nightModeEnabledKey)
-            if (sharedPreferences.contains(key)) {
-                sharedPreferences.getBoolean(key, false)
-            } else {
-                null
-            }
-        }
-
-    actual fun saveNightModeEnabled(enabled: Boolean) {
-        preferences
-            ?.edit()
-            ?.putBoolean(ProfileScopedKey.of(nightModeEnabledKey), enabled)
-            ?.apply()
-    }
-
-    actual fun loadSubtitleFontFamily(): String? =
-        preferences?.getString(ProfileScopedKey.of(subtitleFontFamilyKey), null)
-
-    actual fun saveSubtitleFontFamily(fontFamily: String) {
-        preferences
-            ?.edit()
-            ?.putString(ProfileScopedKey.of(subtitleFontFamilyKey), fontFamily)
-            ?.apply()
-    }
-
-    actual fun loadSubtitleCustomFontName(): String? =
-        preferences?.getString(ProfileScopedKey.of(subtitleCustomFontNameKey), null)
-
-    actual fun saveSubtitleCustomFontName(fontName: String?) {
-        preferences
-            ?.edit()
-            ?.apply {
-                val key = ProfileScopedKey.of(subtitleCustomFontNameKey)
-                if (fontName.isNullOrBlank()) remove(key) else putString(key, fontName)
-            }
-            ?.apply()
-    }
-
-    actual fun loadSubtitleCustomFontPath(): String? =
-        preferences?.getString(ProfileScopedKey.of(subtitleCustomFontPathKey), null)
-
-    actual fun saveSubtitleCustomFontPath(fontPath: String?) {
-        preferences
-            ?.edit()
-            ?.apply {
-                val key = ProfileScopedKey.of(subtitleCustomFontPathKey)
-                if (fontPath.isNullOrBlank()) remove(key) else putString(key, fontPath)
-            }
-            ?.apply()
-    }
-
-    actual fun loadSubtitleBottomOffset(): Int? =
-        preferences?.let { sharedPreferences ->
-            val key = ProfileScopedKey.of(exoNativeMemoryEnabledKey)
-            if (sharedPreferences.contains(key)) {
-                sharedPreferences.getBoolean(key, false)
-            } else {
-                null
-            }
-        }
-
-    actual fun saveExoNativeMemoryEnabled(value: Boolean) {
-        preferences
-            ?.edit()
-            ?.putBoolean(ProfileScopedKey.of(exoNativeMemoryEnabledKey), value)
-            ?.apply()
-    }
-
-    actual fun loadCustomPlaybackBuffersEnabled(): Boolean? =
-        preferences?.let { sharedPreferences ->
-            val key = ProfileScopedKey.of(customPlaybackBuffersEnabledKey)
-            if (sharedPreferences.contains(key)) {
-                sharedPreferences.getBoolean(key, false)
-            } else {
-                null
-            }
-        }
-
-    actual fun saveCustomPlaybackBuffersEnabled(value: Boolean) {
-        preferences
-            ?.edit()
-            ?.putBoolean(ProfileScopedKey.of(customPlaybackBuffersEnabledKey), value)
-            ?.apply()
-    }
-
-    actual fun loadVodDiskCacheEnabled(): Boolean? =
-        preferences?.let { sharedPreferences ->
-            val key = ProfileScopedKey.of(vodDiskCacheEnabledKey)
-            if (sharedPreferences.contains(key)) {
-                sharedPreferences.getBoolean(key, false)
-            } else {
-                null
-            }
-        }
-
-    actual fun saveVodDiskCacheEnabled(value: Boolean) {
-        preferences
-            ?.edit()
-            ?.putBoolean(ProfileScopedKey.of(vodDiskCacheEnabledKey), value)
-            ?.apply()
-    }
-
-    actual fun loadVodDiskCacheAutoSize(): Boolean? =
-        preferences?.let { sharedPreferences ->
-            val key = ProfileScopedKey.of(vodDiskCacheAutoSizeKey)
-            if (sharedPreferences.contains(key)) {
-                sharedPreferences.getBoolean(key, true)
-            } else {
-                null
-            }
-        }
-
-    actual fun saveVodDiskCacheAutoSize(value: Boolean) {
-        preferences
-            ?.edit()
-            ?.putBoolean(ProfileScopedKey.of(vodDiskCacheAutoSizeKey), value)
-            ?.apply()
-    }
-
-    actual fun loadPlaybackMinBufferSeconds(): Int? =
-        preferences?.let { sharedPreferences ->
-            val key = ProfileScopedKey.of(playbackMinBufferSecondsKey)
-            if (sharedPreferences.contains(key)) {
-                sharedPreferences.getInt(key, 50)
-            } else {
-                null
-            }
-        }
-
-    actual fun savePlaybackMinBufferSeconds(value: Int) {
-        preferences
-            ?.edit()
-            ?.putInt(ProfileScopedKey.of(playbackMinBufferSecondsKey), value)
-            ?.apply()
-    }
-
-    actual fun loadPlaybackMaxBufferSeconds(): Int? =
-        preferences?.let { sharedPreferences ->
-            val key = ProfileScopedKey.of(playbackMaxBufferSecondsKey)
-            if (sharedPreferences.contains(key)) {
-                sharedPreferences.getInt(key, 50)
-            } else {
-                null
-            }
-        }
-
-    actual fun savePlaybackMaxBufferSeconds(value: Int) {
-        preferences
-            ?.edit()
-            ?.putInt(ProfileScopedKey.of(playbackMaxBufferSecondsKey), value)
-            ?.apply()
-    }
-
-    actual fun loadPlaybackStartBufferSeconds(): Int? =
-        preferences?.let { sharedPreferences ->
-            val key = ProfileScopedKey.of(playbackStartBufferSecondsKey)
-            if (sharedPreferences.contains(key)) {
-                sharedPreferences.getInt(key, 3)
-            } else {
-                null
-            }
-        }
-
-    actual fun savePlaybackStartBufferSeconds(value: Int) {
-        preferences
-            ?.edit()
-            ?.putInt(ProfileScopedKey.of(playbackStartBufferSecondsKey), value)
-            ?.apply()
-    }
-
-    actual fun loadPlaybackRebufferSeconds(): Int? =
-        preferences?.let { sharedPreferences ->
-            val key = ProfileScopedKey.of(playbackRebufferSecondsKey)
-            if (sharedPreferences.contains(key)) {
-                sharedPreferences.getInt(key, 5)
-            } else {
-                null
-            }
-        }
-
-    actual fun savePlaybackRebufferSeconds(value: Int) {
-        preferences
-            ?.edit()
-            ?.putInt(ProfileScopedKey.of(playbackRebufferSecondsKey), value)
-            ?.apply()
-    }
-
-    actual fun loadPlaybackBackBufferSeconds(): Int? =
-        preferences?.let { sharedPreferences ->
-            val key = ProfileScopedKey.of(playbackBackBufferSecondsKey)
-            if (sharedPreferences.contains(key)) {
-                sharedPreferences.getInt(key, 10)
-            } else {
-                null
-            }
-        }
-
-    actual fun savePlaybackBackBufferSeconds(value: Int) {
-        preferences
-            ?.edit()
-            ?.putInt(ProfileScopedKey.of(playbackBackBufferSecondsKey), value)
-            ?.apply()
-    }
-
-    actual fun loadPlaybackTargetBufferMb(): Int? =
-        preferences?.let { sharedPreferences ->
-            val key = ProfileScopedKey.of(playbackTargetBufferMbKey)
-            if (sharedPreferences.contains(key)) {
-                sharedPreferences.getInt(key, 256)
-            } else {
-                null
-            }
-        }
-
-    actual fun savePlaybackTargetBufferMb(value: Int) {
-        preferences
-            ?.edit()
-            ?.putInt(ProfileScopedKey.of(playbackTargetBufferMbKey), value)
             ?.apply()
     }
 
@@ -1734,18 +1039,18 @@ actual object PlayerSettingsStorage {
 
     actual fun loadDecoderPriority(): Int? =
         preferences?.let { sharedPreferences ->
-            val key = ProfileScopedKey.of(vodDiskCacheSizeMbKey)
+            val key = ProfileScopedKey.of(decoderPriorityKey)
             if (sharedPreferences.contains(key)) {
-                sharedPreferences.getInt(key, 2048)
+                sharedPreferences.getInt(key, 1)
             } else {
                 null
             }
         }
 
-    actual fun saveVodDiskCacheSizeMb(value: Int) {
+    actual fun saveDecoderPriority(priority: Int) {
         preferences
             ?.edit()
-            ?.putInt(ProfileScopedKey.of(vodDiskCacheSizeMbKey), value)
+            ?.putInt(ProfileScopedKey.of(decoderPriorityKey), priority)
             ?.apply()
     }
 
@@ -1873,37 +1178,6 @@ actual object PlayerSettingsStorage {
                 null
             }
         }
-
-    actual fun loadAutoSkipSegmentTypes(): Set<String>? =
-        preferences?.let { sharedPreferences ->
-            val key = ProfileScopedKey.of(autoSkipSegmentTypesKey)
-            if (sharedPreferences.contains(key)) sharedPreferences.getStringSet(key, emptySet())?.toSet() else null
-        }
-
-    actual fun saveAutoSkipSegmentTypes(types: Set<String>) {
-        preferences?.edit()?.putStringSet(ProfileScopedKey.of(autoSkipSegmentTypesKey), types)?.apply()
-    }
-
-    actual fun loadAutoSkipMovieCredits(): Boolean? =
-        preferences?.let { sharedPreferences ->
-            val key = ProfileScopedKey.of(autoSkipMovieCreditsKey)
-            if (sharedPreferences.contains(key)) sharedPreferences.getBoolean(key, false) else null
-        }
-
-    actual fun saveAutoSkipMovieCredits(enabled: Boolean) {
-        preferences?.edit()?.putBoolean(ProfileScopedKey.of(autoSkipMovieCreditsKey), enabled)?.apply()
-    }
-
-    actual fun loadAutoSkipPostCredits(): Boolean? =
-        preferences?.let { sharedPreferences ->
-            val key = ProfileScopedKey.of(autoSkipPostCreditsKey)
-            if (sharedPreferences.contains(key)) sharedPreferences.getBoolean(key, false) else null
-        }
-
-    actual fun saveAutoSkipPostCredits(enabled: Boolean) {
-        preferences?.edit()?.putBoolean(ProfileScopedKey.of(autoSkipPostCreditsKey), enabled)?.apply()
-    }
-
 
     actual fun saveSkipIntroEnabled(enabled: Boolean) {
         preferences
@@ -2033,7 +1307,7 @@ actual object PlayerSettingsStorage {
         preferences?.let { sharedPreferences ->
             val key = ProfileScopedKey.of(streamAutoPlayReuseBingeGroupKey)
             if (sharedPreferences.contains(key)) {
-                sharedPreferences.getBoolean(key, false)
+                sharedPreferences.getBoolean(key, true)
             } else {
                 null
             }
@@ -2090,51 +1364,6 @@ actual object PlayerSettingsStorage {
             ?.apply()
     }
 
-    actual fun loadPreloadNextEpisodeSources(): Boolean? =
-        preferences?.let { sharedPreferences ->
-            val key = ProfileScopedKey.of(preloadNextEpisodeSourcesKey)
-            if (sharedPreferences.contains(key)) {
-                sharedPreferences.getBoolean(key, false)
-            } else null
-        }
-
-    actual fun savePreloadNextEpisodeSources(enabled: Boolean) {
-        preferences
-            ?.edit()
-            ?.putBoolean(ProfileScopedKey.of(preloadNextEpisodeSourcesKey), enabled)
-            ?.apply()
-    }
-
-    actual fun loadMiniPlayerEnabled(): Boolean? =
-        preferences?.let { sharedPreferences ->
-            val key = ProfileScopedKey.of(miniPlayerEnabledKey)
-            if (sharedPreferences.contains(key)) {
-                sharedPreferences.getBoolean(key, false)
-            } else null
-        }
-
-    actual fun saveMiniPlayerEnabled(enabled: Boolean) {
-        preferences
-            ?.edit()
-            ?.putBoolean(ProfileScopedKey.of(miniPlayerEnabledKey), enabled)
-            ?.apply()
-    }
-
-    actual fun loadPrivateViewingEnabled(): Boolean? =
-        preferences?.let { sharedPreferences ->
-            val key = ProfileScopedKey.of(privateViewingEnabledKey)
-            if (sharedPreferences.contains(key)) {
-                sharedPreferences.getBoolean(key, false)
-            } else null
-        }
-
-    actual fun savePrivateViewingEnabled(enabled: Boolean) {
-        preferences
-            ?.edit()
-            ?.putBoolean(ProfileScopedKey.of(privateViewingEnabledKey), enabled)
-            ?.apply()
-    }
-
     actual fun loadUseLibass(): Boolean? =
         preferences?.let { sharedPreferences ->
             val key = ProfileScopedKey.of(useLibassKey)
@@ -2159,43 +1388,6 @@ actual object PlayerSettingsStorage {
         preferences
             ?.edit()
             ?.putString(ProfileScopedKey.of(libassRenderTypeKey), renderType)
-            ?.apply()
-    }
-
-    actual fun loadUseLibmpvAss(): Boolean? =
-        preferences?.let { sharedPreferences ->
-            val key = ProfileScopedKey.of(useLibmpvAssKey)
-            if (sharedPreferences.contains(key)) {
-                sharedPreferences.getBoolean(key, false)
-            } else {
-                null
-            }
-        }
-
-    actual fun saveUseLibmpvAss(enabled: Boolean) {
-        preferences
-            ?.edit()
-            ?.putBoolean(ProfileScopedKey.of(useLibmpvAssKey), enabled)
-            ?.apply()
-    }
-
-    actual fun loadLibassRenderScale(): String? =
-        preferences?.getString(ProfileScopedKey.of(libassRenderScaleKey), null)
-
-    actual fun saveLibassRenderScale(scale: String) {
-        preferences
-            ?.edit()
-            ?.putString(ProfileScopedKey.of(libassRenderScaleKey), scale)
-            ?.apply()
-    }
-
-    actual fun loadLibassRenderMode(): String? =
-        preferences?.getString(ProfileScopedKey.of(libassRenderModeKey), null)
-
-    actual fun saveLibassRenderMode(mode: String) {
-        preferences
-            ?.edit()
-            ?.putString(ProfileScopedKey.of(libassRenderModeKey), mode)
             ?.apply()
     }
 
@@ -2320,45 +1512,7 @@ actual object PlayerSettingsStorage {
         saveIosInt(iosGammaKey, value)
     }
 
-    actual fun migrateLegacySubtitlePreferencesToDeviceStore() {
-        val store = preferences ?: return
-        (1..MAX_PROFILES).forEach { profileId ->
-            fun key(baseKey: String) = ProfileScopedKey.of(baseKey, profileId)
-            fun string(baseKey: String) = store.getString(key(baseKey), null)
-            fun boolean(baseKey: String, default: Boolean): Boolean? {
-                val scopedKey = key(baseKey)
-                return if (store.contains(scopedKey)) store.getBoolean(scopedKey, default) else null
-            }
-            fun integer(baseKey: String, default: Int): Int? {
-                val scopedKey = key(baseKey)
-                return if (store.contains(scopedKey)) store.getInt(scopedKey, default) else null
-            }
-
-            val defaults = SubtitleStyleState.DEFAULT
-            val legacyStyle = SubtitleStyleState(
-                textColor = subtitleColorFromStorage(string(subtitleTextColorKey)) ?: defaults.textColor,
-                backgroundColor = subtitleColorFromStorage(string(subtitleBackgroundColorKey)) ?: defaults.backgroundColor,
-                outlineColor = subtitleColorFromStorage(string(subtitleOutlineColorKey)) ?: defaults.outlineColor,
-                outlineEnabled = boolean(subtitleOutlineEnabledKey, defaults.outlineEnabled) ?: defaults.outlineEnabled,
-                outlineWidth = integer(subtitleOutlineWidthKey, defaults.outlineWidth) ?: defaults.outlineWidth,
-                bold = boolean(subtitleBoldKey, defaults.bold) ?: defaults.bold,
-                fontSizeSp = integer(subtitleFontSizeSpKey, defaults.fontSizeSp) ?: defaults.fontSizeSp,
-                bottomOffset = integer(subtitleBottomOffsetKey, defaults.bottomOffset) ?: defaults.bottomOffset,
-                stripSdh = boolean(subtitleStripSdhKey, defaults.stripSdh) ?: defaults.stripSdh,
-                useForcedSubtitles = boolean(subtitleUseForcedSubtitlesKey, defaults.useForcedSubtitles)
-                    ?: defaults.useForcedSubtitles,
-                showOnlyPreferredLanguages = boolean(
-                    subtitleShowOnlyPreferredLanguagesKey,
-                    defaults.showOnlyPreferredLanguages,
-                ) ?: defaults.showOnlyPreferredLanguages,
-                appearance = decodeSubtitleAppearance(string(subtitleAppearanceKey)),
-            )
-            SubtitleDevicePreferencesRepository.migrateLegacy(profileId, legacyStyle)
-        }
-    }
-
     actual fun exportToSyncPayload(): JsonObject = buildJsonObject {
-        loadShowPlayerTitleLogo()?.let { put(showPlayerTitleLogoKey, encodeSyncBoolean(it)) }
         loadShowLoadingOverlay()?.let { put(showLoadingOverlayKey, encodeSyncBoolean(it)) }
         loadPauseOverlayEnabled()?.let { put(pauseOverlayEnabledKey, encodeSyncBoolean(it)) }
         loadStableOpeningOverlayEnabled()?.let { put(stableOpeningOverlayEnabledKey, encodeSyncBoolean(it)) }
@@ -2398,18 +1552,6 @@ actual object PlayerSettingsStorage {
         loadStreamReuseLastLinkEnabled()?.let { put(streamReuseLastLinkEnabledKey, encodeSyncBoolean(it)) }
         loadStreamReuseLastLinkCacheHours()?.let { put(streamReuseLastLinkCacheHoursKey, encodeSyncInt(it)) }
         loadAndroidPlaybackEngine()?.let { put(androidPlaybackEngineKey, encodeSyncString(it)) }
-        loadAutoSwitchPlaybackEngineOnError()?.let {
-            put(autoSwitchPlaybackEngineOnErrorKey, encodeSyncBoolean(it))
-        }
-        loadStreamAutoPlayFallbackOnFailure()?.let {
-            put(streamAutoPlayFallbackOnFailureKey, encodeSyncBoolean(it))
-        }
-        loadStreamAutoPlayFallbackMaxSources()?.let {
-            put(streamAutoPlayFallbackMaxSourcesKey, encodeSyncInt(it))
-        }
-        loadStreamAutoPlayFallbackStartupTimeoutSeconds()?.let {
-            put(streamAutoPlayFallbackStartupTimeoutSecondsKey, encodeSyncInt(it))
-        }
         loadAndroidLibmpvVideoOutput()?.let { put(androidLibmpvVideoOutputKey, encodeSyncString(it)) }
         loadAndroidLibmpvHardwareDecodingEnabled()?.let {
             put(androidLibmpvHardwareDecodingEnabledKey, encodeSyncBoolean(it))
@@ -2426,9 +1568,6 @@ actual object PlayerSettingsStorage {
         loadStreamAutoPlayRegex()?.let { put(streamAutoPlayRegexKey, encodeSyncString(it)) }
         loadStreamAutoPlayTimeoutSeconds()?.let { put(streamAutoPlayTimeoutSecondsKey, encodeSyncInt(it)) }
         loadSkipIntroEnabled()?.let { put(skipIntroEnabledKey, encodeSyncBoolean(it)) }
-        loadAutoSkipMovieCredits()?.let { put(autoSkipMovieCreditsKey, encodeSyncBoolean(it)) }
-        loadAutoSkipSegmentTypes()?.let { put(autoSkipSegmentTypesKey, encodeSyncStringSet(it)) }
-        loadAutoSkipPostCredits()?.let { put(autoSkipPostCreditsKey, encodeSyncBoolean(it)) }
         loadAnimeSkipEnabled()?.let { put(animeSkipEnabledKey, encodeSyncBoolean(it)) }
         loadAnimeSkipClientId()?.let { put(animeSkipClientIdKey, encodeSyncString(it)) }
         loadStreamAutoPlayNextEpisodeEnabled()?.let { put(streamAutoPlayNextEpisodeEnabledKey, encodeSyncBoolean(it)) }
@@ -2443,11 +1582,8 @@ actual object PlayerSettingsStorage {
         loadNextEpisodeThresholdMode()?.let { put(nextEpisodeThresholdModeKey, encodeSyncString(it)) }
         loadNextEpisodeThresholdPercent()?.let { put(nextEpisodeThresholdPercentKey, encodeSyncFloat(it)) }
         loadNextEpisodeThresholdMinutesBeforeEnd()?.let { put(nextEpisodeThresholdMinutesBeforeEndKey, encodeSyncFloat(it)) }
-        loadPreloadNextEpisodeSources()?.let { put(preloadNextEpisodeSourcesKey, encodeSyncBoolean(it)) }
-        loadMiniPlayerEnabled()?.let { put(miniPlayerEnabledKey, encodeSyncBoolean(it)) }
         loadUseLibass()?.let { put(useLibassKey, encodeSyncBoolean(it)) }
         loadLibassRenderType()?.let { put(libassRenderTypeKey, encodeSyncString(it)) }
-        loadUseLibmpvAss()?.let { put(useLibmpvAssKey, encodeSyncBoolean(it)) }
         loadIosVideoOutputPreset()?.let { put(iosVideoOutputPresetKey, encodeSyncString(it)) }
         loadIosToneMappingMode()?.let { put(iosToneMappingModeKey, encodeSyncString(it)) }
         loadIosTargetPrimaries()?.let { put(iosTargetPrimariesKey, encodeSyncString(it)) }
@@ -2470,7 +1606,6 @@ actual object PlayerSettingsStorage {
             syncKeys.forEach { remove(ProfileScopedKey.of(it)) }
         }?.apply()
 
-        payload.decodeSyncBoolean(showPlayerTitleLogoKey)?.let(::saveShowPlayerTitleLogo)
         payload.decodeSyncBoolean(showLoadingOverlayKey)?.let(::saveShowLoadingOverlay)
         payload.decodeSyncBoolean(pauseOverlayEnabledKey)?.let(::savePauseOverlayEnabled)
         payload.decodeSyncBoolean(stableOpeningOverlayEnabledKey)?.let(::saveStableOpeningOverlayEnabled)
@@ -2510,11 +1645,6 @@ actual object PlayerSettingsStorage {
         payload.decodeSyncBoolean(streamReuseLastLinkEnabledKey)?.let(::saveStreamReuseLastLinkEnabled)
         payload.decodeSyncInt(streamReuseLastLinkCacheHoursKey)?.let(::saveStreamReuseLastLinkCacheHours)
         payload.decodeSyncString(androidPlaybackEngineKey)?.let(::saveAndroidPlaybackEngine)
-        payload.decodeSyncBoolean(autoSwitchPlaybackEngineOnErrorKey)?.let(::saveAutoSwitchPlaybackEngineOnError)
-        payload.decodeSyncBoolean(streamAutoPlayFallbackOnFailureKey)?.let(::saveStreamAutoPlayFallbackOnFailure)
-        payload.decodeSyncInt(streamAutoPlayFallbackMaxSourcesKey)?.let(::saveStreamAutoPlayFallbackMaxSources)
-        payload.decodeSyncInt(streamAutoPlayFallbackStartupTimeoutSecondsKey)
-            ?.let(::saveStreamAutoPlayFallbackStartupTimeoutSeconds)
         payload.decodeSyncString(androidLibmpvVideoOutputKey)?.let(::saveAndroidLibmpvVideoOutput)
         payload.decodeSyncBoolean(androidLibmpvHardwareDecodingEnabledKey)
             ?.let(::saveAndroidLibmpvHardwareDecodingEnabled)
@@ -2530,9 +1660,6 @@ actual object PlayerSettingsStorage {
         payload.decodeSyncString(streamAutoPlayRegexKey)?.let(::saveStreamAutoPlayRegex)
         payload.decodeSyncInt(streamAutoPlayTimeoutSecondsKey)?.let(::saveStreamAutoPlayTimeoutSeconds)
         payload.decodeSyncBoolean(skipIntroEnabledKey)?.let(::saveSkipIntroEnabled)
-        payload.decodeSyncBoolean(autoSkipMovieCreditsKey)?.let(::saveAutoSkipMovieCredits)
-        payload.decodeSyncStringSet(autoSkipSegmentTypesKey)?.let(::saveAutoSkipSegmentTypes)
-        payload.decodeSyncBoolean(autoSkipPostCreditsKey)?.let(::saveAutoSkipPostCredits)
         payload.decodeSyncBoolean(animeSkipEnabledKey)?.let(::saveAnimeSkipEnabled)
         payload.decodeSyncString(animeSkipClientIdKey)?.let(::saveAnimeSkipClientId)
         payload.decodeSyncString(introDbApiKeyKey)?.let(::saveIntroDbApiKey)
@@ -2548,11 +1675,8 @@ actual object PlayerSettingsStorage {
         payload.decodeSyncString(nextEpisodeThresholdModeKey)?.let(::saveNextEpisodeThresholdMode)
         payload.decodeSyncFloat(nextEpisodeThresholdPercentKey)?.let(::saveNextEpisodeThresholdPercent)
         payload.decodeSyncFloat(nextEpisodeThresholdMinutesBeforeEndKey)?.let(::saveNextEpisodeThresholdMinutesBeforeEnd)
-        payload.decodeSyncBoolean(preloadNextEpisodeSourcesKey)?.let(::savePreloadNextEpisodeSources)
-        payload.decodeSyncBoolean(miniPlayerEnabledKey)?.let(::saveMiniPlayerEnabled)
         payload.decodeSyncBoolean(useLibassKey)?.let(::saveUseLibass)
         payload.decodeSyncString(libassRenderTypeKey)?.let(::saveLibassRenderType)
-        payload.decodeSyncBoolean(useLibmpvAssKey)?.let(::saveUseLibmpvAss)
         payload.decodeSyncString(iosVideoOutputPresetKey)?.let(::saveIosVideoOutputPreset)
         payload.decodeSyncString(iosToneMappingModeKey)?.let(::saveIosToneMappingMode)
         payload.decodeSyncString(iosTargetPrimariesKey)?.let(::saveIosTargetPrimaries)
@@ -2568,33 +1692,5 @@ actual object PlayerSettingsStorage {
         payload.decodeSyncInt(iosContrastKey)?.let(::saveIosContrast)
         payload.decodeSyncInt(iosSaturationKey)?.let(::saveIosSaturation)
         payload.decodeSyncInt(iosGammaKey)?.let(::saveIosGamma)
-    }
-}
-
-internal actual object SubtitleDevicePreferencesStorage {
-    private const val preferencesName = "nuvio_subtitle_device_preferences"
-    private const val keyPrefix = "subtitle_device_preferences_v1_"
-    private var preferences: SharedPreferences? = null
-
-    fun initialize(context: Context) {
-        preferences = context.applicationContext.getSharedPreferences(preferencesName, Context.MODE_PRIVATE)
-    }
-
-    actual fun load(profileId: Int): String? =
-        preferences?.getString("$keyPrefix$profileId", null)
-
-    actual fun save(profileId: Int, value: String) {
-        preferences?.edit()?.putString("$keyPrefix$profileId", value)?.apply()
-    }
- 
-    actual fun saveForMigration(profileId: Int, value: String) {
-        val store = checkNotNull(preferences) { "Subtitle device preference storage is not initialized" }
-        check(store.edit().putString("$keyPrefix$profileId", value).commit()) {
-            "Unable to persist migrated subtitle preferences"
-        }
-    }
-
-    actual fun remove(profileId: Int) {
-        preferences?.edit()?.remove("$keyPrefix$profileId")?.apply()
     }
 }

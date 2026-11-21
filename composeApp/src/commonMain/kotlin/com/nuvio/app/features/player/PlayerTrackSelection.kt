@@ -45,6 +45,26 @@ internal fun AddonResource.isCompatibleSubtitleResource(type: String, videoId: S
     return idPrefixes.isEmpty() || idPrefixes.any { prefix -> videoId.startsWith(prefix) }
 }
 
+internal fun <T> findPreferredTrackIndex(
+    tracks: List<T>,
+    targets: List<String>,
+    language: (T) -> String?,
+): Int {
+    if (targets.isEmpty()) return -1
+    for (target in targets) {
+        val matchIndex = tracks.indexOfFirst { track ->
+            languageMatchesPreference(
+                trackLanguage = language(track),
+                targetLanguage = target,
+            )
+        }
+        if (matchIndex >= 0) {
+            return matchIndex
+        }
+    }
+    return -1
+}
+
 internal enum class SubtitleAutoSelectionMode {
     FORCED_ONLY,
     NORMAL_ONLY,
@@ -386,7 +406,8 @@ internal fun filterAddonSubtitlesForSettings(
     subtitles: List<AddonSubtitle>,
     settings: PlayerSettingsUiState,
 ): List<AddonSubtitle> {
-    val shouldFilter = settings.subtitleStyle.showOnlyPreferredLanguages
+    val shouldFilter = settings.subtitleStyle.showOnlyPreferredLanguages ||
+        settings.addonSubtitleStartupMode == AddonSubtitleStartupMode.PREFERRED_ONLY
     if (!shouldFilter) return subtitles
 
     val targets = preferredSubtitleTargetsForSettings(settings)
@@ -415,66 +436,16 @@ internal fun findPersistedAudioTrackIndex(
     tracks: List<AudioTrack>,
     preference: PersistedPlayerTrackPreference,
 ): Int {
-    val targetId = preference.audioTrackId?.trim()?.lowercase()?.takeIf { it.isNotBlank() }
-    val targetName = preference.audioName?.trim()?.lowercase()?.takeIf { it.isNotBlank() }
-    val targetLanguage = normalizeLanguageCode(preference.audioLanguage)
-    val strictCandidates = tracks.filter {
-        targetLanguage == null || normalizeLanguageCode(it.language) == targetLanguage
+    preference.audioTrackId?.takeIf { it.isNotBlank() }?.let { trackId ->
+        tracks.firstOrNull { it.id == trackId }?.let { return it.index }
     }
-    if (targetId != null) {
-        strictCandidates.firstOrNull {
-            it.id.trim().lowercase() == targetId &&
-                (targetName == null || it.label.trim().lowercase().contains(targetName))
-        }?.let { return it.index }
+    preference.audioLanguage?.takeIf { it.isNotBlank() }?.let { language ->
+        tracks.firstOrNull { languageMatchesPreference(it.language, language) }?.let { return it.index }
     }
-    if (targetName != null) {
-        strictCandidates.firstOrNull { it.label.trim().lowercase() == targetName }
-            ?.let { return it.index }
-        strictCandidates.firstOrNull { it.label.trim().lowercase().contains(targetName) }
-            ?.let { return it.index }
+    preference.audioName?.takeIf { it.isNotBlank() }?.let { name ->
+        tracks.firstOrNull { it.label.equals(name, ignoreCase = true) }?.let { return it.index }
     }
-    if (targetLanguage == null) return -1
-    val languageCandidates = tracks.filter { languageMatchesPreference(it.language, targetLanguage) }
-    val targetVariant = SubtitleLanguageMatching.detectTrackLanguageVariant(
-        language = preference.audioLanguage,
-        name = preference.audioName,
-        trackId = preference.audioTrackId,
-    )
-    return languageCandidates.firstOrNull {
-        SubtitleLanguageMatching.detectTrackLanguageVariant(
-            language = it.language,
-            name = it.label,
-            trackId = it.id,
-        ) == targetVariant
-    }?.index ?: languageCandidates.firstOrNull()?.index ?: -1
-}
-
-internal fun findPersistedAddonSubtitle(
-    subtitles: List<AddonSubtitle>,
-    preference: PersistedPlayerTrackPreference,
-): AddonSubtitle? {
-    preference.addonSubtitleUrl?.takeIf { it.isNotBlank() }?.let { url ->
-        subtitles.firstOrNull { it.url == url }?.let { return it }
-    }
-    // URLs usually change between episodes, but an addon may keep its ids stable: when it
-    // offers several subtitles in one language, the id tells the one the user picked.
-    preference.addonSubtitleId?.takeIf { it.isNotBlank() }?.let { id ->
-        subtitles.firstOrNull { subtitle ->
-            subtitle.id == id && (
-                preference.addonSubtitleAddonName.isNullOrBlank() ||
-                    subtitle.addonName.equals(preference.addonSubtitleAddonName, ignoreCase = true)
-                )
-        }?.let { return it }
-    }
-    val language = preference.subtitleLanguage?.takeIf { it.isNotBlank() } ?: return null
-    val candidates = subtitles.filter { addonSubtitleMatchesLanguage(it, language) }
-    val providerCandidates = preference.addonSubtitleAddonName?.takeIf { it.isNotBlank() }?.let { name ->
-        candidates.filter { it.addonName.equals(name, ignoreCase = true) }
-    }.orEmpty()
-    val preferredCandidates = providerCandidates.ifEmpty { candidates }
-    return preferredCandidates.firstOrNull {
-        it.display.equals(preference.subtitleName, ignoreCase = true)
-    } ?: preferredCandidates.firstOrNull()
+    return -1
 }
 
 internal fun findPersistedSubtitleTrackIndex(
@@ -512,7 +483,6 @@ internal fun findPersistedSubtitleTrackIndex(
         }
         return tracks[variantMatch ?: forcedFiltered.first()].index
     }
-
     preference.subtitleName?.takeIf { it.isNotBlank() }?.let { name ->
         val nameMatches = tracks.filter { it.label.equals(name, ignoreCase = true) }
         val forcedNameMatches = if (preference.subtitleIsForced == true) {

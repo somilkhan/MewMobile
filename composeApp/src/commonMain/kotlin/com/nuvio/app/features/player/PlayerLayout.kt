@@ -1,24 +1,14 @@
 package com.nuvio.app.features.player
 
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.add
 import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.displayCutout
-import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.safeContent
-import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.union
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
-import androidx.compose.ui.unit.coerceAtLeast
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.nuvio.app.isIos
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.compose_player_resize_fill
 import nuvio.composeapp.generated.resources.compose_player_resize_fit
@@ -30,9 +20,6 @@ internal data class PlayerLayoutMetrics(
     val horizontalPadding: Dp,
     val verticalPadding: Dp,
     val titleSize: TextUnit,
-    val titleLogoMaxHeight: Dp,
-    val timelineLogoMaxHeight: Dp,
-    val logoMaxWidth: Dp,
     val episodeInfoSize: TextUnit,
     val metadataSize: TextUnit,
     val centerGap: Dp,
@@ -105,9 +92,6 @@ internal data class PlayerLayoutMetrics(
                     horizontalPadding = 28.dp,
                     verticalPadding = 24.dp,
                     titleSize = 28.dp.value.sp,
-                    titleLogoMaxHeight = 64.dp,
-                    timelineLogoMaxHeight = 48.dp,
-                    logoMaxWidth = 380.dp,
                     episodeInfoSize = 16.dp.value.sp,
                     metadataSize = 14.dp.value.sp,
                     centerGap = 112.dp,
@@ -126,9 +110,6 @@ internal data class PlayerLayoutMetrics(
                     horizontalPadding = 24.dp,
                     verticalPadding = 20.dp,
                     titleSize = 24.dp.value.sp,
-                    titleLogoMaxHeight = 60.dp,
-                    timelineLogoMaxHeight = 44.dp,
-                    logoMaxWidth = 360.dp,
                     episodeInfoSize = 15.dp.value.sp,
                     metadataSize = 13.dp.value.sp,
                     centerGap = 88.dp,
@@ -147,9 +128,6 @@ internal data class PlayerLayoutMetrics(
                     horizontalPadding = 20.dp,
                     verticalPadding = 16.dp,
                     titleSize = 22.dp.value.sp,
-                    titleLogoMaxHeight = 56.dp,
-                    timelineLogoMaxHeight = 40.dp,
-                    logoMaxWidth = 320.dp,
                     episodeInfoSize = 14.dp.value.sp,
                     metadataSize = 12.dp.value.sp,
                     centerGap = 72.dp,
@@ -168,9 +146,6 @@ internal data class PlayerLayoutMetrics(
                     horizontalPadding = 20.dp,
                     verticalPadding = 16.dp,
                     titleSize = 18.dp.value.sp,
-                    titleLogoMaxHeight = 48.dp,
-                    timelineLogoMaxHeight = 34.dp,
-                    logoMaxWidth = 280.dp,
                     episodeInfoSize = 14.dp.value.sp,
                     metadataSize = 12.dp.value.sp,
                     centerGap = 56.dp,
@@ -199,33 +174,6 @@ internal fun playerHorizontalSafePadding(): Dp {
     return if (left > right) left else right
 }
 
-@Composable
-internal fun playerTextCutoutPadding(metrics: PlayerLayoutMetrics): Dp {
-    val layoutDirection = LocalLayoutDirection.current
-    val cutout = WindowInsets.displayCutout.asPaddingValues()
-    val left = cutout.calculateLeftPadding(layoutDirection)
-    val right = cutout.calculateRightPadding(layoutDirection)
-    val widest = if (left > right) left else right
-    return (widest - metrics.horizontalPadding).coerceAtLeast(0.dp)
-}
-
-@Composable
-internal fun playerToolbarTopInsets(metrics: PlayerLayoutMetrics): WindowInsets {
-    val safeInsets = WindowInsets.displayCutout.union(WindowInsets.statusBars).only(WindowInsetsSides.Top)
-    val contentInsets = WindowInsets(top = metrics.sliderBottomOffset / 2)
-    return if (isIos) safeInsets.union(contentInsets) else safeInsets.add(contentInsets)
-}
-
-@Composable
-internal fun playerTimelineBottomInsets(metrics: PlayerLayoutMetrics): WindowInsets {
-    val contentInsets = WindowInsets(bottom = metrics.sliderBottomOffset / 2)
-    return if (isIos) {
-        WindowInsets.safeContent.only(WindowInsetsSides.Bottom).union(contentInsets)
-    } else {
-        WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom).add(contentInsets)
-    }
-}
-
 internal fun PlayerResizeMode.next(): PlayerResizeMode =
     when (this) {
         PlayerResizeMode.Fit -> PlayerResizeMode.Fill
@@ -250,18 +198,6 @@ internal fun formatPlaybackTime(positionMs: Long): String {
     } else {
         "${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}"
     }
-}
-
-internal fun formatPlaybackRuntime(positionMs: Long, durationMs: Long, showRemainingTime: Boolean): String =
-    if (showRemainingTime) {
-        "${formatPlaybackTime(positionMs)} / ${formatPlaybackRemaining(positionMs, durationMs)}"
-    } else {
-        "${formatPlaybackTime(positionMs)} / ${formatPlaybackTime(durationMs)}"
-    }
-
-internal fun formatPlaybackRemaining(positionMs: Long, durationMs: Long): String {
-    val remainingMs = (durationMs.coerceAtLeast(0L) - positionMs.coerceAtLeast(0L)).coerceAtLeast(0L)
-    return "−${formatPlaybackTime(remainingMs)}"
 }
 
 internal fun formatPlaybackSpeedLabel(speed: Float): String {

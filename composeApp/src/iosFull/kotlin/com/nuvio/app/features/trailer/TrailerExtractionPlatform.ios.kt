@@ -20,9 +20,6 @@ import kotlinx.coroutines.withTimeoutOrNull
 import platform.Foundation.NSURLComponents
 import platform.Foundation.NSURLQueryItem
 
-private const val PROBE_TIMEOUT_MS = 2_000L
-private const val PROBE_TIER_TIMEOUT_MS = 3_000L
-
 internal object TrailerExtractionPlatform {
     val defaultHeaders: Map<String, String> = mapOf(
         "accept-language" to "en-US,en;q=0.9",
@@ -74,31 +71,41 @@ internal object TrailerExtractionPlatform {
         )
     }
 
-    suspend fun resolvePlayableUrl(url: String): String? = withContext(Dispatchers.Default) {
-        if (!url.contains("googlevideo.com")) return@withContext url
+    suspend fun buildPlaybackSource(
+        bestManifest: ManifestCandidate?,
+        bestProgressive: StreamCandidate?,
+        bestVideo: StreamCandidate?,
+        bestAudio: StreamCandidate?,
+    ): TrailerPlaybackSource? = withContext(Dispatchers.Default) {
+        val bestManifestHeight = bestManifest?.height ?: -1
+        val bestCombinedIsManifest = bestManifest != null &&
+            (bestProgressive == null || bestManifestHeight > bestProgressive.height)
 
-        val candidates = buildHostCandidates(url)
-        if (candidates.size == 1) {
-            return@withContext if (isUrlReachable(candidates[0])) candidates[0] else null
+        val combinedUrl = if (bestCombinedIsManifest) {
+            bestManifest.manifestUrl
+        } else {
+            bestProgressive?.url
         }
 
-        coroutineScope {
-            val probes = candidates.map { candidate ->
-                async { if (isUrlReachable(candidate)) candidate else null }
-            }
-            withTimeoutOrNull(PROBE_TIER_TIMEOUT_MS) {
-                probes.awaitAll().firstOrNull { !it.isNullOrBlank() }
-            }
-        }
+        val videoUrl = resolveReachableUrl(bestVideo?.url ?: combinedUrl ?: return@withContext null)
+        val audioUrl = bestAudio?.url?.let { resolveReachableUrl(it) }
+
+        TrailerPlaybackSource(
+            videoUrl = videoUrl,
+            audioUrl = audioUrl,
+        )
     }
 
-    private fun buildHostCandidates(url: String): List<String> {
-        val host = getHost(url) ?: return listOf(url)
-        val mnParam = getQueryParameter(url, "mn") ?: return listOf(url)
-        val servers = mnParam.split(',').map { it.trim() }.filter { it.isNotBlank() }
-        if (servers.size < 2) return listOf(url)
+    private suspend fun resolveReachableUrl(url: String): String {
+        if (!url.contains("googlevideo.com")) return url
 
+        val mnParam = getQueryParameter(url, "mn") ?: return url
+        val servers = mnParam.split(',').map { it.trim() }.filter { it.isNotBlank() }
+        if (servers.size < 2) return url
+
+        val host = getHost(url) ?: return url
         val candidates = mutableListOf(url)
+
         servers.forEachIndexed { index, server ->
             val altHost = host
                 .replaceFirst(Regex("^rr\\d+---"), "rr${index + 1}---")
@@ -107,7 +114,19 @@ internal object TrailerExtractionPlatform {
                 candidates += url.replace(host, altHost)
             }
         }
-        return candidates
+
+        if (candidates.size == 1) return candidates.first()
+
+        return coroutineScope {
+            val probes = candidates.map { candidate ->
+                async {
+                    if (isUrlReachable(candidate)) candidate else null
+                }
+            }
+            withTimeoutOrNull(2_000L) {
+                probes.awaitAll().firstOrNull { !it.isNullOrBlank() }
+            } ?: url
+        }
     }
 
     private suspend fun isUrlReachable(url: String): Boolean {
@@ -120,7 +139,7 @@ internal object TrailerExtractionPlatform {
                     "user-agent" to defaultHeaders.getValue("user-agent"),
                 ),
                 body = null,
-                timeoutMillis = PROBE_TIMEOUT_MS,
+                timeoutMillis = 2_000L,
             )
         }.getOrNull() ?: return false
 

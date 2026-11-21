@@ -1,5 +1,14 @@
 package com.nuvio.app.features.player
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -8,21 +17,29 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeContent
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.VolumeOff
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.Brightness6
+import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.FastForward
 import androidx.compose.material.icons.rounded.FastRewind
 import androidx.compose.material.icons.rounded.Speed
-import androidx.compose.material.icons.rounded.ZoomOutMap
+import com.nuvio.app.core.ui.NuvioLoadingIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -36,6 +53,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.clipRect
@@ -54,8 +72,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import com.nuvio.app.core.ui.NuvioBackButton
 import com.nuvio.app.core.ui.nuvioTypeScale
 import nuvio.composeapp.generated.resources.Res
+import nuvio.composeapp.generated.resources.compose_player_close
 import nuvio.composeapp.generated.resources.compose_player_episode_code_full
 import nuvio.composeapp.generated.resources.compose_player_go_back
 import nuvio.composeapp.generated.resources.compose_player_playback_error
@@ -65,8 +85,6 @@ import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import com.nuvio.app.core.i18n.localizedEpisodeTitle
 import kotlin.math.max
-import com.nuvio.app.core.ui.glass.ambientLiquidGlass
-import com.nuvio.app.core.i18n.localizedEpisodeTitle
 
 internal enum class GestureFeedbackIcon {
     Speed,
@@ -75,7 +93,6 @@ internal enum class GestureFeedbackIcon {
     VolumeMuted,
     SeekForward,
     SeekBackward,
-    VideoZoom,
 }
 
 internal data class GestureFeedbackState(
@@ -91,6 +108,199 @@ internal data class GestureFeedbackState(
     val accentColor: Color? = null,
 )
 
+@Composable
+internal fun OpeningOverlay(
+    artwork: String?,
+    logo: String?,
+    title: String?,
+    onBack: () -> Unit,
+    horizontalSafePadding: Dp,
+    modifier: Modifier = Modifier,
+    message: String? = null,
+    progress: Float? = null,
+) {
+    val contentAlpha by animateFloatAsState(
+        targetValue = 1f,
+        animationSpec = tween(durationMillis = 700, delayMillis = 400, easing = LinearEasing),
+        label = "openingOverlayContentAlpha",
+    )
+    val pulse = rememberInfiniteTransition(label = "openingOverlayContentPulse")
+    val contentScale by pulse.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.04f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 2000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "openingOverlayContentScale",
+    )
+    var logoLoadError by remember(logo) { mutableStateOf(false) }
+    val logoUrl = logo?.takeIf { it.isNotBlank() }
+
+    Box(
+        modifier = modifier
+            .background(Color.Black.copy(alpha = 0.85f)),
+    ) {
+        if (artwork != null) {
+            AsyncImage(
+                model = artwork,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Black.copy(alpha = 0.3f),
+                                Color.Black.copy(alpha = 0.6f),
+                                Color.Black.copy(alpha = 0.8f),
+                                Color.Black.copy(alpha = 0.9f),
+                            ),
+                        ),
+                    ),
+            )
+        }
+
+        NuvioBackButton(
+            onClick = onBack,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .windowInsetsPadding(WindowInsets.safeContent.only(WindowInsetsSides.Top))
+                .padding(top = 20.dp, start = horizontalSafePadding, end = horizontalSafePadding + 20.dp)
+                ,
+            containerColor = Color.Black.copy(alpha = 0.3f),
+            contentColor = Color.White,
+            buttonSize = 44.dp,
+            iconSize = 24.dp,
+            contentDescription = stringResource(Res.string.compose_player_close),
+        )
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 24.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            val targetProgress = progress?.coerceIn(0f, 1f)
+            val animatedProgress by animateFloatAsState(
+                targetValue = targetProgress ?: 0f,
+                animationSpec = tween(durationMillis = 900, easing = FastOutSlowInEasing),
+                label = "openingOverlayP2pProgress",
+            )
+            val progressActive = targetProgress != null
+            if (logoUrl != null && !logoLoadError) {
+                Box(
+                    modifier = Modifier
+                        .width(300.dp)
+                        .height(180.dp),
+                ) {
+                    AsyncImage(
+                        model = logoUrl,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                alpha = if (progressActive) 0.25f else contentAlpha
+                                if (!progressActive) {
+                                    scaleX = contentScale
+                                    scaleY = contentScale
+                                }
+                            },
+                        contentScale = ContentScale.Fit,
+                        onError = { logoLoadError = true },
+                    )
+                    if (progressActive) {
+                        AsyncImage(
+                            model = logoUrl,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .drawWithContent {
+                                    clipRect(right = size.width * animatedProgress) {
+                                        this@drawWithContent.drawContent()
+                                    }
+                                },
+                            contentScale = ContentScale.Fit,
+                        )
+                    }
+                }
+            } else if (!title.isNullOrBlank()) {
+                Text(
+                    text = title,
+                    color = Color.White,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
+                    style = MaterialTheme.nuvioTypeScale.displayMd.copy(
+                        fontSize = 42.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                    ),
+                    modifier = Modifier
+                        .padding(horizontal = 24.dp)
+                        .graphicsLayer {
+                            alpha = contentAlpha
+                            scaleX = contentScale
+                            scaleY = contentScale
+                        },
+                )
+            } else {
+                NuvioLoadingIndicator(
+                    color = Color(0xFFE50914),
+                    modifier = Modifier.size(54.dp),
+                )
+            }
+
+            val showHorizontalProgress = progressActive && logo == null
+            if (!message.isNullOrBlank() || showHorizontalProgress) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(40.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    message?.takeIf { it.isNotBlank() }?.let { loadingMessage ->
+                        Text(
+                            text = loadingMessage,
+                            color = Color.White.copy(alpha = 0.72f),
+                            textAlign = TextAlign.Center,
+                            maxLines = 2,
+                            style = MaterialTheme.typography.labelMedium,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 24.dp),
+                        )
+                    }
+                }
+                if (showHorizontalProgress) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Box(
+                        modifier = Modifier
+                            .width(240.dp)
+                            .height(4.dp)
+                            .background(
+                                color = Color.White.copy(alpha = 0.2f),
+                                shape = RoundedCornerShape(2.dp),
+                            ),
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(animatedProgress)
+                                .height(4.dp)
+                                .background(
+                                    color = Color.White.copy(alpha = 0.85f),
+                                    shape = RoundedCornerShape(2.dp),
+                                ),
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
 
 @Composable
 internal fun GestureFeedbackPill(
@@ -114,7 +324,6 @@ internal fun GestureFeedbackPill(
         GestureFeedbackIcon.VolumeMuted -> Icons.AutoMirrored.Rounded.VolumeOff
         GestureFeedbackIcon.SeekForward -> Icons.Rounded.FastForward
         GestureFeedbackIcon.SeekBackward -> Icons.Rounded.FastRewind
-        GestureFeedbackIcon.VideoZoom -> Icons.Rounded.ZoomOutMap
     }
     val iconTint = when {
         feedback.isDanger -> Color(0xFFFFC1C1)
@@ -131,14 +340,7 @@ internal fun GestureFeedbackPill(
     Row(
         modifier = modifier
             .clip(RoundedCornerShape(24.dp))
-            .ambientLiquidGlass(
-                shape = RoundedCornerShape(24.dp),
-                tint = backgroundColor.copy(alpha = backgroundColor.alpha * 0.7f),
-                fallback = backgroundColor,
-                blurRadius = 16.dp,
-                refractionHeight = 10.dp,
-                refractionAmount = 14.dp,
-            )
+            .background(backgroundColor)
             .padding(horizontal = 12.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,

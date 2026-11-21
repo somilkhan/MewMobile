@@ -15,7 +15,18 @@ private val iosExternalPlayerSpecs = listOf(
         id = "infuse",
         name = "Infuse",
         scheme = "infuse",
-        buildUrl = infusePlaybackCallbacks::prepare,
+        buildUrl = { request ->
+            buildString {
+                append("infuse://x-callback-url/play?url=")
+                append(request.sourceUrl.urlQueryEncode())
+                append("&filename=")
+                append(request.buildPlayerTitle(includeEpisodeTitle = true).urlQueryEncode())
+                request.subtitles?.forEach { subtitle ->
+                    append("&sub=")
+                    append(subtitle.url.urlQueryEncode())
+                }
+            }
+        },
     ),
     IosExternalPlayerSpec(
         id = "vlc",
@@ -58,11 +69,10 @@ private val iosExternalPlayerSpecs = listOf(
 internal actual object ExternalPlayerPlatform {
     actual fun defaultPlayerId(): String? = null
 
-    actual fun availablePlayers(): List<ExternalPlayerApp> {
-        val detected = iosExternalPlayerSpecs.filter { spec -> spec.isDetected() }
-        return detected.ifEmpty { iosExternalPlayerSpecs }
+    actual fun availablePlayers(): List<ExternalPlayerApp> =
+        iosExternalPlayerSpecs
+            .filter { spec -> UIApplication.sharedApplication.canOpenURL(spec.schemeProbeUrl()) }
             .map { spec -> ExternalPlayerApp(spec.id, spec.name) }
-    }
 
     actual fun open(
         request: ExternalPlayerPlaybackRequest,
@@ -71,7 +81,7 @@ internal actual object ExternalPlayerPlatform {
         if (playerId.isNullOrBlank()) return ExternalPlayerOpenResult.NotConfigured
         val spec = iosExternalPlayerSpecs.firstOrNull { it.id == playerId }
             ?: return ExternalPlayerOpenResult.NotConfigured
-        if (!spec.isDetected() && canProbeAnyPlayer()) {
+        if (!UIApplication.sharedApplication.canOpenURL(spec.schemeProbeUrl())) {
             return ExternalPlayerOpenResult.NoPlayerAvailable
         }
         val url = NSURL.URLWithString(spec.buildUrl(request))
@@ -79,9 +89,7 @@ internal actual object ExternalPlayerPlatform {
         UIApplication.sharedApplication.openURL(
             url = url,
             options = emptyMap<Any?, Any>(),
-            completionHandler = { opened ->
-                if (!opened) infusePlaybackCallbacks.cancelLaunch(url.absoluteString.orEmpty())
-            },
+            completionHandler = null,
         )
         return ExternalPlayerOpenResult.Opened
     }
@@ -90,10 +98,11 @@ internal actual object ExternalPlayerPlatform {
         request: ExternalPlayerPlaybackRequest,
         playerId: String?,
     ): ExternalPlayerIntentResult {
+        // iOS doesn't use Android intents; this returns the URL as the "intent" payload
         if (playerId.isNullOrBlank()) return ExternalPlayerIntentResult.NotConfigured
         val spec = iosExternalPlayerSpecs.firstOrNull { it.id == playerId }
             ?: return ExternalPlayerIntentResult.NotConfigured
-        if (!spec.isDetected() && canProbeAnyPlayer()) {
+        if (!UIApplication.sharedApplication.canOpenURL(spec.schemeProbeUrl())) {
             return ExternalPlayerIntentResult.Failed
         }
         val url = NSURL.URLWithString(spec.buildUrl(request))
@@ -101,11 +110,6 @@ internal actual object ExternalPlayerPlatform {
         return ExternalPlayerIntentResult.Success(url)
     }
 }
-
-private fun IosExternalPlayerSpec.isDetected(): Boolean =
-    UIApplication.sharedApplication.canOpenURL(schemeProbeUrl())
-
-private fun canProbeAnyPlayer(): Boolean = iosExternalPlayerSpecs.any { it.isDetected() }
 
 private fun IosExternalPlayerSpec.schemeProbeUrl(): NSURL =
     NSURL.URLWithString("$scheme://") ?: NSURL.URLWithString("nuvio://")!!

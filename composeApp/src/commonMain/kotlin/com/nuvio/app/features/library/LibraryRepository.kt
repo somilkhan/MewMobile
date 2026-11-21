@@ -7,17 +7,12 @@ import com.nuvio.app.core.auth.isAnonymous
 import com.nuvio.app.core.auth.userId
 import com.nuvio.app.core.auth.canSyncRemotely
 import com.nuvio.app.core.tracking.ensureTrackingProvidersRegistered
-import com.nuvio.app.features.addons.ADDON_LIBRARY_RESOURCE
-import com.nuvio.app.features.addons.AddonEventDispatcher
-import com.nuvio.app.features.addons.AddonLibraryAction
 import com.nuvio.app.features.library.sync.LibrarySyncAdapter
 import com.nuvio.app.features.library.sync.SupabaseLibrarySyncAdapter
 import com.nuvio.app.features.library.sync.consumeCursorPages
 import com.nuvio.app.features.library.sync.libraryDeltaPageSize
 import com.nuvio.app.features.library.sync.librarySnapshotPageSize
 import com.nuvio.app.features.profiles.ProfileRepository
-import com.nuvio.app.core.poster.CustomPosterUrlRepository
-import com.nuvio.app.features.servers.ServerItemRef
 import com.nuvio.app.features.tracking.TrackingLibraryProvider
 import com.nuvio.app.features.tracking.TrackingLibraryTab
 import com.nuvio.app.features.tracking.TrackingLibraryTabKind
@@ -40,7 +35,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -53,7 +47,6 @@ import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.media_movies
 import nuvio.composeapp.generated.resources.media_series
 import nuvio.composeapp.generated.resources.library_local_tab_title
-import nuvio.composeapp.generated.resources.library_server_title_unsupported
 import nuvio.composeapp.generated.resources.library_other
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.getString
@@ -110,15 +103,6 @@ object LibraryRepository {
                     }
                 }
             }
-        }
-        syncScope.launch {
-            kotlinx.coroutines.flow.combine(
-                CustomPosterUrlRepository.pattern,
-                CustomPosterUrlRepository.enabledScreens
-            ) { _, _ -> Unit }
-                .distinctUntilChanged()
-                .drop(1)
-                .collectLatest { publish() }
         }
     }
 
@@ -216,6 +200,7 @@ object LibraryRepository {
             log.d { "Skipping library pull for inactive profile $profileId" }
             return
         }
+        var serializedOperationToken: LibraryProfileToken? = null
 
         activeLibraryProvider()?.let { provider ->
             refreshLibraryProvider(
@@ -230,6 +215,7 @@ object LibraryRepository {
 
         nuvioSyncMutex.withLock {
             val serializedToken = activeOperationToken(profileId) ?: return@withLock
+            serializedOperationToken = serializedToken
             val pullSnapshot = localState.markPullStarted(serializedToken) ?: return@withLock
 
             try {
@@ -259,6 +245,11 @@ object LibraryRepository {
             } catch (error: Throwable) {
                 log.e(error) { "Failed to pull library from server" }
             }
+        }
+        val completedToken = serializedOperationToken ?: operationToken
+        val pendingSnapshot = localState.snapshot()
+        if (pendingSnapshot.token == completedToken && isActiveOperation(completedToken)) {
+            pushToServer(pendingSnapshot, delayMs = 0L)
         }
     }
 
@@ -308,18 +299,10 @@ object LibraryRepository {
     suspend fun toggleSaved(
         item: LibraryItem,
         confirmedRemovalProviders: Set<TrackingProviderId> = emptySet(),
-    ): TrackingMembershipApplyResult = withAddonLibraryEvent(item.id, item.type) {
-        toggleSavedInternal(item, confirmedRemovalProviders)
-    }
-
-    private suspend fun toggleSavedInternal(
-        item: LibraryItem,
-        confirmedRemovalProviders: Set<TrackingProviderId>,
     ): TrackingMembershipApplyResult {
         ensureLoaded()
 
         activeLibraryProvider()?.let { provider ->
-            if (item.isServerItem) throw IllegalStateException(getString(Res.string.library_server_title_unsupported))
             val providerMembership = provider.membership(item)
             val desiredMembership = provider.toggledDefaultMembership(providerMembership)
             log.i {
@@ -340,9 +323,7 @@ object LibraryRepository {
 
     fun toggleLocalSaved(item: LibraryItem) {
         ensureLoaded()
-        withAddonLibraryEvent(item.id, item.type) {
-            toggleLocalSavedInternal(item)
-        }
+        toggleLocalSavedInternal(item)
     }
 
     private fun toggleLocalSavedInternal(item: LibraryItem): TrackingMembershipApplyResult {
@@ -379,12 +360,8 @@ object LibraryRepository {
 
     fun remove(id: String) {
         ensureLoaded()
-        val removedType = if (AddonEventDispatcher.hasEnabledAddonFor(ADDON_LIBRARY_RESOURCE)) savedItem(id)?.type else null
         val result = localState.removeById(id)
         if (result.affectedCount > 0) {
-            removedType?.let { type ->
-                AddonEventDispatcher.library(type = type, id = id, action = AddonLibraryAction.LIBRARY_REMOVE)
-            }
             log.i {
                 "Removing local library item id=$id profile=${result.snapshot.token.profileId} " +
                     "removed=${result.affectedCount}"
@@ -432,31 +409,14 @@ object LibraryRepository {
         libraryTabsWithLocal(
             TrackingProviderRegistry.connectedLibraryProviders()
                 .flatMap { provider -> provider.snapshot().tabs },
-        ).filter { tab ->
-            item == null || (tab.supportsContentType(item.type) && (!item.isServerItem || tab.key == LOCAL_LIBRARY_LIST_KEY))
-        }
-
-    internal fun listManagementContext(): LibraryManagementContext? {
-        val source = effectiveLibrarySourceMode()
-        val provider = activeLibraryProvider(source) ?: return null
-        if (provider.listManager == null) return null
-        val account = TrackingProviderRegistry.authProvider(provider.providerId) ?: return null
-        return LibraryManagementContext(ProfileRepository.activeProfileId, source, account.accountGeneration)
-    }
-
-    internal fun listManager(context: LibraryManagementContext): com.nuvio.app.features.tracking.TrackingListManager {
-        check(context == listManagementContext()) { "Library account changed" }
-        return requireNotNull(activeLibraryProvider(context.source)?.listManager)
-    }
+        ).filter { tab -> item == null || tab.supportsContentType(item.type) }
 
     suspend fun getMembershipSnapshot(item: LibraryItem): Map<String, Boolean> {
         ensureLoaded()
         val inLocal = localState.contains(item.id, item.type)
         val memberships = linkedMapOf<String, Boolean>()
-        if (!item.isServerItem) {
-            TrackingProviderRegistry.connectedLibraryProviders().forEach { provider ->
-                memberships += provider.membership(item)
-            }
+        TrackingProviderRegistry.connectedLibraryProviders().forEach { provider ->
+            memberships += provider.membership(item)
         }
         return libraryMembershipWithLocal(inLocal = inLocal, providerMembership = memberships)
     }
@@ -465,30 +425,13 @@ object LibraryRepository {
         item: LibraryItem,
         desiredMembership: Map<String, Boolean>,
         confirmedRemovalProviders: Set<TrackingProviderId> = emptySet(),
-    ): TrackingMembershipApplyResult = withAddonLibraryEvent(item.id, item.type) {
-        applyMembershipChanges(
-            item = item,
-            desiredMembership = desiredMembership,
-            confirmedRemovalProviders = confirmedRemovalProviders,
-            targetProviderIds = null,
-            updateLocal = true,
-        )
-    }
-
-    private inline fun <T> withAddonLibraryEvent(id: String, type: String, mutation: () -> T): T {
-        if (!AddonEventDispatcher.hasEnabledAddonFor(ADDON_LIBRARY_RESOURCE)) return mutation()
-        val wasSaved = isSaved(id, type)
-        val result = mutation()
-        val isSavedNow = isSaved(id, type)
-        if (wasSaved != isSavedNow) {
-            AddonEventDispatcher.library(
-                type = type,
-                id = id,
-                action = if (isSavedNow) AddonLibraryAction.LIBRARY_ADD else AddonLibraryAction.LIBRARY_REMOVE,
-            )
-        }
-        return result
-    }
+    ): TrackingMembershipApplyResult = applyMembershipChanges(
+        item = item,
+        desiredMembership = desiredMembership,
+        confirmedRemovalProviders = confirmedRemovalProviders,
+        targetProviderIds = null,
+        updateLocal = true,
+    )
 
     private suspend fun applyMembershipChanges(
         item: LibraryItem,
@@ -501,7 +444,7 @@ object LibraryRepository {
         val localDesired = desiredMembership[LOCAL_LIBRARY_LIST_KEY] == true
         val currentlyInLocal = localState.contains(item.id, item.type)
         val profileId = localState.snapshot().token.profileId
-        val requestedChanges = TrackingProviderRegistry.connectedLibraryProviders()
+        val providerChanges = TrackingProviderRegistry.connectedLibraryProviders()
             .filter { provider -> targetProviderIds == null || provider.providerId in targetProviderIds }
             .mapNotNull { provider ->
                 val providerListKeys = provider.snapshot().tabs.mapTo(mutableSetOf(), TrackingLibraryTab::key)
@@ -510,10 +453,6 @@ object LibraryRepository {
                     provider to membership
                 }
             }
-        if (item.isServerItem && requestedChanges.any { (_, membership) -> membership.values.any { it } }) {
-            throw IllegalStateException(getString(Res.string.library_server_title_unsupported))
-        }
-        val providerChanges = if (item.isServerItem) emptyList() else requestedChanges
         val requiredConfirmations = providerChanges.mapNotNull { (provider, providerMembership) ->
             provider.membershipRemovalConfirmation(item, providerMembership)
                 ?.takeUnless { confirmation -> confirmation.providerId in confirmedRemovalProviders }
@@ -562,14 +501,6 @@ object LibraryRepository {
         item: LibraryItem,
         listKey: String,
         confirmedRemovalProviders: Set<TrackingProviderId> = emptySet(),
-    ): TrackingMembershipApplyResult = withAddonLibraryEvent(item.id, item.type) {
-        removeFromListInternal(item, listKey, confirmedRemovalProviders)
-    }
-
-    private suspend fun removeFromListInternal(
-        item: LibraryItem,
-        listKey: String,
-        confirmedRemovalProviders: Set<TrackingProviderId>,
     ): TrackingMembershipApplyResult {
         ensureLoaded()
         val targetProvider = TrackingProviderRegistry.connectedLibraryProviders()
@@ -630,9 +561,9 @@ object LibraryRepository {
                     }
                     val upsertItems = snapshot.pendingUpsertKeys.mapNotNull { key ->
                         itemsByKey[libraryItemKey(key.contentId, key.contentType)]
-                    }.filterNot { ServerItemRef.isServerId(it.id) }
+                    }
                     syncAdapter.pushItems(profileId, upsertItems)
-                    syncAdapter.deleteItems(profileId, snapshot.pendingDeleteKeys.filterNot { ServerItemRef.isServerId(it.contentId) })
+                    syncAdapter.deleteItems(profileId, snapshot.pendingDeleteKeys)
                     localState.markPushCompleted(snapshot)?.let(::persist)
                     synchronized(persistenceLock) { pushRetryAttemptsByToken.remove(snapshot.token) }
                     log.i {
@@ -825,9 +756,6 @@ object LibraryRepository {
 }
 
 internal const val LOCAL_LIBRARY_LIST_KEY = "local"
-
-private val LibraryItem.isServerItem: Boolean
-    get() = ServerItemRef.isServerId(id)
 private const val DEFAULT_LOCAL_LIBRARY_TAB_TITLE = "Nuvio Library"
 private const val DEFAULT_LIBRARY_OTHER_TITLE = "Other"
 

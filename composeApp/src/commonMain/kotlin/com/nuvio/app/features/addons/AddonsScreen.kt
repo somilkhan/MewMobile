@@ -89,13 +89,11 @@ internal fun AddonsSettingsPageContent(
     }
 
     val uiState by AddonRepository.uiState.collectAsStateWithLifecycle()
-    val pendingTrackingConsent by AddonRepository.pendingTrackingConsent.collectAsStateWithLifecycle()
     val uriHandler = LocalUriHandler.current
     val coroutineScope = rememberCoroutineScope()
     var addonUrl by rememberSaveable { mutableStateOf("") }
     var formMessage by rememberSaveable { mutableStateOf<String?>(null) }
     var installModalState by remember { mutableStateOf<AddonInstallModalState?>(null) }
-    var addonPendingDeletionUrl by rememberSaveable { mutableStateOf<String?>(null) }
     val enterAddonUrlMessage = stringResource(Res.string.addons_error_enter_url)
     val usePersonalMediaCopy = AppFeaturePolicy.personalMediaAddonCopyEnabled
 
@@ -134,11 +132,6 @@ internal fun AddonsSettingsPageContent(
                             AddonInstallModalState.Success(result.manifest.name)
                         }
 
-                        is AddAddonResult.TrackingConsentRequired -> {
-                            AddonRepository.requestTrackingConsent(result.manifest)
-                            null
-                        }
-
                         is AddAddonResult.Error -> {
                             AddonInstallModalState.Error(result.message)
                         }
@@ -175,12 +168,7 @@ internal fun AddonsSettingsPageContent(
                     } else {
                         null
                     },
-                    onRefreshClick = {
-                        AddonRepository.refreshAddon(
-                            manifestUrl = addon.manifestUrl,
-                            forceRefresh = true,
-                        )
-                    },
+                    onRefreshClick = { AddonRepository.refreshAddon(addon.manifestUrl) },
                     onEnabledChange = { enabled ->
                         AddonRepository.setAddonEnabled(addon.manifestUrl, enabled)
                     },
@@ -198,46 +186,6 @@ internal fun AddonsSettingsPageContent(
                 )
             }
         }
-    }
-
-    val pendingDeletionUrl = addonPendingDeletionUrl
-    if (pendingDeletionUrl != null) {
-        NuvioStatusModal(
-            title = stringResource(Res.string.addons_delete_confirm_title),
-            message = stringResource(Res.string.action_delete_confirm_message),
-            isVisible = true,
-            destructive = true,
-            confirmText = stringResource(Res.string.action_yes),
-            dismissText = stringResource(Res.string.action_no),
-            onConfirm = {
-                AddonRepository.removeAddon(pendingDeletionUrl)
-                addonPendingDeletionUrl = null
-            },
-            onDismiss = { addonPendingDeletionUrl = null },
-        )
-    }
-
-    val trackingConsentManifest = pendingTrackingConsent
-    if (trackingConsentManifest != null) {
-        TrackingAddonConsentDialog(
-            manifest = trackingConsentManifest,
-            onInstall = {
-                installModalState = AddonInstallModalState.Checking
-                coroutineScope.launch {
-                    installModalState = when (val result = AddonRepository.installWithTrackingConsent(trackingConsentManifest)) {
-                        is AddAddonResult.Success -> {
-                            addonUrl = ""
-                            AddonInstallModalState.Success(result.manifest.name)
-                        }
-
-                        is AddAddonResult.TrackingConsentRequired -> null
-
-                        is AddAddonResult.Error -> AddonInstallModalState.Error(result.message)
-                    }
-                }
-            },
-            onDismiss = AddonRepository::dismissTrackingConsent,
-        )
     }
 
     val modalState = installModalState

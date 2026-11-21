@@ -76,7 +76,6 @@ class PlayerTrackSelectionTest {
             tracks = tracks,
             targets = plan.targets,
             mode = plan.mode,
-            selectedAudioTrack = audioTrack(language = "ja"),
         )
 
         assertEquals(SubtitleAutoSelectionMode.NORMAL_ONLY, plan.mode)
@@ -340,24 +339,6 @@ class PlayerTrackSelectionTest {
         language = language,
         isForced = isForced,
     )
-
-    @Test
-    fun persistedAddonSubtitleMatchesStableIdWhenUrlChanges() {
-        val subtitles = listOf(
-            addonSubtitle(id = "pl-first", language = "pol", url = "https://example.com/e2/a.srt"),
-            addonSubtitle(id = "pl-second", language = "pol", url = "https://example.com/e2/b.srt"),
-        )
-        val preference = PersistedPlayerTrackPreference(
-            subtitleType = PersistedSubtitleSelectionType.ADDON,
-            subtitleLanguage = "pol",
-            subtitleName = "Polish",
-            addonSubtitleId = "pl-second",
-            addonSubtitleUrl = "https://example.com/e1/b.srt",
-            addonSubtitleAddonName = "Addon",
-        )
-
-        assertEquals("pl-second", findPersistedAddonSubtitle(subtitles, preference)?.id)
-    }
 
     private fun addonSubtitle(
         id: String,

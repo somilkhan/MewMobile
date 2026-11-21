@@ -78,7 +78,7 @@ internal object ContinueWatchingEnrichmentCache {
 
     private const val storageKey = "cw_enrichment_cache"
     private val cacheLock = SynchronizedObject()
-    private val cachedPayloads = mutableMapOf<CacheScope, CachedEnrichmentPayload?>()
+    private val lastPayloadHashByScope = mutableMapOf<CacheScope, Int>()
     private val _generation = MutableStateFlow(0)
     val generation: StateFlow<Int> = _generation.asStateFlow()
 
@@ -114,13 +114,14 @@ internal object ContinueWatchingEnrichmentCache {
     ): Boolean = synchronized(cacheLock) {
         if (generation != _generation.value) return@synchronized false
 
-        val payload = CachedEnrichmentPayload(nextUp = nextUp.toList(), inProgress = inProgress.toList())
+        removeLegacyPayload(profileId)
+        val payload = CachedEnrichmentPayload(nextUp = nextUp, inProgress = inProgress)
+        val payloadHash = payload.hashCode()
         val scope = CacheScope(profileId = profileId, source = source)
-        if (!force && cachedPayloads[scope] == payload) {
+        if (!force && lastPayloadHashByScope[scope] == payloadHash) {
             return@synchronized true
         }
 
-        removeLegacyPayload(profileId)
         val encoded = runCatching {
             json.encodeToString(payload)
         }.getOrNull() ?: return@synchronized false
@@ -128,7 +129,7 @@ internal object ContinueWatchingEnrichmentCache {
             continueWatchingEnrichmentStorageKey(profileId = profileId, source = source),
             encoded,
         )
-        cachedPayloads[scope] = payload
+        lastPayloadHashByScope[scope] = payloadHash
         true
     }
 
@@ -140,7 +141,7 @@ internal object ContinueWatchingEnrichmentCache {
             continueWatchingEnrichmentStorageKey(profileId = profileId, source = source),
         )
         removeLegacyPayload(profileId)
-        cachedPayloads.remove(CacheScope(profileId = profileId, source = source))
+        lastPayloadHashByScope.remove(CacheScope(profileId = profileId, source = source))
         advanceGeneration()
     }
 
@@ -149,19 +150,18 @@ internal object ContinueWatchingEnrichmentCache {
             ContinueWatchingEnrichmentStorage.removePayload(
                 continueWatchingEnrichmentStorageKey(profileId = profileId, source = source),
             )
-            cachedPayloads.remove(CacheScope(profileId = profileId, source = source))
+            lastPayloadHashByScope.remove(CacheScope(profileId = profileId, source = source))
         }
         removeLegacyPayload(profileId)
         advanceGeneration()
     }
 
     fun clearLocalState() = synchronized(cacheLock) {
-        cachedPayloads.clear()
+        lastPayloadHashByScope.clear()
         advanceGeneration()
     }
 
     fun onProfileChanged() = synchronized(cacheLock) {
-        cachedPayloads.clear()
         advanceGeneration()
     }
 
@@ -169,21 +169,20 @@ internal object ContinueWatchingEnrichmentCache {
         profileId: Int,
         source: WatchProgressSource,
     ): CachedEnrichmentPayload? = synchronized(cacheLock) {
-        val scope = CacheScope(profileId = profileId, source = source)
-        if (cachedPayloads.containsKey(scope)) return@synchronized cachedPayloads[scope]
         removeLegacyPayload(profileId)
+        val scope = CacheScope(profileId = profileId, source = source)
         val raw = ContinueWatchingEnrichmentStorage.loadPayload(
             continueWatchingEnrichmentStorageKey(profileId = profileId, source = source),
         ) ?: run {
-            cachedPayloads[scope] = null
+            lastPayloadHashByScope.remove(scope)
             return@synchronized null
         }
         runCatching {
             json.decodeFromString<CachedEnrichmentPayload>(raw)
         }.getOrNull()?.also { payload ->
-            cachedPayloads[scope] = payload
+            lastPayloadHashByScope[scope] = payload.hashCode()
         } ?: run {
-            cachedPayloads[scope] = null
+            lastPayloadHashByScope.remove(scope)
             ContinueWatchingEnrichmentStorage.removePayload(
                 continueWatchingEnrichmentStorageKey(profileId = profileId, source = source),
             )

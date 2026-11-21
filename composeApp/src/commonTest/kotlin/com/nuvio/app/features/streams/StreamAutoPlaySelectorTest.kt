@@ -8,7 +8,6 @@ import kotlin.test.assertTrue
 
 class StreamAutoPlaySelectorTest {
 
-
     @Test
     fun `bingeGroup-first selects matching stream before first stream mode`() {
         val first = stream(

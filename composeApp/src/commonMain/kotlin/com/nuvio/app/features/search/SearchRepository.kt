@@ -6,12 +6,6 @@ import com.nuvio.app.features.addons.AddonCatalog
 import com.nuvio.app.features.addons.AddonExtraProperty
 import com.nuvio.app.features.addons.ManagedAddon
 import com.nuvio.app.features.addons.enabledAddons
-import com.nuvio.app.features.addons.firstEnabledManifestError
-import com.nuvio.app.features.addons.hasPendingEnabledManifests
-import com.nuvio.app.features.servers.ServerCatalog
-import com.nuvio.app.features.servers.ServerMediaKind
-import com.nuvio.app.features.servers.serverMessage
-import com.nuvio.app.features.servers.ServerRepository
 import com.nuvio.app.features.catalog.CATALOG_PAGE_SIZE
 import com.nuvio.app.features.catalog.CatalogPage
 import com.nuvio.app.features.catalog.CatalogTarget
@@ -75,13 +69,9 @@ object SearchRepository {
     private var activeDiscoverJob: Job? = null
     private var lastRequestKey: String? = null
     private var discoverSources: List<DiscoverCatalogOption> = emptyList()
-    private var lastDiscoverRequestKey: DiscoverRequestKey? = null
+    private var lastDiscoverHideUnreleasedContent: Boolean? = null
 
-    fun search(
-        query: String,
-        addons: List<ManagedAddon>,
-        forceRefresh: Boolean = false,
-    ) {
+    fun search(query: String, addons: List<ManagedAddon>) {
         val normalizedQuery = query.trim()
         if (normalizedQuery.isBlank()) {
             clear()
@@ -133,23 +123,8 @@ object SearchRepository {
                     "${request.addon.manifestUrl}:${request.type}:${request.catalogId}"
                 },
             )
-            serverSearches.forEach { ref ->
-                append("|server:${ref.connection.id}:${ref.kind.contentType}:")
-                append(ref.connection.selectedLibraries(ref.kind).joinToString(",") { it.id })
-            }
         }
-        val loaders: List<suspend () -> HomeCatalogSection> =
-            requests.map { request -> suspend { request.toSection(forceRefresh = forceRefresh) } } +
-                serverSearches.map { ref ->
-                    suspend {
-                        ServerCatalog.searchSection(ref, normalizedQuery).also { section ->
-                            require(section.items.isNotEmpty()) {
-                                getString(Res.string.search_error_no_results_for_catalog, section.title)
-                            }
-                        }
-                    }
-                }
-        if (canReuseRequestState(forceRefresh, requestKey, lastRequestKey)) return
+        if (requestKey == lastRequestKey) return
         lastRequestKey = requestKey
 
         activeJob?.cancel()
@@ -199,7 +174,7 @@ object SearchRepository {
                 jobs.joinAll()
                 resultChannel.close()
             }
-            val results = arrayOfNulls<IndexedSearchResult>(loaders.size)
+            val results = arrayOfNulls<IndexedSearchResult>(requests.size)
 
             try {
                 for (result in resultChannel) {
@@ -337,7 +312,7 @@ object SearchRepository {
         activeDiscoverJob?.cancel()
         lastRequestKey = null
         discoverSources = emptyList()
-        lastDiscoverRequestKey = null
+        lastDiscoverHideUnreleasedContent = null
         _uiState.value = SearchUiState()
         _discoverUiState.value = DiscoverUiState()
     }
@@ -375,7 +350,7 @@ object SearchRepository {
         val hideUnreleasedContent = HomeCatalogSettingsRepository.snapshot().hideUnreleasedContent
         if (sources == discoverSources && lastDiscoverHideUnreleasedContent == hideUnreleasedContent && current.canReuseDiscoverState(sources)) return
         discoverSources = sources
-        lastDiscoverRequestKey = requestKey
+        lastDiscoverHideUnreleasedContent = hideUnreleasedContent
         if (sources.isEmpty()) {
             _discoverUiState.value = DiscoverUiState(
                 emptyStateReason = if (
@@ -461,19 +436,13 @@ object SearchRepository {
             emptyStateReason = null,
             errorMessage = null,
         )
-        loadDiscoverFeed(
-            reset = true,
-            forceRefresh = false,
-        )
+        loadDiscoverFeed(reset = true)
     }
 
     fun loadMoreDiscover() {
         val current = _discoverUiState.value
         if (current.isLoading || current.nextSkip == null) return
-        loadDiscoverFeed(
-            reset = false,
-            forceRefresh = false,
-        )
+        loadDiscoverFeed(reset = false)
     }
 
     private fun buildSearchRequests(
@@ -521,20 +490,15 @@ object SearchRepository {
                 }
         }
 
-    private suspend fun SearchCatalogRequest.toSection(forceRefresh: Boolean): HomeCatalogSection {
+    private suspend fun SearchCatalogRequest.toSection(): HomeCatalogSection {
         val manifest = requireNotNull(addon.manifest)
         val page = fetchCatalogPage(
             manifestUrl = manifest.transportUrl,
             type = type,
             catalogId = catalogId,
             search = query,
-            forceRefresh = forceRefresh,
         ).withUnreleasedFilter()
-        val posterPattern = com.nuvio.app.core.poster.CustomPosterUrlRepository.let {
-            it.ensureLoaded()
-            it.patternForScreen(com.nuvio.app.core.poster.CustomPosterScreen.SEARCH)
-        }
-        val items = page.items.withCustomPosterUrls(posterPattern)
+        val items = page.items
         require(items.isNotEmpty()) {
             getString(Res.string.search_error_no_results_for_catalog, catalogName)
         }
@@ -638,12 +602,6 @@ object SearchRepository {
                         page.items
                     } else {
                         mergeCatalogItems(latest.items, page.items)
-                    }.let { items ->
-                        val pattern = com.nuvio.app.core.poster.CustomPosterUrlRepository.let { repo ->
-                            repo.ensureLoaded()
-                            repo.patternForScreen(com.nuvio.app.core.poster.CustomPosterScreen.SEARCH)
-                        }
-                        items.withCustomPosterUrls(pattern)
                     }
                     val supportsPagination = selectedCatalog.supportsPagination || page.rawItemCount >= CATALOG_PAGE_SIZE
                     val loadedNewItems = reset || mergedItems.size > latest.items.size
@@ -753,6 +711,27 @@ private fun DiscoverCatalogOption.resolveGenreSelection(requestedGenre: String?)
         genreRequired -> genreOptions.firstOrNull()
         else -> null
     }
+
+private fun DiscoverUiState.canReuseDiscoverState(
+    sources: List<DiscoverCatalogOption>,
+): Boolean {
+    val currentType = selectedType ?: return false
+    if (!typeOptions.contains(currentType) || !sources.any { it.type == currentType }) {
+        return false
+    }
+
+    val currentCatalog = sources.firstOrNull { it.key == selectedCatalogKey } ?: return false
+    if (currentCatalog.type != currentType) {
+        return false
+    }
+
+    val resolvedGenre = currentCatalog.resolveGenreSelection(selectedGenre)
+    if (selectedGenre != resolvedGenre) {
+        return false
+    }
+
+    return isLoading || items.isNotEmpty() || emptyStateReason != null || errorMessage != null || nextSkip != null
+}
 
 private fun List<MetaPreview>.previewNames(limit: Int = 5): String {
     if (isEmpty()) return "[]"
