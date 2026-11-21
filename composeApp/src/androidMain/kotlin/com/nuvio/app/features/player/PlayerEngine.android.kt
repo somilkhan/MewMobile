@@ -500,10 +500,28 @@ private fun ExoPlayerSurface(
         )
     }
 
+    val exoMatroskaChapters = remember(sourceUrl) { mutableStateOf<List<PlayerChapter>>(emptyList()) }
+
     fun dispatchExoPlayerSnapshot() {
-        val snapshot = exoPlayer.snapshot()
+        val base = exoPlayer.snapshot()
+        val matroskaChapters = exoMatroskaChapters.value
+        val snapshot = if (matroskaChapters.isEmpty()) base else base.copy(chapters = matroskaChapters)
         latestOnSnapshot.value(snapshot)
         nowPlayingController.syncPlayback(snapshot)
+    }
+
+    // ExoPlayer's Matroska extractor skips chapters, so they are read only when chapter skip is on.
+    LaunchedEffect(sourceUrl, sanitizedSourceHeaders, playerSettings.chapterSkipEnabled) {
+        if (!playerSettings.chapterSkipEnabled) {
+            exoMatroskaChapters.value = emptyList()
+            return@LaunchedEffect
+        }
+        if (normalizedStreamType != null && !normalizedStreamType.isMatroskaStreamType()) return@LaunchedEffect
+        val chapters = withContext(Dispatchers.IO) {
+            MatroskaChapterLoader.load(sourceUrl, sanitizedSourceHeaders)
+        }
+        exoMatroskaChapters.value = chapters
+        dispatchExoPlayerSnapshot()
     }
 
     DisposableEffect(nowPlayingController) {

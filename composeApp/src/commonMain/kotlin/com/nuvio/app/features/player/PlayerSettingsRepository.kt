@@ -40,6 +40,7 @@ data class PlayerSettingsUiState(
     val pauseOverlayEnabled: Boolean = true,
     val stableOpeningOverlayEnabled: Boolean = false,
     val chapterTitleEnabled: Boolean = false,
+    val chapterSkipEnabled: Boolean = false,
     val playerLiquidGlassEnabled: Boolean = false,
     val nextEpisodeSwipeDismissEnabled: Boolean = false,
     val skipBackwardSeconds: Int = PLAYER_SKIP_SECONDS_DEFAULT,
@@ -122,6 +123,7 @@ object PlayerSettingsRepository {
     private var pauseOverlayEnabled = true
     private var stableOpeningOverlayEnabled = false
     private var chapterTitleEnabled = false
+    private var chapterSkipEnabled = false
     private var playerLiquidGlassEnabled = false
     private var nextEpisodeSwipeDismissEnabled = false
     private var skipBackwardSeconds = PLAYER_SKIP_SECONDS_DEFAULT
@@ -209,6 +211,7 @@ object PlayerSettingsRepository {
         pauseOverlayEnabled = true
         stableOpeningOverlayEnabled = false
         chapterTitleEnabled = false
+        chapterSkipEnabled = false
         playerLiquidGlassEnabled = false
         nextEpisodeSwipeDismissEnabled = false
         skipBackwardSeconds = PLAYER_SKIP_SECONDS_DEFAULT
@@ -289,6 +292,7 @@ object PlayerSettingsRepository {
         pauseOverlayEnabled = PlayerSettingsStorage.loadPauseOverlayEnabled() ?: true
         stableOpeningOverlayEnabled = PlayerSettingsStorage.loadStableOpeningOverlayEnabled() ?: false
         chapterTitleEnabled = PlayerSettingsStorage.loadChapterTitleEnabled() ?: false
+        chapterSkipEnabled = PlayerSettingsStorage.loadChapterSkipEnabled() ?: false
         playerLiquidGlassEnabled = PlayerSettingsStorage.loadPlayerLiquidGlassEnabled() ?: false
         nextEpisodeSwipeDismissEnabled = PlayerSettingsStorage.loadNextEpisodeSwipeDismissEnabled() ?: false
         skipBackwardSeconds = normalizePlayerSkipSeconds(PlayerSettingsStorage.loadSkipBackwardSeconds())
@@ -496,6 +500,14 @@ object PlayerSettingsRepository {
         chapterTitleEnabled = enabled
         publish()
         PlayerSettingsStorage.saveChapterTitleEnabled(enabled)
+    }
+
+    fun setChapterSkipEnabled(enabled: Boolean) {
+        ensureLoaded()
+        if (chapterSkipEnabled == enabled) return
+        chapterSkipEnabled = enabled
+        publish()
+        PlayerSettingsStorage.saveChapterSkipEnabled(enabled)
     }
 
     fun setPlayerLiquidGlassEnabled(enabled: Boolean) {
@@ -1143,6 +1155,7 @@ object PlayerSettingsRepository {
             pauseOverlayEnabled = pauseOverlayEnabled,
             stableOpeningOverlayEnabled = stableOpeningOverlayEnabled,
             chapterTitleEnabled = chapterTitleEnabled,
+            chapterSkipEnabled = chapterSkipEnabled,
             playerLiquidGlassEnabled = playerLiquidGlassEnabled,
             nextEpisodeSwipeDismissEnabled = nextEpisodeSwipeDismissEnabled,
             skipBackwardSeconds = skipBackwardSeconds,

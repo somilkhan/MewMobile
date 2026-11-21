@@ -5,6 +5,7 @@ import com.nuvio.app.features.player.skip.selectActiveSkipInterval
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import com.nuvio.app.core.ui.AppSystemUiController
 import com.nuvio.app.features.details.MetaDetailsRepository
 import com.nuvio.app.features.p2p.P2pSettingsRepository
@@ -614,6 +615,21 @@ private fun PlayerScreenRuntime.BindPlayerUiVisibilityEffects() {
 private fun PlayerScreenRuntime.BindPlayerMetadataAndSkipEffects(networkStatus: NetworkStatusUiState) {
     val networkCondition = networkStatus.condition
     val networkAvailable = networkStatus.condition == NetworkCondition.Online
+    // Chapter skip is off by default; with it off, effectiveSkipIntervals is exactly skipIntervals.
+    val chapterSkipIntervals = remember(
+        playbackSnapshot.chapters,
+        playbackSnapshot.durationMs,
+        playerSettingsUiState.chapterSkipEnabled,
+    ) {
+        if (playerSettingsUiState.chapterSkipEnabled) {
+            ChapterSkipIntervals.fromChapters(playbackSnapshot.chapters, playbackSnapshot.durationMs)
+        } else {
+            emptyList()
+        }
+    }
+    val effectiveSkipIntervals = remember(skipIntervals, chapterSkipIntervals) {
+        mergeSkipIntervals(skipIntervals, chapterSkipIntervals)
+    }
     LaunchedEffect(
         activeVideoId,
         activeSeasonNumber,
@@ -689,13 +705,13 @@ private fun PlayerScreenRuntime.BindPlayerMetadataAndSkipEffects(networkStatus: 
         }
     }
 
-    LaunchedEffect(playbackSnapshot.positionMs, skipIntervals) {
-        if (skipIntervals.isEmpty()) {
+    LaunchedEffect(playbackSnapshot.positionMs, effectiveSkipIntervals) {
+        if (effectiveSkipIntervals.isEmpty()) {
             activeSkipInterval = null
             return@LaunchedEffect
         }
         val positionSec = playbackSnapshot.positionMs / 1000.0
-        val current = selectActiveSkipInterval(skipIntervals, positionSec)
+        val current = selectActiveSkipInterval(effectiveSkipIntervals, positionSec)
         val previous = activeSkipInterval
         if (current != previous) {
             if (current != null) {
@@ -705,7 +721,7 @@ private fun PlayerScreenRuntime.BindPlayerMetadataAndSkipEffects(networkStatus: 
                 if (!keepDismissed) skipIntervalDismissed = false
             } else if (previous != null) {
                 // A replacement provider may start a little later; avoid flicker across a short gap.
-                val nearby = skipIntervals.firstOrNull {
+                val nearby = effectiveSkipIntervals.firstOrNull {
                     it.categoryKey() == previous.categoryKey() &&
                         it.startTime.isFinite() &&
                         it.endTime.isFinite() &&
@@ -801,7 +817,7 @@ private fun PlayerScreenRuntime.BindPlayerMetadataAndSkipEffects(networkStatus: 
         playbackSnapshot.positionMs,
         playbackSnapshot.durationMs,
         nextEpisodeInfo,
-        skipIntervals,
+        effectiveSkipIntervals,
         playerSettingsUiState.nextEpisodeThresholdMode,
         playerSettingsUiState.nextEpisodeThresholdPercent,
         playerSettingsUiState.nextEpisodeThresholdMinutesBeforeEnd,
@@ -817,7 +833,7 @@ private fun PlayerScreenRuntime.BindPlayerMetadataAndSkipEffects(networkStatus: 
         val shouldShow = PlayerNextEpisodeRules.shouldShowNextEpisodeCard(
             positionMs = playbackSnapshot.positionMs,
             durationMs = playbackSnapshot.durationMs,
-            skipIntervals = skipIntervals,
+            skipIntervals = effectiveSkipIntervals,
             thresholdMode = playerSettingsUiState.nextEpisodeThresholdMode,
             thresholdPercent = playerSettingsUiState.nextEpisodeThresholdPercent,
             thresholdMinutesBeforeEnd = playerSettingsUiState.nextEpisodeThresholdMinutesBeforeEnd,

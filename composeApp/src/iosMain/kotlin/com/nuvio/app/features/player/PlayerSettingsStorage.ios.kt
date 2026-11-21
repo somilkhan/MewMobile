@@ -21,6 +21,7 @@ actual object PlayerSettingsStorage {
     private const val pauseOverlayEnabledKey = "pause_overlay_enabled"
     private const val stableOpeningOverlayEnabledKey = "stable_opening_overlay_enabled"
     private const val chapterTitleEnabledKey = "chapter_title_enabled"
+    private const val chapterSkipEnabledKey = "chapter_skip_enabled"
     private const val playerLiquidGlassEnabledKey = "player_liquid_glass_enabled"
     private const val nextEpisodeSwipeDismissEnabledKey = "next_episode_swipe_dismiss_enabled"
     private const val skipBackwardSecondsKey = "player_skip_backward_seconds"
@@ -111,6 +112,7 @@ actual object PlayerSettingsStorage {
         pauseOverlayEnabledKey,
         stableOpeningOverlayEnabledKey,
         chapterTitleEnabledKey,
+        chapterSkipEnabledKey,
         playerLiquidGlassEnabledKey,
         nextEpisodeSwipeDismissEnabledKey,
         skipBackwardSecondsKey,
@@ -247,6 +249,15 @@ actual object PlayerSettingsStorage {
     }
     actual fun saveChapterTitleEnabled(enabled: Boolean) {
         NSUserDefaults.standardUserDefaults.setBool(enabled, forKey = ProfileScopedKey.of(chapterTitleEnabledKey))
+    }
+
+    actual fun loadChapterSkipEnabled(): Boolean? {
+        val defaults = NSUserDefaults.standardUserDefaults
+        val key = ProfileScopedKey.of(chapterSkipEnabledKey)
+        return if (defaults.objectForKey(key) != null) defaults.boolForKey(key) else null
+    }
+    actual fun saveChapterSkipEnabled(enabled: Boolean) {
+        NSUserDefaults.standardUserDefaults.setBool(enabled, forKey = ProfileScopedKey.of(chapterSkipEnabledKey))
     }
 
     actual fun loadPlayerLiquidGlassEnabled(): Boolean? {
@@ -1096,6 +1107,7 @@ actual object PlayerSettingsStorage {
         loadPauseOverlayEnabled()?.let { put(pauseOverlayEnabledKey, encodeSyncBoolean(it)) }
         loadStableOpeningOverlayEnabled()?.let { put(stableOpeningOverlayEnabledKey, encodeSyncBoolean(it)) }
         loadChapterTitleEnabled()?.let { put(chapterTitleEnabledKey, encodeSyncBoolean(it)) }
+        loadChapterSkipEnabled()?.let { put(chapterSkipEnabledKey, encodeSyncBoolean(it)) }
         loadPlayerLiquidGlassEnabled()?.let { put(playerLiquidGlassEnabledKey, encodeSyncBoolean(it)) }
         loadNextEpisodeSwipeDismissEnabled()?.let { put(nextEpisodeSwipeDismissEnabledKey, encodeSyncBoolean(it)) }
         loadSkipBackwardSeconds()?.let { put(skipBackwardSecondsKey, encodeSyncInt(it)) }
@@ -1189,6 +1201,7 @@ actual object PlayerSettingsStorage {
         payload.decodeSyncBoolean(pauseOverlayEnabledKey)?.let(::savePauseOverlayEnabled)
         payload.decodeSyncBoolean(stableOpeningOverlayEnabledKey)?.let(::saveStableOpeningOverlayEnabled)
         payload.decodeSyncBoolean(chapterTitleEnabledKey)?.let(::saveChapterTitleEnabled)
+        payload.decodeSyncBoolean(chapterSkipEnabledKey)?.let(::saveChapterSkipEnabled)
         payload.decodeSyncBoolean(playerLiquidGlassEnabledKey)?.let(::savePlayerLiquidGlassEnabled)
         payload.decodeSyncBoolean(nextEpisodeSwipeDismissEnabledKey)?.let(::saveNextEpisodeSwipeDismissEnabled)
         payload.decodeSyncInt(skipBackwardSecondsKey)?.let(::saveSkipBackwardSeconds)
