@@ -131,3 +131,14 @@ Do not replace these files wholesale. Their target and source SHAs differ, and t
 - Source and target `StreamModels`/ `HomeModels`/ `MetaDetailsModels` are not identical. Similar type names are not grounds for copying those files.
 
 **Next implementation unit:** adapt `CatalogTarget` and `CatalogRepository`, then Home/Search/Details/Streams callers and profile lifecycle. Keep target-only catalog/server/player behavior.
+
+
+## 10. Implementation progress — catalog integration
+
+- Target branch head before this documentation update: `cc6626214c4fa097ff0887960cb839c8e141edf6`
+- Commit: `cc6626214c4fa097ff0887960cb839c8e141edf6`
+- Adapted target `CatalogTarget.kt`: added `CloudStream` target and `CLOUDSTREAM` kind while preserving existing `MoreLikeThis` and `Server` target types.
+- Adapted target `CatalogRepository.kt`: added CloudStream category selection and provider search/main-page loading while retaining target collection, server, MoreLikeThis, library, unreleased-content filtering and custom-poster behavior.
+- This was a manual adaptation, not a wholesale copy of the source `CatalogRepository.kt`.
+- Tests/build: **NOT RUN**. A catalog-selection regression test is still required.
+- Next: Home provider/catalog integration and profile-aware selected-provider persistence; then Search, Details, Streams, settings/navigation, platform runtime and build wiring.
