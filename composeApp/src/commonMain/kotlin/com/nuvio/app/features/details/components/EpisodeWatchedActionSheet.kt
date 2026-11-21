@@ -50,6 +50,7 @@ import nuvio.composeapp.generated.resources.episode_mark_previous_watched
 import nuvio.composeapp.generated.resources.episode_mark_season_unwatched
 import nuvio.composeapp.generated.resources.episode_mark_season_watched
 import nuvio.composeapp.generated.resources.episode_mark_unwatched
+import nuvio.composeapp.generated.resources.downloads_download_season
 import nuvio.composeapp.generated.resources.episode_mark_watched
 import nuvio.composeapp.generated.resources.anime_tracking_action
 import nuvio.composeapp.generated.resources.play_manually
@@ -173,6 +174,7 @@ fun SeasonWatchedActionSheet(
     onDismiss: () -> Unit,
     onToggleSeasonWatched: () -> Unit,
     onMarkPreviousSeasonsWatched: () -> Unit,
+    onDownloadSeason: (() -> Unit)? = null,
 ) {
     NuvioMediaActionOverlay(
         artworkUrl = null,
@@ -217,6 +219,17 @@ fun SeasonWatchedActionSheet(
                             onDismiss()
                         },
                     )
+                    if (onDownloadSeason != null) {
+                        EpisodeSheetDivider()
+                        EpisodeSheetActionRow(
+                            icon = Icons.Default.Download,
+                            title = stringResource(Res.string.downloads_download_season),
+                            onClick = {
+                                onDownloadSeason.invoke()
+                                onDismiss()
+                            },
+                        )
+                    }
                     if (canMarkPreviousSeasons) {
                         EpisodeSheetDivider()
                         EpisodeSheetActionRow(

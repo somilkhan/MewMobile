@@ -1159,6 +1159,14 @@ private fun NuvioEnhancedSettingsPageContent(
                     isTablet = isTablet,
                     onCheckedChange = { NuvioEnhancedSettingsRepository.setDownloadsWifiOnly(it) },
                 )
+                SettingsGroupDivider(isTablet = isTablet)
+                SettingsSwitchRow(
+                    title = stringResource(Res.string.nuvio_enhanced_downloads_season_batch_title),
+                    description = stringResource(Res.string.nuvio_enhanced_downloads_season_batch_desc),
+                    checked = settings.seasonBatchDownloadEnabled,
+                    isTablet = isTablet,
+                    onCheckedChange = { NuvioEnhancedSettingsRepository.setSeasonBatchDownloadEnabled(it) },
+                )
                 if (!isIos) {
                     SettingsGroupDivider(isTablet = isTablet)
                     SettingsNavigationRow(
