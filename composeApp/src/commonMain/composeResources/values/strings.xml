@@ -2672,6 +2672,9 @@
     <string name="nuvio_enhanced_section_downloads">Downloads</string>
     <string name="nuvio_enhanced_downloads_wifi_only_title">Download only on Wi-Fi</string>
     <string name="nuvio_enhanced_downloads_wifi_only_desc">Hold new and queued downloads while on mobile data. They resume automatically on Wi-Fi.</string>
+    <string name="nuvio_enhanced_downloads_season_batch_title">Season batch download</string>
+    <string name="nuvio_enhanced_downloads_season_batch_desc">Show a Download season action on season menus. Episodes are queued one at a time with automatic source selection.</string>
+    <string name="details_download_season">Download %1$s</string>
     <string name="nuvio_enhanced_external_folder_choose_title">External Download Folder</string>
     <string name="nuvio_enhanced_external_folder_change_title">Change External Download Folder</string>
     <string name="nuvio_enhanced_external_folder_description">Keep completed downloads in a folder you choose so other apps can access them.</string>

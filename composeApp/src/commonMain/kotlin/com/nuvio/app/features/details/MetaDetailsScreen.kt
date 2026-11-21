@@ -94,6 +94,7 @@ import com.nuvio.app.features.ai.AiAssistantSettingsRepository
 import com.nuvio.app.features.anime.AnimeTrackingEditorSheet
 import com.nuvio.app.features.anime.AniListTrackingRepository
 import com.nuvio.app.features.anime.MyAnimeListTrackingRepository
+import co.touchlab.kermit.Logger
 import com.nuvio.app.features.details.components.AiAssistantSheet
 import com.nuvio.app.features.details.components.DetailActionButtons
 import com.nuvio.app.features.details.components.CinematicDetailHeader
@@ -114,7 +115,11 @@ import com.nuvio.app.features.details.components.EpisodeDownloadFlowSheet
 import com.nuvio.app.features.details.components.EpisodeWatchedActionSheet
 import com.nuvio.app.features.details.components.SeasonWatchedActionSheet
 import com.nuvio.app.features.details.components.TrailerPlayerPopup
+import com.nuvio.app.features.downloads.DownloadQueueMode
 import com.nuvio.app.features.downloads.DownloadsRepository
+import com.nuvio.app.features.downloads.EpisodeDownloadCoordinator
+import com.nuvio.app.features.downloads.EpisodeDownloadSettingsStorage
+import com.nuvio.app.features.downloads.EpisodeDownloadTarget
 import com.nuvio.app.features.home.MetaPreview
 import com.nuvio.app.features.library.LibraryRepository
 import com.nuvio.app.features.library.toLibraryItem
@@ -152,6 +157,8 @@ import com.nuvio.app.features.watching.application.WatchingState
 import nuvio.composeapp.generated.resources.anime_tracking_action
 import com.kmpalette.rememberDominantColorState
 import com.kmpalette.extensions.painter.rememberPainterDominantColorState
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import nuvio.composeapp.generated.resources.*
@@ -189,6 +196,8 @@ fun MetaDetailsScreen(
     modifier: Modifier = Modifier,
 ) {
     val uiState by MetaDetailsRepository.uiState.collectAsStateWithLifecycle()
+    val enhancedSettings by NuvioEnhancedSettingsRepository.uiState.collectAsStateWithLifecycle()
+    val seasonDownloadScope = rememberCoroutineScope()
     val downloadsUiState by remember {
         DownloadsRepository.ensureLoaded()
         DownloadsRepository.uiState
@@ -1744,6 +1753,11 @@ fun MetaDetailsScreen(
                                         areCurrentlyWatched = false,
                                     )
                                 },
+                                onDownloadSeason = if (enhancedSettings.seasonBatchDownloadEnabled) {
+                                    ({ enqueueSeasonBatch(seasonDownloadScope, meta, seasonEpisodes) })
+                                } else {
+                                    null
+                                },
                             )
                         }
 
@@ -1870,6 +1884,51 @@ private fun MetaDetails.isSeriesLikeForEpisodeRatings(): Boolean {
 }
 
 @Composable
+private fun enqueueSeasonBatch(
+    scope: CoroutineScope,
+    meta: MetaDetails,
+    episodes: List<MetaVideo>,
+) {
+    val targets = episodes
+        .filter { it.available }
+        .map { video ->
+            EpisodeDownloadTarget(
+                videoId = video.id,
+                parentMetaId = meta.id,
+                parentMetaType = meta.type,
+                seasonNumber = video.season,
+                episodeNumber = video.episode,
+                title = video.title,
+                thumbnail = video.thumbnail,
+                overview = video.overview,
+                embeddedStreams = video.streams,
+            )
+        }
+    if (targets.isEmpty()) return
+    val settings = EpisodeDownloadSettingsStorage.load()
+        .copy(downloadMode = DownloadQueueMode.OneAtATime)
+    scope.launch {
+        try {
+            EpisodeDownloadCoordinator.enqueueAuto(
+                contentType = meta.type,
+                parentMetaId = meta.id,
+                parentMetaType = meta.type,
+                title = meta.name,
+                logo = meta.logo,
+                poster = meta.poster,
+                background = meta.background,
+                targets = targets,
+                settings = settings,
+                onProgress = {},
+            )
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Throwable) {
+            Logger.withTag("SeasonBatchDownload").w(error) { "enqueueSeasonBatch failed" }
+        }
+    }
+}
+
 private fun selectedSeasonLabel(season: Int): String =
     if (season == 0) {
         stringResource(Res.string.episodes_specials)

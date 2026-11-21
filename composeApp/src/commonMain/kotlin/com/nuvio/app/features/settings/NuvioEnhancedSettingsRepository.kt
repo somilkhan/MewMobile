@@ -20,6 +20,7 @@ internal data class NuvioEnhancedSettingsUiState(
     val streamSourcePinningEnabled: Boolean = false,
     val backgroundStreamPrefetchEnabled: Boolean = false,
     val downloadsWifiOnly: Boolean = false,
+    val seasonBatchDownloadEnabled: Boolean = false,
     val nuvioReadEnabled: Boolean = false,
     val cinematicDetailHeaderEnabled: Boolean = false,
     val cinematicHeaderContentMode: CinematicHeaderContentMode = CinematicHeaderContentMode.Productions,
@@ -156,6 +157,7 @@ private data class StoredNuvioEnhancedSettings(
     val streamSourcePinningEnabled: Boolean = false,
     val backgroundStreamPrefetchEnabled: Boolean = false,
     val downloadsWifiOnly: Boolean = false,
+    val seasonBatchDownloadEnabled: Boolean = false,
     val nuvioReadEnabled: Boolean = false,
     val cinematicDetailHeaderEnabled: Boolean = false,
     val cinematicHeaderContentMode: CinematicHeaderContentMode = CinematicHeaderContentMode.Productions,
@@ -286,6 +288,10 @@ internal object NuvioEnhancedSettingsRepository {
 
     fun setDownloadsWifiOnly(enabled: Boolean) = update {
         copy(downloadsWifiOnly = enabled)
+    }
+
+    fun setSeasonBatchDownloadEnabled(enabled: Boolean) = update {
+        copy(seasonBatchDownloadEnabled = enabled)
     }
 
     fun setNuvioReadEnabled(enabled: Boolean) = update {
@@ -462,6 +468,7 @@ internal object NuvioEnhancedSettingsRepository {
             streamSourcePinningEnabled = stored.streamSourcePinningEnabled,
             backgroundStreamPrefetchEnabled = stored.backgroundStreamPrefetchEnabled,
             downloadsWifiOnly = stored.downloadsWifiOnly,
+            seasonBatchDownloadEnabled = stored.seasonBatchDownloadEnabled,
             nuvioReadEnabled = stored.nuvioReadEnabled,
             cinematicDetailHeaderEnabled = stored.cinematicDetailHeaderEnabled,
             cinematicHeaderContentMode = stored.cinematicHeaderContentMode,
