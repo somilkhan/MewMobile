@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.matchParentSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.width
@@ -152,7 +151,7 @@ internal fun MiniPlayerHost(
     val hosted = MiniPlayerController.hostedLaunch
     val minimized = MiniPlayerController.minimized
     val isNewTop = topLaunch != null && topLaunch !== hosted
-    val activeLaunch: PlayerLaunch? = when {
+    val activeLaunch = when {
         isNewTop -> topLaunch
         minimized -> hosted
         topLaunch != null -> topLaunch
@@ -241,7 +240,7 @@ private fun MiniPlayerFrame(
                 if (mini) {
                     Box(
                         modifier = Modifier
-                            .matchParentSize()
+                            .fillMaxSize()
                             .clickable(onClickLabel = stringResource(Res.string.mini_player_expand)) {
                                 onExpand()
                             },
