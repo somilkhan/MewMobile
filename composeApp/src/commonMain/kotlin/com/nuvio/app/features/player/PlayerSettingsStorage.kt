@@ -14,6 +14,8 @@ internal expect object PlayerSettingsStorage {
     fun savePlayerLiquidGlassEnabled(enabled: Boolean)
     fun loadNextEpisodeSwipeDismissEnabled(): Boolean?
     fun saveNextEpisodeSwipeDismissEnabled(enabled: Boolean)
+    fun loadMiniPlayerEnabled(): Boolean?
+    fun saveMiniPlayerEnabled(enabled: Boolean)
     fun loadSkipBackwardSeconds(): Int?
     fun saveSkipBackwardSeconds(seconds: Int)
     fun loadSkipForwardSeconds(): Int?

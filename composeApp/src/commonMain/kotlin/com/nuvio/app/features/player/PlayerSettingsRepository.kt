@@ -42,6 +42,7 @@ data class PlayerSettingsUiState(
     val chapterTitleEnabled: Boolean = false,
     val playerLiquidGlassEnabled: Boolean = false,
     val nextEpisodeSwipeDismissEnabled: Boolean = false,
+    val miniPlayerEnabled: Boolean = false,
     val skipBackwardSeconds: Int = PLAYER_SKIP_SECONDS_DEFAULT,
     val skipForwardSeconds: Int = PLAYER_SKIP_SECONDS_DEFAULT,
     val toolbarLayout: PlayerToolbarLayout = PlayerToolbarLayout.Default,
@@ -124,6 +125,7 @@ object PlayerSettingsRepository {
     private var chapterTitleEnabled = false
     private var playerLiquidGlassEnabled = false
     private var nextEpisodeSwipeDismissEnabled = false
+    private var miniPlayerEnabled = false
     private var skipBackwardSeconds = PLAYER_SKIP_SECONDS_DEFAULT
     private var skipForwardSeconds = PLAYER_SKIP_SECONDS_DEFAULT
     private var toolbarLayout = PlayerToolbarLayout.Default
@@ -211,6 +213,7 @@ object PlayerSettingsRepository {
         chapterTitleEnabled = false
         playerLiquidGlassEnabled = false
         nextEpisodeSwipeDismissEnabled = false
+        miniPlayerEnabled = false
         skipBackwardSeconds = PLAYER_SKIP_SECONDS_DEFAULT
         skipForwardSeconds = PLAYER_SKIP_SECONDS_DEFAULT
         toolbarLayout = PlayerToolbarLayout.Default
@@ -291,6 +294,7 @@ object PlayerSettingsRepository {
         chapterTitleEnabled = PlayerSettingsStorage.loadChapterTitleEnabled() ?: false
         playerLiquidGlassEnabled = PlayerSettingsStorage.loadPlayerLiquidGlassEnabled() ?: false
         nextEpisodeSwipeDismissEnabled = PlayerSettingsStorage.loadNextEpisodeSwipeDismissEnabled() ?: false
+        miniPlayerEnabled = PlayerSettingsStorage.loadMiniPlayerEnabled() ?: false
         skipBackwardSeconds = normalizePlayerSkipSeconds(PlayerSettingsStorage.loadSkipBackwardSeconds())
         skipForwardSeconds = normalizePlayerSkipSeconds(PlayerSettingsStorage.loadSkipForwardSeconds())
         toolbarLayout = PlayerToolbarLayout.decode(PlayerSettingsStorage.loadToolbarLayout())
@@ -512,6 +516,14 @@ object PlayerSettingsRepository {
         nextEpisodeSwipeDismissEnabled = enabled
         publish()
         PlayerSettingsStorage.saveNextEpisodeSwipeDismissEnabled(enabled)
+    }
+
+    fun setMiniPlayerEnabled(enabled: Boolean) {
+        ensureLoaded()
+        if (miniPlayerEnabled == enabled) return
+        miniPlayerEnabled = enabled
+        publish()
+        PlayerSettingsStorage.saveMiniPlayerEnabled(enabled)
     }
 
     fun setShowLoadingOverlay(enabled: Boolean) {
@@ -1145,6 +1157,7 @@ object PlayerSettingsRepository {
             chapterTitleEnabled = chapterTitleEnabled,
             playerLiquidGlassEnabled = playerLiquidGlassEnabled,
             nextEpisodeSwipeDismissEnabled = nextEpisodeSwipeDismissEnabled,
+            miniPlayerEnabled = miniPlayerEnabled,
             skipBackwardSeconds = skipBackwardSeconds,
             skipForwardSeconds = skipForwardSeconds,
             toolbarLayout = toolbarLayout,

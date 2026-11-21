@@ -25,6 +25,7 @@ actual object PlayerSettingsStorage {
     private const val chapterTitleEnabledKey = "chapter_title_enabled"
     private const val playerLiquidGlassEnabledKey = "player_liquid_glass_enabled"
     private const val nextEpisodeSwipeDismissEnabledKey = "next_episode_swipe_dismiss_enabled"
+    private const val miniPlayerEnabledKey = "mini_player_enabled"
     private const val skipBackwardSecondsKey = "player_skip_backward_seconds"
     private const val skipForwardSecondsKey = "player_skip_forward_seconds"
     private const val toolbarLayoutKey = "player_toolbar_layout"
@@ -115,6 +116,7 @@ actual object PlayerSettingsStorage {
         chapterTitleEnabledKey,
         playerLiquidGlassEnabledKey,
         nextEpisodeSwipeDismissEnabledKey,
+        miniPlayerEnabledKey,
         skipBackwardSecondsKey,
         skipForwardSecondsKey,
         toolbarLayoutKey,
@@ -273,6 +275,13 @@ actual object PlayerSettingsStorage {
     }
     actual fun saveNextEpisodeSwipeDismissEnabled(enabled: Boolean) {
         preferences?.edit()?.putBoolean(ProfileScopedKey.of(nextEpisodeSwipeDismissEnabledKey), enabled)?.apply()
+    }
+    actual fun loadMiniPlayerEnabled(): Boolean? = preferences?.let { prefs ->
+        val key = ProfileScopedKey.of(miniPlayerEnabledKey)
+        if (prefs.contains(key)) prefs.getBoolean(key, false) else null
+    }
+    actual fun saveMiniPlayerEnabled(enabled: Boolean) {
+        preferences?.edit()?.putBoolean(ProfileScopedKey.of(miniPlayerEnabledKey), enabled)?.apply()
     }
 
     actual fun loadShowLoadingOverlay(): Boolean? =

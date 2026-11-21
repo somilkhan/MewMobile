@@ -45,6 +45,7 @@ fun PlayerScreen(
     randomEpisodeMode: Boolean = false,
     initialStreamFilename: String? = null,
     initialStreamInfoHash: String? = null,
+    miniPlayerLaunch: PlayerLaunch? = null,
 ) {
     PlayerScreenContent(
         PlayerScreenArgs(
@@ -88,6 +89,7 @@ fun PlayerScreen(
             randomEpisodeMode = randomEpisodeMode,
             initialStreamFilename = initialStreamFilename,
             initialStreamInfoHash = initialStreamInfoHash,
+            miniPlayerLaunch = miniPlayerLaunch,
         )
     )
 }

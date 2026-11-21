@@ -13,6 +13,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
+import com.nuvio.app.core.ui.PlatformBackHandler
 import com.nuvio.app.core.ui.isTvLayoutProfileEnabled
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -159,6 +160,11 @@ internal fun PlayerScreenContent(args: PlayerScreenArgs) {
             isPlaying = runtime.playbackSnapshot.isPlaying,
             videoSize = runtime.layoutSize,
         )
+        PlatformBackHandler(enabled = playerSettingsUiState.miniPlayerEnabled) {
+            runtime.flushWatchProgress()
+            runtime.handOffToMiniPlayerIfEnabled()
+            args.onBack()
+        }
         runtime.BindPlayerRuntimeEffects()
         CompositionLocalProvider(
             LocalDensity provides Density(density.density, density.fontScale * tvTextScale),
