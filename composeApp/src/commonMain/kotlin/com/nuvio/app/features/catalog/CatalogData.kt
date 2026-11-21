@@ -2,7 +2,7 @@ package com.nuvio.app.features.catalog
 
 import com.nuvio.app.features.addons.AddonCatalog
 import com.nuvio.app.features.addons.buildAddonResourceUrl
-import com.nuvio.app.features.addons.fetchAddonResponseText
+import com.nuvio.app.features.addons.httpGetText
 import com.nuvio.app.features.home.HomeCatalogParser
 import com.nuvio.app.features.home.MetaPreview
 import com.nuvio.app.features.home.stableKey
@@ -30,33 +30,21 @@ data class CatalogPaginationState(
 
 private val inflightMutex = Mutex()
 private val inflightRequestScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-private val inflightRequests = mutableMapOf<CatalogFetchKey, CompletableDeferred<String>>()
+private val inflightRequests = mutableMapOf<String, CompletableDeferred<String>>()
 
-private suspend fun deduplicatedHttpGetText(
-    url: String,
-    forceRefresh: Boolean,
-): String {
-    val requestKey = CatalogFetchKey(
-        url = url,
-        forceRefresh = forceRefresh,
-    )
+private suspend fun deduplicatedHttpGetText(url: String): String {
     val deferred = inflightMutex.withLock {
-        inflightRequests[requestKey] ?: CompletableDeferred<String>().also { created ->
-            inflightRequests[requestKey] = created
+        inflightRequests[url] ?: CompletableDeferred<String>().also { created ->
+            inflightRequests[url] = created
             inflightRequestScope.launch {
                 try {
-                    created.complete(
-                        fetchAddonResponseText(
-                            url = url,
-                            forceRefresh = forceRefresh,
-                        ),
-                    )
+                    created.complete(httpGetText(url))
                 } catch (error: Throwable) {
                     created.completeExceptionally(error)
                 } finally {
                     inflightMutex.withLock {
-                        if (inflightRequests[requestKey] === created) {
-                            inflightRequests.remove(requestKey)
+                        if (inflightRequests[url] === created) {
+                            inflightRequests.remove(url)
                         }
                     }
                 }
@@ -75,7 +63,6 @@ suspend fun fetchCatalogPage(
     search: String? = null,
     skip: Int? = null,
     maxItems: Int? = null,
-    forceRefresh: Boolean = false,
 ): CatalogPage {
     val url = buildCatalogUrl(
         manifestUrl = manifestUrl,
@@ -85,10 +72,7 @@ suspend fun fetchCatalogPage(
         search = search,
         skip = skip,
     )
-    val payload = deduplicatedHttpGetText(
-        url = url,
-        forceRefresh = forceRefresh,
-    )
+    val payload = deduplicatedHttpGetText(url)
     val parsed = HomeCatalogParser.parseCatalogResponse(
         payload = payload,
         maxItems = maxItems,
@@ -104,11 +88,6 @@ suspend fun fetchCatalogPage(
         nextSkip = nextSkip,
     )
 }
-
-private data class CatalogFetchKey(
-    val url: String,
-    val forceRefresh: Boolean,
-)
 
 fun AddonCatalog.supportsPagination(): Boolean =
     extra.any { property -> property.name.equals("skip", ignoreCase = true) }
