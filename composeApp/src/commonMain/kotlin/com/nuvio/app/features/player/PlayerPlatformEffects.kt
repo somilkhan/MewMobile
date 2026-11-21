@@ -1,6 +1,8 @@
 package com.nuvio.app.features.player
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.unit.IntSize
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -20,21 +22,14 @@ data class PlayerAudioLevel(
 
 object PlayerOrientationPreference {
     private val _portrait = MutableStateFlow(false)
-    private var originalRequestedOrientation: Int? = null
     val portrait: StateFlow<Boolean> = _portrait.asStateFlow()
 
-    fun toggle() { _portrait.value = !_portrait.value }
-
-    internal fun captureOriginalOrientation(requestedOrientation: Int): Int {
-        if (originalRequestedOrientation == null) {
-            originalRequestedOrientation = requestedOrientation
-        }
-        return originalRequestedOrientation ?: requestedOrientation
+    fun toggle() {
+        _portrait.value = !_portrait.value
     }
 
     internal fun reset() {
         _portrait.value = false
-        originalRequestedOrientation = null
     }
 }
 
@@ -43,6 +38,15 @@ expect fun LockPlayerToLandscape()
 
 @Composable
 expect fun rememberPlayerOrientationToggleSupported(): Boolean
+
+@Composable
+expect fun FullscreenPlayerDialog(
+    onDismiss: () -> Unit,
+    content: @Composable () -> Unit,
+)
+
+@Composable
+expect fun HidePlayerSystemBars()
 
 @Composable
 expect fun EnterImmersivePlayerMode(keepScreenAwake: Boolean)
@@ -56,5 +60,34 @@ expect fun ManagePlayerPictureInPicture(
 @Composable
 expect fun rememberIsInPictureInPicture(): Boolean
 
+/**
+ * Key of the output media audio plays on (speaker, wired or Bluetooth headphones…), updated when
+ * the output changes. Null while [enabled] is false or when the platform cannot tell.
+ */
 @Composable
-expect fun rememberPlayerGestureController(): PlayerGestureController?
+internal expect fun rememberAudioOutputKey(enabled: Boolean): String?
+
+@Composable
+fun rememberPlayerGestureController(restoreBrightness: Boolean): PlayerGestureController? {
+    val controller = rememberPlatformPlayerGestureController() ?: return null
+    DisposableEffect(controller, restoreBrightness) {
+        if (restoreBrightness) {
+            PlayerSettingsStorage.loadPlaybackBrightness()
+                ?.takeIf { it in 0f..1f }
+                ?.let(controller::setBrightness)
+        }
+        onDispose {}
+    }
+    return remember(controller) {
+        object : PlayerGestureController by controller {
+            override fun setBrightness(level: Float): Float? {
+                if (!level.isFinite()) return null
+                return controller.setBrightness(level.coerceIn(0f, 1f))
+                    ?.also(PlayerSettingsStorage::savePlaybackBrightness)
+            }
+        }
+    }
+}
+
+@Composable
+internal expect fun rememberPlatformPlayerGestureController(): PlayerGestureController?

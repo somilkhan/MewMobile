@@ -26,11 +26,11 @@ object TmdbSettingsRepository {
     private var useArtwork = true
     private var useBasicInfo = true
     private var useDetails = true
-    private var useReleaseDates = false
     private var useCredits = true
     private var useProductions = true
     private var useNetworks = true
     private var useEpisodes = true
+    private var useEpisodeRatings = true
     private var useSeasonPosters = true
     private var useMoreLikeThis = true
     private var useCollections = true
@@ -61,14 +61,10 @@ object TmdbSettingsRepository {
         return _uiState.value
     }
 
-    /** Matches Enhanced: plugin requests use the configured key, then the bundled build key. */
-    fun effectiveApiKey(): String = snapshot().apiKey
-        .takeIf(String::isNotBlank)
-        ?: TmdbConfig.API_KEY
+    fun effectiveApiKey(): String = snapshot().apiKey.ifBlank { TmdbConfig.API_KEY }
 
     fun setEnabled(value: Boolean) {
         ensureLoaded()
-        if (value && apiKey.isBlank()) return
         if (enabled == value) return
         enabled = value
         publish()
@@ -83,14 +79,9 @@ object TmdbSettingsRepository {
         val normalized = value.trim()
         if (apiKey == normalized) return
         apiKey = normalized
-        if (apiKey.isBlank()) {
-            enabled = false
-            TmdbSettingsStorage.saveEnabled(false)
-        }
         publish()
-        TmdbSettingsStorage.saveApiKey(normalized, EpisodeReleaseDatePlatform.nowEpochMs())
+        TmdbSettingsStorage.saveApiKey(normalized)
         invalidateMetadata()
-        if (wasEnabled != enabled) HomeRepository.onTmdbEnabledChanged()
     }
 
     fun setLanguage(value: String) {
@@ -141,13 +132,6 @@ object TmdbSettingsRepository {
         persist = TmdbSettingsStorage::saveUseDetails,
     )
 
-    fun setUseReleaseDates(value: Boolean) = setBoolean(
-        current = useReleaseDates,
-        next = value,
-        update = { useReleaseDates = it },
-        persist = TmdbSettingsStorage::saveUseReleaseDates,
-    )
-
     fun setUseCredits(value: Boolean) = setBoolean(
         current = useCredits,
         next = value,
@@ -176,6 +160,15 @@ object TmdbSettingsRepository {
         persist = TmdbSettingsStorage::saveUseEpisodes,
     )
 
+    fun setUseEpisodeRatings(value: Boolean) {
+        ensureLoaded()
+        if (useEpisodeRatings == value) return
+        useEpisodeRatings = value
+        publish()
+        TmdbSettingsStorage.saveUseEpisodeRatings(value)
+        invalidateEpisodeRatingMetadata()
+    }
+
     fun setUseSeasonPosters(value: Boolean) = setBoolean(
         current = useSeasonPosters,
         next = value,
@@ -197,6 +190,16 @@ object TmdbSettingsRepository {
         persist = TmdbSettingsStorage::saveUseCollections,
     )
 
+    fun setTitleLanguage(value: TmdbTitleLanguage) {
+        ensureLoaded()
+        if (titleLanguage == value) return
+        titleLanguage = value
+        publish()
+        TmdbSettingsStorage.saveTitleLanguage(value.storageId)
+        TmdbMetadataService.clearEnrichmentCache()
+        invalidateMetadata()
+    }
+
     private fun setBoolean(
         current: Boolean,
         next: Boolean,
@@ -211,12 +214,12 @@ object TmdbSettingsRepository {
     }
 
     private fun loadFromDisk() {
+        val wasLoaded = hasLoaded
+        val previousApiKey = apiKey
+        val previousUseEpisodeRatings = useEpisodeRatings
         hasLoaded = true
+        enabled = TmdbSettingsStorage.loadEnabled() ?: false
         apiKey = TmdbSettingsStorage.loadApiKey()?.trim().orEmpty()
-        if (apiKey.isNotBlank() && TmdbSettingsStorage.loadApiKeyUpdatedAtEpochMs() == null) {
-            TmdbSettingsStorage.saveApiKey(apiKey, EpisodeReleaseDatePlatform.nowEpochMs())
-        }
-        enabled = (TmdbSettingsStorage.loadEnabled() ?: false) && apiKey.isNotBlank()
         val storedLanguage = TmdbSettingsStorage.loadLanguage()
         language = storedLanguage?.let(::normalizeLanguage)
             ?.takeIf(String::isNotBlank)
@@ -225,21 +228,22 @@ object TmdbSettingsRepository {
         useArtwork = TmdbSettingsStorage.loadUseArtwork() ?: true
         useBasicInfo = TmdbSettingsStorage.loadUseBasicInfo() ?: true
         useDetails = TmdbSettingsStorage.loadUseDetails() ?: true
-        useReleaseDates = TmdbSettingsStorage.loadUseReleaseDates() ?: false
         useCredits = TmdbSettingsStorage.loadUseCredits() ?: true
         useProductions = TmdbSettingsStorage.loadUseProductions() ?: true
         useNetworks = TmdbSettingsStorage.loadUseNetworks() ?: true
         useEpisodes = TmdbSettingsStorage.loadUseEpisodes() ?: true
+        useEpisodeRatings = TmdbSettingsStorage.loadUseEpisodeRatings() ?: true
         useSeasonPosters = TmdbSettingsStorage.loadUseSeasonPosters() ?: true
         useMoreLikeThis = TmdbSettingsStorage.loadUseMoreLikeThis() ?: true
         useCollections = TmdbSettingsStorage.loadUseCollections() ?: true
         titleLanguage = TmdbTitleLanguage.fromStorageId(TmdbSettingsStorage.loadTitleLanguage())
         publish()
-    }
-
-    private fun invalidateMetadata() {
-        MetaDetailsRepository.invalidateTmdbEnrichment()
-        ContinueWatchingEnrichmentCache.clearAll(ProfileRepository.activeProfileId)
+        if (wasLoaded && previousApiKey != apiKey) {
+            invalidateMetadata()
+        }
+        if (wasLoaded && previousUseEpisodeRatings != useEpisodeRatings) {
+            invalidateEpisodeRatingMetadata()
+        }
     }
 
     private fun publish() {
@@ -251,11 +255,11 @@ object TmdbSettingsRepository {
             useArtwork = useArtwork,
             useBasicInfo = useBasicInfo,
             useDetails = useDetails,
-            useReleaseDates = useReleaseDates,
             useCredits = useCredits,
             useProductions = useProductions,
             useNetworks = useNetworks,
             useEpisodes = useEpisodes,
+            useEpisodeRatings = useEpisodeRatings,
             useSeasonPosters = useSeasonPosters,
             useMoreLikeThis = useMoreLikeThis,
             useCollections = useCollections,
@@ -263,9 +267,13 @@ object TmdbSettingsRepository {
         )
     }
 
-    private fun defaultTmdbLanguage(): String {
-        val preferred = DeviceLanguagePreferences.preferredLanguageCodes().firstOrNull()
-        return normalizeLanguage(preferred).ifBlank { "en" }
+    private fun invalidateMetadata() {
+        MetaDetailsRepository.clear()
+        ContinueWatchingEnrichmentCache.clearAll(ProfileRepository.activeProfileId)
+    }
+
+    private fun invalidateEpisodeRatingMetadata() {
+        MetaDetailsRepository.clear()
     }
 }
 

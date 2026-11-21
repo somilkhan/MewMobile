@@ -55,7 +55,6 @@ import com.nuvio.app.core.ui.NuvioInputField
 import com.nuvio.app.core.ui.NuvioPrimaryButton
 import com.nuvio.app.core.ui.NuvioSectionLabel
 import com.nuvio.app.core.ui.NuvioSurfaceCard
-import com.nuvio.app.features.streams.StreamSourcePreferencesRepository
 import com.nuvio.app.features.plugins.runtime.PluginRuntime
 import kotlinx.coroutines.launch
 import nuvio.composeapp.generated.resources.Res
@@ -101,8 +100,6 @@ import nuvio.composeapp.generated.resources.plugins_section_repository_control
 import nuvio.composeapp.generated.resources.plugins_test_error_title
 import nuvio.composeapp.generated.resources.plugins_test_failed
 import nuvio.composeapp.generated.resources.plugins_test_results_count
-import nuvio.composeapp.generated.resources.streams_pin_source_title
-import nuvio.composeapp.generated.resources.streams_unpin_source_title
 import org.jetbrains.compose.resources.stringResource
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -115,10 +112,6 @@ fun PluginsSettingsPageContent(
     }
 
     val uiState by PluginRepository.uiState.collectAsStateWithLifecycle()
-    val sourcePreferences by remember {
-        StreamSourcePreferencesRepository.ensureLoaded()
-        StreamSourcePreferencesRepository.uiState
-    }.collectAsStateWithLifecycle()
     val coroutineScope = rememberCoroutineScope()
 
     var repositoryUrl by rememberSaveable { mutableStateOf("") }
@@ -134,11 +127,6 @@ fun PluginsSettingsPageContent(
 
     val sortedRepos = remember(uiState.repositories) {
         uiState.repositories.sortedBy { it.name.lowercase() }
-    }
-    LaunchedEffect(sortedRepos, selectedRepositoryUrl) {
-        if (selectedRepositoryUrl != null && sortedRepos.none { it.manifestUrl == selectedRepositoryUrl }) {
-            selectedRepositoryUrl = null
-        }
     }
     val repositoryNameByUrl = remember(sortedRepos) {
         sortedRepos.associate { it.manifestUrl to it.name }
@@ -610,7 +598,7 @@ fun PluginsSettingsPageContent(
                         } else {
                             stringResource(Res.string.plugins_button_test_provider)
                         },
-                        enabled = uiState.pluginsEnabled && !isTestingThisScraper,
+                        enabled = !isTestingThisScraper,
                         onClick = {
                             testingScraperId = scraper.id
                             coroutineScope.launch {

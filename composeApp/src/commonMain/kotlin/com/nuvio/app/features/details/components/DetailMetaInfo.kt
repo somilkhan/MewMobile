@@ -10,7 +10,6 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -29,15 +28,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -67,7 +61,8 @@ import com.nuvio.app.features.mdblist.MdbListMetadataService.PROVIDER_MAL
 import com.nuvio.app.features.mdblist.MdbListMetadataService.PROVIDER_TMDB
 import com.nuvio.app.features.mdblist.MdbListMetadataService.PROVIDER_TOMATOES
 import com.nuvio.app.features.mdblist.MdbListMetadataService.PROVIDER_TRAKT
-import coil3.compose.AsyncImage
+import com.nuvio.app.features.mdblist.RottenTomatoesStatus
+import com.nuvio.app.features.mdblist.rottenTomatoesStatus
 import nuvio.composeapp.generated.resources.*
 import nuvio.composeapp.generated.resources.rating_audience_score
 import nuvio.composeapp.generated.resources.rating_imdb
@@ -91,8 +86,9 @@ fun DetailMetaInfo(
     episodeImdbRatings: Map<Pair<Int, Int>, Double> = emptyMap(),
     episodeTmdbRatings: Map<Pair<Int, Int>, Double> = emptyMap(),
     modifier: Modifier = Modifier,
-    showNuvioRead: Boolean = false,
-    descriptionOnly: Boolean = false,
+    horizontalScrollPadding: Dp = 0.dp,
+    showOverallRatings: Boolean = true,
+    isMdbListActive: Boolean = false,
 ) {
     var showRatings by remember { mutableStateOf(false) }
     Column(
@@ -101,124 +97,19 @@ fun DetailMetaInfo(
             .animateContentSize(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        val releaseLine = if (descriptionOnly) null else formatMetaReleaseLineForDetails(meta)
-        val runtimeText = if (descriptionOnly) null else formatRuntimeForDisplay(meta.runtime)
-        val seasonCountLabel = remember(descriptionOnly, meta.type, meta.videos) {
-            if (descriptionOnly) return@remember null
-            val isSeriesLike = meta.type == "series" || meta.videos.any { it.season != null || it.episode != null }
-            if (!isSeriesLike) {
-                null
-            } else {
-                meta.videos
-                    .mapNotNull { video -> video.season?.takeIf { it > 0 } }
-                    .distinct()
-                    .size
-                    .takeIf { it > 0 }
-                    ?.let { count -> runBlocking { getString(Res.string.details_total_seasons, count) } }
-            }
-        }
-        val totalEpisodesLabel = remember(descriptionOnly, meta.type, meta.videos) {
-            if (descriptionOnly) return@remember null
-            val isSeriesLike = meta.type == "series" || meta.videos.any { it.season != null || it.episode != null }
-            if (!isSeriesLike) {
-                null
-            } else {
-                meta.mainSeriesStats()
-                    ?.episodeCount
-                    ?.takeIf { it > 0 }
-                    ?.let { count -> runBlocking { getString(Res.string.details_total_episodes, count) } }
-            }
-        }
-        val semanticMetadata = remember(descriptionOnly, meta.ageRating, meta.imdbRating, meta.externalRatings) {
-            if (descriptionOnly) DetailHeaderMetadataData(null, null) else detailHeaderMetadataData(meta)
-        }
-        val ratings = if (descriptionOnly) emptyList() else meta.externalRatings
+        val releaseLine = formatMetaReleaseLineForDetails(meta)
+        val runtimeText = formatRuntimeForDisplay(meta.runtime)
+        val ageBadge = meta.ageRating?.trim()?.takeIf { it.isNotBlank() }
+        val validImdbRating = meta.imdbRating
+            ?.takeIf { showOverallRatings && !isMdbListActive }
+            ?.toDoubleOrNull()
+            ?.takeIf { it > 0.0 }
+            ?.let(::formatOneDecimal)
         val hasMetaRow = releaseLine != null ||
             runtimeText != null ||
-            seasonCountLabel != null ||
-            totalEpisodesLabel != null ||
-            semanticMetadata.ageRating != null ||
-            semanticMetadata.rawImdbRating != null
-        val overviewTextItems = buildList {
-            releaseLine?.let(::add)
-            seasonCountLabel?.let(::add)
-            totalEpisodesLabel?.let(::add)
-            runtimeText?.let(::add)
-        }
-        val hasPremiumOverview = hasMetaRow ||
-            ratings.isNotEmpty() ||
-            !meta.description.isNullOrBlank()
-        if (showNuvioRead && !descriptionOnly && hasPremiumOverview) {
-            DetailPremiumOverviewCard(
-                textItems = overviewTextItems,
-                semanticMetadata = semanticMetadata,
-                ratings = ratings,
-                description = meta.description,
-                onRatingsClick = { showRatings = true },
-            )
-        } else {
-            DetailStandardOverview(
-                textItems = overviewTextItems,
-                semanticMetadata = semanticMetadata,
-                ratings = ratings,
-                description = meta.description,
-                onRatingsClick = { showRatings = true },
-            )
-        }
-
-        if (!descriptionOnly && meta.director.isNotEmpty()) {
-            MetaLabelValueRow(
-                label = stringResource(Res.string.details_director),
-                value = meta.director.joinToString(", "),
-            )
-        }
-
-        if (!descriptionOnly && meta.writer.isNotEmpty()) {
-            MetaLabelValueRow(
-                label = stringResource(Res.string.details_writer),
-                value = meta.writer.joinToString(", "),
-            )
-        }
-
-    }
-
-    if (showRatings) {
-        DetailRatingsSheet(
-            meta = meta,
-            episodeImdbRatings = episodeImdbRatings,
-            episodeTmdbRatings = episodeTmdbRatings,
-            onDismiss = { showRatings = false },
-        )
-    }
-}
-
-@Composable
-private fun DetailPremiumOverviewCard(
-    textItems: List<String>,
-    semanticMetadata: DetailHeaderMetadataData,
-    ratings: List<MetaExternalRating>,
-    description: String?,
-    onRatingsClick: () -> Unit,
-) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(28.dp),
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.82f),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.10f)),
-    ) {
-        Column(
-            modifier = Modifier
-                .background(
-                    Brush.verticalGradient(
-                        listOf(
-                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.055f),
-                            Color.Transparent,
-                        ),
-                    ),
-                )
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
+            ageBadge != null ||
+            validImdbRating != null
+        if (hasMetaRow) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -246,31 +137,23 @@ private fun DetailPremiumOverviewCard(
                         lineHeight = 18.sp,
                     )
                 }
-            }
-
-            if (
-                textItems.isNotEmpty() ||
-                semanticMetadata.ageRating != null ||
-                semanticMetadata.rawImdbRating != null
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    textItems.forEach { item -> DetailPremiumOverviewPill(text = item) }
-                    semanticMetadata.ageRating?.let { ageRating ->
-                        DetailHeroMetaBadge(
-                            text = ageRating,
-                            contentColor = MaterialTheme.colorScheme.onSurface,
-                        )
-                    }
-                    semanticMetadata.rawImdbRating?.let { rating ->
-                        DetailImdbRating(
-                            rating = rating,
-                            fallbackColor = MaterialTheme.colorScheme.onSurface,
+                ageBadge?.let { badge ->
+                    DetailHeroMetaBadge(text = badge)
+                }
+                if (validImdbRating != null) {
+                    val imdbTextStyle = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.sp,
+                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        ImdbRatingSourceLabel(storeTextStyle = imdbTextStyle)
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Text(
+                            text = validImdbRating,
+                            style = imdbTextStyle,
+                            color = ImdbYellow,
                         )
                     }
                 }
@@ -295,38 +178,10 @@ private fun DetailPremiumOverviewCard(
     }
 }
 
-@Composable
-private fun DetailPremiumOverviewPill(text: String) {
-    Surface(
-        shape = RoundedCornerShape(999.dp),
-        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.11f)),
-    ) {
-        Text(
-            text = text,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-            fontWeight = FontWeight.SemiBold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
-}
-
-@Composable
-private fun DetailPremiumStoryBlock(description: String) {
-    var expanded by remember(description) { mutableStateOf(false) }
-    var canExpand by remember(description) { mutableStateOf(false) }
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(22.dp),
-        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.055f),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)),
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 13.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+        AnimatedVisibility(
+            visible = isMdbListActive && meta.externalRatings.isNotEmpty(),
+            enter = fadeIn() + expandVertically(),
+            exit = fadeOut() + shrinkVertically(),
         ) {
             Text(
                 text = stringResource(Res.string.details_premium_story_label),
@@ -401,83 +256,50 @@ private fun DetailStandardOverview(
                 )
             }
         }
-    }
-    AnimatedVisibility(
-        visible = ratings.isNotEmpty(),
-        enter = fadeIn() + expandVertically(),
-        exit = fadeOut() + shrinkVertically(),
-    ) {
-        DetailRatingsRow(
-            ratings = ratings,
-            horizontalScrollPadding = 0.dp,
-            onClick = onRatingsClick,
-        )
-    }
-    description?.trim()?.takeIf { it.isNotBlank() }?.let { synopsis ->
-        var expanded by remember(synopsis) { mutableStateOf(false) }
-        var canExpand by remember(synopsis) { mutableStateOf(false) }
-        val scrollState = rememberScrollState()
-        Column(modifier = Modifier.animateContentSize()) {
-            Text(
-                text = synopsis,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = if (expanded) Int.MAX_VALUE else 3,
-                overflow = TextOverflow.Ellipsis,
-                lineHeight = 22.sp,
-                onTextLayout = { result -> if (!expanded) canExpand = result.hasVisualOverflow },
-                modifier = if (expanded) {
-                    Modifier.heightIn(max = 220.dp).verticalScroll(scrollState)
-                } else {
-                    Modifier
-                },
+
+        if (!meta.description.isNullOrBlank()) {
+            ExpandableDescription(
+                text = meta.description,
+                collapsedMaxLines = 3,
+                style = MaterialTheme.typography.bodyMedium.copy(lineHeight = 22.sp),
             )
-            if (canExpand) {
-                Text(
-                    text = if (expanded) {
-                        stringResource(Res.string.details_show_less)
-                    } else {
-                        stringResource(Res.string.details_show_more)
-                    },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.clickable { expanded = !expanded }.padding(top = 4.dp),
-                )
-            }
         }
     }
 }
 
 @Composable
-private fun DetailRatingsRow(
+internal fun DetailRatingsRow(
     ratings: List<MetaExternalRating>,
-    horizontalScrollPadding: Dp,
-    onClick: (() -> Unit)?,
+    modifier: Modifier = Modifier,
+    horizontalScrollPadding: Dp = 0.dp,
 ) {
-    val orderedRatings = remember(ratings) {
+    RatingsRow(
+        ratings = ratings,
+        modifier = modifier
+            .nuvioHorizontalScrollBleed(horizontalScrollPadding)
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = horizontalScrollPadding),
+    )
+}
+
+@Composable
+internal fun RatingsRow(
+    ratings: List<MetaExternalRating>,
+    modifier: Modifier = Modifier,
+    maxItems: Int = Int.MAX_VALUE,
+) {
+    val orderedRatings = remember(ratings, maxItems) {
         val bySource = ratings.associateBy { it.source }
         ratingVisuals.mapNotNull { visuals ->
             bySource[visuals.source]?.let { rating -> visuals to rating }
-        }
+        }.take(maxItems)
     }
 
     if (orderedRatings.isEmpty()) return
 
     Row(
-        modifier = Modifier
-            .nuvioHorizontalScrollBleed(horizontalScrollPadding)
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState())
-            .padding(horizontal = horizontalScrollPadding)
-            .then(
-                if (onClick != null) {
-                    Modifier
-                        .nuvioKeyboardFocusIndicator(RoundedCornerShape(12.dp))
-                        .clickable(onClick = onClick)
-                } else {
-                    Modifier
-                },
-            ),
+        modifier = modifier,
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp),
     ) {
@@ -490,15 +312,16 @@ private fun DetailRatingsRow(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 if (visuals.source == PROVIDER_IMDB && !AppFeaturePolicy.imdbRatingLogoEnabled) {
-                    ImdbRatingSourceLabel(
-                        storeTextStyle = ratingTextStyle,
-                        storeTextColor = visuals.valueColor,
-                    )
+                    ImdbRatingSourceLabel(storeTextStyle = ratingTextStyle)
                 } else {
+                    val logoHeight = when (rating.rottenTomatoesStatus) {
+                        RottenTomatoesStatus.CERTIFIED_FRESH, RottenTomatoesStatus.VERIFIED_HOT -> 24.dp
+                        else -> 16.dp
+                    }
                     Image(
-                        painter = painterResource(visuals.logo),
+                        painter = painterResource(visuals.logoFor(rating)),
                         contentDescription = visuals.displayName,
-                        modifier = Modifier.size(width = visuals.logoWidth, height = 16.dp),
+                        modifier = Modifier.size(width = maxOf(visuals.logoWidth, logoHeight), height = logoHeight),
                     )
                 }
                 Spacer(modifier = Modifier.width(4.dp))
@@ -773,38 +596,25 @@ private val EpisodeRatingBad = Color(0xFFFF1744)
 private val EpisodeRatingGarbage = Color(0xFF9C4DCC)
 
 @Composable
-private fun ImdbRatingSourceLabel(
-    storeTextStyle: TextStyle,
-    storeTextColor: Color,
-) {
+internal fun ImdbRatingSourceLabel(storeTextStyle: TextStyle) {
     if (AppFeaturePolicy.imdbRatingLogoEnabled) {
-        Surface(
-            shape = RoundedCornerShape(4.dp),
-            color = ImdbYellow,
-        ) {
-            Text(
-                text = stringResource(Res.string.source_imdb),
-                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
-                style = MaterialTheme.typography.labelMedium.copy(
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Black,
-                    letterSpacing = 0.sp,
-                ),
-                color = ImdbBlack,
-            )
-        }
+        Image(
+            painter = painterResource(Res.drawable.rating_imdb),
+            contentDescription = stringResource(Res.string.source_imdb),
+            modifier = Modifier.size(width = 30.dp, height = 16.dp),
+        )
     } else {
         Text(
             text = stringResource(Res.string.source_imdb),
             style = storeTextStyle,
-            color = storeTextColor,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
         )
     }
 }
 
 @Composable
-private fun MetaLabelValueRow(
+internal fun MetaLabelValueRow(
     label: String,
     value: String,
 ) {
@@ -827,52 +637,47 @@ private fun MetaLabelValueRow(
 internal fun DetailHeroMetaBadge(
     text: String,
     contentColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+    secondaryText: String? = null,
 ) {
-    Box(
+    val borderColor = contentColor.copy(alpha = 0.55f)
+    Row(
         modifier = Modifier
             .border(
-                border = BorderStroke(1.dp, contentColor.copy(alpha = 0.55f)),
+                border = BorderStroke(1.dp, borderColor),
                 shape = RoundedCornerShape(6.dp),
             )
             .padding(horizontal = 8.dp, vertical = 4.dp),
-        contentAlignment = Alignment.Center,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.labelMedium,
-            color = contentColor,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+        MetaBadgeText(text = text, color = contentColor)
+        secondaryText?.let { secondary ->
+            Box(
+                modifier = Modifier
+                    .width(1.dp)
+                    .height(12.dp)
+                    .background(borderColor),
+            )
+            MetaBadgeText(text = secondary, color = contentColor)
+        }
     }
 }
 
 @Composable
-internal fun DetailImdbRating(
-    rating: String,
-    fallbackColor: Color,
+private fun MetaBadgeText(
+    text: String,
+    color: Color,
 ) {
-    val textStyle = MaterialTheme.typography.titleMedium.copy(
-        fontWeight = FontWeight.Bold,
-        letterSpacing = 0.sp,
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelMedium,
+        color = color,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
     )
-    val ratingColor = if (AppFeaturePolicy.imdbRatingLogoEnabled) ImdbYellow else fallbackColor
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        ImdbRatingSourceLabel(
-            storeTextStyle = textStyle,
-            storeTextColor = fallbackColor,
-        )
-        Spacer(modifier = Modifier.width(5.dp))
-        Text(
-            text = rating,
-            style = textStyle,
-            color = ratingColor,
-        )
-    }
 }
 
-private val ImdbYellow = Color(0xFFF5C518)
-private val ImdbBlack = Color(0xFF000000)
+internal val ImdbYellow = Color(0xFFF5C518)
 
 private data class RatingVisuals(
     val source: String,
@@ -882,6 +687,17 @@ private data class RatingVisuals(
     val valueColor: Color,
     val format: (Double) -> String,
 )
+
+private fun RatingVisuals.logoFor(rating: MetaExternalRating): DrawableResource =
+    when (rating.rottenTomatoesStatus) {
+        RottenTomatoesStatus.FRESH -> Res.drawable.rating_rotten_tomatoes
+        RottenTomatoesStatus.ROTTEN -> Res.drawable.rating_rotten_tomatoes_rotten
+        RottenTomatoesStatus.CERTIFIED_FRESH -> Res.drawable.rating_rotten_tomatoes_certified
+        RottenTomatoesStatus.HOT -> Res.drawable.rating_audience_score
+        RottenTomatoesStatus.STALE -> Res.drawable.rating_audience_stale
+        RottenTomatoesStatus.VERIFIED_HOT -> Res.drawable.rating_audience_verified_hot
+        null -> logo
+    }
 
 private val ratingVisuals = listOf(
     RatingVisuals(
@@ -950,7 +766,7 @@ private val ratingVisuals = listOf(
     ),
 )
 
-private fun formatOneDecimal(value: Double): String {
+internal fun formatOneDecimal(value: Double): String {
     val rounded = (value * 10.0).roundToInt()
     val whole = rounded / 10
     val decimal = (rounded % 10).absoluteValue

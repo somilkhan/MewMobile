@@ -5,18 +5,31 @@ import androidx.compose.ui.Modifier
 
 interface PlayerEngineController {
     val playbackEngine: AndroidPlaybackEngine? get() = null
+    val supportsNightMode: Boolean get() = true
     fun play()
     fun pause()
     fun seekTo(positionMs: Long)
     fun seekBy(offsetMs: Long)
     fun retry()
-    fun setPlaybackSpeed(speed: Float)
-    /** Applies a transient video zoom without changing the saved aspect-ratio mode. */
+    fun isPictureInPictureSupported(): Boolean = false
+    fun startPictureInPicture() {}
     fun setVideoZoom(scale: Float) {}
+    fun showCastDialog() {}
+    fun setPlaybackSpeed(speed: Float)
+    fun networkSpeedBytesPerSecond(): Long? = null
+    fun currentPlayerVolume(): PlayerAudioLevel = PlayerAudioLevel(
+        fraction = 1f,
+        isMuted = false,
+    )
+    fun setPlayerVolume(level: Float): PlayerAudioLevel = PlayerAudioLevel(
+        fraction = 1f,
+        isMuted = false,
+    )
     fun setMuted(muted: Boolean) {}
     fun setVolumeBoost(multiplier: Float) {}
     fun getAudioTracks(): List<AudioTrack>
     fun getSubtitleTracks(): List<SubtitleTrack>
+    fun applyAudioLanguagePreferences(languages: List<String>)
     fun selectAudioTrack(index: Int)
     fun selectSubtitleTrack(index: Int)
     fun setSubtitleUri(url: String)
@@ -31,13 +44,39 @@ interface PlayerEngineController {
         hasActiveSubtitle: Boolean,
         useCustomSubtitles: Boolean = false,
     ) {}
+    /**
+     * Enables or disables hardware-keyboard shortcuts that a platform handles outside Compose
+     * (currently only iOS/mpv). Disabled while an overlay owns the keyboard or the controls
+     * are locked.
+     */
+    fun setKeyboardShortcutsEnabled(enabled: Boolean) {}
+
+    /**
+     * Routes a shortcut the platform recognised back into the player runtime, so a key press
+     * takes exactly the same path as the equivalent tap or gesture.
+     */
+    fun setKeyboardShortcutHandler(handler: ((PlayerKeyboardShortcut) -> Unit)?) {}
     fun setSubtitleDelayMs(delayMs: Int) {}
-    fun refreshSubtitlePosition(positionMs: Long) {}
+    /** Whether [setAudioDelayMs] has an effect; the player hides the audio delay control otherwise. */
+    val supportsAudioDelay: Boolean get() = false
+    /** Plays the audio [delayMs] later than the video; negative values play it earlier. */
+    fun setAudioDelayMs(delayMs: Int) {}
+    /** Whether [setAudioAmplificationDb] has an effect; the player hides the amplification control otherwise. */
+    val supportsAudioAmplification: Boolean get() = false
+    /** Boosts the audio by [db] decibels, from 0 (off) to [AUDIO_AMPLIFICATION_MAX_DB]. */
+    fun setAudioAmplificationDb(db: Int) {}
+    /** Whether the audio playing now goes through a downmix whose center level [setCenterMixLevelDb] changes. */
+    fun isCenterMixActive(): Boolean = false
+    /** Center channel level in the downmix, from [CENTER_MIX_LEVEL_MIN_DB] to [CENTER_MIX_LEVEL_MAX_DB]. */
+    fun setCenterMixLevelDb(db: Int) {}
     fun configureIosVideoOutput(settings: PlayerSettingsUiState) {}
     fun updateNowPlayingMetadata(info: PlayerNowPlayingInfo) {}
     fun clearNowPlayingInfo() {}
+    suspend fun getMediaInfo(): PlayerMediaInfo = PlayerMediaInfo()
     /** The loaded file's chapters, unsorted; empty when the engine cannot read them. */
     suspend fun getChapters(): List<PlayerChapter> = emptyList()
+    fun selectDiscTitle(index: Int) {}
+    fun loadDiscTitleDetails() {}
 }
 
 internal fun sanitizePlaybackHeaders(headers: Map<String, String>?): Map<String, String> {
@@ -84,7 +123,11 @@ expect fun PlatformPlayerSurface(
     initialPositionRequestKey: String? = null,
     resizeMode: PlayerResizeMode = PlayerResizeMode.Fit,
     playbackEngine: AndroidPlaybackEngine? = null,
+    animeContent: Boolean = false,
     useNativeController: Boolean = false,
+    discPlaybackEnabled: Boolean = false,
+    /** A Live TV channel: an endless stream that gets live-specific buffering and recovery. */
+    liveStream: Boolean = false,
     onInitialPositionHandled: (key: String, handled: Boolean) -> Unit = { _, _ -> },
     onControllerReady: (PlayerEngineController) -> Unit,
     onSnapshot: (PlayerPlaybackSnapshot) -> Unit,

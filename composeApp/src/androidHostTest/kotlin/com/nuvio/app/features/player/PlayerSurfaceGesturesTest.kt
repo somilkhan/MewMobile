@@ -1,17 +1,19 @@
 package com.nuvio.app.features.player
 
-import androidx.activity.ComponentActivity
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.click
+import androidx.compose.ui.test.doubleClick
+import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipe
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import org.junit.Rule
@@ -20,85 +22,202 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
 class PlayerSurfaceGesturesTest {
     @get:Rule
-    val compose = createAndroidComposeRule<ComponentActivity>()
+    val compose = createComposeRule()
 
+    private val playbackReady = mutableStateOf(false)
+    private var backGestureEdgePx = 0f
+    private val controlsLocked = mutableStateOf(false)
     private var taps = 0
-    private var unlocks = 0
+    private var doubleTaps = 0
+    private var speedBoosts = 0
+    private var seekPreviews = 0
+    private var seekCommits = 0
+    private var sideAdjustments = 0
+    private val gestureController = object : PlayerGestureController {
+        override fun currentBrightness() = 0.5f
+        override fun currentVolume() = PlayerAudioLevel(0.5f, false)
+        override fun setBrightness(level: Float): Float {
+            sideAdjustments++
+            return level
+        }
+        override fun setVolume(level: Float): PlayerAudioLevel {
+            sideAdjustments++
+            return PlayerAudioLevel(level, false)
+        }
+    }
 
-    private fun setContent(showUnlockTarget: Boolean = false) {
+    private fun setContent() {
         compose.setContent {
-            val controlsLocked = rememberUpdatedState(true)
+            val locked = rememberUpdatedState(controlsLocked.value)
             val noop = rememberUpdatedState<() -> Unit>({})
             Box(
                 Modifier.size(320.dp, 180.dp)
                     .testTag("surface")
                     .playerSurfaceTapGestures(
                         layoutSize = IntSize(320, 180),
-                        playerControlsLockedState = controlsLocked,
+                        playbackGesturesEnabled = playbackReady.value,
+                        playerControlsLockedState = locked,
                         onSurfaceTap = rememberUpdatedState { _: Offset -> taps++ },
-                        onSurfaceDoubleTap = rememberUpdatedState { _: Offset -> },
-                        activateHoldToSpeedState = noop,
+                        onSurfaceDoubleTap = rememberUpdatedState { _: Offset -> doubleTaps++ },
+                        activateHoldToSpeedState = rememberUpdatedState { speedBoosts++ },
                         deactivateHoldToSpeedState = noop,
                         revealLockedOverlayState = noop,
                     )
                     .playerSurfaceDragGestures(
-                        gestureController = null,
+                        gestureController = gestureController,
                         layoutSize = IntSize(320, 180),
+                        playbackGesturesEnabled = playbackReady.value,
                         sideGestureSystemEdgeExclusionPx = 0f,
-                        playerControlsLockedState = controlsLocked,
+                        horizontalSeekSystemEdgeExclusionPx = backGestureEdgePx,
+                        playerControlsLockedState = locked,
                         touchGesturesEnabledState = rememberUpdatedState(true),
                         isHoldToSpeedGestureActiveState = rememberUpdatedState(false),
                         currentPositionMsState = rememberUpdatedState(30_000L),
                         currentDurationMsState = rememberUpdatedState(120_000L),
                         deactivateHoldToSpeedState = noop,
-                        showHorizontalSeekPreviewState = rememberUpdatedState { _: Long, _: Long -> },
+                        showHorizontalSeekPreviewState = rememberUpdatedState { _: Long, _: Long -> seekPreviews++ },
                         showBrightnessFeedbackState = rememberUpdatedState { _: Float -> },
                         showVolumeFeedbackState = rememberUpdatedState { _: PlayerAudioLevel -> },
-                        currentVolumeBoostPercentState = rememberUpdatedState(100),
-                        applyVolumeBoostPercentState = rememberUpdatedState { _: Int -> },
                         clearLiveGestureFeedbackState = noop,
                         revealLockedOverlayState = noop,
-                        commitHorizontalSeekState = rememberUpdatedState { _: Long -> },
+                        commitHorizontalSeekState = rememberUpdatedState { _: Long -> seekCommits++ },
                     ),
-            ) {
-                if (showUnlockTarget) {
-                    Box(
-                        Modifier.align(Alignment.Center)
-                            .size(72.dp)
-                            .clickable { unlocks++ }
-                            .testTag("unlock"),
-                    )
-                }
-            }
+            )
+        }
+    }
+
+    private fun performPlaybackGestures() {
+        val surface = compose.onNodeWithTag("surface")
+        surface.performTouchInput { doubleClick(Offset(width * 0.85f, centerY)) }
+        surface.performTouchInput { swipe(center, Offset(width * 0.85f, centerY)) }
+        surface.performTouchInput { longClick(center) }
+        surface.performTouchInput { swipe(Offset(width * 0.1f, centerY), Offset(width * 0.1f, height * 0.1f)) }
+        surface.performTouchInput { swipe(Offset(width * 0.9f, centerY), Offset(width * 0.9f, height * 0.1f)) }
+    }
+
+    @Test
+    fun loadingIgnoresPlaybackGesturesButAllowsTappingControls() {
+        setContent()
+        compose.onNodeWithTag("surface").performTouchInput { click(center) }
+        performPlaybackGestures()
+        compose.runOnIdle {
+            assertTrue(taps > 0)
+            assertEquals(0, doubleTaps)
+            assertEquals(0, speedBoosts)
+            assertEquals(0, seekPreviews)
+            assertEquals(0, seekCommits)
+            assertEquals(0, sideAdjustments)
         }
     }
 
     @Test
-    fun lockedSurfaceTapSurvivesSmallFingerDrift() {
+    fun completingInitialLoadEnablesPlaybackGestures() {
         setContent()
+        compose.runOnIdle { playbackReady.value = true }
+        performPlaybackGestures()
+        compose.runOnIdle {
+            assertEquals(1, doubleTaps)
+            assertEquals(1, speedBoosts)
+            assertTrue(seekPreviews > 0)
+            assertEquals(1, seekCommits)
+            assertTrue(sideAdjustments > 0)
+        }
+    }
+
+    @Test
+    fun lockingControlsPreservesTapsWithSmallFingerMovement() {
+        playbackReady.value = true
+        setContent()
+        compose.runOnIdle { controlsLocked.value = true }
         compose.onNodeWithTag("surface").performTouchInput {
             down(center)
-            moveBy(Offset(1f, 0f))
+            moveTo(center + Offset(1f, 1f))
             up()
         }
-        // A single tap is held until the double-tap recognition window expires.
         compose.mainClock.advanceTimeBy(400)
         compose.runOnIdle { assertEquals(1, taps) }
     }
 
     @Test
-    fun lockedStateDoesNotCancelTheUnlockButtonTap() {
-        setContent(showUnlockTarget = true)
-        compose.onNodeWithTag("unlock").performTouchInput {
+    fun lockedControlsIgnoreSeekAndSideGestures() {
+        playbackReady.value = true
+        controlsLocked.value = true
+        setContent()
+        val surface = compose.onNodeWithTag("surface")
+        surface.performTouchInput { swipe(center, Offset(width * 0.85f, centerY)) }
+        surface.performTouchInput { swipe(Offset(width * 0.1f, centerY), Offset(width * 0.1f, height * 0.1f)) }
+        surface.performTouchInput { swipe(Offset(width * 0.9f, centerY), Offset(width * 0.9f, height * 0.1f)) }
+        compose.runOnIdle {
+            assertEquals(0, seekPreviews)
+            assertEquals(0, seekCommits)
+            assertEquals(0, sideAdjustments)
+        }
+    }
+
+    @Test
+    fun loadingAnotherSourceCancelsAnInProgressSeek() {
+        playbackReady.value = true
+        setContent()
+        val surface = compose.onNodeWithTag("surface")
+        surface.performTouchInput {
             down(center)
-            moveBy(Offset(1f, 0f))
+            moveTo(Offset(width * 0.85f, centerY))
+        }
+        compose.runOnIdle {
+            assertTrue(seekPreviews > 0)
+            playbackReady.value = false
+        }
+        surface.performTouchInput { up() }
+        compose.runOnIdle { assertEquals(0, seekCommits) }
+    }
+
+    @Test
+    fun gestureNavigationEdgesLeaveHorizontalSwipesToTheSystemBackGesture() {
+        playbackReady.value = true
+        backGestureEdgePx = 40f
+        setContent()
+        val surface = compose.onNodeWithTag("surface")
+        surface.performTouchInput { swipe(Offset(width - 2f, centerY), Offset(width * 0.5f, centerY)) }
+        surface.performTouchInput { swipe(Offset(2f, centerY), Offset(width * 0.5f, centerY)) }
+        compose.runOnIdle {
+            assertEquals(0, seekPreviews)
+            assertEquals(0, seekCommits)
+        }
+        surface.performTouchInput { swipe(center, Offset(width * 0.85f, centerY)) }
+        compose.runOnIdle { assertEquals(1, seekCommits) }
+    }
+
+    @Test
+    fun slowEdgeSwipeDoesNotActivateHoldToSpeed() {
+        playbackReady.value = true
+        backGestureEdgePx = 40f
+        setContent()
+        compose.onNodeWithTag("surface").performTouchInput {
+            down(Offset(width - 2f, centerY))
+            repeat(10) { step ->
+                moveTo(Offset(width - 2f - (step + 1) * 4f, centerY))
+                advanceEventTime(100)
+            }
             up()
         }
-        compose.runOnIdle { assertEquals(1, unlocks) }
+        compose.runOnIdle {
+            assertEquals(0, speedBoosts)
+            assertEquals(0, seekCommits)
+        }
+    }
+
+    @Test
+    fun stillFingerHoldStillActivatesHoldToSpeed() {
+        playbackReady.value = true
+        backGestureEdgePx = 40f
+        setContent()
+        compose.onNodeWithTag("surface").performTouchInput { longClick(Offset(width - 2f, centerY)) }
+        compose.runOnIdle { assertEquals(1, speedBoosts) }
     }
 }

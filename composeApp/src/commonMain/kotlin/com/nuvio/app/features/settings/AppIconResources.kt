@@ -35,11 +35,12 @@ internal val AppIconOption.wordmarkResource: DrawableResource
         AppIconOption.GRAPHITE -> Res.drawable.app_logo_wordmark_graphite
     }
 
-internal fun AppTheme.wordmarkResource(fallback: AppIconOption): DrawableResource = when (this) {
-    AppTheme.GOLD -> AppIconOption.COPPER.wordmarkResource
-    AppTheme.JADE -> AppIconOption.EMERALD.wordmarkResource
-    AppTheme.ROSE_GOLD -> AppIconOption.ROSE_GOLD.wordmarkResource
-    AppTheme.ARCTIC_BLUE -> AppIconOption.ARCTIC_BLUE.wordmarkResource
-    AppTheme.GRAPHITE -> AppIconOption.GRAPHITE.wordmarkResource
-    else -> fallback.wordmarkResource
-}
+internal fun AppTheme.wordmarkResource(fallback: AppIconOption): DrawableResource =
+    when (this) {
+        AppTheme.GOLD -> Res.drawable.app_logo_wordmark_gold
+        AppTheme.JADE -> AppIconOption.EMERALD.wordmarkResource
+        AppTheme.ROSE_GOLD -> AppIconOption.ROSE_GOLD.wordmarkResource
+        AppTheme.ARCTIC_BLUE -> AppIconOption.ARCTIC_BLUE.wordmarkResource
+        AppTheme.GRAPHITE -> AppIconOption.GRAPHITE.wordmarkResource
+        else -> fallback.wordmarkResource
+    }

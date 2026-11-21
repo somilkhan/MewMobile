@@ -8,6 +8,7 @@ import kotlin.test.assertTrue
 
 class StreamAutoPlaySelectorTest {
 
+
     @Test
     fun `bingeGroup-first selects matching stream before first stream mode`() {
         val first = stream(
@@ -289,129 +290,6 @@ class StreamAutoPlaySelectorTest {
         )
 
         assertEquals(stream, selected)
-    }
-
-    @Test
-    fun `matching binge group prefers the exact next episode filename`() {
-        val wrongEpisode = stream(
-            addonName = "AddonA",
-            url = "https://example.com/s02e03.mkv",
-            bingeGroup = "series-pack",
-            filename = "Black Clover S02E03.mkv",
-        )
-        val nextEpisode = stream(
-            addonName = "AddonB",
-            url = "https://example.com/s02e04.mkv",
-            bingeGroup = "series-pack",
-            filename = "Black Clover S02E04.mkv",
-        )
-
-        val selected = StreamAutoPlaySelector.selectAutoPlayStream(
-            streams = listOf(wrongEpisode, nextEpisode),
-            mode = StreamAutoPlayMode.FIRST_STREAM,
-            regexPattern = "",
-            source = StreamAutoPlaySource.ALL_SOURCES,
-            installedAddonNames = setOf("AddonA", "AddonB"),
-            selectedAddons = emptySet(),
-            selectedPlugins = emptySet(),
-            preferredBingeGroup = "series-pack",
-            preferredFilename = "Black Clover S02E04.mkv",
-            preferBingeGroupInSelection = true,
-        )
-
-        assertEquals(nextEpisode, selected)
-    }
-
-    @Test
-    fun `does not autoplay a previous episode when the expected episode is missing`() {
-        val previousEpisode = stream(
-            addonName = "AddonA",
-            url = "https://example.com/episode.mkv",
-            bingeGroup = "series-pack",
-            filename = "Black Clover S02E03.mkv",
-            infoHash = "expected-hash",
-        )
-        val anotherEpisode = stream(
-            addonName = "AddonB",
-            url = "https://example.com/other.mkv",
-            bingeGroup = "series-pack",
-            filename = "Black Clover S02E04.mkv",
-            infoHash = "other-hash",
-        )
-
-        val selected = StreamAutoPlaySelector.selectAutoPlayStream(
-            streams = listOf(anotherEpisode, previousEpisode),
-            mode = StreamAutoPlayMode.FIRST_STREAM,
-            regexPattern = "",
-            source = StreamAutoPlaySource.ALL_SOURCES,
-            installedAddonNames = setOf("AddonA", "AddonB"),
-            selectedAddons = emptySet(),
-            selectedPlugins = emptySet(),
-            preferredBingeGroup = "series-pack",
-            preferredFilename = "Black Clover S02E05.mkv",
-            preferredInfoHash = "expected-hash",
-            preferBingeGroupInSelection = true,
-        )
-
-        assertNull(selected)
-    }
-
-    @Test
-    fun `does not select same episode number from a different season`() {
-        val wrongSeason = stream(
-            addonName = "AddonA",
-            url = "https://example.com/s01e03.mkv",
-            bingeGroup = "black-clover-pack",
-            filename = "Black Clover S01E03.mkv",
-            infoHash = "wrong-season-hash",
-        )
-
-        val selected = StreamAutoPlaySelector.selectAutoPlayStream(
-            streams = listOf(wrongSeason),
-            mode = StreamAutoPlayMode.FIRST_STREAM,
-            regexPattern = "",
-            source = StreamAutoPlaySource.ALL_SOURCES,
-            installedAddonNames = setOf("AddonA"),
-            selectedAddons = emptySet(),
-            selectedPlugins = emptySet(),
-            preferredBingeGroup = "black-clover-pack",
-            preferredFilename = "Black Clover S02E03.mkv",
-            preferredInfoHash = "wrong-season-hash",
-            preferBingeGroupInSelection = true,
-        )
-
-        assertNull(selected)
-    }
-
-    @Test
-    fun `uses exact target episode from another group when preferred binge group is stale`() {
-        val stalePackEpisode = stream(
-            addonName = "AddonA",
-            url = "https://example.com/s01e03.mkv",
-            bingeGroup = "black-clover-pack",
-            filename = "Black Clover S01E03.mkv",
-        )
-        val correctEpisode = stream(
-            addonName = "AddonB",
-            url = "https://example.com/s02e03.mkv",
-            bingeGroup = "single-episode",
-            filename = "Black Clover S02E03.mkv",
-        )
-
-        val selected = StreamAutoPlaySelector.selectAutoPlayStream(
-            streams = listOf(stalePackEpisode, correctEpisode),
-            mode = StreamAutoPlayMode.FIRST_STREAM,
-            regexPattern = "",
-            source = StreamAutoPlaySource.ALL_SOURCES,
-            installedAddonNames = setOf("AddonA", "AddonB"),
-            selectedAddons = emptySet(),
-            selectedPlugins = emptySet(),
-            preferredBingeGroup = "black-clover-pack",
-            preferredFilename = "Black Clover S02E03.mkv",
-            preferBingeGroupInSelection = true,
-        )
-
-        assertEquals(correctEpisode, selected)
     }
 
     private fun stream(

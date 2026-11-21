@@ -4,7 +4,6 @@ import android.os.Process
 import com.dokar.quickjs.QuickJs
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.asCoroutineDispatcher
-import kotlinx.coroutines.withContext
 import java.util.concurrent.Executors
 
 internal val pluginDispatcher: CoroutineDispatcher =
@@ -17,8 +16,7 @@ internal val pluginDispatcher: CoroutineDispatcher =
         }
     }.asCoroutineDispatcher()
 
-internal suspend fun <T> withPluginThread(block: suspend () -> T): T =
-    withContext(pluginDispatcher) { block() }
+internal suspend fun <T> withPluginThread(block: suspend () -> T): T = block()
 
 internal fun QuickJs.configurePluginRuntime() {
     evaluationTimeoutMillis = PLUGIN_TIMEOUT_MS

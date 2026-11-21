@@ -465,7 +465,7 @@ private fun buildContentIntent(context: Context): PendingIntent? {
 }
 
 private fun downloadArtwork(urlString: String): Bitmap? {
-    val request = Request.Builder()
+    val request = okhttp3.Request.Builder()
         .url(urlString)
         .header("Accept", "image/*")
         .build()
@@ -489,11 +489,10 @@ private fun downloadArtwork(urlString: String): Bitmap? {
 }
 
 private val artworkHttpClient by lazy {
-    SharedOkHttpClient.base.newBuilder()
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(15, TimeUnit.SECONDS)
+    com.nuvio.app.core.network.SharedOkHttpClient.base.newBuilder()
+        .connectTimeout(10, java.util.concurrent.TimeUnit.SECONDS)
+        .readTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
         .followRedirects(true)
-        .followSslRedirects(true)
         .build()
 }
 

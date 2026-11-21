@@ -5,6 +5,8 @@ import kotlinx.atomicfu.locks.synchronized
 import com.nuvio.app.features.streams.AddonStreamGroup
 import com.nuvio.app.features.streams.StreamDebridCacheState
 import com.nuvio.app.features.streams.StreamItem
+import kotlinx.atomicfu.locks.SynchronizedObject
+import kotlinx.atomicfu.locks.synchronized
 
 object DebridStreamPresentation {
     private val formatter = DebridStreamFormatter()
@@ -37,7 +39,7 @@ object DebridStreamPresentation {
     internal fun applyPreferences(streams: List<StreamItem>, settings: DebridSettings): List<StreamItem> =
         applyPreferencesWithFacts(streams, settings).map { it.first }
 
-    /** Keeps facts computed during filtering available to the formatting step. */
+    /** Same as [applyPreferences], but keeps each stream's facts so callers don't recompute them. */
     internal fun applyPreferencesWithFacts(
         streams: List<StreamItem>,
         settings: DebridSettings,
@@ -165,15 +167,42 @@ internal object DebridStreamMetadata {
     private val releaseGroupRegex = Regex("-([a-z0-9][a-z0-9._]{1,24})($|\\.)", RegexOption.IGNORE_CASE)
     private val nonAlphanumericRegex = Regex("[^a-z0-9]")
     private val nonAlphanumericOrPlusRegex = Regex("[^a-z0-9+]")
-    private val resolutionTokens = listOf(
-        resolutionRegex("2160p?", "4k", "uhd") to DebridStreamResolution.P2160,
-        resolutionRegex("1440p?", "2k") to DebridStreamResolution.P1440,
-        resolutionRegex("1080p?", "fhd") to DebridStreamResolution.P1080,
-        resolutionRegex("720p?", "hd") to DebridStreamResolution.P720,
-        resolutionRegex("576p?") to DebridStreamResolution.P576,
-        resolutionRegex("480p?", "sd") to DebridStreamResolution.P480,
-        resolutionRegex("360p?") to DebridStreamResolution.P360,
+    private val explicitResolutionTokens = listOf(
+        resolutionRegex("2160[pi]?", "4k", "uhd") to DebridStreamResolution.P2160,
+        resolutionRegex("1440[pi]?", "2k") to DebridStreamResolution.P1440,
+        resolutionRegex("1080[pi]?", "fhd") to DebridStreamResolution.P1080,
+        resolutionRegex("720[pi]?") to DebridStreamResolution.P720,
+        resolutionRegex("576[pi]?") to DebridStreamResolution.P576,
+        resolutionRegex("480[pi]?") to DebridStreamResolution.P480,
+        resolutionRegex("360[pi]?") to DebridStreamResolution.P360,
     )
+    private val genericQualityTokens = listOf(
+        resolutionRegex("hd") to DebridStreamResolution.P720,
+        resolutionRegex("sd") to DebridStreamResolution.P480,
+    )
+
+    // Words release names use for each language besides its code. Short words that are common in
+    // titles ("por", "chi", "fra") are left out so a title is not read as a language.
+    private val languageAliases = mapOf(
+        DebridStreamLanguage.EN to listOf("eng", "english"),
+        DebridStreamLanguage.HI to listOf("hin", "hindi"),
+        DebridStreamLanguage.IT to listOf("ita", "italian", "italiano"),
+        DebridStreamLanguage.ES to listOf("spa", "esp", "spanish", "espanol", "castellano"),
+        DebridStreamLanguage.FR to listOf("fre", "french", "truefrench"),
+        DebridStreamLanguage.DE to listOf("ger", "deu", "german", "deutsch"),
+        DebridStreamLanguage.PT to listOf("portuguese", "portugues"),
+        DebridStreamLanguage.PL to listOf("pol", "polish"),
+        DebridStreamLanguage.CS to listOf("cze", "czech"),
+        DebridStreamLanguage.LA to listOf("latino"),
+        DebridStreamLanguage.JA to listOf("jpn", "japanese"),
+        DebridStreamLanguage.KO to listOf("kor", "korean"),
+        DebridStreamLanguage.ZH to listOf("chinese"),
+    )
+    private val languageRegexes = DebridStreamLanguage.entries.map { language ->
+        language to languageRegex(listOf(language.code) + languageAliases[language].orEmpty())
+    }
+    private val nonAlphanumericRunRegex = Regex("[^a-z0-9]+")
+
     fun effectivePreferences(settings: DebridSettings): DebridStreamPreferences {
         val default = DebridStreamPreferences()
         if (settings.streamPreferences != default) return settings.streamPreferences.normalized()
@@ -289,12 +318,31 @@ internal object DebridStreamMetadata {
         )
     }
 
-    private fun streamResolution(vararg values: String?): DebridStreamResolution =
-        values.firstNotNullOfOrNull { resolutionValue(it) } ?: DebridStreamResolution.UNKNOWN
+    private fun streamResolution(
+        parsedResolution: String?,
+        parsedQuality: String?,
+        searchText: String,
+    ): DebridStreamResolution {
+        explicitResolutionValue(parsedResolution)?.let { return it }
 
-    private fun resolutionValue(value: String?): DebridStreamResolution? {
+        explicitResolutionValue(searchText)?.let { return it }
+
+        explicitResolutionValue(parsedQuality)?.let { return it }
+
+        return genericQualityResolutionValue(parsedResolution)
+            ?: genericQualityResolutionValue(parsedQuality)
+            ?: genericQualityResolutionValue(searchText)
+            ?: DebridStreamResolution.UNKNOWN
+    }
+
+    private fun explicitResolutionValue(value: String?): DebridStreamResolution? {
         val normalized = value?.lowercase().orEmpty()
-        return resolutionTokens.firstOrNull { (regex, _) -> regex.containsMatchIn(normalized) }?.second
+        return explicitResolutionTokens.firstOrNull { (regex, _) -> regex.containsMatchIn(normalized) }?.second
+    }
+
+    private fun genericQualityResolutionValue(value: String?): DebridStreamResolution? {
+        val normalized = value?.lowercase().orEmpty()
+        return genericQualityTokens.firstOrNull { (regex, _) -> regex.containsMatchIn(normalized) }?.second
     }
 
     private fun streamQuality(parsedQuality: String?, searchText: String): DebridStreamQuality {
@@ -319,10 +367,8 @@ internal object DebridStreamMetadata {
     private fun streamVisualTags(parsedHdr: List<String>, searchText: String): List<DebridStreamVisualTag> {
         val text = (parsedHdr + searchText).joinToString(" ").lowercase()
         val tags = mutableListOf<DebridStreamVisualTag>()
-        val hasDv = parsedHdr.any { it.isDolbyVisionToken() } ||
-            dolbyVisionRegex.containsMatchIn(searchText)
-        val hasHdr = parsedHdr.any { it.isHdrToken() } ||
-            hdrRegex.containsMatchIn(searchText)
+        val hasDv = parsedHdr.any { it.isDolbyVisionToken() } || dolbyVisionRegex.containsMatchIn(searchText)
+        val hasHdr = parsedHdr.any { it.isHdrToken() } || hdrRegex.containsMatchIn(searchText)
         if (hasDv && hasHdr) tags += DebridStreamVisualTag.HDR_DV
         if (hasDv && !hasHdr) tags += DebridStreamVisualTag.DV_ONLY
         if (hasHdr && !hasDv) tags += DebridStreamVisualTag.HDR_ONLY
@@ -433,7 +479,10 @@ internal object DebridStreamMetadata {
     private fun resolutionRegex(vararg tokens: String): Regex =
         Regex("(^|[^a-z0-9])(${tokens.joinToString("|")})([^a-z0-9]|\$)")
 
-    /** The receiver is already lowercase at every call site. */
+    private fun languageRegex(tokens: List<String>): Regex =
+        Regex("(^|[^a-z0-9])(${tokens.joinToString("|") { Regex.escape(it) }})([^a-z0-9]|\$)")
+
+    /** The receiver must already be lowercase: every caller builds its text with lowercase(). */
     private fun String.hasToken(token: String): Boolean {
         val regex = synchronized(tokenRegexLock) {
             tokenRegexCache.getOrPut(token) {
@@ -463,9 +512,20 @@ internal object DebridStreamMetadata {
             ?: stream.debridCacheStatus?.cachedSize
 
     private fun streamSearchText(stream: StreamItem): String {
+        val parsed = stream.clientResolve?.stream?.raw?.parsed
+        val parsedTexts = listOfNotNull(
+            parsed?.resolution,
+            parsed?.quality,
+            parsed?.codec,
+            parsed?.hdr?.joinToString(" "),
+            parsed?.audio?.joinToString(" "),
+        )
+        return (streamTexts(stream) + parsedTexts).joinToString(" ").lowercase()
+    }
+
+    private fun streamTexts(stream: StreamItem): List<String> {
         val resolve = stream.clientResolve
         val raw = resolve?.stream?.raw
-        val parsed = raw?.parsed
         return listOfNotNull(
             stream.name,
             stream.title,
@@ -476,12 +536,27 @@ internal object DebridStreamMetadata {
             resolve?.filename,
             raw?.torrentName,
             raw?.filename,
-            parsed?.resolution,
-            parsed?.quality,
-            parsed?.codec,
-            parsed?.hdr?.joinToString(" "),
-            parsed?.audio?.joinToString(" "),
-        ).joinToString(" ").lowercase()
+        )
+    }
+
+    // Removes the media title from each text before languages are matched, so title words
+    // ("The French Dispatch", "The Italian Job") are not read as the stream language. Only the
+    // first match per text is removed: a release name repeats the title only as a language word.
+    private fun languageSearchText(stream: StreamItem): String {
+        val resolve = stream.clientResolve
+        val titleRegexes = listOfNotNull(resolve?.stream?.raw?.parsed?.parsedTitle, resolve?.title)
+            .mapNotNull { titleRegex(it) }
+            .distinctBy { it.pattern }
+            .sortedByDescending { it.pattern.length }
+        return streamTexts(stream).joinToString(" ") { text ->
+            titleRegexes.fold(text.lowercase()) { remaining, regex -> regex.replaceFirst(remaining, " ") }
+        }
+    }
+
+    private fun titleRegex(title: String): Regex? {
+        val words = title.lowercase().split(nonAlphanumericRunRegex).filter { it.isNotEmpty() }
+        if (words.isEmpty()) return null
+        return Regex("(^|[^a-z0-9])${words.joinToString("[^a-z0-9]+")}(?=[^a-z0-9]|\$)")
     }
 
     private fun streamTexts(stream: StreamItem): List<String> {

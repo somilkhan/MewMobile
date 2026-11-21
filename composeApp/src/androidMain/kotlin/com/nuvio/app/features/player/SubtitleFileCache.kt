@@ -5,7 +5,8 @@ import android.net.Uri
 import android.util.Log
 import androidx.core.content.FileProvider
 import com.nuvio.app.core.diagnostics.SentryNetworkBreadcrumbInterceptor
-import com.nuvio.app.core.network.SharedOkHttpClient
+import com.nuvio.app.core.network.NetworkErrorInterceptor
+import com.nuvio.app.features.streams.redactedForLogs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -23,7 +24,9 @@ object SubtitleFileCache {
 
     private var appContext: Context? = null
     private val okHttpClient: OkHttpClient by lazy {
-        SharedOkHttpClient.base.newBuilder()
+        OkHttpClient.Builder()
+            .dns(com.nuvio.app.core.network.NuvioDns)
+            .addInterceptor(NetworkErrorInterceptor())
             .addInterceptor(SentryNetworkBreadcrumbInterceptor())
             .build()
     }
@@ -78,12 +81,14 @@ object SubtitleFileCache {
             val file = File(dir, filename)
 
             try {
-                if (!isSupportedAddonSubtitleUrl(input.url)) return@withContext null
-
+                if (input.url.startsWith("file:")) {
+                    File(URI(input.url)).copyTo(file, overwrite = true)
+                    return@withContext FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+                }
                 val request = Request.Builder().url(input.url).build()
                 okHttpClient.newCall(request).execute().use { response ->
                     if (!response.isSuccessful) {
-                        Log.w(TAG, "HTTP ${response.code} downloading subtitle: ${redactSubtitleUrlForLogs(input.url)}")
+                        Log.w(TAG, "HTTP ${response.code} downloading subtitle: ${input.url.redactedForLogs()}")
                         return@withContext null
                     }
 
@@ -100,7 +105,7 @@ object SubtitleFileCache {
                     file
                 )
             } catch (e: Exception) {
-                Log.w(TAG, "Failed to download subtitle file: ${redactSubtitleUrlForLogs(input.url)} (${e.javaClass.simpleName})")
+                Log.w(TAG, "Failed to download subtitle file: ${input.url.redactedForLogs()}", e)
                 file.delete()
                 null
             }

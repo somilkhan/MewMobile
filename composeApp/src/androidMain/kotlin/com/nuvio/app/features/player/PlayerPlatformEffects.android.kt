@@ -13,12 +13,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.DialogWindowProvider
 import androidx.core.app.PictureInPictureModeChangedInfo
 import androidx.core.util.Consumer
 import androidx.core.view.WindowCompat
@@ -30,28 +35,23 @@ import kotlin.math.roundToInt
 actual fun LockPlayerToLandscape() {
     val activity = LocalContext.current.findActivity() ?: return
     if (!activity.shouldForceLandscapePlayer()) return
-    val portrait by PlayerOrientationPreference.portrait.collectAsState()
-    // While the player is minimised to the floating card, release the landscape lock so the
-    // app can rotate normally.
-    val minimized = MiniPlayerController.minimized
+    val portrait = PlayerOrientationPreference.portrait.collectAsState().value
+    val target = if (portrait) {
+        ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+    } else {
+        ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+    }
 
-    val originalOrientation = PlayerOrientationPreference.captureOriginalOrientation(activity.requestedOrientation)
-    DisposableEffect(activity, originalOrientation) {
+    DisposableEffect(activity) {
+        val previousOrientation = activity.requestedOrientation
+
         onDispose {
-            // Orientation requests can recreate the Activity. Preserve the toggle/session through
-            // that configuration change; restore the pre-player orientation only on final exit.
-            if (!activity.isChangingConfigurations) {
-                activity.requestedOrientation = originalOrientation
-                PlayerOrientationPreference.reset()
-            }
+            activity.requestedOrientation = previousOrientation
+            PlayerOrientationPreference.reset()
         }
+        if (activity.requestedOrientation != target) activity.requestedOrientation = target
     }
     SideEffect {
-        val target = when {
-            minimized -> ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-            portrait -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-            else -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-        }
         if (activity.requestedOrientation != target) activity.requestedOrientation = target
     }
 }
@@ -63,11 +63,23 @@ actual fun rememberPlayerOrientationToggleSupported(): Boolean {
 }
 
 @Composable
-actual fun EnterImmersivePlayerMode(keepScreenAwake: Boolean) {
-    val activity = LocalContext.current.findActivity() ?: return
+actual fun FullscreenPlayerDialog(onDismiss: () -> Unit, content: @Composable () -> Unit) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
+    ) {
+        HidePlayerSystemBars()
+        content()
+    }
+}
 
-    DisposableEffect(activity) {
-        val window = activity.window
+@Composable
+actual fun HidePlayerSystemBars() {
+    val activity = LocalContext.current.findActivity() ?: return
+    val view = LocalView.current
+    val window = (view.parent as? DialogWindowProvider)?.window ?: activity.window
+
+    DisposableEffect(window) {
         val controller = WindowCompat.getInsetsController(window, window.decorView)
         val previousBehavior = controller.systemBarsBehavior
 
@@ -81,6 +93,9 @@ actual fun EnterImmersivePlayerMode(keepScreenAwake: Boolean) {
         }
     }
 }
+
+@Composable
+actual fun EnterImmersivePlayerMode(keepScreenAwake: Boolean) = Unit
 
 @Composable
 actual fun ManagePlayerPictureInPicture(
@@ -125,7 +140,7 @@ actual fun rememberIsInPictureInPicture(): Boolean {
 }
 
 @Composable
-actual fun rememberPlayerGestureController(): PlayerGestureController? {
+internal actual fun rememberPlatformPlayerGestureController(): PlayerGestureController? {
     val context = LocalContext.current
     val activity = context.findActivity() ?: return null
     val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return null
@@ -161,8 +176,6 @@ private tailrec fun Context.findActivity(): Activity? =
     }
 
 private fun Activity.shouldForceLandscapePlayer(): Boolean {
-    // Match the Enhanced player: allow orientation toggle on large-screen phones too.
-    // Only disable forced orientation while the activity is in multi-window mode.
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && isInMultiWindowMode) return false
     return true
 }
@@ -187,14 +200,14 @@ private class AndroidPlayerGestureController(
     override fun currentBrightness(): Float {
         val windowValue = activity.window.attributes.screenBrightness
         return if (windowValue in 0f..1f) {
-            windowValue.coerceIn(0.02f, 1f)
+            windowValue.coerceIn(0f, 1f)
         } else {
             readSystemBrightness()
         }
     }
 
     override fun setBrightness(level: Float): Float {
-        val target = level.coerceIn(0.02f, 1f)
+        val target = level.coerceIn(0f, 1f)
         val attributes = activity.window.attributes
         attributes.screenBrightness = target
         activity.window.attributes = attributes
@@ -246,6 +259,6 @@ private class AndroidPlayerGestureController(
                 Settings.System.SCREEN_BRIGHTNESS,
             )
         }.getOrDefault(127)
-            .coerceIn(1, 255)
+            .coerceIn(0, 255)
             .toFloat() / 255f
 }

@@ -8,6 +8,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.nuvio.app.core.ui.nuvio
@@ -45,6 +47,7 @@ import nuvio.composeapp.generated.resources.compose_player_sync_by_ear_waiting_h
 import nuvio.composeapp.generated.resources.compose_player_sync_by_ear_waiting_saw
 import org.jetbrains.compose.resources.stringResource
 import kotlin.math.abs
+import com.nuvio.app.core.ui.glass.ambientLiquidGlass
 
 @Composable
 fun SubtitleSyncByEarCard(
@@ -70,12 +73,20 @@ fun SubtitleSyncByEarCard(
                 .widthIn(max = 340.dp)
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(20.dp))
-                .background(Color(0xFF17171A).copy(alpha = 0.94f))
+                .ambientLiquidGlass(
+                    shape = RoundedCornerShape(20.dp),
+                    tint = Color(0xFF17171A).copy(alpha = 0.72f),
+                    fallback = Color(0xFF17171A).copy(alpha = 0.94f),
+                    blurRadius = 24.dp,
+                    refractionHeight = 10.dp,
+                    refractionAmount = 14.dp,
+                )
                 .border(
                     width = 1.dp,
                     color = Color.White.copy(alpha = 0.1f),
                     shape = RoundedCornerShape(20.dp),
                 )
+                .pointerInput(Unit) { detectTapGestures { } }
                 .padding(start = 18.dp, end = 12.dp, top = 12.dp, bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {

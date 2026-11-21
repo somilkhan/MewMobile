@@ -2,22 +2,24 @@ package com.nuvio.app.features.home.components
 
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import com.nuvio.app.features.home.HomeHeroStyle
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
@@ -36,26 +38,63 @@ import com.nuvio.app.core.ui.landscapePosterHeightForWidth
 import com.nuvio.app.core.ui.LocalTvLayoutProfile
 import com.nuvio.app.core.ui.landscapePosterWidth
 import com.nuvio.app.core.ui.rememberPosterCardStyleUiState
+import com.nuvio.app.core.ui.rememberScreenActiveInfiniteFloat
 
 @Composable
 private fun rememberHomeSkeletonBrush(): Brush {
-    return MaterialTheme.colorScheme.surface.let { Brush.linearGradient(listOf(it, it.copy(alpha = 0.5f), it)) }
+    val shimmerColors = listOf(
+        MaterialTheme.colorScheme.surface,
+        MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
+        MaterialTheme.colorScheme.surface,
+    )
+    val translateAnim by rememberScreenActiveInfiniteFloat(
+        initialValue = 0f,
+        targetValue = 1000f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1200, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart,
+        ),
+    )
+    val brush = Brush.linearGradient(
+        colors = shimmerColors,
+        start = Offset(translateAnim - 200f, 0f),
+        end = Offset(translateAnim, 0f),
+    )
+    return brush
 }
 
 @Composable
-fun HomeSkeletonHero(
+internal fun HomeSkeletonHero(
     modifier: Modifier = Modifier,
     viewportHeight: Dp? = null,
     mobileBelowSectionHeightHint: Dp? = null,
-    posterArtHeroEnabled: Boolean = false,
-    streamingShowcaseHeroEnabled: Boolean = false,
+    heroStyle: HomeHeroStyle = HomeHeroStyle.FULL_BLEED,
 ) {
     val brush = rememberHomeSkeletonBrush()
+    val isCardStyle = heroStyle == HomeHeroStyle.CARD
+    val statusBarTopPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
 
     BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp)),
+            .then(
+                if (isCardStyle) {
+                    Modifier.padding(
+                        top = statusBarTopPadding + HERO_CARD_TOP_PADDING,
+                        start = HERO_CARD_HORIZONTAL_PADDING,
+                        end = HERO_CARD_HORIZONTAL_PADDING,
+                    )
+                } else {
+                    Modifier
+                },
+            )
+            .clip(
+                if (isCardStyle) {
+                    RoundedCornerShape(HERO_CARD_CORNER_RADIUS)
+                } else {
+                    RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp)
+                },
+            ),
     ) {
         val layout = homeHeroLayout(
             maxWidthDp = maxWidth.value,
@@ -84,6 +123,15 @@ fun HomeSkeletonHero(
             baseHeroHeight
         }
         val containerWidth = maxWidth
+        val heroHeight = if (isCardStyle) {
+            cardHeroHeight(
+                maxWidth = maxWidth,
+                viewportHeight = viewportHeight,
+                isTablet = layout.isTablet,
+            )
+        } else {
+            layout.heroHeight
+        }
 
         Box(
             modifier = Modifier
@@ -158,19 +206,22 @@ fun HomeSkeletonHero(
                         SkeletonDot(brush = brush)
                         SkeletonBlock(brush = brush, width = 40.dp, height = 14.dp, cornerRadius = 999.dp)
                     }
-                }
-                if (!layout.isTablet) {
-                    Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
                     SkeletonBlock(
                         brush = brush,
-                        width = 160.dp,
-                        height = 48.dp,
-                        cornerRadius = 40.dp,
+                        width = logoWidth * 1.45f,
+                        height = 12.dp,
+                        cornerRadius = 999.dp,
                     )
-                    Spacer(modifier = Modifier.height(12.dp))
-                } else {
-                    Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
+                    SkeletonBlock(
+                        brush = brush,
+                        width = logoWidth * 1.1f,
+                        height = 12.dp,
+                        cornerRadius = 999.dp,
+                    )
                 }
+                Spacer(modifier = Modifier.height(if (layout.isTablet) 16.dp else 18.dp))
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -188,7 +239,7 @@ fun HomeSkeletonHero(
 @Composable
 fun HomeSkeletonRow(
     modifier: Modifier = Modifier,
-    showHeaderAccent: Boolean = true,
+    horizontalPadding: Dp = 0.dp,
 ) {
     val brush = rememberHomeSkeletonBrush()
     val posterCardStyle = rememberPosterCardStyleUiState()
@@ -207,7 +258,6 @@ fun HomeSkeletonRow(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        // Title placeholder
         Box(
             modifier = Modifier
                 .width(140.dp)
@@ -215,17 +265,6 @@ fun HomeSkeletonRow(
                 .clip(RoundedCornerShape(6.dp))
                 .background(brush),
         )
-        if (showHeaderAccent) {
-            Box(
-                modifier = Modifier
-                    .width(60.dp)
-                    .height(4.dp)
-                    .clip(RoundedCornerShape(999.dp))
-                    .background(brush),
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-        }
-        // Poster row
         Row(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {

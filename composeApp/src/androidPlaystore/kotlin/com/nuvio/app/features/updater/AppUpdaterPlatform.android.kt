@@ -15,6 +15,18 @@ actual object AppUpdaterPlatform {
 
     actual fun setIgnoredTag(tag: String?) = Unit
 
+    actual fun getUpdateChannel(): String? = null
+
+    actual fun setUpdateChannel(channel: String) = Unit
+
+    actual fun getWhatsNewCache(): String? = AndroidAppUpdaterPlatform.getWhatsNewCache()
+
+    actual fun setWhatsNewCache(payload: String?) {
+        AndroidAppUpdaterPlatform.setWhatsNewCache(payload)
+    }
+
+    actual fun deleteDownloadedApk(path: String) = Unit
+
     actual suspend fun downloadApk(
         assetUrl: String,
         assetName: String,

@@ -1,5 +1,6 @@
 package com.nuvio.app.features.autosync
 
+import com.nuvio.app.features.player.SubtitleSyncCue
 import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.max
@@ -127,13 +128,13 @@ internal object AutoSyncTimelineRetimer {
     )
 
     internal fun normalizeExternalTimeline(
-        cues: List<AutoSyncSubtitleCue>,
-    ): List<AutoSyncSubtitleCue> {
+        cues: List<SubtitleSyncCue>,
+    ): List<SubtitleSyncCue> {
         if (cues.size < 2) return cues
 
         val sorted = cues.sortedBy { it.startTimeMs }
         val seen = HashSet<ExternalCueKey>()
-        val normalized = ArrayList<AutoSyncSubtitleCue>(sorted.size)
+        val normalized = ArrayList<SubtitleSyncCue>(sorted.size)
         for (cue in sorted) {
             val key = ExternalCueKey(
                 startTimeMs = cue.startTimeMs,
@@ -156,7 +157,7 @@ internal object AutoSyncTimelineRetimer {
     ): Boolean = sdhReference || referenceSize.toLong() * 2L >= targetSize.toLong() * 3L
 
     internal fun prepareUnitActivity(
-        cues: List<AutoSyncSubtitleCue>,
+        cues: List<SubtitleSyncCue>,
     ): PreparedActivity? {
         if (cues.size < MIN_CUES) return null
         val coarse = buildActivityTimeline(cues, 1.0, ACTIVITY_COARSE_BIN_MS) ?: return null
@@ -167,8 +168,8 @@ internal object AutoSyncTimelineRetimer {
     }
 
     fun retime(
-        reference: List<AutoSyncSubtitleCue>,
-        target: List<AutoSyncSubtitleCue>,
+        reference: List<SubtitleSyncCue>,
+        target: List<SubtitleSyncCue>,
         coarseScale: Double,
         coarseInterceptMs: Double,
         discoverAlignment: Boolean = false,
@@ -461,8 +462,8 @@ internal object AutoSyncTimelineRetimer {
     }
 
     private fun retimeWithSeed(
-        reference: List<AutoSyncSubtitleCue>,
-        target: List<AutoSyncSubtitleCue>,
+        reference: List<SubtitleSyncCue>,
+        target: List<SubtitleSyncCue>,
         coarseScale: Double,
         coarseInterceptMs: Double,
         referenceEstimatedEndStartsMs: Set<Long>,
@@ -759,8 +760,8 @@ internal object AutoSyncTimelineRetimer {
     }
 
     internal fun findDelayOnlyAlignment(
-        reference: List<AutoSyncSubtitleCue>,
-        target: List<AutoSyncSubtitleCue>,
+        reference: List<SubtitleSyncCue>,
+        target: List<SubtitleSyncCue>,
         allowAmbiguousMargin: Boolean = false,
     ): AutoSyncDelayOnlyAlignment? {
         if (reference.size < DELAY_ONLY_MIN_CUES || target.size < DELAY_ONLY_MIN_CUES) return null
@@ -962,7 +963,7 @@ internal object AutoSyncTimelineRetimer {
     }
 
     private fun buildUniformDelayCues(
-        target: List<AutoSyncSubtitleCue>,
+        target: List<SubtitleSyncCue>,
         offsetMs: Long,
     ): List<AutoSyncRetimedCue> = target.map { cue ->
         val start = (cue.startTimeMs + offsetMs).coerceAtLeast(0L)
@@ -976,7 +977,7 @@ internal object AutoSyncTimelineRetimer {
     }
 
     private fun AutoSyncTimelineRetimeResult.withValidatedDelayOnlyCues(
-        target: List<AutoSyncSubtitleCue>,
+        target: List<SubtitleSyncCue>,
         alignment: AutoSyncDelayOnlyAlignment,
     ): AutoSyncTimelineRetimeResult =
         copy(
@@ -987,7 +988,7 @@ internal object AutoSyncTimelineRetimer {
         )
 
     internal fun buildDelayOnlyTimeline(
-        target: List<AutoSyncSubtitleCue>,
+        target: List<SubtitleSyncCue>,
         alignment: AutoSyncDelayOnlyAlignment,
     ): AutoSyncTimelineRetimeResult {
         val retimed = buildUniformDelayCues(
@@ -1094,8 +1095,8 @@ internal object AutoSyncTimelineRetimer {
     }
 
     private fun discoverActivityAlignment(
-        reference: List<AutoSyncSubtitleCue>,
-        target: List<AutoSyncSubtitleCue>,
+        reference: List<SubtitleSyncCue>,
+        target: List<SubtitleSyncCue>,
         referenceActivity: PreparedActivity,
         targetActivity: PreparedActivity,
         precomputedUnitEvidence: DelayOnlySearchEvidence? = null,
@@ -1346,7 +1347,7 @@ internal object AutoSyncTimelineRetimer {
     }
 
     private fun buildActivityTimeline(
-        cues: List<AutoSyncSubtitleCue>,
+        cues: List<SubtitleSyncCue>,
         scale: Double,
         binMs: Long,
     ): ActivityTimeline? {
@@ -1490,8 +1491,8 @@ internal object AutoSyncTimelineRetimer {
     }
 
     private fun activityScaleCandidates(
-        reference: List<AutoSyncSubtitleCue>,
-        target: List<AutoSyncSubtitleCue>,
+        reference: List<SubtitleSyncCue>,
+        target: List<SubtitleSyncCue>,
     ): List<Double> {
         val candidates = mutableListOf(
             1.0,
@@ -1675,8 +1676,8 @@ internal object AutoSyncTimelineRetimer {
     )
 
     private fun refineGroupedReplyTiming(
-        reference: List<AutoSyncSubtitleCue>,
-        target: List<AutoSyncSubtitleCue>,
+        reference: List<SubtitleSyncCue>,
+        target: List<SubtitleSyncCue>,
         result: AutoSyncTimelineRetimeResult,
         referenceEstimatedEndStartsMs: Set<Long>,
         cancellationCheck: (() -> Unit)?,
@@ -1839,8 +1840,8 @@ internal object AutoSyncTimelineRetimer {
     }
 
     private fun hasSupportingSimpleGroup(
-        reference: List<AutoSyncSubtitleCue>,
-        target: List<AutoSyncSubtitleCue>,
+        reference: List<SubtitleSyncCue>,
+        target: List<SubtitleSyncCue>,
         groups: List<AutoSyncCueGroup>,
         groupIndex: Int,
         direction: Int,
@@ -1872,7 +1873,7 @@ internal object AutoSyncTimelineRetimer {
     }
 
     private fun hasAmbiguousReferenceGap(
-        reference: List<AutoSyncSubtitleCue>,
+        reference: List<SubtitleSyncCue>,
         firstReferenceIndex: Int,
         secondReferenceIndex: Int,
     ): Boolean {
@@ -1901,7 +1902,7 @@ internal object AutoSyncTimelineRetimer {
         return false
     }
 
-    private fun isValidCueInterval(cue: AutoSyncSubtitleCue): Boolean =
+    private fun isValidCueInterval(cue: SubtitleSyncCue): Boolean =
         cue.startTimeMs >= 0L && cue.endTimeMs > cue.startTimeMs
 
     private fun isValidRetimedCue(cue: AutoSyncRetimedCue): Boolean =
@@ -2094,7 +2095,7 @@ internal object AutoSyncTimelineRetimer {
         return abs(referenceIndex - center) <= BAND_RADIUS_CUES || targetIndex == 0
     }
 
-    private fun lowerBoundReference(reference: List<AutoSyncSubtitleCue>, timeMs: Long): Int {
+    private fun lowerBoundReference(reference: List<SubtitleSyncCue>, timeMs: Long): Int {
         var low = 0
         var high = reference.size
         while (low < high) {

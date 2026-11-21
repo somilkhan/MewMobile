@@ -2,40 +2,81 @@ package com.nuvio.app.features.player
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import platform.AVFAudio.AVAudioSession
 import platform.AVFAudio.outputVolume
 import platform.Foundation.NSNotificationCenter
 import platform.MediaPlayer.MPVolumeView
 import platform.UIKit.UIApplication
 import platform.UIKit.UIControlEventValueChanged
+import platform.UIKit.UIDevice
+import platform.UIKit.UIUserInterfaceIdiomPhone
 import platform.UIKit.UIScreen
 import platform.UIKit.UISlider
 
 private const val lockPlayerToLandscapeNotification = "NuvioPlayerLockLandscape"
 private const val unlockPlayerOrientationNotification = "NuvioPlayerUnlockOrientation"
+private const val preferPlayerPortraitNotification = "NuvioPlayerPreferPortrait"
+private const val preferPlayerLandscapeNotification = "NuvioPlayerPreferLandscape"
+private var playerLandscapeLockCount = 0
 
 @Composable
 actual fun LockPlayerToLandscape() {
     DisposableEffect(Unit) {
-        NSNotificationCenter.defaultCenter.postNotificationName(
-            lockPlayerToLandscapeNotification,
-            null,
-        )
-
-        onDispose {
+        playerLandscapeLockCount += 1
+        if (playerLandscapeLockCount == 1) {
             NSNotificationCenter.defaultCenter.postNotificationName(
-                unlockPlayerOrientationNotification,
+                lockPlayerToLandscapeNotification,
                 null,
             )
         }
+
+        onDispose {
+            playerLandscapeLockCount -= 1
+            if (playerLandscapeLockCount == 0) {
+                PlayerOrientationPreference.reset()
+                NSNotificationCenter.defaultCenter.postNotificationName(
+                    unlockPlayerOrientationNotification,
+                    null,
+                )
+            }
+        }
+    }
+    val portrait by PlayerOrientationPreference.portrait.collectAsState()
+    LaunchedEffect(portrait) {
+        NSNotificationCenter.defaultCenter.postNotificationName(
+            if (portrait) preferPlayerPortraitNotification else preferPlayerLandscapeNotification,
+            null,
+        )
     }
 }
 
 @Composable
-actual fun rememberPlayerOrientationToggleSupported(): Boolean = false
+actual fun rememberPlayerOrientationToggleSupported(): Boolean =
+    remember { UIDevice.currentDevice.userInterfaceIdiom == UIUserInterfaceIdiomPhone }
+
+@Composable
+actual fun FullscreenPlayerDialog(onDismiss: () -> Unit, content: @Composable () -> Unit) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            usePlatformInsets = false,
+            useSoftwareKeyboardInset = false,
+        ),
+        content = content,
+    )
+}
+
+@Composable
+actual fun HidePlayerSystemBars() = Unit
 
 @Composable
 actual fun EnterImmersivePlayerMode(keepScreenAwake: Boolean) {
@@ -59,16 +100,13 @@ actual fun ManagePlayerPictureInPicture(
 @Composable
 actual fun rememberIsInPictureInPicture(): Boolean = false
 
+// The iOS player has no audio delay control yet.
 @Composable
-actual fun rememberPlayerGestureController(): PlayerGestureController? {
-    PlayerSettingsRepository.ensureLoaded()
-    val playerSettings = PlayerSettingsRepository.uiState.value
-    val controller = remember {
-        IOSPlayerGestureController(
-            rememberBrightnessEnabled = playerSettings.rememberPlayerBrightnessEnabled,
-            rememberedBrightness = playerSettings.rememberedPlayerBrightness,
-        )
-    }
+internal actual fun rememberAudioOutputKey(enabled: Boolean): String? = null
+
+@Composable
+internal actual fun rememberPlatformPlayerGestureController(): PlayerGestureController? {
+    val controller = remember { IOSPlayerGestureController() }
 
     DisposableEffect(controller) {
         onDispose {
@@ -97,10 +135,10 @@ private class IOSPlayerGestureController(
     }
 
     override fun currentBrightness(): Float =
-        UIScreen.mainScreen.brightness.toFloat().coerceIn(0.02f, 1f)
+        UIScreen.mainScreen.brightness.toFloat().coerceIn(0f, 1f)
 
     override fun setBrightness(level: Float): Float {
-        val target = level.coerceIn(0.02f, 1f)
+        val target = level.coerceIn(0f, 1f)
         UIScreen.mainScreen.brightness = target.toDouble()
         if (rememberBrightnessEnabled) {
             PlayerSettingsRepository.setRememberedPlayerBrightness(target)

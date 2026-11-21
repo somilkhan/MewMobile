@@ -1,4 +1,5 @@
 import java.util.Properties
+import javax.inject.Inject
 
 fun readXcconfigValue(file: File, key: String): String? {
     if (!file.exists()) return null
@@ -16,7 +17,9 @@ fun readXcconfigValue(file: File, key: String): String? {
 
 plugins {
     alias(libs.plugins.androidApplication)
+    alias(libs.plugins.composeCompiler)
     alias(libs.plugins.sentry.android.gradle)
+    alias(libs.plugins.androidx.baselineprofile)
 }
 
 val localProps = Properties().apply {
@@ -45,7 +48,8 @@ val sentryOrg = envOrLocalProperty("SENTRY_ORG")
 val sentryProject = envOrLocalProperty("SENTRY_PROJECT")
 val sentryMappingUploadEnabled = sentryAuthToken != null && sentryOrg != null && sentryProject != null
 val appVersionConfigFile = rootProject.file("iosApp/Configuration/Version.xcconfig")
-val releaseAppVersionName = readXcconfigValue(appVersionConfigFile, "MARKETING_VERSION")
+val releaseAppVersionName = providers.gradleProperty("nuvio.app.versionName").orNull
+    ?: readXcconfigValue(appVersionConfigFile, "MARKETING_VERSION")
     ?: error("MARKETING_VERSION is missing from ${appVersionConfigFile.path}")
 val releaseAppVersionCode = readXcconfigValue(appVersionConfigFile, "CURRENT_PROJECT_VERSION")
     ?.toIntOrNull()
@@ -107,6 +111,7 @@ android {
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = releaseAppVersionCode
         versionName = releaseAppVersionName
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     flavorDimensions += "distribution"
@@ -125,6 +130,8 @@ android {
         jniLibs.directories.add("../composeApp/src/full/jniLibs")
     }
 
+    sourceSets.getByName("androidTest").assets.directories.add("../testFixtures")
+
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -138,6 +145,17 @@ android {
                 "lib/*/libswscale.so",
                 "lib/*/libswresample.so"
             )
+        }
+    }
+
+    androidResources {
+        noCompress += "cvr"
+    }
+
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
         }
     }
 
@@ -158,8 +176,11 @@ android {
         }
 
         getByName("release") {
-            isMinifyEnabled = true
-            isShrinkResources = true
+            val minifyRelease = providers.gradleProperty("releaseMinifyEnabled")
+                .map(String::toBooleanStrict)
+                .getOrElse(true)
+            isMinifyEnabled = minifyRelease
+            isShrinkResources = minifyRelease
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "../composeApp/proguard-rules.pro",
@@ -178,11 +199,77 @@ android {
     }
 }
 
+@CacheableTask
+abstract class CargoNdkBuild @Inject constructor(private val exec: ExecOperations) : DefaultTask() {
+    @get:Internal
+    abstract val workspace: DirectoryProperty
+
+    @get:InputFiles
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val sources: ConfigurableFileCollection
+
+    @get:Input
+    abstract val crate: Property<String>
+
+    @get:Input
+    abstract val abis: ListProperty<String>
+
+    @get:Input
+    abstract val minSdk: Property<Int>
+
+    @get:Internal
+    abstract val ndk: DirectoryProperty
+
+    @get:Input
+    abstract val ndkVersion: Property<String>
+
+    @get:OutputDirectory
+    abstract val jniLibs: DirectoryProperty
+
+    @TaskAction
+    fun build() {
+        val out = jniLibs.get().asFile.apply {
+            deleteRecursively()
+            mkdirs()
+        }
+        exec.exec {
+            workingDir = workspace.get().asFile
+            environment("ANDROID_NDK_HOME", ndk.get().asFile.path)
+            commandLine(
+                listOf(cargo(), "ndk", "--platform", minSdk.get().toString()) +
+                    abis.get().flatMap { listOf("-t", it) } +
+                    listOf("-o", out.path, "build", "--release", "-p", crate.get()),
+            )
+        }
+    }
+
+    private fun cargo(): String {
+        val home = System.getenv("CARGO_HOME")?.let(::File) ?: File(System.getProperty("user.home"), ".cargo")
+        val name = if (System.getProperty("os.name").startsWith("Windows")) "cargo.exe" else "cargo"
+        return File(home, "bin/$name").takeIf { it.exists() }?.path ?: "cargo"
+    }
+}
+
+val native = rootProject.layout.projectDirectory.dir("native")
+val rust = tasks.register<CargoNdkBuild>("buildRust") {
+    workspace = native
+    sources.from(fileTree(native) { exclude("target/**", "**/*.md") })
+    crate = "aiostreams-native-android"
+    abis = listOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
+    minSdk = libs.versions.android.minSdk.get().toInt()
+    ndkVersion = androidComponents.sdkComponents.ndkDirectory.map { it.asFile.name }
+    ndk = androidComponents.sdkComponents.ndkDirectory
+    jniLibs = layout.buildDirectory.dir("cargo/jniLibs")
+}
+
 androidComponents {
     onVariants(selector().withBuildType("debug")) { variant ->
         val debugApplicationId = providers.gradleProperty("nuvioDebugApplicationId")
             .orElse("com.mew.mobile.debug")
         variant.applicationId.set(debugApplicationId)
+    }
+    onVariants { variant ->
+        variant.sources.jniLibs?.addGeneratedSourceDirectory(rust, CargoNdkBuild::jniLibs)
     }
 }
 
@@ -208,9 +295,25 @@ sentry {
     }
 }
 
+baselineProfile {
+    mergeIntoMain = true
+    saveInSrc = true
+    automaticGenerationDuringBuild = false
+}
+
 dependencies {
     implementation(project(":composeApp"))
+    implementation(libs.androidx.profileinstaller)
+    baselineProfile(project(":baselineprofile"))
     implementation(libs.androidx.appcompat)
+    implementation(libs.compose.runtime)
     coreLibraryDesugaring(libs.desugar.jdk.libs)
     debugImplementation(libs.compose.uiTooling)
+    androidTestImplementation("androidx.test:runner:1.7.0")
+    androidTestImplementation("androidx.test:core:1.7.0")
+    androidTestImplementation(libs.androidx.testExt.junit)
+    androidTestImplementation(libs.androidx.activity.compose)
+    androidTestImplementation(libs.compose.foundation)
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4:${libs.versions.composeMultiplatform.get()}")
+    debugImplementation("androidx.compose.ui:ui-test-manifest:${libs.versions.composeMultiplatform.get()}")
 }

@@ -29,6 +29,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -40,8 +41,22 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
-import com.nuvio.app.core.ui.nuvioKeyboardFocusIndicator
+import com.nuvio.app.core.ui.SkeletonBlock
 import com.nuvio.app.features.debrid.DebridProviders
+import androidx.compose.ui.graphics.compositeOver
+import com.nuvio.app.core.ui.glass.ambientLiquidGlass
+import com.nuvio.app.core.ui.glass.isAmbientLiquidGlassActive
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Shadow
+
+internal val LocalStreamHighlight = staticCompositionLocalOf<(StreamItem) -> String?> { { null } }
+
+internal data class SharedStream(
+    val label: String,
+    val stream: StreamItem,
+)
+
+internal val LocalSharedStream = staticCompositionLocalOf<SharedStream?> { null }
 
 @Composable
 internal fun StreamCard(
@@ -56,7 +71,9 @@ internal fun StreamCard(
     modifier: Modifier = Modifier,
     isCurrent: Boolean = false,
     currentLabel: String? = null,
+    outlined: Boolean = false,
 ) {
+    val partyLabel = if (isCurrent) null else LocalStreamHighlight.current(stream)
     val cardShape = RoundedCornerShape(12.dp)
     val badgeImages = stream.badges.filter { it.imageURL.isNotBlank() }
     val hasBadges = badgeImages.isNotEmpty() || (showFileSizeBadges && stream.behaviorHints.videoSize != null)
@@ -71,15 +88,24 @@ internal fun StreamCard(
                 spotColor = Color.Black.copy(alpha = 0.04f),
             )
             .clip(cardShape)
-            .background(
-                if (isCurrent) {
+            .ambientLiquidGlass(
+                shape = cardShape,
+                tint = if (isCurrent) {
+                    MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                        .compositeOver(Color.Black.copy(alpha = StreamGlassTintAlpha))
+                } else {
+                    StreamGlassTint
+                },
+                fallback = if (isCurrent) {
                     MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
                 } else {
                     Color.White.copy(alpha = 0.05f)
                 },
+                blurRadius = 18.dp,
+                staticFromBackdrop = true,
             )
             .then(
-                if (isCurrent) {
+                if (isCurrent || outlined) {
                     Modifier.border(
                         width = 1.dp,
                         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.52f),
@@ -116,6 +142,17 @@ internal fun StreamCard(
                     Spacer(modifier = Modifier.width(8.dp))
                     CurrentStreamBadge(label = currentLabel)
                 }
+                if (partyLabel != null) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = partyLabel,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
 
             val subtitle = stream.streamSubtitle
@@ -126,6 +163,7 @@ internal fun StreamCard(
                     style = MaterialTheme.typography.bodySmall.copy(
                         fontSize = 12.sp,
                         lineHeight = 18.sp,
+                        shadow = streamGlassTextShadow(),
                     ),
                     color = Color.White,
                 )
@@ -149,7 +187,7 @@ internal fun StreamCard(
                 if (!stream.addonLogo.isNullOrBlank()) {
                     AsyncImage(
                         model = stream.addonLogo,
-                        contentDescription = stream.addonName,
+                        contentDescription = stream.displayAddonName(),
                         modifier = Modifier
                             .size(28.dp)
                             .clip(RoundedCornerShape(6.dp)),
@@ -158,14 +196,30 @@ internal fun StreamCard(
                 }
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = stream.addonName,
-                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                    text = stream.displayAddonName(),
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, shadow = streamGlassTextShadow()),
                     color = Color.White,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
         }
+    }
+}
+
+@Composable
+internal fun StreamCardSkeleton(modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .heightIn(min = 68.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color.White.copy(alpha = 0.05f))
+            .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically),
+    ) {
+        SkeletonBlock(modifier = Modifier.fillMaxWidth(0.55f), height = 14.dp, cornerRadius = 4.dp)
+        SkeletonBlock(modifier = Modifier.fillMaxWidth(0.85f), height = 10.dp, cornerRadius = 4.dp)
     }
 }
 
@@ -201,6 +255,7 @@ private fun StreamNameWithInstantService(
         fontWeight = FontWeight.Bold,
         lineHeight = 20.sp,
         letterSpacing = 0.sp,
+        shadow = streamGlassTextShadow(),
     )
     val instantLabel = if (appendInstantServiceToDefaultName) {
         stream.instantServiceLabel()
@@ -265,6 +320,21 @@ private fun CurrentStreamBadge(label: String) {
         )
     }
 }
+
+internal const val StreamGlassTintAlpha = 0.45f
+
+internal val StreamGlassTint: Color = Color.White.copy(alpha = 0.05f)
+    .compositeOver(Color.Black.copy(alpha = StreamGlassTintAlpha))
+
+private val StreamGlassTextShadow = Shadow(
+    color = Color.Black.copy(alpha = 0.6f),
+    offset = Offset(0f, 1f),
+    blurRadius = 4f,
+)
+
+@Composable
+internal fun streamGlassTextShadow(): Shadow? =
+    if (isAmbientLiquidGlassActive()) StreamGlassTextShadow else null
 
 private fun StreamItem.instantServiceLabel(): String? {
     val status = debridCacheStatus ?: return null

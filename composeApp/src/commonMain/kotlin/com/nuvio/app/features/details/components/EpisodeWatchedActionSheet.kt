@@ -21,8 +21,9 @@ import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PlaylistAddCheckCircle
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
+import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material.icons.rounded.StarBorder
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -38,8 +39,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
-import com.nuvio.app.core.i18n.localizedEpisodeTitle
+import com.nuvio.app.core.ui.NuvioBottomSheetActionRow
+import com.nuvio.app.core.ui.NuvioBottomSheetDivider
+import com.nuvio.app.core.ui.NuvioModalBottomSheet
+import com.nuvio.app.core.ui.dismissNuvioBottomSheet
+import com.nuvio.app.core.ui.nuvio
+import com.nuvio.app.core.ui.nuvioSafeBottomPadding
 import com.nuvio.app.core.i18n.localizedSeasonEpisodeCode
 import com.nuvio.app.core.ui.NuvioMediaActionOverlay
 import com.nuvio.app.features.details.MetaVideo
@@ -56,6 +61,7 @@ import nuvio.composeapp.generated.resources.anime_tracking_action
 import nuvio.composeapp.generated.resources.play_manually
 import nuvio.composeapp.generated.resources.streams_download_file
 import org.jetbrains.compose.resources.stringResource
+import com.nuvio.app.core.i18n.localizedEpisodeTitle
 
 @Composable
 fun EpisodeWatchedActionSheet(
@@ -72,7 +78,8 @@ fun EpisodeWatchedActionSheet(
     onDownload: (() -> Unit)? = null,
     showPlayManually: Boolean = false,
     onPlayManually: (() -> Unit)? = null,
-    onTracking: (() -> Unit)? = null,
+    userRating: Int? = null,
+    onRate: (() -> Unit)? = null,
 ) {
     val artwork = episodeActionSheetArtwork(episode)
 
@@ -113,54 +120,61 @@ fun EpisodeWatchedActionSheet(
                         )
                         EpisodeSheetDivider()
                     }
-                    EpisodeSheetActionRow(
-                        icon = Icons.Default.CheckCircle,
-                        title = if (isEpisodeWatched) {
-                            stringResource(Res.string.episode_mark_unwatched)
-                        } else {
-                            stringResource(Res.string.episode_mark_watched)
-                        },
-                        onClick = { dismissAfter(onToggleWatched) },
-                    )
-                    if (canMarkPreviousEpisodes) {
-                        EpisodeSheetDivider()
-                        EpisodeSheetActionRow(
-                            icon = Icons.Default.DoneAll,
-                            title = if (arePreviousEpisodesWatched) {
-                                stringResource(Res.string.episode_mark_previous_unwatched)
-                            } else {
-                                stringResource(Res.string.episode_mark_previous_watched)
-                            },
-                            onClick = { dismissAfter(onTogglePreviousWatched) },
-                        )
+                },
+            )
+            if (canMarkPreviousEpisodes) {
+                NuvioBottomSheetActionRow(
+                    icon = Icons.Default.DoneAll,
+                    title = if (arePreviousEpisodesWatched) {
+                        stringResource(Res.string.episode_mark_previous_unwatched)
+                    } else {
+                        stringResource(Res.string.episode_mark_previous_watched)
+                    },
+                    onClick = {
+                        onTogglePreviousWatched()
+                        coroutineScope.launch {
+                            dismissNuvioBottomSheet(sheetState = sheetState, onDismiss = onDismiss)
+                        }
+                    },
+                )
+            }
+            NuvioBottomSheetActionRow(
+                icon = Icons.Default.PlaylistAddCheckCircle,
+                title = if (isSeasonWatched) {
+                    stringResource(Res.string.episode_mark_season_unwatched, seasonLabel)
+                } else {
+                    stringResource(Res.string.episode_mark_season_watched, seasonLabel)
+                },
+                onClick = {
+                    onToggleSeasonWatched()
+                    coroutineScope.launch {
+                        dismissNuvioBottomSheet(sheetState = sheetState, onDismiss = onDismiss)
                     }
-                    EpisodeSheetDivider()
-                    EpisodeSheetActionRow(
-                        icon = Icons.Default.PlaylistAddCheckCircle,
-                        title = if (isSeasonWatched) {
-                            stringResource(Res.string.episode_mark_season_unwatched, seasonLabel)
-                        } else {
-                            stringResource(Res.string.episode_mark_season_watched, seasonLabel)
-                        },
-                        onClick = { dismissAfter(onToggleSeasonWatched) },
-                    )
-                    if (showPlayManually && onPlayManually != null) {
-                        EpisodeSheetDivider()
-                        EpisodeSheetActionRow(
-                            icon = Icons.Default.PlayArrow,
-                            title = stringResource(Res.string.play_manually),
-                            onClick = { dismissAfter(onPlayManually) },
-                        )
-                    }
-                    if (onTracking != null) {
-                        EpisodeSheetDivider()
-                        EpisodeSheetActionRow(
-                            icon = Icons.Default.Edit,
-                            title = stringResource(Res.string.anime_tracking_action),
-                            onClick = { dismissAfter(onTracking) },
-                        )
-                    }
-                }
+                },
+            )
+            if (onRate != null) {
+                UserRatingActionRow(
+                    title = stringResource(Res.string.user_rating_rate_episode),
+                    userRating = userRating,
+                    onClick = {
+                        onRate()
+                        coroutineScope.launch {
+                            dismissNuvioBottomSheet(sheetState = sheetState, onDismiss = onDismiss)
+                        }
+                    },
+                )
+            }
+            if (showPlayManually && onPlayManually != null) {
+                NuvioBottomSheetActionRow(
+                    icon = Icons.Default.PlayArrow,
+                    title = stringResource(Res.string.play_manually),
+                    onClick = {
+                        onPlayManually()
+                        coroutineScope.launch {
+                            dismissNuvioBottomSheet(sheetState = sheetState, onDismiss = onDismiss)
+                        }
+                    },
+                )
             }
         }
     }
@@ -174,7 +188,8 @@ fun SeasonWatchedActionSheet(
     onDismiss: () -> Unit,
     onToggleSeasonWatched: () -> Unit,
     onMarkPreviousSeasonsWatched: () -> Unit,
-    onDownloadSeason: (() -> Unit)? = null,
+    userRating: Int? = null,
+    onRate: (() -> Unit)? = null,
 ) {
     NuvioMediaActionOverlay(
         artworkUrl = null,
@@ -230,21 +245,59 @@ fun SeasonWatchedActionSheet(
                             },
                         )
                     }
-                    if (canMarkPreviousSeasons) {
-                        EpisodeSheetDivider()
-                        EpisodeSheetActionRow(
-                            icon = Icons.Default.DoneAll,
-                            title = stringResource(Res.string.episode_mark_previous_seasons_watched),
-                            onClick = {
-                                onMarkPreviousSeasonsWatched()
-                                onDismiss()
-                            },
-                        )
-                    }
-                }
+                },
+            )
+            if (onRate != null) {
+                UserRatingActionRow(
+                    title = stringResource(Res.string.user_rating_rate_season, seasonLabel),
+                    userRating = userRating,
+                    onClick = {
+                        onRate()
+                        coroutineScope.launch {
+                            dismissNuvioBottomSheet(sheetState = sheetState, onDismiss = onDismiss)
+                        }
+                    },
+                )
+            }
+            if (canMarkPreviousSeasons) {
+                NuvioBottomSheetActionRow(
+                    icon = Icons.Default.DoneAll,
+                    title = stringResource(Res.string.episode_mark_previous_seasons_watched),
+                    onClick = {
+                        onMarkPreviousSeasonsWatched()
+                        coroutineScope.launch {
+                            dismissNuvioBottomSheet(sheetState = sheetState, onDismiss = onDismiss)
+                        }
+                    },
+                )
             }
         }
     }
+}
+
+@Composable
+private fun UserRatingActionRow(
+    title: String,
+    userRating: Int?,
+    onClick: () -> Unit,
+) {
+    NuvioBottomSheetActionRow(
+        icon = if (userRating != null) Icons.Rounded.Star else Icons.Rounded.StarBorder,
+        title = title,
+        onClick = onClick,
+        trailingContent = if (userRating != null) {
+            {
+                Text(
+                    text = stringResource(Res.string.user_rating_value, userRating),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.nuvio.colors.accent,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+        } else {
+            null
+        },
+    )
 }
 
 @Composable
@@ -307,9 +360,6 @@ private fun EpisodeActionSheetHeader(
         Spacer(modifier = Modifier.height(14.dp))
         Text(
             text = localizedEpisodeTitle(episode.title, episode.episode) ?: episode.title,
-            modifier = Modifier
-                .fillMaxWidth(0.86f)
-                .widthIn(max = 390.dp),
             style = MaterialTheme.typography.titleLarge,
             color = Color.White,
             fontWeight = FontWeight.SemiBold,

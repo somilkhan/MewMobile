@@ -2,6 +2,7 @@ package com.nuvio.app.features.player
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import com.nuvio.app.features.party.PartyMedia
 
 @Composable
 fun PlayerScreen(
@@ -22,6 +23,8 @@ fun PlayerScreen(
     onOpenPartyMedia: ((com.nuvio.app.features.party.PartyMedia) -> Unit)? = null,
     onOpenInExternalPlayer: ((ExternalPlayerPlaybackRequest) -> Unit)? = null,
     onOpenExternalUrl: ((String) -> Unit)? = null,
+    onOpenMetaDetails: ((com.nuvio.app.features.home.MetaPreview) -> Unit)? = null,
+    onOpenPartyMedia: (PartyMedia) -> Unit = {},
     modifier: Modifier = Modifier,
     logo: String? = null,
     poster: String? = null,
@@ -67,6 +70,7 @@ fun PlayerScreen(
             onOpenPartyMedia = onOpenPartyMedia,
             onOpenInExternalPlayer = onOpenInExternalPlayer,
             onOpenExternalUrl = onOpenExternalUrl,
+            onOpenMetaDetails = onOpenMetaDetails,
             modifier = modifier,
             logo = logo,
             poster = poster,

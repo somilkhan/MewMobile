@@ -23,6 +23,12 @@ import nuvio.composeapp.generated.resources.theme_graphite
 import org.jetbrains.compose.resources.StringResource
 
 enum class AppTheme {
+    GOLD,
+    JADE,
+    ROSE_GOLD,
+    ARCTIC_BLUE,
+    GRAPHITE,
+    CUSTOM,
     CRIMSON,
     OCEAN,
     VIOLET,

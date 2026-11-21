@@ -1,18 +1,19 @@
 package com.nuvio.app.features.player
 
 import android.net.Uri
+import android.os.Looper
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MimeTypes
-import com.nuvio.app.core.network.SharedOkHttpClient
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import okhttp3.Request
+import kotlinx.coroutines.runBlocking
 import java.io.File
 import java.io.FileInputStream
 import java.io.InputStream
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.TimeUnit
+import java.net.HttpURLConnection
+import java.net.URL
+import java.net.URLDecoder
 import java.util.Locale
+import java.util.concurrent.ConcurrentHashMap
 
 internal fun playbackMediaItemFromUrl(
     url: String,
@@ -67,13 +68,18 @@ private fun inferPlaybackMimeType(
 ): String? =
     inferMimeTypeFromStreamType(streamType)
         ?: inferMimeTypeFromResponseHeaders(responseHeaders)
-        ?: (if (includeLocalContent) inferMimeTypeFromLocalContent(url) else null)
+        ?: inferMimeTypeFromLocalContent(url)
         ?: inferMimeTypeFromPath(url)
 
+/**
+ * Local files can carry a misleading extension (downloads keep the extension derived from the
+ * source URL), so the container is detected from the actual payload instead of the file name.
+ * Falls back to the extension based derivation whenever the content cannot be inspected.
+ */
 private fun inferMimeTypeFromLocalContent(url: String): String? {
     if (!isLocalUri(url)) return null
     localMimeTypeCache[url]?.let { return it }
-    val detected = sniffLocalMimeType(url) ?: return null
+    val detected = runOnBackgroundDispatcherIfNeeded { sniffLocalMimeType(url) } ?: return null
     if (localMimeTypeCache.size >= LOCAL_MIME_TYPE_CACHE_LIMIT) localMimeTypeCache.clear()
     localMimeTypeCache[url] = detected
     return detected
@@ -92,7 +98,9 @@ private fun sniffLocalMimeType(url: String): String? {
 private fun readLocalHeaderBytes(url: String): ByteArray? = runCatching {
     val uri = Uri.parse(url)
     when (uri.scheme?.lowercase(Locale.US)) {
-        "file" -> uri.path?.let { path -> FileInputStream(File(path)).use { it.readHeaderBytes() } }
+        "file" -> uri.path?.let { path ->
+            FileInputStream(File(path)).use { it.readHeaderBytes() }
+        }
         "content" -> {
             val context = PlayerSettingsStorage.applicationContext() ?: return@runCatching null
             context.contentResolver.openInputStream(uri)?.use { it.readHeaderBytes() }
@@ -112,14 +120,15 @@ private fun InputStream.readHeaderBytes(): ByteArray {
     return buffer.copyOf(offset)
 }
 
-internal fun mimeTypeFromHeader(header: ByteArray): String? = when {
+private fun mimeTypeFromHeader(header: ByteArray): String? = when {
     header.startsWithBytes(EBML_HEADER) -> MimeTypes.VIDEO_MATROSKA
     header.matchesBytesAt(4, MP4_FTYP_HEADER) -> MimeTypes.VIDEO_MP4
     header.size > MPEG_TS_PACKET_OFFSET &&
         header[0] == MPEG_TS_SYNC_BYTE &&
         header[MPEG_TS_PACKET_OFFSET] == MPEG_TS_SYNC_BYTE -> MimeTypes.VIDEO_MP2T
-    header.size >= 12 && header.startsWithBytes(RIFF_HEADER) && header.matchesBytesAt(8, AVI_HEADER) ->
-        MimeTypes.VIDEO_AVI
+    header.size >= 12 &&
+        header.startsWithBytes(RIFF_HEADER) &&
+        header.matchesBytesAt(8, AVI_HEADER) -> MimeTypes.VIDEO_AVI
     header.startsWithBytes(FLV_HEADER) -> MimeTypes.VIDEO_FLV
     header.startsWithBytes(OGG_HEADER) -> MIME_APPLICATION_OGG
     else -> null
@@ -132,6 +141,17 @@ private fun ByteArray.matchesBytesAt(offset: Int, expected: ByteArray): Boolean 
     if (size < offset + expected.size) return false
     return expected.indices.all { this[offset + it] == expected[it] }
 }
+
+/**
+ * File reads must not happen on the main thread, but [playbackMediaItemFromUrl] is synchronous.
+ * The actual IO therefore runs on a background dispatcher and the caller waits for the result.
+ */
+private fun <T> runOnBackgroundDispatcherIfNeeded(block: () -> T): T =
+    if (Looper.myLooper() == Looper.getMainLooper()) {
+        runBlocking(Dispatchers.IO) { block() }
+    } else {
+        block()
+    }
 
 private fun inferMimeTypeFromStreamType(streamType: String?): String? {
     val normalized = streamType
@@ -194,6 +214,10 @@ internal fun normalizeMimeType(contentType: String?): String? {
 
         "application/vnd.ms-sstr+xml" -> MimeTypes.APPLICATION_SS
 
+        "video/mp2t",
+        "video/mpeg2-ts",
+        "video/x-mpegts" -> MimeTypes.VIDEO_MP2T
+
         "video/mp4",
         "application/mp4",
         "video/x-m4v" -> MimeTypes.VIDEO_MP4
@@ -244,7 +268,10 @@ private fun inferMimeTypeFromQuery(query: String): String? {
 
     query.split('&').forEach { parameter ->
         val key = parameter.substringBefore('=', missingDelimiterValue = "").trim()
-        val value = parameter.substringAfter('=', missingDelimiterValue = "").trim()
+        val rawValue = parameter.substringAfter('=', missingDelimiterValue = "").trim()
+        val value = runCatching {
+            URLDecoder.decode(rawValue.replace("+", "%2B"), Charsets.UTF_8.name())
+        }.getOrDefault(rawValue).lowercase(Locale.US)
         if (key.isBlank() || value.isBlank()) return@forEach
 
         when (key) {
@@ -304,7 +331,7 @@ internal fun probeMimeType(url: String, headers: Map<String, String>): String? {
     val methods = listOf("HEAD", "GET")
     methods.forEach { method ->
         runCatching {
-            val request = Request.Builder()
+            val request = okhttp3.Request.Builder()
                 .url(url)
                 .method(method, null)
                 .header("User-Agent", "Mozilla/5.0")
@@ -312,23 +339,49 @@ internal fun probeMimeType(url: String, headers: Map<String, String>): String? {
                 .apply { headers.forEach { (key, value) -> header(key, value) } }
                 .build()
             mimeProbeHttpClient.newCall(request).execute().use { response ->
-                if (response.code in 200..299) normalizeMimeType(response.header("Content-Type")) else null
+                if (response.code !in 200..299) return@use null
+                normalizeMimeType(response.header("Content-Type"))
+                    ?: if (method == "GET") response.body.byteStream().use { mimeTypeFromRemoteHeader(it.readHeaderBytes()) } else null
             }
         }.getOrNull()?.let { return it }
     }
     return null
 }
 
+private fun mimeTypeFromRemoteHeader(header: ByteArray): String? {
+    if (header.isEmpty()) return null
+    val text = header.decodeToString().trimStart('\uFEFF', ' ', '\t', '\r', '\n')
+    return when {
+        text.startsWith("#EXTM3U", ignoreCase = true) -> MimeTypes.APPLICATION_M3U8
+        text.contains("<MPD", ignoreCase = true) -> MimeTypes.APPLICATION_MPD
+        text.contains("<SmoothStreamingMedia", ignoreCase = true) -> MimeTypes.APPLICATION_SS
+        header[0] == MPEG_TS_SYNC_BYTE -> MimeTypes.VIDEO_MP2T
+        else -> mimeTypeFromHeader(header)
+    }
+}
+
 private val mimeProbeHttpClient by lazy {
-    SharedOkHttpClient.base.newBuilder()
-        .connectTimeout(3, TimeUnit.SECONDS)
-        .readTimeout(3, TimeUnit.SECONDS)
+    com.nuvio.app.core.network.SharedOkHttpClient.base.newBuilder()
+        .connectTimeout(3, java.util.concurrent.TimeUnit.SECONDS)
+        .readTimeout(3, java.util.concurrent.TimeUnit.SECONDS)
         .followRedirects(true)
         .followSslRedirects(true)
         .build()
 }
 
 private const val MIME_VIDEO_QUICK_TIME = "video/quicktime"
+private const val MIME_APPLICATION_OGG = "application/ogg"
+private const val HEADER_SNIFF_BYTES = 4096
+private const val MPEG_TS_PACKET_OFFSET = 188
+private const val MPEG_TS_SYNC_BYTE: Byte = 0x47
+private const val LOCAL_MIME_TYPE_CACHE_LIMIT = 64
+private val EBML_HEADER = byteArrayOf(0x1A, 0x45, 0xDF.toByte(), 0xA3.toByte())
+private val MP4_FTYP_HEADER = "ftyp".toByteArray(Charsets.US_ASCII)
+private val RIFF_HEADER = "RIFF".toByteArray(Charsets.US_ASCII)
+private val AVI_HEADER = "AVI ".toByteArray(Charsets.US_ASCII)
+private val FLV_HEADER = "FLV".toByteArray(Charsets.US_ASCII)
+private val OGG_HEADER = "OggS".toByteArray(Charsets.US_ASCII)
+private val localMimeTypeCache = ConcurrentHashMap<String, String>()
 private val DELIMITED_M3U8_PATTERN = Regex("(^|[=/_.?&%-])m3u8($|[=/_.?&%-])")
 private val DELIMITED_HLS_PATTERN = Regex("(^|[=/_.?&%-])hls($|[=/_.?&%-])")
 private val DELIMITED_MPD_PATTERN = Regex("(^|[=/_.?&%-])mpd($|[=/_.?&%-])")

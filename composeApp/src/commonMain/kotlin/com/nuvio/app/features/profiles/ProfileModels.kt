@@ -3,6 +3,7 @@ package com.nuvio.app.features.profiles
 import androidx.compose.ui.graphics.Color
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 
 const val MAX_PROFILES = 6
 
@@ -15,7 +16,8 @@ data class NuvioProfile(
     @SerialName("avatar_color_hex") val avatarColorHex: String = "#1E88E5",
     @SerialName("avatar_id") val avatarId: String? = null,
     @SerialName("avatar_url") val avatarUrl: String? = null,
-    @SerialName("background_url") val backgroundUrl: String? = null,
+    @SerialName("profile_background_id") val profileBackgroundId: String? = null,
+    @SerialName("profile_background_url") val profileBackgroundUrl: String? = null,
     @SerialName("uses_primary_addons") val usesPrimaryAddons: Boolean = false,
     @SerialName("uses_primary_plugins") val usesPrimaryPlugins: Boolean = false,
     @SerialName("pin_enabled") val pinEnabled: Boolean = false,
@@ -33,59 +35,8 @@ data class ProfilePushPayload(
     @SerialName("uses_primary_plugins") val usesPrimaryPlugins: Boolean = false,
     @SerialName("avatar_id") val avatarId: String? = null,
     @SerialName("avatar_url") val avatarUrl: String? = null,
-    @SerialName("background_url") val backgroundUrl: String? = null,
-)
-
-@Serializable
-internal data class UpstreamProfilePushPayload(
-    @SerialName("profile_index") val profileIndex: Int,
-    val name: String,
-    @SerialName("avatar_color_hex") val avatarColorHex: String,
-    @SerialName("uses_primary_addons") val usesPrimaryAddons: Boolean,
-    @SerialName("uses_primary_plugins") val usesPrimaryPlugins: Boolean,
-    @SerialName("avatar_id") val avatarId: String? = null,
-    @SerialName("avatar_url") val avatarUrl: String? = null,
-)
-
-internal fun NuvioProfile.toProfilePushPayload(): ProfilePushPayload =
-    ProfilePushPayload(
-        profileIndex = profileIndex,
-        name = name,
-        avatarColorHex = avatarColorHex,
-        usesPrimaryAddons = usesPrimaryAddons,
-        usesPrimaryPlugins = usesPrimaryPlugins,
-        avatarId = avatarId,
-        avatarUrl = avatarUrl,
-        backgroundUrl = backgroundUrl,
-    )
-
-internal fun ProfilePushPayload.toUpstreamProfilePushPayload(): UpstreamProfilePushPayload =
-    UpstreamProfilePushPayload(
-        profileIndex = profileIndex,
-        name = name,
-        avatarColorHex = avatarColorHex,
-        usesPrimaryAddons = usesPrimaryAddons,
-        usesPrimaryPlugins = usesPrimaryPlugins,
-        avatarId = avatarId,
-        avatarUrl = normalizedAvatarUrl(avatarUrl),
-    )
-
-internal fun mergeProfileBackgrounds(
-    remoteProfiles: List<NuvioProfile>,
-    localBackgrounds: Map<Int, String?>,
-    backgroundOverrides: Map<Int, String?> = emptyMap(),
-): List<NuvioProfile> = remoteProfiles.map { profile ->
-    val backgroundUrl = when {
-        backgroundOverrides.containsKey(profile.profileIndex) -> backgroundOverrides[profile.profileIndex]
-        else -> normalizedProfileBackgroundUrl(localBackgrounds[profile.profileIndex])
-            ?: normalizedProfileBackgroundUrl(profile.backgroundUrl)
-    }
-    profile.copy(backgroundUrl = backgroundUrl)
-}
-
-data class ProfileMutationResult(
-    val success: Boolean,
-    val message: String? = null,
+    @SerialName("profile_background_id") val profileBackgroundId: String? = null,
+    @SerialName("profile_background_url") val profileBackgroundUrl: String? = null,
 )
 
 @Serializable
@@ -114,6 +65,8 @@ data class AvatarCatalogItem(
     @SerialName("sort_order") val sortOrder: Int = 0,
     @SerialName("is_active") val isActive: Boolean = true,
     @SerialName("bg_color") val bgColor: String? = null,
+    @Transient val localImageUrl: String? = null,
+    @Transient val memberOnly: Boolean = false,
 )
 
 fun parseHexColor(hex: String): Color {
@@ -135,7 +88,15 @@ val PROFILE_COLORS = listOf(
 )
 
 fun avatarStorageUrl(storagePath: String): String =
-    "${com.nuvio.app.core.network.SupabaseConfig.URL}/storage/v1/object/public/avatars/$storagePath"
+    if (storagePath.startsWith("https://") || storagePath.startsWith("http://")) {
+        storagePath
+    } else {
+        "${com.nuvio.app.core.network.ServerConfigurationRepository.active.value.backendUrl}/storage/v1/object/public/avatars/$storagePath"
+    }
+
+fun avatarImageUrl(avatar: AvatarCatalogItem): String? =
+    avatar.localImageUrl
+        ?: avatar.storagePath.takeIf { it.isNotBlank() && !avatar.memberOnly }?.let(::avatarStorageUrl)
 
 fun normalizedAvatarUrl(url: String?): String? =
     normalizedRemoteImageUrl(url)
@@ -155,10 +116,4 @@ fun String.isValidRemoteImageUrl(): Boolean {
 
 fun profileAvatarImageUrl(profile: NuvioProfile, avatar: AvatarCatalogItem?): String? =
     normalizedAvatarUrl(profile.avatarUrl)
-        ?: avatar
-            ?.storagePath
-            ?.takeIf { it.isNotBlank() }
-            ?.let(::avatarStorageUrl)
-
-fun profileBackgroundImageUrl(profile: NuvioProfile): String? =
-    normalizedRemoteImageUrl(profile.backgroundUrl)
+        ?: avatar?.let(::avatarImageUrl)

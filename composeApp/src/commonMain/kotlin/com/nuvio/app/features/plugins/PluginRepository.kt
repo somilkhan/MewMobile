@@ -31,7 +31,7 @@ expect object PluginRepository {
 
     fun setGroupStreamsByRepository(enabled: Boolean)
 
-    fun setQualityExcluded(qualityId: String, excluded: Boolean)
+    fun setLocalPluginSearchPaused(paused: Boolean)
 
     fun getEnabledScrapersForType(type: String): List<PluginScraper>
 

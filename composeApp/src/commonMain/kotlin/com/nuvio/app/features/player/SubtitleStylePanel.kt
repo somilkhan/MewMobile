@@ -1,12 +1,11 @@
 package com.nuvio.app.features.player
 
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.animateScrollBy
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,12 +18,10 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.KeyboardArrowDown
-import androidx.compose.material.icons.rounded.KeyboardArrowUp
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Hearing
 import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material3.Icon
@@ -33,9 +30,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,19 +39,27 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.runtime.snapshotFlow
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.Density
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.yield
-import nuvio.composeapp.generated.resources.*
+import com.nuvio.app.core.ui.nuvio
+import nuvio.composeapp.generated.resources.Res
+import nuvio.composeapp.generated.resources.compose_player_auto_sync
+import nuvio.composeapp.generated.resources.compose_player_capture_line
+import nuvio.composeapp.generated.resources.compose_player_loading_lines
+import nuvio.composeapp.generated.resources.compose_player_no_subtitle_lines_found
+import nuvio.composeapp.generated.resources.compose_player_reload
+import nuvio.composeapp.generated.resources.compose_player_reset
+import nuvio.composeapp.generated.resources.compose_player_select_addon_subtitle_first
+import nuvio.composeapp.generated.resources.compose_player_style
+import nuvio.composeapp.generated.resources.compose_player_subtitle_delay
+import nuvio.composeapp.generated.resources.compose_player_sync_by_ear
+import nuvio.composeapp.generated.resources.subtitle_reset_appearance
 import org.jetbrains.compose.resources.stringResource
 import com.nuvio.app.core.ui.isTvLayoutProfileEnabled
 import kotlin.math.abs
-import kotlin.math.roundToInt
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+
+private const val STEPPER_HOLD_START_MS = 500L
+private const val STEPPER_HOLD_REPEAT_MS = 100L
 
 @Composable
 fun SubtitleStylePanel(
@@ -98,6 +102,7 @@ fun SubtitleSyncPanel(
     isPlaying: Boolean,
     onSubtitleDelayChanged: (Int) -> Unit,
     onSubtitleDelayReset: () -> Unit,
+    onSyncByEarClick: () -> Unit,
     onAutoSyncCapture: () -> Unit,
     onSyncByEarClick: () -> Unit,
     onAutoSyncCueSelected: (SubtitleSyncCue) -> Unit,
@@ -207,286 +212,87 @@ private fun SyncControlsCard(
                 text = stringResource(Res.string.compose_player_reset),
                 onClick = onSubtitleDelayReset,
             )
-            SmallActionPill(
-                text = stringResource(Res.string.compose_player_sync_by_ear),
+            SubtitleSyncByEarAction(
+                label = stringResource(Res.string.compose_player_sync_by_ear),
                 onClick = onSyncByEarClick,
             )
         }
 
-        AutoSyncControls(
+        SubtitleAppearanceControls(
+            style = style,
+            spacing = sectionGap,
+            onStyleChanged = onStyleChanged,
+        )
+
+        SubtitleAutoSyncSection(
             selectedAddonSubtitle = selectedAddonSubtitle,
             state = subtitleAutoSyncState,
-            subtitleDelayMs = subtitleDelayMs,
-            currentPlaybackPositionMs = currentPlaybackPositionMs,
-            isCompact = isCompact,
-            isPlaying = isPlaying,
             onCapture = onAutoSyncCapture,
             onCueSelected = onAutoSyncCueSelected,
             onReload = onAutoSyncReload,
-            onTogglePlayback = onTogglePlayback,
+        )
+
+        Text(
+            text = stringResource(Res.string.subtitle_reset_appearance),
+            modifier = Modifier.clip(RoundedCornerShape(12.dp))
+                .clickable { onStyleChanged(style.resetAppearance()) }
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            color = Color.White,
+            style = MaterialTheme.typography.bodyMedium,
         )
     }
 }
 
 @Composable
-private fun StyleControlsCard(
-    style: SubtitleStyleState,
-    isCompact: Boolean,
-    sectionPadding: androidx.compose.ui.unit.Dp,
-    colorScheme: androidx.compose.material3.ColorScheme,
-    uiScale: Float,
-    onStyleChanged: ((SubtitleStyleState) -> SubtitleStyleState) -> Unit,
+internal fun SubtitleStyleSection(
+    title: String,
+    content: @Composable ColumnScope.() -> Unit,
 ) {
-    val btnSize = (if (isCompact) 28.dp else 32.dp) * uiScale
-    val btnRadius = (if (isCompact) 14.dp else 16.dp) * uiScale
-
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(colorScheme.surfaceVariant.copy(alpha = 0.45f))
-            .padding(sectionPadding),
-        verticalArrangement = Arrangement.spacedBy(if (isCompact) 12.dp else 16.dp),
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        SectionHeader(
-            icon = Icons.Rounded.Tune,
-            label = stringResource(Res.string.compose_player_style),
+        Text(
+            text = title,
+            color = Color.White,
+            style = MaterialTheme.typography.bodyMedium,
         )
+        content()
+    }
+}
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = stringResource(Res.string.compose_player_font_size),
-                color = colorScheme.onSurfaceVariant,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-            )
-            StepperControl(
-                value = stringResource(Res.string.compose_player_font_size_value, style.fontSizeSp),
-                onMinus = {
-                    onStyleChanged { current -> current.copy(fontSizeSp = (current.fontSizeSp - 1).coerceAtLeast(12)) }
-                },
-                onPlus = {
-                    onStyleChanged { current -> current.copy(fontSizeSp = (current.fontSizeSp + 1).coerceAtMost(40)) }
-                },
-                buttonSize = btnSize,
-                buttonRadius = btnRadius,
-                minWidth = 58.dp,
-                minusIcon = Icons.Rounded.KeyboardArrowDown,
-                plusIcon = Icons.Rounded.KeyboardArrowUp,
-            )
-        }
-
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text(
-                text = stringResource(Res.string.compose_player_font_family),
-                color = colorScheme.onSurfaceVariant,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-            )
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                SubtitleFontFamily.entries.forEach { family ->
-                    val label = if (family == SubtitleFontFamily.Custom) {
-                        style.customFontName?.takeIf { it.isNotBlank() }
-                            ?: stringResource(Res.string.compose_player_font_custom)
-                    } else {
-                        family.displayLabel()
-                    }
-                    SubtitleFontFamilyChip(
-                        label = label,
-                        selected = style.fontFamily == family,
-                        onClick = {
-                            if (family != SubtitleFontFamily.Custom || !style.customFontPath.isNullOrBlank()) {
-                                onStyleChanged { current -> current.copy(fontFamily = family) }
-                            }
-                        },
-                        isCompact = isCompact,
-                    )
-                }
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                SubtitleFontActionChip(
-                    label = stringResource(Res.string.compose_player_font_import),
-                    onClick = {
-                        SubtitleFontFileBridge.importFont { result ->
-                            result.onSuccess { font ->
-                                onStyleChanged { current ->
-                                    current.copy(
-                                        fontFamily = SubtitleFontFamily.Custom,
-                                        customFontName = font.displayName,
-                                        customFontPath = font.path,
-                                    )
-                                }
-                            }
-                        }
-                    },
-                    isCompact = isCompact,
-                )
-                if (!style.customFontPath.isNullOrBlank()) {
-                    SubtitleFontActionChip(
-                        label = stringResource(Res.string.compose_player_font_clear_custom),
-                        onClick = {
-                            onStyleChanged { current ->
-                                current.copy(
-                                    fontFamily = SubtitleFontFamily.System,
-                                    customFontName = null,
-                                    customFontPath = null,
-                                )
-                            }
-                        },
-                        isCompact = isCompact,
-                    )
-                }
-            }
-        }
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = stringResource(Res.string.compose_player_outline),
-                color = colorScheme.onSurfaceVariant,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-            )
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(
-                        if (style.outlineEnabled) colorScheme.primaryContainer
-                        else colorScheme.surface.copy(alpha = 0.8f)
-                    )
-                    .border(1.dp, colorScheme.outlineVariant.copy(alpha = 0.8f), RoundedCornerShape(10.dp))
-                    .clickable {
-                        onStyleChanged { current ->
-                            current.copy(
-                                outlineEnabled = !current.outlineEnabled,
-                                outlineWidth = normalizeSubtitleOutlineWidth(current.outlineWidth),
-                            )
-                        }
-                    }
-                    .padding(horizontal = 10.dp, vertical = 8.dp),
-            ) {
-                Text(
-                    text = if (style.outlineEnabled) stringResource(Res.string.compose_action_on)
-                    else stringResource(Res.string.compose_action_off),
-                    color = if (style.outlineEnabled) colorScheme.onPrimaryContainer else colorScheme.onSurface,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 13.sp,
-                )
-            }
-        }
-
-        if (style.outlineEnabled) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = stringResource(Res.string.compose_player_outline_thickness),
-                    color = colorScheme.onSurfaceVariant,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
-                )
-                StepperControl(
-                    value = style.outlineWidth.toString(),
-                    onMinus = { onStyleChanged { current -> current.copy(outlineWidth = (normalizeSubtitleOutlineWidth(current.outlineWidth) - 1).coerceAtLeast(SUBTITLE_OUTLINE_WIDTH_MIN)) } },
-                    onPlus = { onStyleChanged { current -> current.copy(outlineWidth = (normalizeSubtitleOutlineWidth(current.outlineWidth) + 1).coerceAtMost(SUBTITLE_OUTLINE_WIDTH_MAX)) } },
-                    buttonSize = btnSize,
-                    buttonRadius = btnRadius,
-                    minWidth = 46.dp,
-                    minusIcon = Icons.Rounded.KeyboardArrowDown,
-                    plusIcon = Icons.Rounded.KeyboardArrowUp,
-                )
-            }
-        }
-
-        ToggleRow(
-            label = stringResource(Res.string.compose_player_shadow),
-            enabled = style.shadowEnabled,
-            onToggle = { onStyleChanged { current -> current.copy(shadowEnabled = !current.shadowEnabled) } },
+/**
+ * [onDecreaseHold] and [onIncreaseHold], when set, repeat while the button is held and get how
+ * long it has been held; releasing after a repeat does not add a tap.
+ */
+@Composable
+internal fun SubtitleStyleStepper(
+    value: String,
+    onDecrease: () -> Unit,
+    onIncrease: () -> Unit,
+    valueWidth: Dp = 84.dp,
+    enabled: Boolean = true,
+    onDecreaseHold: ((heldMs: Long) -> Unit)? = null,
+    onIncreaseHold: ((heldMs: Long) -> Unit)? = null,
+) {
+    Row(
+        modifier = Modifier.alpha(if (enabled) 1f else 0.42f),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        SubtitleStepperButton(
+            icon = Icons.Rounded.Remove,
+            onClick = onDecrease,
+            enabled = enabled,
+            onHold = onDecreaseHold,
         )
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = stringResource(Res.string.compose_player_shadow_strength),
-                color = colorScheme.onSurfaceVariant,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-            )
-            StepperControl(
-                value = style.shadowStrength.toString(),
-                onMinus = { onStyleChanged { current -> current.copy(shadowStrength = normalizeSubtitleShadowStrength(current.shadowStrength - 1)) } },
-                onPlus = { onStyleChanged { current -> current.copy(shadowStrength = normalizeSubtitleShadowStrength(current.shadowStrength + 1)) } },
-                buttonSize = btnSize,
-                buttonRadius = btnRadius,
-                minWidth = 46.dp,
-                minusIcon = Icons.Rounded.KeyboardArrowDown,
-                plusIcon = Icons.Rounded.KeyboardArrowUp,
-            )
-        }
-
-        ToggleRow(
-            label = stringResource(Res.string.compose_player_bold),
-            enabled = style.bold,
-            onToggle = { onStyleChanged { current -> current.copy(bold = !current.bold) } },
-        )
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = stringResource(Res.string.compose_player_bottom_offset),
-                color = colorScheme.onSurfaceVariant,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-            )
-            StepperControl(
-                value = style.bottomOffset.toString(),
-                onMinus = { onStyleChanged { current -> current.copy(bottomOffset = (current.bottomOffset - 5).coerceAtLeast(0)) } },
-                onPlus = { onStyleChanged { current -> current.copy(bottomOffset = (current.bottomOffset + 5).coerceAtMost(200)) } },
-                buttonSize = btnSize,
-                buttonRadius = btnRadius,
-                minWidth = 46.dp,
-                minusIcon = Icons.Rounded.KeyboardArrowDown,
-                plusIcon = Icons.Rounded.KeyboardArrowUp,
-            )
-        }
-
-        ColorPickerRow(
-            label = stringResource(Res.string.compose_player_color),
-            colors = SubtitleColorSwatches,
-            selectedColor = style.textColor,
-            onColorSelected = { color -> onStyleChanged { current -> current.copy(textColor = color) } },
-        )
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
+        Box(
+            modifier = Modifier
+                .widthIn(min = valueWidth)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Color.White.copy(alpha = 0.06f))
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            contentAlignment = Alignment.Center,
         ) {
             val currentAlphaPercent = (style.textColor.alpha * 100f).roundToInt().coerceIn(0, 100)
             Text(
@@ -510,12 +316,11 @@ private fun StyleControlsCard(
                 minWidth = 58.dp,
             )
         }
-
-        ColorPickerRow(
-            label = stringResource(Res.string.compose_player_outline_color),
-            colors = SubtitleColorSwatches,
-            selectedColor = style.outlineColor,
-            onColorSelected = { color -> onStyleChanged { current -> current.copy(outlineColor = color) } },
+        SubtitleStepperButton(
+            icon = Icons.Rounded.Add,
+            onClick = onIncrease,
+            enabled = enabled,
+            onHold = onIncreaseHold,
         )
 
         Row(
@@ -546,25 +351,46 @@ private fun SubtitleFontFamilyChip(
     label: String,
     selected: Boolean,
     onClick: () -> Unit,
-    isCompact: Boolean,
+    enabled: Boolean,
+    onHold: ((heldMs: Long) -> Unit)? = null,
 ) {
-    val colorScheme = MaterialTheme.colorScheme
-    val shape = RoundedCornerShape(999.dp)
+    val interactionSource = remember { MutableInteractionSource() }
+    // True while a hold is repeating, so the release that ends it is not also counted as a tap.
+    // The click runs before the release recomposes and cancels the hold, which clears it.
+    val holdRepeated = remember { BooleanArray(1) }
+    if (onHold != null) {
+        val isPressed by interactionSource.collectIsPressedAsState()
+        val latestOnHold by rememberUpdatedState(onHold)
+        LaunchedEffect(isPressed, enabled) {
+            if (!isPressed || !enabled) return@LaunchedEffect
+            try {
+                delay(STEPPER_HOLD_START_MS)
+                var heldMs = STEPPER_HOLD_START_MS
+                while (isActive) {
+                    holdRepeated[0] = true
+                    latestOnHold(heldMs)
+                    delay(STEPPER_HOLD_REPEAT_MS)
+                    heldMs += STEPPER_HOLD_REPEAT_MS
+                }
+            } finally {
+                holdRepeated[0] = false
+            }
+        }
+    }
+
     Box(
         modifier = Modifier
-            .clip(shape)
-            .background(
-                if (selected) colorScheme.primaryContainer
-                else colorScheme.surface.copy(alpha = 0.8f),
-            )
-            .border(
-                width = 1.dp,
-                color = if (selected) colorScheme.primary.copy(alpha = 0.65f)
-                else colorScheme.outlineVariant.copy(alpha = 0.75f),
-                shape = shape,
-            )
-            .clickable(onClick = onClick)
-            .padding(horizontal = if (isCompact) 10.dp else 12.dp, vertical = if (isCompact) 7.dp else 8.dp),
+            .size(40.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color.White.copy(alpha = 0.08f))
+            .clickable(
+                interactionSource = interactionSource,
+                indication = LocalIndication.current,
+                enabled = enabled,
+            ) {
+                if (holdRepeated[0]) holdRepeated[0] = false else onClick()
+            },
+        contentAlignment = Alignment.Center,
     ) {
         Text(
             text = label,
@@ -587,32 +413,7 @@ private fun SubtitleFontFamily.displayLabel(): String =
     }
 
 @Composable
-private fun SubtitleFontActionChip(
-    label: String,
-    onClick: () -> Unit,
-    isCompact: Boolean,
-) {
-    val colorScheme = MaterialTheme.colorScheme
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(10.dp))
-            .background(colorScheme.surface.copy(alpha = 0.82f))
-            .border(1.dp, colorScheme.outlineVariant.copy(alpha = 0.8f), RoundedCornerShape(10.dp))
-            .clickable(onClick = onClick)
-            .padding(horizontal = if (isCompact) 10.dp else 12.dp, vertical = if (isCompact) 7.dp else 8.dp),
-    ) {
-        Text(
-            text = label,
-            color = colorScheme.onSurface,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = if (isCompact) 12.sp else 13.sp,
-            maxLines = 1,
-        )
-    }
-}
-
-@Composable
-private fun AutoSyncControls(
+private fun SubtitleAutoSyncSection(
     selectedAddonSubtitle: AddonSubtitle?,
     state: SubtitleAutoSyncUiState,
     subtitleDelayMs: Int,
@@ -624,9 +425,17 @@ private fun AutoSyncControls(
     onReload: () -> Unit,
     onTogglePlayback: () -> Unit,
 ) {
-    val colorScheme = MaterialTheme.colorScheme
-    val sortedCues = remember(state.cues) {
-        state.cues.sortedBy(SubtitleSyncCue::startTimeMs)
+    val tokens = MaterialTheme.nuvio
+    val capturedPositionMs = state.capturedPositionMs
+    val cueListState = rememberLazyListState()
+    val highlightedCueIndex = capturedPositionMs?.let { captured ->
+        state.cues.indices.minByOrNull { index -> abs(state.cues[index].startTimeMs - captured) }
+    } ?: -1
+
+    LaunchedEffect(highlightedCueIndex, state.cues.size) {
+        if (highlightedCueIndex >= 0) {
+            cueListState.animateScrollToItem((highlightedCueIndex - 2).coerceAtLeast(0))
+        }
     }
     val subtitlePositionMs = (currentPlaybackPositionMs - subtitleDelayMs).coerceAtLeast(0L)
     val activeCueIndex = sortedCues.indexOf(activeSubtitleSyncCue(sortedCues, subtitlePositionMs))
@@ -654,141 +463,61 @@ private fun AutoSyncControls(
         }
     }
 
-    LaunchedEffect(state.cues) {
-        followActiveCue = true
-    }
-
-    LaunchedEffect(activeCueIndex, sortedCues.size, followActiveCue) {
-        if (!followActiveCue || activeCueIndex < 0) return@LaunchedEffect
-        autoScrollInProgress = true
-        try {
-            cueListState.animateSubtitleCueToCenter(activeCueIndex)
-        } finally {
-            autoScrollInProgress = false
-        }
-    }
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(colorScheme.surface.copy(alpha = 0.55f))
-            .border(1.dp, colorScheme.outlineVariant.copy(alpha = 0.6f), RoundedCornerShape(12.dp))
-            .padding(if (isCompact) 10.dp else 12.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = stringResource(Res.string.compose_player_auto_sync),
-                color = colorScheme.onSurface,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 13.sp,
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                SmallActionPill(
-                    text = if (isPlaying) {
-                        stringResource(Res.string.compose_action_pause)
-                    } else {
-                        stringResource(Res.string.action_play)
-                    },
-                    enabled = selectedAddonSubtitle != null,
-                    selected = isPlaying,
-                    onClick = onTogglePlayback,
+        when {
+            selectedAddonSubtitle == null -> {
+                SubtitleHelperText(stringResource(Res.string.compose_player_select_addon_subtitle_first))
+            }
+            state.isLoading -> {
+                SubtitleHelperText(stringResource(Res.string.compose_player_loading_lines))
+            }
+            state.errorMessage != null -> {
+                Text(
+                    text = state.errorMessage,
+                    color = tokens.colors.danger,
+                    style = MaterialTheme.typography.bodySmall,
                 )
-                SmallActionPill(
-                    text = stringResource(Res.string.compose_player_reload),
-                    enabled = selectedAddonSubtitle != null,
-                    onClick = onReload,
-                )
-                SmallActionPill(
-                    text = stringResource(Res.string.compose_player_capture_line),
-                    enabled = selectedAddonSubtitle != null,
-                    onClick = onCapture,
-                )
+            }
+            capturedPositionMs != null && state.cues.isEmpty() -> {
+                SubtitleHelperText(stringResource(Res.string.compose_player_no_subtitle_lines_found))
             }
         }
 
-        if (selectedAddonSubtitle == null) {
-            Text(
-                text = stringResource(Res.string.compose_player_select_addon_subtitle_first),
-                color = colorScheme.onSurfaceVariant,
-                fontSize = 12.sp,
-            )
-            return@Column
-        }
-
-        if (state.isLoading) {
-            Text(
-                text = stringResource(Res.string.compose_player_loading_lines),
-                color = colorScheme.onSurfaceVariant,
-                fontSize = 12.sp,
-            )
-        }
-
-        state.errorMessage?.let { message ->
-            Text(
-                text = message,
-                color = colorScheme.error,
-                fontSize = 12.sp,
-            )
-        }
-
-        if (sortedCues.isEmpty() && !state.isLoading && state.errorMessage == null) {
-            Text(
-                text = stringResource(Res.string.compose_player_no_subtitle_lines_found),
-                color = colorScheme.onSurfaceVariant,
-                fontSize = 12.sp,
-            )
-        }
-
-        if (sortedCues.isNotEmpty()) {
-            val listHeight = if (isCompact) 170.dp else 240.dp
+        if (state.cues.isNotEmpty()) {
             LazyColumn(
                 state = cueListState,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = listHeight, max = listHeight),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                    vertical = listHeight / 2,
-                ),
+                    .heightIn(max = 300.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                itemsIndexed(sortedCues) { index, cue ->
-                    val isHighlighted = index == activeCueIndex
+                itemsIndexed(state.cues) { index, cue ->
+                    val isHighlighted = index == highlightedCueIndex
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(8.dp))
                             .background(
-                                if (isHighlighted) colorScheme.primary.copy(alpha = 0.24f)
-                                else colorScheme.surfaceVariant.copy(alpha = 0.52f),
-                            )
-                            .border(
-                                width = 1.dp,
-                                color = if (isHighlighted) colorScheme.primary.copy(alpha = 0.72f)
-                                else colorScheme.outlineVariant.copy(alpha = 0.18f),
-                                shape = RoundedCornerShape(8.dp),
+                                if (isHighlighted) Color.White.copy(alpha = 0.14f)
+                                else Color.White.copy(alpha = 0.06f)
                             )
                             .clickable { onCueSelected(cue) }
-                            .padding(horizontal = 8.dp, vertical = 7.dp),
+                            .padding(horizontal = 10.dp, vertical = 8.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
+                        verticalAlignment = Alignment.Top,
                     ) {
                         Text(
                             text = formatCueTimestamp(cue.startTimeMs),
-                            color = if (isHighlighted) colorScheme.primary else colorScheme.onSurfaceVariant,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
+                            color = if (isHighlighted) Color.White else tokens.colors.accent,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.SemiBold,
                         )
                         Text(
                             text = cue.text,
-                            color = colorScheme.onSurface,
-                            fontSize = 12.sp,
+                            modifier = Modifier.weight(1f),
+                            color = Color.White,
+                            style = MaterialTheme.typography.bodySmall,
                             maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
                 }
@@ -856,7 +585,7 @@ internal fun androidx.compose.ui.Modifier.subtitleSyncManualScroll(
 }
 
 @Composable
-private fun ToggleRow(
+internal fun SubtitleTextAction(
     label: String,
     enabled: Boolean,
     onToggle: () -> Unit,
@@ -883,7 +612,7 @@ private fun ToggleRow(
 }
 
 @Composable
-private fun ColorPickerRow(
+private fun SubtitleSyncByEarAction(
     label: String,
     colors: List<Color>,
     selectedColor: Color,
@@ -928,30 +657,34 @@ private fun SmallActionPill(
     selected: Boolean = false,
     onClick: () -> Unit,
 ) {
-    val colorScheme = MaterialTheme.colorScheme
-    Box(
+    val tokens = MaterialTheme.nuvio
+
+    Row(
         modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(
-                when {
-                    selected -> colorScheme.primaryContainer
-                    enabled -> colorScheme.surface.copy(alpha = 0.82f)
-                    else -> colorScheme.surfaceVariant.copy(alpha = 0.48f)
-                }
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(tokens.colors.accent.copy(alpha = 0.16f))
+            .border(
+                width = 1.dp,
+                color = tokens.colors.accent.copy(alpha = 0.45f),
+                shape = RoundedCornerShape(14.dp),
             )
-            .border(1.dp, colorScheme.outlineVariant.copy(alpha = 0.8f), RoundedCornerShape(8.dp))
-            .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 9.dp, vertical = 7.dp),
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
+        Icon(
+            imageVector = Icons.Rounded.Hearing,
+            contentDescription = null,
+            tint = tokens.colors.accent,
+            modifier = Modifier.size(20.dp),
+        )
         Text(
-            text = text,
-            color = when {
-                selected -> colorScheme.onPrimaryContainer
-                enabled -> colorScheme.onSurface
-                else -> colorScheme.onSurfaceVariant.copy(alpha = 0.58f)
-            },
+            text = label,
+            color = Color.White,
+            style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.SemiBold,
-            fontSize = 12.sp,
         )
     }
 }
@@ -1021,33 +754,6 @@ private fun StepperControl(
                 modifier = Modifier.size(16.dp),
             )
         }
-    }
-}
-
-@Composable
-private fun SectionHeader(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    label: String,
-) {
-    val colorScheme = MaterialTheme.colorScheme
-
-    Row(
-        modifier = Modifier.padding(bottom = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = colorScheme.primary,
-            modifier = Modifier.size(16.dp),
-        )
-        Text(
-            text = label,
-            color = colorScheme.onSurface,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.SemiBold,
-        )
     }
 }
 

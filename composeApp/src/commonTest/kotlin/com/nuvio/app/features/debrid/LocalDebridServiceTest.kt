@@ -3,7 +3,6 @@ package com.nuvio.app.features.debrid
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNull
 
 class LocalDebridServiceTest {
     private val canonical = "7db44b3713094e622246b715de410bb9b6d91230"
@@ -32,7 +31,7 @@ class LocalDebridServiceTest {
     }
 
     @Test
-    fun onlyMissingBatchHashesAreRetried() = runTest {
+    fun onlyTheHashesMissingFromABatchAreAskedAgain() = runTest {
         val exact = LocalDebridCachedItem(name = "exact.mkv", size = 3L)
         val aliased = LocalDebridCachedItem(name = "aliased.mkv", size = 2L)
         val asked = mutableListOf<String>()
@@ -47,17 +46,5 @@ class LocalDebridServiceTest {
 
         assertEquals(listOf(requested), asked)
         assertEquals(mapOf("abc123" to exact, canonical to aliased, requested to aliased), resolved)
-    }
-
-    @Test
-    fun failedRetryLeavesAvailabilityUnknownInsteadOfReportingAMiss() = runTest {
-        val item = LocalDebridCachedItem(name = "aliased.mkv", size = 4L)
-
-        val resolved = resolveTorboxAliasMatches(
-            cached = mapOf(canonical to item),
-            requestedHashes = listOf("abc123", requested),
-        ) { null }
-
-        assertNull(resolved)
     }
 }

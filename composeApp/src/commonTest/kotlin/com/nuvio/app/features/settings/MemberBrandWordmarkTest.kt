@@ -1,41 +1,46 @@
 package com.nuvio.app.features.settings
 
 import androidx.compose.ui.graphics.Color
-import com.nuvio.app.core.ui.AppTheme
-import com.nuvio.app.core.ui.ThemeColors
+import com.nuvio.app.features.membership.MemberTier
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNotEquals
 
 class MemberBrandWordmarkTest {
     @Test
-    fun supporterThemesUseTheirOwnAccentPalettes() {
-        val gold = memberBrandWordmarkColors(AppTheme.GOLD)
-        val jade = memberBrandWordmarkColors(AppTheme.JADE)
+    fun supporterBadgeMatchesWebsiteWarmGradient() {
+        val style = MemberTier.SUPPORTER.badgeStyle()
 
-        assertEquals(ThemeColors.Gold.accentGradient.first(), gold.first())
-        assertEquals(ThemeColors.Jade.accentGradient.first(), jade.first())
-        assertEquals(gold.first(), gold.last())
-        assertEquals(jade.first(), jade.last())
-        assertNotEquals(gold, jade)
-    }
-
-    @Test
-    fun enhancedAndCustomThemesUseTheirProvidedAnimatedColors() {
-        val selectedColors = listOf(Color.Red, Color.Green, Color.Blue)
-
+        assertEquals("Supporter", style.label)
         assertEquals(
-            selectedColors + selectedColors.first(),
-            memberBrandWordmarkColors(AppTheme.CUSTOM, selectedColors),
+            listOf(
+                0f to Color(0xFFD4843D),
+                0.5f to Color(0xFFFFDE90),
+                1f to Color(0xFFD4843D),
+            ),
+            style.colorStops,
         )
     }
 
     @Test
-    fun singleAccentThemesStillProduceAnAnimatedGradient() {
-        val colors = memberBrandWordmarkColors(AppTheme.CRIMSON)
+    fun supporterPlusBadgeMatchesWebsiteCoolGradient() {
+        val style = MemberTier.SUPPORTER_PLUS.badgeStyle()
 
-        assertEquals(colors.first(), colors.last())
-        assertEquals(4, colors.size)
-        assertNotEquals(colors[0], colors[1])
+        assertEquals("Supporter+", style.label)
+        assertEquals(
+            listOf(
+                0f to Color(0xFF91A8FF),
+                0.52f to Color(0xFFF08BD8),
+                0.78f to Color(0xFFFF9B8E),
+                1f to Color(0xFF91A8FF),
+            ),
+            style.colorStops,
+        )
+    }
+
+    @Test
+    fun badgeMotionMatchesWebsiteGradientGeometryAndTiming() {
+        assertEquals(100f, MemberBadgeGradientAngleDegrees)
+        assertEquals(2.4f, MemberBadgeGradientWidthMultiplier)
+        assertEquals(2_750, MemberBadgeSweepHalfDurationMs)
     }
 }

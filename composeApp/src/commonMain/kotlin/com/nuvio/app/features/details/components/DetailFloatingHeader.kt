@@ -15,10 +15,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -31,14 +30,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
 import coil3.compose.AsyncImage
+import androidx.compose.ui.graphics.Brush
+import com.nuvio.app.core.ui.ArtworkBackdrop
 import com.nuvio.app.core.ui.NuvioBackButton
 import com.nuvio.app.core.ui.nuvioKeyboardFocusIndicator
 import com.nuvio.app.core.ui.platformPhysicalTopInset
@@ -46,7 +49,20 @@ import com.nuvio.app.features.details.MetaDetails
 import com.nuvio.app.isIos
 import com.nuvio.app.navigation.LocalUseNativeNavigation
 import nuvio.composeapp.generated.resources.*
+import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import com.kyant.backdrop.Backdrop
+import com.nuvio.app.core.ui.glass.liquidGlassSurface
+
+@Composable
+internal fun detailFloatingHeaderHeight(): Dp {
+    val safeAreaTop = if (LocalUseNativeNavigation.current) {
+        platformPhysicalTopInset()
+    } else {
+        WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    }
+    return (safeAreaTop - 6.dp).coerceAtLeast(safeAreaTop * 0.8f) + 56.dp
+}
 
 @Composable
 fun DetailFloatingHeader(
@@ -56,9 +72,11 @@ fun DetailFloatingHeader(
     progressProvider: (() -> Float)? = null,
     interactive: Boolean? = null,
     backgroundColor: Color? = null,
+    background: (@Composable () -> Unit)? = null,
     onBack: () -> Unit,
     onToggleSaved: () -> Unit,
     modifier: Modifier = Modifier,
+    glassBackdrop: Backdrop? = null,
 ) {
     val useNativeNavigation = LocalUseNativeNavigation.current
     val resolvedProgress = progressProvider?.invoke() ?: progress
@@ -94,8 +112,24 @@ fun DetailFloatingHeader(
             modifier = Modifier
                 .fillMaxWidth()
                 .clipToBounds()
-                .background(surfaceColor),
+                .then(
+                    if (background == null) {
+                        Modifier.liquidGlassSurface(
+                            backdrop = glassBackdrop,
+                            shape = RectangleShape,
+                            tint = surfaceColor.copy(alpha = surfaceColor.alpha * 0.7f),
+                            fallback = surfaceColor,
+                            blurRadius = 24.dp,
+                            withHighlight = false,
+                        )
+                    } else {
+                        Modifier
+                    },
+                ),
         ) {
+            if (background != null) {
+                Box(modifier = Modifier.matchParentSize()) { background() }
+            }
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -115,9 +149,6 @@ fun DetailFloatingHeader(
                         iconSize = 24.dp,
                     )
                 } else {
-                    // Native iOS navigation owns the back button, but retaining
-                    // this slot keeps the Compose logo centered as the floating
-                    // header replaces the hero while scrolling.
                     Box(modifier = Modifier.size(40.dp))
                 }
 
@@ -171,6 +202,23 @@ fun DetailFloatingHeader(
 }
 
 @Composable
+internal fun CinematicHeaderBackdrop(
+    image: ImageBitmap?,
+    screenHeight: Dp,
+    alignment: Alignment = Alignment.Center,
+    scrim: Brush? = null,
+) {
+    val modifier = Modifier
+        .wrapContentHeight(align = Alignment.Top, unbounded = true)
+        .height(screenHeight)
+    if (scrim != null) {
+        ArtworkBackdrop(image = image, alignment = alignment, scrim = scrim, modifier = modifier)
+    } else {
+        ArtworkBackdrop(image = image, alignment = alignment, modifier = modifier)
+    }
+}
+
+@Composable
 private fun DetailFloatingHeaderAction(
     isSaved: Boolean,
     enabled: Boolean,
@@ -183,14 +231,23 @@ private fun DetailFloatingHeaderAction(
             .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(
-            imageVector = if (isSaved) Icons.Default.Check else Icons.Default.Add,
-            contentDescription = if (isSaved) {
-                stringResource(Res.string.hero_remove_from_library)
-            } else {
-                stringResource(Res.string.hero_add_to_library)
-            },
-            tint = MaterialTheme.colorScheme.onBackground,
-        )
+        val contentDescription = if (isSaved) {
+            stringResource(Res.string.hero_remove_from_library)
+        } else {
+            stringResource(Res.string.hero_add_to_library)
+        }
+        if (isSaved) {
+            Icon(
+                painter = painterResource(Res.drawable.sidebar_library),
+                contentDescription = contentDescription,
+                tint = MaterialTheme.colorScheme.onBackground,
+            )
+        } else {
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = contentDescription,
+                tint = MaterialTheme.colorScheme.onBackground,
+            )
+        }
     }
 }

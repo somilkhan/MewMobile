@@ -45,14 +45,16 @@ data class MetaScreenSettingsUiState(
     val backgroundMode: MetaScreenBackgroundMode = MetaScreenBackgroundMode.Normal,
     val cinematicBackground: Boolean = false,
     val heroTrailerPlayback: Boolean = false,
-    val heroTrailerSoundEnabled: Boolean = false,
-    val randomEpisodeButton: Boolean = false,
+    val heroTrailerStartDelaySeconds: Int = MetaScreenSettingsRepository.DEFAULT_HERO_TRAILER_START_DELAY_SECONDS,
+    val heroTrailerStartUnmuted: Boolean = false,
+    val iconActionRow: Boolean = true,
     val tabLayout: Boolean = false,
     val episodeCardStyle: MetaEpisodeCardStyle = MetaEpisodeCardStyle.Horizontal,
     val blurUnwatchedEpisodes: Boolean = false,
-    val showEpisodeRatings: Boolean = true,
-    val showDownloadAction: Boolean = false,
-    val showAnimeTrackingPencil: Boolean = false,
+    val posterTransitionEnabled: Boolean = false,
+    val showOverallRatings: Boolean = true,
+    val episodeRatingsVisibility: EpisodeRatingsVisibility = EpisodeRatingsVisibility.SHOW_ALL,
+    val showRatingMap: Boolean = true,
 )
 
 enum class MetaScreenBackgroundMode {
@@ -105,6 +107,16 @@ enum class MetaEpisodeCardStyle {
     }
 }
 
+internal fun MetaScreenSectionItem.tabGroupForRendering(
+    episodeCardStyle: MetaEpisodeCardStyle,
+): Int? = if (
+    key == MetaScreenSectionKey.EPISODES && episodeCardStyle == MetaEpisodeCardStyle.List
+) {
+    null
+} else {
+    tabGroup
+}
+
 @Serializable
 private data class StoredMetaScreenSectionPreference(
     val key: String,
@@ -121,21 +133,23 @@ private data class StoredMetaScreenSettingsPayload(
     val cinematicBackground: Boolean = false,
     @SerialName("hero_trailer_playback")
     val heroTrailerPlayback: Boolean = false,
-    @SerialName("hero_trailer_sound_enabled")
-    val heroTrailerSoundEnabled: Boolean = false,
-    @SerialName("random_episode_button")
-    val randomEpisodeButton: Boolean = false,
+    @SerialName("hero_trailer_start_delay_seconds")
+    val heroTrailerStartDelaySeconds: Int = MetaScreenSettingsRepository.DEFAULT_HERO_TRAILER_START_DELAY_SECONDS,
+    val heroTrailerStartUnmuted: Boolean = false,
+    val iconActionRow: Boolean = true,
     @SerialName("tvStyleLayout")
     val tabLayout: Boolean = false,
     val episodeCardStyle: String = "horizontal",
     @SerialName("blur_unwatched_episodes")
     val blurUnwatchedEpisodes: Boolean = false,
-    @SerialName("show_episode_ratings")
-    val showEpisodeRatings: Boolean = true,
-    @SerialName("show_download_action")
-    val showDownloadAction: Boolean = false,
-    @SerialName("show_anime_tracking_pencil")
-    val showAnimeTrackingPencil: Boolean = false,
+    @SerialName("poster_transition_enabled")
+    val posterTransitionEnabled: Boolean = false,
+    @SerialName("show_overall_ratings")
+    val showOverallRatings: Boolean = true,
+    @SerialName("episode_ratings_visibility")
+    val episodeRatingsVisibility: String = EpisodeRatingsVisibility.SHOW_ALL.name,
+    @SerialName("show_rating_map")
+    val showRatingMap: Boolean = true,
 )
 
 private data class MetaScreenSectionDefinition(
@@ -145,6 +159,11 @@ private data class MetaScreenSectionDefinition(
 )
 
 object MetaScreenSettingsRepository {
+    /** Bounds for the "start hero trailer after N seconds" preference. */
+    const val MIN_HERO_TRAILER_START_DELAY_SECONDS = 0
+    const val MAX_HERO_TRAILER_START_DELAY_SECONDS = 10
+    const val DEFAULT_HERO_TRAILER_START_DELAY_SECONDS = 0
+
     private val json = Json {
         ignoreUnknownKeys = true
         encodeDefaults = true
@@ -210,14 +229,16 @@ object MetaScreenSettingsRepository {
     private var preferences: MutableMap<MetaScreenSectionKey, StoredMetaScreenSectionPreference> = mutableMapOf()
     private var backgroundMode: MetaScreenBackgroundMode = MetaScreenBackgroundMode.Normal
     private var heroTrailerPlayback: Boolean = false
-    private var heroTrailerSoundEnabled: Boolean = false
-    private var randomEpisodeButton: Boolean = false
+    private var heroTrailerStartDelaySeconds: Int = DEFAULT_HERO_TRAILER_START_DELAY_SECONDS
+    private var heroTrailerStartUnmuted: Boolean = false
+    private var iconActionRow: Boolean = true
     private var tabLayout: Boolean = false
     private var episodeCardStyle: MetaEpisodeCardStyle = MetaEpisodeCardStyle.Horizontal
     private var blurUnwatchedEpisodes: Boolean = false
-    private var showEpisodeRatings: Boolean = true
-    private var showDownloadAction: Boolean = false
-    private var showAnimeTrackingPencil: Boolean = false
+    private var showOverallRatings: Boolean = true
+    private var episodeRatingsVisibility: EpisodeRatingsVisibility = EpisodeRatingsVisibility.SHOW_ALL
+    private var showRatingMap: Boolean = true
+    private var posterTransitionEnabled: Boolean = false
     private fun localizedString(resource: StringResource): String = runBlocking { getString(resource) }
 
     fun ensureLoaded() {
@@ -233,15 +254,20 @@ object MetaScreenSettingsRepository {
                 backgroundMode = MetaScreenBackgroundMode.parse(parsed.backgroundMode)
                     ?: MetaScreenBackgroundMode.fromLegacyCinematic(parsed.cinematicBackground)
                 heroTrailerPlayback = parsed.heroTrailerPlayback
-                heroTrailerSoundEnabled = parsed.heroTrailerSoundEnabled
-                randomEpisodeButton = parsed.randomEpisodeButton
+                heroTrailerStartDelaySeconds = parsed.heroTrailerStartDelaySeconds.coerceIn(
+                    MIN_HERO_TRAILER_START_DELAY_SECONDS,
+                    MAX_HERO_TRAILER_START_DELAY_SECONDS,
+                )
+                heroTrailerStartUnmuted = parsed.heroTrailerStartUnmuted
+                iconActionRow = parsed.iconActionRow
                 tabLayout = parsed.tabLayout
                 episodeCardStyle = MetaEpisodeCardStyle.parse(parsed.episodeCardStyle)
                     ?: MetaEpisodeCardStyle.Horizontal
                 blurUnwatchedEpisodes = parsed.blurUnwatchedEpisodes
-                showEpisodeRatings = parsed.showEpisodeRatings
-                showDownloadAction = parsed.showDownloadAction
-                showAnimeTrackingPencil = parsed.showAnimeTrackingPencil
+                posterTransitionEnabled = parsed.posterTransitionEnabled
+                showOverallRatings = parsed.showOverallRatings
+                episodeRatingsVisibility = EpisodeRatingsVisibility.parse(parsed.episodeRatingsVisibility)
+                showRatingMap = parsed.showRatingMap
                 preferences = parsed.items.mapNotNull { item ->
                     val key = runCatching { MetaScreenSectionKey.valueOf(item.key) }.getOrNull() ?: return@mapNotNull null
                     key to item
@@ -259,14 +285,16 @@ object MetaScreenSettingsRepository {
         preferences.clear()
         backgroundMode = MetaScreenBackgroundMode.Normal
         heroTrailerPlayback = false
-        heroTrailerSoundEnabled = false
-        randomEpisodeButton = false
+        heroTrailerStartDelaySeconds = DEFAULT_HERO_TRAILER_START_DELAY_SECONDS
+        heroTrailerStartUnmuted = false
+        iconActionRow = true
         tabLayout = false
         episodeCardStyle = MetaEpisodeCardStyle.Horizontal
         blurUnwatchedEpisodes = false
-        showEpisodeRatings = true
-        showDownloadAction = false
-        showAnimeTrackingPencil = false
+        posterTransitionEnabled = false
+        showOverallRatings = true
+        episodeRatingsVisibility = EpisodeRatingsVisibility.SHOW_ALL
+        showRatingMap = true
         _uiState.value = MetaScreenSettingsUiState()
         ensureLoaded()
     }
@@ -289,16 +317,35 @@ object MetaScreenSettingsRepository {
         persist()
     }
 
-    fun setHeroTrailerSoundEnabled(enabled: Boolean) {
+    /** Whether the actions row shows icon buttons instead of the overflow menu. */
+    fun setIconActionRow(enabled: Boolean) {
         ensureLoaded()
-        heroTrailerSoundEnabled = enabled
+        if (iconActionRow == enabled) return
+        iconActionRow = enabled
         publish()
         persist()
     }
 
-    fun setRandomEpisodeButton(enabled: Boolean) {
+    fun setHeroTrailerStartUnmuted(enabled: Boolean) {
         ensureLoaded()
-        randomEpisodeButton = enabled
+        if (heroTrailerStartUnmuted == enabled) return
+        heroTrailerStartUnmuted = enabled
+        publish()
+        persist()
+    }
+
+    /**
+     * How long the detail hero waits, once the trailer candidate is known, before playback starts.
+     * Clamped to [MIN_HERO_TRAILER_START_DELAY_SECONDS]..[MAX_HERO_TRAILER_START_DELAY_SECONDS].
+     */
+    fun setHeroTrailerStartDelaySeconds(seconds: Int) {
+        ensureLoaded()
+        val clamped = seconds.coerceIn(
+            MIN_HERO_TRAILER_START_DELAY_SECONDS,
+            MAX_HERO_TRAILER_START_DELAY_SECONDS,
+        )
+        if (heroTrailerStartDelaySeconds == clamped) return
+        heroTrailerStartDelaySeconds = clamped
         publish()
         persist()
     }
@@ -324,23 +371,31 @@ object MetaScreenSettingsRepository {
         persist()
     }
 
-    fun setShowEpisodeRatings(enabled: Boolean) {
+    fun setShowOverallRatings(enabled: Boolean) {
         ensureLoaded()
-        showEpisodeRatings = enabled
+        showOverallRatings = enabled
         publish()
         persist()
     }
 
-    fun setShowDownloadAction(enabled: Boolean) {
+    fun setEpisodeRatingsVisibility(visibility: EpisodeRatingsVisibility) {
         ensureLoaded()
-        showDownloadAction = enabled
+        episodeRatingsVisibility = visibility
         publish()
         persist()
     }
 
-    fun setShowAnimeTrackingPencil(enabled: Boolean) {
+    fun setShowRatingMap(enabled: Boolean) {
         ensureLoaded()
-        showAnimeTrackingPencil = enabled
+        if (showRatingMap == enabled) return
+        showRatingMap = enabled
+        publish()
+        persist()
+    }
+
+    fun setPosterTransitionEnabled(enabled: Boolean) {
+        ensureLoaded()
+        posterTransitionEnabled = enabled
         publish()
         persist()
     }
@@ -363,14 +418,16 @@ object MetaScreenSettingsRepository {
         preferences.clear()
         backgroundMode = MetaScreenBackgroundMode.Normal
         heroTrailerPlayback = false
-        heroTrailerSoundEnabled = false
-        randomEpisodeButton = false
+        heroTrailerStartDelaySeconds = DEFAULT_HERO_TRAILER_START_DELAY_SECONDS
+        heroTrailerStartUnmuted = false
+        iconActionRow = true
         tabLayout = false
         episodeCardStyle = MetaEpisodeCardStyle.Horizontal
         blurUnwatchedEpisodes = false
-        showEpisodeRatings = true
-        showDownloadAction = false
-        showAnimeTrackingPencil = false
+        posterTransitionEnabled = false
+        showOverallRatings = true
+        episodeRatingsVisibility = EpisodeRatingsVisibility.SHOW_ALL
+        showRatingMap = true
         _uiState.value = MetaScreenSettingsUiState()
     }
 
@@ -378,8 +435,9 @@ object MetaScreenSettingsRepository {
         items: List<MetaScreenSectionItem>,
         cinematicBackground: Boolean,
         heroTrailerPlayback: Boolean = false,
-        heroTrailerSoundEnabled: Boolean = false,
-        randomEpisodeButton: Boolean = false,
+        heroTrailerStartDelaySeconds: Int = DEFAULT_HERO_TRAILER_START_DELAY_SECONDS,
+        heroTrailerStartUnmuted: Boolean = false,
+        iconActionRow: Boolean = true,
         tabLayout: Boolean,
         episodeCardStyle: MetaEpisodeCardStyle = MetaEpisodeCardStyle.Horizontal,
         blurUnwatchedEpisodes: Boolean = false,
@@ -387,18 +445,27 @@ object MetaScreenSettingsRepository {
         showDownloadAction: Boolean = false,
         showAnimeTrackingPencil: Boolean = false,
         backgroundMode: MetaScreenBackgroundMode? = null,
+        posterTransitionEnabled: Boolean = false,
+        showOverallRatings: Boolean = true,
+        episodeRatingsVisibility: EpisodeRatingsVisibility = EpisodeRatingsVisibility.SHOW_ALL,
+        showRatingMap: Boolean = true,
     ) {
         ensureLoaded()
         this.backgroundMode = backgroundMode ?: MetaScreenBackgroundMode.fromLegacyCinematic(cinematicBackground)
         this.heroTrailerPlayback = heroTrailerPlayback
-        this.heroTrailerSoundEnabled = heroTrailerSoundEnabled
-        this.randomEpisodeButton = randomEpisodeButton
+        this.heroTrailerStartDelaySeconds = heroTrailerStartDelaySeconds.coerceIn(
+            MIN_HERO_TRAILER_START_DELAY_SECONDS,
+            MAX_HERO_TRAILER_START_DELAY_SECONDS,
+        )
+        this.heroTrailerStartUnmuted = heroTrailerStartUnmuted
+        this.iconActionRow = iconActionRow
         this.tabLayout = tabLayout
         this.episodeCardStyle = episodeCardStyle
         this.blurUnwatchedEpisodes = blurUnwatchedEpisodes
-        this.showEpisodeRatings = showEpisodeRatings
-        this.showDownloadAction = showDownloadAction
-        this.showAnimeTrackingPencil = showAnimeTrackingPencil
+        this.posterTransitionEnabled = posterTransitionEnabled
+        this.showOverallRatings = showOverallRatings
+        this.episodeRatingsVisibility = episodeRatingsVisibility
+        this.showRatingMap = showRatingMap
         preferences = items.associate { item ->
             item.key to StoredMetaScreenSectionPreference(
                 key = item.key.name,
@@ -423,14 +490,16 @@ object MetaScreenSettingsRepository {
         preferences.clear()
         backgroundMode = MetaScreenBackgroundMode.Normal
         heroTrailerPlayback = false
-        heroTrailerSoundEnabled = false
-        randomEpisodeButton = false
+        heroTrailerStartDelaySeconds = DEFAULT_HERO_TRAILER_START_DELAY_SECONDS
+        heroTrailerStartUnmuted = false
+        iconActionRow = true
         tabLayout = false
         episodeCardStyle = MetaEpisodeCardStyle.Horizontal
         blurUnwatchedEpisodes = false
-        showEpisodeRatings = true
-        showDownloadAction = false
-        showAnimeTrackingPencil = false
+        posterTransitionEnabled = false
+        showOverallRatings = true
+        episodeRatingsVisibility = EpisodeRatingsVisibility.SHOW_ALL
+        showRatingMap = true
         normalizePreferences()
         publish()
         persist()
@@ -497,14 +566,16 @@ object MetaScreenSettingsRepository {
             backgroundMode = backgroundMode,
             cinematicBackground = backgroundMode.usesBackdropBackground,
             heroTrailerPlayback = heroTrailerPlayback,
-            heroTrailerSoundEnabled = heroTrailerSoundEnabled,
-            randomEpisodeButton = randomEpisodeButton,
+            heroTrailerStartDelaySeconds = heroTrailerStartDelaySeconds,
+            heroTrailerStartUnmuted = heroTrailerStartUnmuted,
+            iconActionRow = iconActionRow,
             tabLayout = tabLayout,
             episodeCardStyle = episodeCardStyle,
             blurUnwatchedEpisodes = blurUnwatchedEpisodes,
-            showEpisodeRatings = showEpisodeRatings,
-            showDownloadAction = showDownloadAction,
-            showAnimeTrackingPencil = showAnimeTrackingPencil,
+            posterTransitionEnabled = posterTransitionEnabled,
+            showOverallRatings = showOverallRatings,
+            episodeRatingsVisibility = episodeRatingsVisibility,
+            showRatingMap = showRatingMap,
         )
     }
 
@@ -516,14 +587,16 @@ object MetaScreenSettingsRepository {
                     backgroundMode = MetaScreenBackgroundMode.persist(backgroundMode),
                     cinematicBackground = backgroundMode.usesBackdropBackground,
                     heroTrailerPlayback = heroTrailerPlayback,
-                    heroTrailerSoundEnabled = heroTrailerSoundEnabled,
-                    randomEpisodeButton = randomEpisodeButton,
+                    heroTrailerStartDelaySeconds = heroTrailerStartDelaySeconds,
+                    heroTrailerStartUnmuted = heroTrailerStartUnmuted,
+                    iconActionRow = iconActionRow,
                     tabLayout = tabLayout,
                     episodeCardStyle = MetaEpisodeCardStyle.persist(episodeCardStyle),
                     blurUnwatchedEpisodes = blurUnwatchedEpisodes,
-                    showEpisodeRatings = showEpisodeRatings,
-                    showDownloadAction = showDownloadAction,
-                    showAnimeTrackingPencil = showAnimeTrackingPencil,
+                    posterTransitionEnabled = posterTransitionEnabled,
+                    showOverallRatings = showOverallRatings,
+                    episodeRatingsVisibility = episodeRatingsVisibility.name,
+                    showRatingMap = showRatingMap,
                 ),
             ),
         )
