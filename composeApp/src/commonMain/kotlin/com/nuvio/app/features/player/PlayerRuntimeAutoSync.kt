@@ -6,7 +6,7 @@ import androidx.compose.runtime.LaunchedEffect
 import com.nuvio.app.features.autosync.AutoSyncPlayerController
 import com.nuvio.app.features.autosync.AutoSyncPreferencesRepository
 import com.nuvio.app.features.autosync.AutoSyncSubtitleCandidate
-import kotlinx.coroutines.flow.collect
+import com.nuvio.app.features.streams.StreamSubtitle
 
 private fun List<AddonSubtitle>.toAutoSyncCandidates(): List<AutoSyncSubtitleCandidate> =
     map { subtitle ->
@@ -17,12 +17,31 @@ private fun List<AddonSubtitle>.toAutoSyncCandidates(): List<AutoSyncSubtitleCan
         )
     }
 
-private fun PlayerScreenRuntime.currentAutoSyncCandidates(): List<AutoSyncSubtitleCandidate> =
-    addonSubtitles.toAutoSyncCandidates()
+internal fun buildAutoSyncCandidates(
+    addonSubtitles: List<AddonSubtitle>,
+    streamSubtitles: List<StreamSubtitle>,
+): List<AutoSyncSubtitleCandidate> =
+    (addonSubtitles.toAutoSyncCandidates() + streamSubtitles.map { subtitle ->
+        AutoSyncSubtitleCandidate(
+            url = subtitle.url,
+            language = subtitle.language,
+            name = subtitle.name,
+        )
+    }).distinctBy { it.url }
 
-internal fun PlayerScreenRuntime.configureAutoSyncController(
-    controller: PlayerEngineController,
-) {
+private fun PlayerScreenRuntime.currentAutoSyncCandidates(): List<AutoSyncSubtitleCandidate> =
+    buildAutoSyncCandidates(addonSubtitles, activeExternalSubtitles)
+
+internal fun shouldRetryPreferredSubtitleAfterAddonLoad(
+    isAutoSyncController: Boolean, playbackLoading: Boolean, startupAutoSyncEnabled: Boolean,
+    addonLoading: Boolean, addonSubtitleCount: Int, preferredSelectionApplied: Boolean,
+    manualSelectionLocked: Boolean, selectedSubtitleIndex: Int, selectedAddonSubtitleId: String?,
+): Boolean =
+    isAutoSyncController && !playbackLoading && startupAutoSyncEnabled &&
+        !addonLoading && addonSubtitleCount > 0 && preferredSelectionApplied &&
+        !manualSelectionLocked && selectedSubtitleIndex < 0 && selectedAddonSubtitleId == null
+
+internal fun PlayerScreenRuntime.configureAutoSyncController(controller: PlayerEngineController) {
     controller.setAutoSyncSubtitleCandidates(currentAutoSyncCandidates())
     controller.setAutoSyncAppliedListener { subtitleUrl, delayMs ->
         val appliedSubtitle = addonSubtitles.firstOrNull { it.url == subtitleUrl }
@@ -30,19 +49,12 @@ internal fun PlayerScreenRuntime.configureAutoSyncController(
         selectedSubtitleIndex = -1
         useCustomSubtitles = true
         preferredSubtitleSelectionApplied = true
-        if (appliedSubtitle != null && isUserExplicitSubtitleSelection) {
+        if (appliedSubtitle != null && manualSubtitleSelectionLocked) {
             persistAddonSubtitlePreference(appliedSubtitle)
         }
-
-        val appliedDelayMs = delayMs.coerceIn(
-            SUBTITLE_DELAY_MIN_MS,
-            SUBTITLE_DELAY_MAX_MS,
-        )
+        val appliedDelayMs = delayMs.coerceIn(SUBTITLE_DELAY_MIN_MS, SUBTITLE_DELAY_MAX_MS)
         subtitleDelayMs = appliedDelayMs
-        PlayerTrackPreferenceStorage.saveSubtitleDelayMs(
-            playbackSession.videoId,
-            appliedDelayMs,
-        )
+        PlayerTrackPreferenceStorage.saveSubtitleDelayMs(playbackSession.videoId, appliedDelayMs)
     }
 }
 
@@ -50,73 +62,58 @@ internal fun PlayerScreenRuntime.configureAutoSyncController(
 internal fun PlayerScreenRuntime.BindAutoSyncRuntimeEffects() {
     val activeController = playerController
     DisposableEffect(activeController) {
-        // Runs once playerController is set, which Nuvio only does for the live playback key.
         activeController?.let { configureAutoSyncController(it) }
         onDispose { activeController?.setAutoSyncAppliedListener(null) }
     }
+    LaunchedEffect(playerController, addonSubtitles, activeExternalSubtitles) {
+        playerController?.setAutoSyncSubtitleCandidates(currentAutoSyncCandidates())
+    }
     LaunchedEffect(playerController, playbackSnapshot.isLoading, isLoadingAddonSubtitles, addonSubtitles) {
-        // Add-ons can finish after Nuvio has completed its first track scan with no subtitle.
-        // Retry that automatic pick only for AutoSync, while the user still has no selection.
-        if (playerController !is AutoSyncPlayerController || playbackSnapshot.isLoading) return@LaunchedEffect
-        if (!AutoSyncPreferencesRepository.preferredSubtitleAutoSyncOnStart.value) return@LaunchedEffect
-        if (isLoadingAddonSubtitles || addonSubtitles.isEmpty()) return@LaunchedEffect
-        if (!preferredSubtitleSelectionApplied || isUserExplicitSubtitleSelection) return@LaunchedEffect
-        if (selectedSubtitleIndex >= 0 || selectedAddonSubtitleId != null) return@LaunchedEffect
+        // Add-ons can finish after the initial player track scan found no subtitle.
+        // Retry only for AutoSync and only while the user has not made an explicit choice.
+        if (!shouldRetryPreferredSubtitleAfterAddonLoad(
+                isAutoSyncController = playerController is AutoSyncPlayerController,
+                playbackLoading = playbackSnapshot.isLoading,
+                startupAutoSyncEnabled = AutoSyncPreferencesRepository.preferredSubtitleAutoSyncOnStart.value,
+                addonLoading = isLoadingAddonSubtitles,
+                addonSubtitleCount = addonSubtitles.size,
+                preferredSelectionApplied = preferredSubtitleSelectionApplied,
+                manualSelectionLocked = manualSubtitleSelectionLocked,
+                selectedSubtitleIndex = selectedSubtitleIndex,
+                selectedAddonSubtitleId = selectedAddonSubtitleId,
+            )
+        ) return@LaunchedEffect
         preferredSubtitleSelectionApplied = false
         refreshTracks()
     }
-    LaunchedEffect(playerController, externalSubtitles) {
-        val controller = playerController ?: return@LaunchedEffect
-        SubtitleRepository.addonSubtitles.collect { repositorySubtitles ->
-            controller.setAutoSyncSubtitleCandidates(
-                mergeStreamAndAddonSubtitles(
-                    repositorySubtitles,
-                    externalSubtitles,
-                ).toAutoSyncCandidates(),
-            )
-        }
-    }
 }
 
-/** The user picked an addon subtitle: let AutoSync check it without replacing their choice. */
 internal fun PlayerScreenRuntime.attachSelectedAddonSubtitleWithAutoSync(url: String) {
     subtitleAutoSyncState = SubtitleAutoSyncUiState()
     playerController?.setSubtitleUriWithSelectedAutoSync(url)
 }
 
-/**
- * The user's own pick for this content: try it first and keep it if it fits; only when it does
- * not, look for another same-language subtitle that does.
- */
 internal fun PlayerScreenRuntime.maybeAutoSyncRestoredSubtitleAtStart(url: String): Boolean {
     val controller = playerController ?: return false
     if (controller !is AutoSyncPlayerController) return false
-    if (!AutoSyncPreferencesRepository.claimStartupRun(hashCode(), activePlaybackIdentity)) {
-        return false
-    }
-    controller.setSubtitleUriWithRestoredAutoSync(url)
+    val playbackKey = activeSourceIdentityKey ?: activeSourceUrl
+    if (!AutoSyncPreferencesRepository.claimStartupRun(hashCode(), playbackKey)) return false
+    controller.setSubtitleUriWithAutoSync(url)
     return true
 }
 
-internal fun PlayerScreenRuntime.maybeAutoSyncPreferredSubtitleAtStart(
-    subtitle: AddonSubtitle,
-): Boolean {
-    if (isUserExplicitSubtitleSelection) return false
-    val preferredLanguage =
-        normalizeLanguageCode(playerSettingsUiState.preferredSubtitleLanguage) ?: return false
+internal fun PlayerScreenRuntime.maybeAutoSyncPreferredSubtitleAtStart(subtitle: AddonSubtitle): Boolean {
+    if (manualSubtitleSelectionLocked) return false
+    val preferredLanguage = normalizeLanguageCode(playerSettingsUiState.preferredSubtitleLanguage) ?: return false
     if (
         preferredLanguage.isBlank() ||
         preferredLanguage == SubtitleLanguageOption.NONE ||
         preferredLanguage == SubtitleLanguageOption.FORCED
-    ) {
-        return false
-    }
-
+    ) return false
     val controller = playerController ?: return false
     if (controller !is AutoSyncPlayerController) return false
-    if (!AutoSyncPreferencesRepository.claimStartupRun(hashCode(), activePlaybackIdentity)) {
-        return false
-    }
+    val playbackKey = activeSourceIdentityKey ?: activeSourceUrl
+    if (!AutoSyncPreferencesRepository.claimStartupRun(hashCode(), playbackKey)) return false
     controller.setSubtitleUriWithAutoSync(subtitle.url)
     return true
 }

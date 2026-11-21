@@ -1,6 +1,5 @@
 package com.nuvio.app.features.player
 
-import com.nuvio.app.core.logging.InAppLogger
 import com.nuvio.app.core.ui.NuvioToastController
 import com.nuvio.app.features.debrid.DirectDebridPlayableResult
 import com.nuvio.app.features.debrid.DirectDebridPlaybackResolver
@@ -8,25 +7,17 @@ import com.nuvio.app.features.debrid.toastMessage
 import com.nuvio.app.features.details.MetaDetailsRepository
 import com.nuvio.app.features.details.MetaVideo
 import com.nuvio.app.features.downloads.DownloadItem
-import com.nuvio.app.features.downloads.DownloadSubtitles
 import com.nuvio.app.features.downloads.DownloadsRepository
-import com.nuvio.app.features.livetv.LiveTvChannel
-import com.nuvio.app.features.livetv.LiveTvRepository
 import com.nuvio.app.features.p2p.P2pSettingsRepository
 import com.nuvio.app.features.p2p.P2pStreamingEngine
 import com.nuvio.app.features.player.skip.NextEpisodeInfo
 import com.nuvio.app.features.player.skip.PlayerNextEpisodeRules
 import com.nuvio.app.features.streams.StreamItem
 import com.nuvio.app.features.streams.StreamLinkCacheRepository
-import com.nuvio.app.features.streams.YouTubeStreamResolver
-import com.nuvio.app.features.watchprogress.WatchProgressEntry
 import com.nuvio.app.features.watchprogress.WatchProgressRepository
 import com.nuvio.app.features.watchprogress.buildPlaybackVideoId
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import nuvio.composeapp.generated.resources.Res
-import nuvio.composeapp.generated.resources.youtube_resolution_failed
-import org.jetbrains.compose.resources.getString
 
 internal fun p2pPlaybackStreamType(streamType: String?, filename: String?): String? {
     val declaredType = streamType?.trim()?.lowercase()?.takeIf { it.isNotBlank() }
@@ -41,11 +32,6 @@ internal fun PlayerScreenRuntime.resolveDebridForPlayer(
     onStale: () -> Unit,
 ): Boolean {
     if (!DirectDebridPlaybackResolver.shouldResolveToPlayableStream(stream)) return false
-    InAppLogger.info(
-        "Streams/Debrid",
-        "resolve requested addon=${stream.addonName} addonId=${stream.addonId} stream=${stream.streamLabel} " +
-            "s=${season ?: -1} e=${episode ?: -1}",
-    )
     scope.launch {
         val resolved = DirectDebridPlaybackResolver.resolveToPlayableStream(
             stream = stream,
@@ -53,56 +39,14 @@ internal fun PlayerScreenRuntime.resolveDebridForPlayer(
             episode = episode,
         )
         when (resolved) {
-            is DirectDebridPlayableResult.Success -> {
-                InAppLogger.info(
-                    "Streams/Debrid",
-                    "resolve success addon=${stream.addonName} stream=${stream.streamLabel} " +
-                        "url=${InAppLogger.redactUrl(resolved.stream.playableDirectUrl)}",
-                )
-                onResolved(resolved.stream)
-            }
+            is DirectDebridPlayableResult.Success -> onResolved(resolved.stream)
             else -> {
-                InAppLogger.warn(
-                    "Streams/Debrid",
-                    "resolve result=${resolved::class.simpleName ?: "unknown"} addon=${stream.addonName} " +
-                        "stream=${stream.streamLabel} stale=${resolved == DirectDebridPlayableResult.Stale}",
-                )
                 resolved.toastMessage()?.let { NuvioToastController.show(it) }
                 if (resolved == DirectDebridPlayableResult.Stale) {
                     onStale()
                 }
             }
         }
-    }
-    return true
-}
-
-internal fun PlayerScreenRuntime.prepareServerForPlayer(
-    stream: StreamItem,
-    onPrepared: suspend (StreamItem) -> Unit,
-): Boolean {
-    if (!stream.needsServerPreparation) return false
-    scope.launch {
-        runCatching { ServerPlayback.prepare(stream) }
-            .onFailure { if (it is CancellationException) throw it }
-            .onSuccess { onPrepared(it) }
-            .onFailure { NuvioToastController.show(it.serverPlaybackMessage()) }
-    }
-    return true
-}
-
-internal fun PlayerScreenRuntime.resolveYouTubeForPlayer(
-    stream: StreamItem,
-    onResolved: (StreamItem) -> Unit,
-): Boolean {
-    if (stream.youTubeIdToResolve == null) return false
-    scope.launch {
-        val resolved = YouTubeStreamResolver.Default.resolve(stream)
-        if (resolved == null) {
-            NuvioToastController.show(getString(Res.string.youtube_resolution_failed))
-            return@launch
-        }
-        onResolved(resolved)
     }
     return true
 }
@@ -117,20 +61,14 @@ internal fun PlayerScreenRuntime.openExternalSourceUrl(stream: StreamItem): Bool
     if (!stream.shouldOpenExternally) return false
     val url = stream.externalOpenUrl ?: return false
     val openExternalUrl = args.onOpenExternalUrl ?: return false
-    InAppLogger.info(
-        "Player/External",
-        "open external source addon=${stream.addonName} stream=${stream.streamLabel} url=${InAppLogger.redactUrl(url)}",
-    )
     openExternalUrl(url)
     showSourcesPanel = false
     showEpisodesPanel = false
-    showChaptersPanel = false
     controlsVisible = true
     return true
 }
 
 internal fun StreamItem.playerSourceIdentityKey(): String? {
-    serverTarget?.let { target -> return "server:${target.item.encode()}:${target.mediaSourceId.orEmpty()}" }
     p2pInfoHash?.trim()?.lowercase()?.takeIf { it.isNotBlank() }?.let { hash ->
         return "torrent:$hash:${p2pFileIdx ?: -1}"
     }
@@ -184,11 +122,6 @@ internal fun StreamItem.playerSourceIdentityKey(): String? {
 
 internal fun PlayerScreenRuntime.stopActiveP2pStream() {
     if (activeTorrentInfoHash != null || p2pResolvedSourceUrl != null) {
-        InAppLogger.info(
-            "Player/P2P",
-            "stop active torrent hash=${activeTorrentInfoHash.orEmpty()} fileIdx=${activeTorrentFileIdx ?: -1} " +
-                "resolved=${InAppLogger.redactUrl(p2pResolvedSourceUrl)}",
-        )
         P2pStreamingEngine.stopStream()
     }
     activeTorrentInfoHash = null
@@ -196,21 +129,7 @@ internal fun PlayerScreenRuntime.stopActiveP2pStream() {
     activeTorrentFilename = null
     activeTorrentTrackers = emptyList()
     p2pResolvedSourceUrl = null
-    activeStreamFilename = null
 }
-
-/**
- * Filename used by the auto engine resolver for a direct stream, mirroring NuvioTV:
- * the stream's `behaviorHints.filename` when present, otherwise the URL path basename
- * (query string stripped, only when it looks like a file with an extension).
- */
-internal fun streamPlaybackFilename(stream: StreamItem, url: String): String? =
-    stream.behaviorHints.filename?.takeIf { it.isNotBlank() }
-        ?: sourceFilenameFromUrl(url)
-
-internal fun sourceFilenameFromUrl(url: String?): String? =
-    url?.substringBefore('?')?.substringAfterLast('/')
-        ?.takeIf { it.isNotBlank() && it.contains('.') }
 
 internal fun PlayerScreenRuntime.saveP2pStreamForReuse(
     stream: StreamItem,
@@ -236,14 +155,11 @@ internal fun PlayerScreenRuntime.saveP2pStreamForReuse(
         requestHeaders = emptyMap(),
         responseHeaders = emptyMap(),
         filename = stream.behaviorHints.filename,
-        videoHash = stream.behaviorHints.videoHash,
         videoSize = stream.behaviorHints.videoSize,
         infoHash = infoHash,
         fileIdx = stream.p2pFileIdx,
         sources = stream.sources,
         bingeGroup = stream.behaviorHints.bingeGroup,
-        addonLogo = stream.addonLogo,
-        streamDescription = stream.streamSubtitle,
     )
 }
 
@@ -251,10 +167,6 @@ internal fun PlayerScreenRuntime.switchToP2pSourceStream(stream: StreamItem) {
     val infoHash = stream.p2pInfoHash ?: return
     if (!P2pSettingsRepository.isVisible) return
     if (!P2pSettingsRepository.uiState.value.p2pEnabled) {
-        InAppLogger.warn(
-            "Player/P2P",
-            "source switch pending because P2P disabled hash=$infoHash fileIdx=${stream.p2pFileIdx ?: -1}",
-        )
         pendingP2pSwitch = PendingPlayerP2pSwitch(stream = stream, episode = null, isAutoPlay = false)
         return
     }
@@ -268,7 +180,6 @@ internal fun PlayerScreenRuntime.switchToP2pSourceStream(stream: StreamItem) {
         season = activeSeasonNumber,
         episode = activeEpisodeNumber,
     )
-    externalSubtitles = stream.externalSubtitles
     activeSourceUrl = p2pSentinelUrl(infoHash, stream.p2pFileIdx)
     activeSourceAudioUrl = null
     activeSourceHeaders = emptyMap()
@@ -278,14 +189,12 @@ internal fun PlayerScreenRuntime.switchToP2pSourceStream(stream: StreamItem) {
     activeTorrentInfoHash = infoHash
     activeTorrentFileIdx = stream.p2pFileIdx
     activeTorrentFilename = stream.behaviorHints.filename
-    activeSourceFilename = stream.behaviorHints.filename
     activeTorrentTrackers = stream.p2pTrackers
     activeSourceIdentityKey = stream.playerSourceIdentityKey()
     activeStreamTitle = stream.streamLabel
     activeStreamSubtitle = stream.streamSubtitle
     activeProviderName = stream.addonName
     activeProviderAddonId = stream.addonId
-    activeStream = stream
     currentStreamBingeGroup = stream.behaviorHints.bingeGroup
     currentStreamFilename = stream.behaviorHints.filename
     currentStreamInfoHash = stream.infoHash ?: stream.p2pInfoHash
@@ -293,11 +202,6 @@ internal fun PlayerScreenRuntime.switchToP2pSourceStream(stream: StreamItem) {
     activeInitialProgressFraction = null
     showSourcesPanel = false
     controlsVisible = true
-    InAppLogger.info(
-        "Player/P2P",
-        "switch source hash=$infoHash fileIdx=${stream.p2pFileIdx ?: -1} filename=${stream.behaviorHints.filename.orEmpty()} " +
-            "trackers=${stream.p2pTrackers.size} resumeMs=$currentPositionMs addon=${stream.addonName} stream=${stream.streamLabel}",
-    )
 }
 
 internal fun PlayerScreenRuntime.switchToP2pEpisodeStream(
@@ -308,11 +212,6 @@ internal fun PlayerScreenRuntime.switchToP2pEpisodeStream(
     val infoHash = stream.p2pInfoHash ?: return
     if (!P2pSettingsRepository.isVisible) return
     if (!P2pSettingsRepository.uiState.value.p2pEnabled) {
-        InAppLogger.warn(
-            "Player/P2P",
-            "episode switch pending because P2P disabled hash=$infoHash fileIdx=${stream.p2pFileIdx ?: -1} " +
-                "videoId=${episode.id} s=${episode.season} e=${episode.episode} auto=$isAutoPlay",
-        )
         pendingP2pSwitch = PendingPlayerP2pSwitch(stream = stream, episode = episode, isAutoPlay = isAutoPlay)
         return
     }
@@ -328,10 +227,7 @@ internal fun PlayerScreenRuntime.switchToP2pEpisodeStream(
         season = episode.season,
         episode = episode.episode,
     )
-    externalSubtitles = stream.externalSubtitles
     activeSourceUrl = p2pSentinelUrl(infoHash, stream.p2pFileIdx)
-    // A torrent is never an auto-selected source here, so the episode has nothing to fall back from.
-    restartSourceFallback(activeSourceUrl, autoSelection = null)
     activeSourceAudioUrl = null
     activeSourceHeaders = emptyMap()
     activeSourceResponseHeaders = emptyMap()
@@ -341,89 +237,10 @@ internal fun PlayerScreenRuntime.switchToP2pEpisodeStream(
     activeTorrentFileIdx = stream.p2pFileIdx
     activeTorrentFilename = stream.behaviorHints.filename
     activeTorrentTrackers = stream.p2pTrackers
-    activeSubtitleExtras = SubtitleRequestExtras.from(stream.behaviorHints)
     applyEpisodeStreamMetadata(stream, episode, resume)
-    InAppLogger.info(
-        "Player/P2P",
-        "switch episode hash=$infoHash fileIdx=${stream.p2pFileIdx ?: -1} filename=${stream.behaviorHints.filename.orEmpty()} " +
-            "trackers=${stream.p2pTrackers.size} videoId=${episode.id} s=${episode.season} e=${episode.episode} " +
-            "resumeMs=${resume.positionMs} auto=$isAutoPlay addon=${stream.addonName} stream=${stream.streamLabel}",
-    )
 }
 
-internal fun PlayerScreenRuntime.switchToLiveChannel(channel: LiveTvChannel) {
-    scope.launch {
-        val playableChannel = runCatching { LiveTvRepository.prepareForPlayback(channel) }.getOrDefault(channel)
-        switchToPreparedLiveChannel(playableChannel)
-    }
-}
-
-private fun PlayerScreenRuntime.switchToPreparedLiveChannel(channel: LiveTvChannel) {
-    LiveTvRepository.markChannelWatched(channel)
-
-    if (channel.streamUrl == activeSourceUrl) {
-        InAppLogger.debug("Player/LiveTV", "selected current channel id=${channel.id} name=${channel.name}")
-        activeStreamTitle = channel.name
-        activeStreamSubtitle = channel.group
-        activeLogo = channel.logoUrl
-        activeVideoId = channel.id
-        showLiveChannelsPanel = false
-        controlsVisible = true
-        return
-    }
-    if (shouldTrackWatchProgress) {
-        flushWatchProgress()
-    }
-    stopActiveP2pStream()
-    activeSourceUrl = channel.streamUrl
-    activePlaybackSourceUrl = channel.streamUrl
-    activeSourceAudioUrl = null
-    activeSourceHeaders = sanitizePlaybackHeaders(channel.headers)
-    activeSourceResponseHeaders = emptyMap()
-    activeStreamTitle = channel.name
-    activeStreamSubtitle = channel.group
-    activeProviderName = "Live TV"
-    activeProviderAddonId = null
-    activeLogo = channel.logoUrl
-    currentStreamBingeGroup = null
-    activeSeasonNumber = null
-    activeEpisodeNumber = null
-    activeEpisodeTitle = null
-    activeStreamType = channel.streamType
-    activeEpisodeThumbnail = null
-    activeVideoId = channel.id
-    activeInitialPositionMs = 0L
-    activeInitialProgressFraction = null
-    initialSeekApplied = true
-    showSourcesPanel = false
-    showEpisodesPanel = false
-    showQualityPanel = false
-    showSpeedPanel = false
-    showLiveChannelsPanel = false
-    controlsVisible = true
-    initialLoadCompleted = false
-    playbackSnapshot = playbackSnapshot.copy(
-        isLoading = true,
-        videoWidth = 0,
-        videoHeight = 0,
-        mediaInfoJson = "{}",
-    )
-    errorMessage = null
-    shouldPlay = true
-    InAppLogger.info(
-        "Player/Source",
-        "switch live channel id=${channel.id} name=${channel.name} group=${channel.group.orEmpty()} history=true " +
-            "url=${InAppLogger.redactUrl(channel.streamUrl)}",
-    )
-}
-
-internal fun PlayerScreenRuntime.switchToSource(
-    stream: StreamItem,
-    saveForReuse: Boolean = true,
-) {
-    if (prepareServerForPlayer(stream) { switchToSource(it) }) return
-    // The resolved URL expires after a few hours, so it isn't kept for reuse.
-    if (resolveYouTubeForPlayer(stream) { switchToSource(it, saveForReuse = false) }) return
+internal fun PlayerScreenRuntime.switchToSource(stream: StreamItem) {
     if (
         resolveDebridForPlayer(
             stream = stream,
@@ -455,11 +272,6 @@ internal fun PlayerScreenRuntime.switchToSource(
     val sourceIdentityKey = stream.playerSourceIdentityKey()
     if (url == activeSourceUrl) {
         activeSourceIdentityKey = sourceIdentityKey ?: activeSourceIdentityKey
-        InAppLogger.debug(
-            "Player/Source",
-            "selected source already active addon=${stream.addonName} stream=${stream.streamLabel} " +
-                "url=${InAppLogger.redactUrl(url)}",
-        )
         return
     }
     val currentPositionMs = playbackSnapshot.positionMs.coerceAtLeast(0L)
@@ -467,10 +279,9 @@ internal fun PlayerScreenRuntime.switchToSource(
     flushWatchProgress()
     stopActiveP2pStream()
     val currentVideoId = activeVideoId
-    if (saveForReuse && playerSettingsUiState.streamReuseLastLinkEnabled && currentVideoId != null) {
+    if (playerSettingsUiState.streamReuseLastLinkEnabled && currentVideoId != null) {
         saveDirectStreamForReuse(stream, url, currentVideoId, activeSeasonNumber, activeEpisodeNumber)
     }
-    externalSubtitles = stream.externalSubtitles
     activeSourceUrl = url
     activeSourceAudioUrl = null
     activeSourceHeaders = sanitizePlaybackHeaders(stream.behaviorHints.proxyHeaders?.request)
@@ -478,13 +289,10 @@ internal fun PlayerScreenRuntime.switchToSource(
     activeExternalSubtitles = stream.externalSubtitles
     activeStreamType = stream.streamType
     activeSourceIdentityKey = sourceIdentityKey
-    activeSourceFilename = stream.behaviorHints.filename
     activeStreamTitle = stream.streamLabel
     activeStreamSubtitle = stream.streamSubtitle
-    activeStreamFilename = streamPlaybackFilename(stream, url)
     activeProviderName = stream.addonName
     activeProviderAddonId = stream.addonId
-    activeStream = stream
     currentStreamBingeGroup = stream.behaviorHints.bingeGroup
     currentStreamFilename = stream.behaviorHints.filename
     currentStreamInfoHash = stream.infoHash ?: stream.p2pInfoHash
@@ -492,47 +300,15 @@ internal fun PlayerScreenRuntime.switchToSource(
     activeInitialProgressFraction = null
     showSourcesPanel = false
     controlsVisible = true
-    InAppLogger.info(
-        "Player/Source",
-        "switch source addon=${stream.addonName} addonId=${stream.addonId} stream=${stream.streamLabel} " +
-            "type=${stream.streamType.orEmpty()} url=${InAppLogger.redactUrl(url)} " +
-            "requestHeaders=${InAppLogger.headerKeys(activeSourceHeaders)} " +
-            "responseOverrides=${InAppLogger.headerKeys(activeSourceResponseHeaders)}",
-    )
 }
 
-/**
- * @param autoSelection non-null when auto source selection picked [stream]: the sources it tried
- * before it, so the fallback to the next matching source goes on from them.
- */
-internal fun PlayerScreenRuntime.switchToEpisodeStream(
-    stream: StreamItem,
-    episode: MetaVideo,
-    serverResumeMs: Long? = null,
-    saveForReuse: Boolean = true,
-    autoSelection: PlayerSourceFallbackTried? = null,
-) {
-    if (
-        prepareServerForPlayer(stream) {
-            switchToEpisodeStream(
-                it,
-                episode,
-                serverResumeMs = newerServerResumeMs(it, episode),
-                autoSelection = autoSelection,
-            )
-        }
-    ) return
-    if (
-        resolveYouTubeForPlayer(stream) { resolved ->
-            switchToEpisodeStream(resolved, episode, saveForReuse = false, autoSelection = autoSelection)
-        }
-    ) return
+internal fun PlayerScreenRuntime.switchToEpisodeStream(stream: StreamItem, episode: MetaVideo) {
     if (
         resolveDebridForPlayer(
             stream = stream,
             season = episode.season,
             episode = episode.episode,
-            onResolved = { resolvedStream -> switchToEpisodeStream(resolvedStream, episode, autoSelection = autoSelection) },
+            onResolved = { resolvedStream -> switchToEpisodeStream(resolvedStream, episode) },
             onStale = {
                 PlayerStreamsRepository.loadEpisodeStreams(
                     type = contentType ?: parentMetaType,
@@ -557,28 +333,17 @@ internal fun PlayerScreenRuntime.switchToEpisodeStream(
     flushWatchProgress()
     stopActiveP2pStream()
     val epVideoId = episode.id
-    val resume = serverResumeMs?.let { EpisodeResume(positionMs = it, fraction = null) } ?: resolveEpisodeResume(epVideoId, episode)
-    if (saveForReuse && playerSettingsUiState.streamReuseLastLinkEnabled) {
+    val resume = resolveEpisodeResume(epVideoId, episode)
+    if (playerSettingsUiState.streamReuseLastLinkEnabled) {
         saveDirectStreamForReuse(stream, url, epVideoId, episode.season, episode.episode)
     }
-    externalSubtitles = stream.externalSubtitles
     activeSourceUrl = url
-    restartSourceFallback(url, autoSelection)
     activeSourceAudioUrl = null
     activeSourceHeaders = sanitizePlaybackHeaders(stream.behaviorHints.proxyHeaders?.request)
     activeSourceResponseHeaders = sanitizePlaybackResponseHeaders(stream.behaviorHints.proxyHeaders?.response)
     activeExternalSubtitles = stream.externalSubtitles
     activeStreamType = stream.streamType
-    activeSubtitleExtras = SubtitleRequestExtras.from(stream.behaviorHints, url)
     applyEpisodeStreamMetadata(stream, episode, resume)
-    InAppLogger.info(
-        "Player/Source",
-        "switch episode source videoId=${episode.id} s=${episode.season} e=${episode.episode} " +
-            "addon=${stream.addonName} addonId=${stream.addonId} stream=${stream.streamLabel} " +
-            "type=${stream.streamType.orEmpty()} url=${InAppLogger.redactUrl(url)} " +
-            "resumeMs=${resume.positionMs} requestHeaders=${InAppLogger.headerKeys(activeSourceHeaders)} " +
-            "responseOverrides=${InAppLogger.headerKeys(activeSourceResponseHeaders)}",
-    )
 }
 
 internal fun PlayerScreenRuntime.switchToDownloadedEpisode(downloadItem: DownloadItem, episode: MetaVideo) {
@@ -607,24 +372,19 @@ internal fun PlayerScreenRuntime.switchToDownloadedEpisode(downloadItem: Downloa
         ?.let { (it / 100f).coerceIn(0f, 1f) }
     val epResumePositionMs = epEntry?.lastPositionMs?.takeIf { it > 0L } ?: 0L
 
-    externalSubtitles = DownloadSubtitles.localSubtitles(localFileUri)
     activeSourceUrl = localFileUri
-    restartSourceFallback(activeSourceUrl, autoSelection = null)
     activeSourceAudioUrl = null
     activeSourceHeaders = emptyMap()
     activeSourceResponseHeaders = emptyMap()
     activeExternalSubtitles = downloadItem.externalSubtitles
     activeStreamType = null
     activeSourceIdentityKey = null
-    activeSourceFilename = null
     activeStreamTitle = downloadItem.streamTitle.ifBlank {
         episode.title.ifBlank { title }
     }
     activeStreamSubtitle = downloadItem.streamSubtitle
-    activeStreamFilename = sourceFilenameFromUrl(localFileUri)
     activeProviderName = downloadItem.providerName.ifBlank { downloadedLabel }
     activeProviderAddonId = downloadItem.providerAddonId
-    activeStream = null
     currentStreamBingeGroup = null
     currentStreamFilename = null
     currentStreamInfoHash = null
@@ -632,32 +392,13 @@ internal fun PlayerScreenRuntime.switchToDownloadedEpisode(downloadItem: Downloa
     activeEpisodeNumber = episode.episode
     activeEpisodeTitle = episode.title
     activeEpisodeThumbnail = episode.thumbnail
-    activePauseDescription = episode.overview
     activeVideoId = resolvedVideoId
     activeInitialPositionMs = epResumePositionMs
     activeInitialProgressFraction = epResumeFraction
     controlsVisible = true
-    InAppLogger.info(
-        "Player/Source",
-        "switch downloaded episode videoId=$resolvedVideoId s=${episode.season} e=${episode.episode} " +
-            "provider=$activeProviderName resumeMs=$epResumePositionMs url=${InAppLogger.redactUrl(localFileUri)}",
-    )
 }
 
-internal fun PlayerScreenRuntime.playNextEpisode(automatic: Boolean = false) {
-    if (nextEpisodeAutoPlaySearching || nextEpisodeAutoPlayCountdown != null) return
-    nextEpisodePreloadTriggered = false
-    val playbackKey = activePlaybackKey
-    val nextVideoId = nextEpisodeInfo?.takeIf { it.hasAired }?.videoId ?: return
-    fun isCurrentRequest(): Boolean = playbackKey == activePlaybackKey &&
-        nextEpisodeInfo?.videoId == nextVideoId &&
-        (!automatic || (
-            playerSettingsUiState.streamAutoPlayNextEpisodeEnabled &&
-                !nextEpisodeCardDismissed && isAtNextEpisodeThreshold()
-            ))
-    if (!isCurrentRequest()) return
-    nextEpisodeAutoPlayAutomatic = automatic
-
+internal fun PlayerScreenRuntime.playNextEpisode() {
     scope.launchPlayerNextEpisodeAutoPlay(
         previousJob = nextEpisodeAutoPlayJob,
         nextEpisodeInfo = nextEpisodeInfo,
@@ -669,35 +410,19 @@ internal fun PlayerScreenRuntime.playNextEpisode(automatic: Boolean = false) {
         currentProviderAddonId = activeProviderAddonId,
         currentProviderName = activeProviderName,
         currentStreamBingeGroup = currentStreamBingeGroup,
-        onDownloadedEpisodeSelected = { item, episode ->
-            if (isCurrentRequest()) switchToDownloadedEpisode(item, episode)
-        },
-        onEpisodeStreamSelected = { stream, episode, tried ->
-            // Auto source selection picked it, whether or not the user asked for the episode.
-            if (isCurrentRequest()) switchToEpisodeStream(stream, episode, autoSelection = tried)
-        },
+        onDownloadedEpisodeSelected = { item, episode -> switchToDownloadedEpisode(item, episode) },
+        onEpisodeStreamSelected = { stream, episode -> switchToEpisodeStream(stream, episode) },
         onManualSelectionRequired = { nextVideo ->
-            if (isCurrentRequest()) {
-                nextEpisodeCardDismissed = true
-                episodeStreamsPanelState = EpisodeStreamsPanelState(
-                    showStreams = true,
-                    selectedEpisode = nextVideo,
-                )
-                showEpisodesPanel = true
-            }
+            episodeStreamsPanelState = EpisodeStreamsPanelState(
+                showStreams = true,
+                selectedEpisode = nextVideo,
+            )
+            showEpisodesPanel = true
         },
-        onSearchingChanged = {
-            if (playbackKey == activePlaybackKey) nextEpisodeAutoPlaySearching = it
-        },
-        onSourceNameChanged = {
-            if (playbackKey == activePlaybackKey) nextEpisodeAutoPlaySourceName = it
-        },
-        onCountdownChanged = {
-            if (playbackKey == activePlaybackKey) nextEpisodeAutoPlayCountdown = it
-        },
-        onNextEpisodeCardVisibleChanged = {
-            if (playbackKey == activePlaybackKey) showNextEpisodeCard = it
-        },
+        onSearchingChanged = { nextEpisodeAutoPlaySearching = it },
+        onSourceNameChanged = { nextEpisodeAutoPlaySourceName = it },
+        onCountdownChanged = { nextEpisodeAutoPlayCountdown = it },
+        onNextEpisodeCardVisibleChanged = { showNextEpisodeCard = it },
     )?.let { job ->
         nextEpisodeAutoPlayJob = job
     }
@@ -890,10 +615,6 @@ internal fun PlayerScreenRuntime.playRandomEpisodeFromPlayer() {
 
 internal fun PlayerScreenRuntime.openSourcesPanel() {
     val vid = activeVideoId ?: return
-    InAppLogger.info(
-        "Player/Source",
-        "open sources panel videoId=$vid type=${contentType ?: parentMetaType} s=${activeSeasonNumber ?: -1} e=${activeEpisodeNumber ?: -1}",
-    )
     PlayerStreamsRepository.loadSources(
         type = contentType ?: parentMetaType,
         videoId = vid,
@@ -904,29 +625,17 @@ internal fun PlayerScreenRuntime.openSourcesPanel() {
     )
     showSourcesPanel = true
     showEpisodesPanel = false
-    showLiveChannelsPanel = false
-    showChaptersPanel = false
     controlsVisible = false
 }
 
 internal fun PlayerScreenRuntime.openEpisodesPanel() {
-    InAppLogger.info(
-        "Player/Episodes",
-        "open episodes panel parentType=$parentMetaType parentId=$parentMetaId cachedVideos=${playerMetaVideos.size}",
-    )
     if (playerMetaVideos.isEmpty()) {
         scope.launch {
             playerMetaVideos = MetaDetailsRepository.fetch(parentMetaType, parentMetaId)?.videos ?: emptyList()
-            InAppLogger.info(
-                "Player/Episodes",
-                "episodes loaded parentType=$parentMetaType parentId=$parentMetaId count=${playerMetaVideos.size}",
-            )
         }
     }
     showEpisodesPanel = true
     showSourcesPanel = false
-    showLiveChannelsPanel = false
-    showChaptersPanel = false
     controlsVisible = false
 }
 
@@ -943,8 +652,6 @@ private fun PlayerScreenRuntime.resetEpisodePanelAndNextEpisodeState() {
     showNextEpisodeCard = false
     showSourcesPanel = false
     showEpisodesPanel = false
-    showLiveChannelsPanel = false
-    showChaptersPanel = false
     episodeStreamsPanelState = EpisodeStreamsPanelState()
     nextEpisodeAutoPlayJob?.cancel()
     nextEpisodePreparationJob?.cancel()
@@ -958,26 +665,19 @@ private fun PlayerScreenRuntime.resetEpisodePanelAndNextEpisodeState() {
     PlayerStreamsRepository.clearEpisodeStreams()
 }
 
-private fun PlayerScreenRuntime.episodeProgress(epVideoId: String, episode: MetaVideo): WatchProgressEntry? {
+private fun PlayerScreenRuntime.resolveEpisodeResume(epVideoId: String, episode: MetaVideo): EpisodeResume {
     val epResumeVideoId = buildPlaybackVideoId(
         parentMetaId = parentMetaId,
         seasonNumber = episode.season,
         episodeNumber = episode.episode,
         fallbackVideoId = epVideoId,
     )
-    return WatchProgressRepository.progressForVideo(
+    val epEntry = WatchProgressRepository.progressForVideo(
         videoId = epVideoId.takeIf { it.isNotBlank() } ?: epResumeVideoId,
         parentMetaId = parentMetaId,
         seasonNumber = episode.season,
         episodeNumber = episode.episode,
-    )
-}
-
-private suspend fun PlayerScreenRuntime.newerServerResumeMs(stream: StreamItem, episode: MetaVideo): Long? =
-    ServerPlayback.newerResumePositionMs(stream.playableDirectUrl, episodeProgress(episode.id, episode)?.lastUpdatedEpochMs)
-
-private fun PlayerScreenRuntime.resolveEpisodeResume(epVideoId: String, episode: MetaVideo): EpisodeResume {
-    val epEntry = episodeProgress(epVideoId, episode)?.takeIf { !it.isCompleted }
+    )?.takeIf { !it.isCompleted }
     val epResumeFraction = epEntry?.progressPercent
         ?.takeIf { it > 0f }
         ?.let { (it / 100f).coerceIn(0f, 1f) }
@@ -991,13 +691,11 @@ private fun PlayerScreenRuntime.applyEpisodeStreamMetadata(
     resume: EpisodeResume,
 ) {
     activeSourceIdentityKey = stream.playerSourceIdentityKey()
-    activeSourceFilename = stream.behaviorHints.filename
     activeStreamTitle = stream.streamLabel
     activeStreamSubtitle = stream.streamSubtitle
     activeExternalSubtitles = stream.externalSubtitles
     activeProviderName = stream.addonName
     activeProviderAddonId = stream.addonId
-    activeStream = stream
     currentStreamBingeGroup = stream.behaviorHints.bingeGroup
     currentStreamFilename = stream.behaviorHints.filename
     currentStreamInfoHash = stream.infoHash ?: stream.p2pInfoHash
@@ -1005,21 +703,19 @@ private fun PlayerScreenRuntime.applyEpisodeStreamMetadata(
     activeEpisodeNumber = episode.episode
     activeEpisodeTitle = episode.title
     activeEpisodeThumbnail = episode.thumbnail
-    activePauseDescription = episode.overview
     activeVideoId = episode.id
     activeInitialPositionMs = resume.positionMs
     activeInitialProgressFraction = resume.fraction
     controlsVisible = true
 }
 
-internal fun PlayerScreenRuntime.saveDirectStreamForReuse(
+private fun PlayerScreenRuntime.saveDirectStreamForReuse(
     stream: StreamItem,
     url: String,
     videoId: String,
     season: Int?,
     episode: Int?,
 ) {
-    if (stream.serverTarget != null) return
     val cacheKey = StreamLinkCacheRepository.contentKey(
         type = contentType ?: parentMetaType,
         videoId = videoId,
@@ -1036,41 +732,12 @@ internal fun PlayerScreenRuntime.saveDirectStreamForReuse(
         requestHeaders = sanitizePlaybackHeaders(stream.behaviorHints.proxyHeaders?.request),
         responseHeaders = sanitizePlaybackResponseHeaders(stream.behaviorHints.proxyHeaders?.response),
         filename = stream.behaviorHints.filename,
-        videoHash = stream.behaviorHints.videoHash,
         videoSize = stream.behaviorHints.videoSize,
-        infoHash = stream.p2pInfoHash,
-        fileIdx = stream.p2pFileIdx,
         bingeGroup = stream.behaviorHints.bingeGroup,
         streamType = stream.streamType,
-        contentLanguage = contentLanguage,
-        addonLogo = stream.addonLogo,
-        streamDescription = stream.streamSubtitle,
-    )
-}
-
-
-internal fun PlayerScreenRuntime.selectPlayerQuality(qualityId: String?) {
-    selectedPlayerQualityId = qualityId.takeUnless { it == PlayerQualityAutoId }
-    val selectedVariant = playerQualityState.selectedVariantFor(selectedPlayerQualityId)
-    activePlaybackSourceUrl = playerQualityState.playbackUrlFor(selectedPlayerQualityId) ?: activeSourceUrl
-    playbackSnapshot = playbackSnapshot.copy(
-        isLoading = true,
-        videoWidth = 0,
-        videoHeight = 0,
-        mediaInfoJson = "{}",
-    )
-    initialLoadCompleted = false
-    errorMessage = null
-    shouldPlay = true
-    showQualityPanel = false
-    showSpeedPanel = false
-    controlsVisible = true
-    InAppLogger.info(
-        "Player/Quality",
-        "selected requested=${if (selectedPlayerQualityId == null) "auto" else selectedPlayerQualityId} " +
-            "label=${selectedVariant?.qualityName ?: "source"} variants=${playerQualityState.variants.size} " +
-            "declared=${selectedVariant?.width ?: 0}x${selectedVariant?.height ?: 0} " +
-            "bandwidth=${selectedVariant?.bandwidth ?: 0L} codecs=${selectedVariant?.codecs.orEmpty()} " +
-            "playbackUrl=${InAppLogger.redactUrl(activePlaybackSourceUrl)}",
+        contentLanguage = resolveContentLanguage(
+            language = metaUiState.meta?.language,
+            country = metaUiState.meta?.country,
+        ),
     )
 }

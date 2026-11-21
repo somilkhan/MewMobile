@@ -2,7 +2,6 @@ package com.nuvio.app.features.player.skip
 
 import com.nuvio.app.features.addons.httpGetText
 import com.nuvio.app.features.addons.httpPostJsonWithHeaders
-import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.Json
 
 internal object SkipIntroApi {
@@ -15,19 +14,6 @@ internal object SkipIntroApi {
 
     // --- IntroDb ---
 
-    suspend fun getIntroDbMovieSegments(imdbId: String): IntroDbSegmentsResponse? {
-        val baseUrl = IntroDbConfig.URL.trimEnd('/')
-        if (baseUrl.isBlank()) return null
-        return try {
-            val text = httpGetText(introDbMovieSegmentsUrl(baseUrl, imdbId))
-            json.decodeFromString<IntroDbSegmentsResponse>(text)
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (_: Exception) {
-            null
-        }
-    }
-
     suspend fun getIntroDbSegments(
         imdbId: String,
         season: Int,
@@ -39,8 +25,6 @@ internal object SkipIntroApi {
         return try {
             val text = httpGetText(url)
             json.decodeFromString<IntroDbSegmentsResponse>(text)
-        } catch (error: CancellationException) {
-            throw error
         } catch (_: Exception) {
             null
         }
@@ -66,8 +50,6 @@ internal object SkipIntroApi {
                 body = body
             )
             response.status == 200 || response.status == 201
-        } catch (error: CancellationException) {
-            throw error
         } catch (_: Exception) {
             false
         }
@@ -99,8 +81,6 @@ internal object SkipIntroApi {
             if (response.status == 401 || response.status == 403) return false
             
             false
-        } catch (error: CancellationException) {
-            throw error
         } catch (_: Exception) {
             false
         }
@@ -117,8 +97,6 @@ internal object SkipIntroApi {
         return try {
             val text = httpGetText(url)
             json.decodeFromString<AniSkipResponse>(text)
-        } catch (error: CancellationException) {
-            throw error
         } catch (_: Exception) {
             null
         }
@@ -131,8 +109,6 @@ internal object SkipIntroApi {
         return try {
             val text = httpGetText(url)
             json.decodeFromString<List<ArmEntry>>(text)
-        } catch (error: CancellationException) {
-            throw error
         } catch (_: Exception) {
             emptyList()
         }
@@ -143,8 +119,6 @@ internal object SkipIntroApi {
         return try {
             val text = httpGetText(url)
             json.decodeFromString<ArmEntry>(text)
-        } catch (error: CancellationException) {
-            throw error
         } catch (_: Exception) {
             null
         }
@@ -155,8 +129,6 @@ internal object SkipIntroApi {
         return try {
             val text = httpGetText(url)
             json.decodeFromString<ArmEntry>(text)
-        } catch (error: CancellationException) {
-            throw error
         } catch (_: Exception) {
             null
         }
@@ -167,8 +139,6 @@ internal object SkipIntroApi {
         return try {
             val text = httpGetText(url)
             json.decodeFromString<ArmEntry>(text)
-        } catch (error: CancellationException) {
-            throw error
         } catch (_: Exception) {
             null
         }
@@ -179,8 +149,6 @@ internal object SkipIntroApi {
         return try {
             val text = httpGetText(url)
             json.decodeFromString<ArmEntry>(text)
-        } catch (error: CancellationException) {
-            throw error
         } catch (_: Exception) {
             null
         }
@@ -191,8 +159,6 @@ internal object SkipIntroApi {
         return try {
             val text = httpGetText(url)
             json.decodeFromString<ArmEntry>(text)
-        } catch (error: CancellationException) {
-            throw error
         } catch (_: Exception) {
             null
         }
@@ -214,13 +180,8 @@ internal object SkipIntroApi {
         return try {
             val text = httpPostJsonWithHeaders(ANIMESKIP_BASE + "graphql", body, headers)
             json.decodeFromString<AnimeSkipGraphqlResponse>(text)
-        } catch (error: CancellationException) {
-            throw error
         } catch (_: Exception) {
             null
         }
     }
 }
-
-internal fun introDbMovieSegmentsUrl(baseUrl: String, imdbId: String): String =
-    "${baseUrl.trimEnd('/')}/segments?imdb_id=$imdbId&is_movie=true"

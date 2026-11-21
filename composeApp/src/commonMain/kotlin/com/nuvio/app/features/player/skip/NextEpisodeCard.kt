@@ -1,6 +1,8 @@
 package com.nuvio.app.features.player.skip
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
@@ -41,12 +43,10 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
@@ -68,7 +68,6 @@ import nuvio.composeapp.generated.resources.player_next_episode_ready_via
 import nuvio.composeapp.generated.resources.player_next_episode_thumbnail
 import nuvio.composeapp.generated.resources.player_next_episode_unaired
 import org.jetbrains.compose.resources.stringResource
-import com.nuvio.app.core.ui.glass.ambientLiquidGlass
 
 @Composable
 fun NextEpisodeCard(
@@ -78,7 +77,6 @@ fun NextEpisodeCard(
     isAutoPlayReady: Boolean,
     autoPlaySourceName: String?,
     autoPlayCountdownSec: Int?,
-    blurred: Boolean,
     onPlayNext: () -> Unit,
     onDismiss: () -> Unit,
     /** When true, a right swipe or the back key dismisses the card without playing. Default off. */
@@ -87,7 +85,7 @@ fun NextEpisodeCard(
 ) {
     if (nextEpisode == null) return
 
-    PlatformBackHandler(enabled = visible, onBack = onDismiss)
+    PlatformBackHandler(enabled = visible && swipeDismissEnabled, onBack = onDismiss)
     val isPlayable = nextEpisode.hasAired
     var dragOffsetX by remember(nextEpisode.videoId) { mutableFloatStateOf(0f) }
     var dragging by remember(nextEpisode.videoId) { mutableStateOf(false) }
@@ -106,6 +104,16 @@ fun NextEpisodeCard(
         }
     }
 
+    val statusPulse by rememberInfiniteTransition(label = "nextEpisodeStatusPulse").animateFloat(
+        initialValue = 0.45f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(850),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "nextEpisodeStatusPulseValue",
+    )
+
     AnimatedVisibility(
         visible = visible,
         enter = slideInHorizontally(animationSpec = tween(260), initialOffsetX = { it / 2 }) +
@@ -120,17 +128,10 @@ fun NextEpisodeCard(
                 .widthIn(max = 292.dp)
                 .graphicsLayer { translationX = animatedOffsetX }
                 .clip(shape)
-                .ambientLiquidGlass(
-                    shape = shape,
-                    tint = Color(0xFF191919).copy(alpha = 0.64f),
-                    fallback = Color(0xFF191919).copy(alpha = 0.89f),
-                    blurRadius = 20.dp,
-                    refractionHeight = 10.dp,
-                    refractionAmount = 14.dp,
-                )
+                .background(Color(0xFF191919).copy(alpha = 0.89f))
                 .border(1.dp, Color.White.copy(alpha = 0.12f), shape)
-                .pointerInput(nextEpisode.videoId, visible, dismissThreshold) {
-                    if (!visible) return@pointerInput
+                .pointerInput(nextEpisode.videoId, visible, swipeDismissEnabled, dismissThreshold) {
+                    if (!visible || !swipeDismissEnabled) return@pointerInput
                     detectHorizontalDragGestures(
                         onDragStart = {
                             dragOffsetX = animatedOffsetX
@@ -155,9 +156,9 @@ fun NextEpisodeCard(
                     )
                 }
                 .semantics {
-                    if (visible) dismiss { currentOnDismiss(); true }
+                    if (visible && swipeDismissEnabled) dismiss { currentOnDismiss(); true }
                 }
-                .clickable(enabled = visible) { if (isPlayable) onPlayNext() }
+                .clickable { if (isPlayable) onPlayNext() }
                 .padding(horizontal = 9.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -170,9 +171,7 @@ fun NextEpisodeCard(
                 AsyncImage(
                     model = nextEpisode.thumbnail,
                     contentDescription = stringResource(Res.string.player_next_episode_thumbnail),
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .then(if (blurred) Modifier.blur(18.dp) else Modifier),
+                    modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop,
                 )
                 Box(

@@ -13,9 +13,6 @@ import nuvio.composeapp.generated.resources.player_ios_preset_native_edr_label
 import nuvio.composeapp.generated.resources.player_ios_preset_sdr_tone_mapped_desc
 import nuvio.composeapp.generated.resources.player_ios_preset_sdr_tone_mapped_label
 import org.jetbrains.compose.resources.stringResource
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.TimeMark
-import kotlin.time.TimeSource
 
 @Serializable
 data class PlayerRoute(
@@ -55,61 +52,22 @@ data class PlayerLaunch(
     val initialPositionMs: Long = 0L,
     val initialProgressFraction: Float? = null,
     val contentLanguage: String? = null,
-    val subtitleExtras: SubtitleRequestExtras? = null,
-    val sourceFilename: String? = null,
-    val stream: com.nuvio.app.features.streams.StreamItem? = null,
-    /** The source was taken from the reuse-last-link cache, not picked fresh from add-ons. */
-    val sourceFromLinkCache: Boolean = false,
-    /** The source was picked by auto source selection (or reused from the link cache). */
-    val sourceAutoSelected: Boolean = false,
+    val randomEpisodeMode: Boolean = false,
+    val initialStreamFilename: String? = null,
+    val initialStreamInfoHash: String? = null,
 )
 
 object PlayerLaunchStore {
-    /**
-     * Hard cap on the launches kept in memory. A launch carries the whole playback payload
-     * (headers, subtitles, stream metadata), so only the most recent ones are retained.
-     */
-    private const val MAX_LAUNCHES = 8
-
-    /**
-     * How long a launch stays readable after the player screen went away. A configuration
-     * change disposes and recreates the composition and the player re-reads its launch from
-     * the store, so the payload has to outlive the disposal by a small margin.
-     */
-    private const val EXITED_LAUNCH_GRACE_MS = 30_000L
-
-    private val exitClock = TimeSource.Monotonic
-
     private var nextLaunchId = 1L
-    private val launches = mutableMapOf<Long, LaunchEntry>()
-
-    private data class LaunchEntry(
-        val launch: PlayerLaunch,
-        /** Set once the player screen for this launch is gone. */
-        val exitedAt: TimeMark? = null,
-    )
+    private val launches = mutableMapOf<Long, PlayerLaunch>()
 
     fun put(launch: PlayerLaunch): Long {
         val launchId = nextLaunchId++
-        launches[launchId] = LaunchEntry(launch)
-        prune()
+        launches[launchId] = launch
         return launchId
     }
 
-    fun get(launchId: Long): PlayerLaunch? {
-        prune()
-        val entry = launches[launchId] ?: return null
-        if (entry.exitedAt != null) {
-            // The player came back (configuration change): reclaim the launch.
-            launches[launchId] = entry.copy(exitedAt = null)
-        }
-        return entry.launch
-    }
-
-    fun update(launchId: Long, transform: (PlayerLaunch) -> PlayerLaunch) {
-        val entry = launches[launchId] ?: return
-        launches[launchId] = entry.copy(launch = transform(entry.launch))
-    }
+    fun get(launchId: Long): PlayerLaunch? = launches[launchId]
 
     fun remove(launchId: Long) {
         launches.remove(launchId)
@@ -118,38 +76,6 @@ object PlayerLaunchStore {
     fun clear() {
         nextLaunchId = 1L
         launches.clear()
-    }
-
-    /**
-     * Called when the player screen goes away: the launch is dropped as soon as the restore
-     * window expires, so leaving the player does not keep the payload alive for the session.
-     */
-    fun markExited(launchId: Long) {
-        val entry = launches[launchId] ?: return
-        launches[launchId] = entry.copy(exitedAt = exitClock.markNow())
-    }
-
-    /** Number of launches currently held by the store. */
-    internal val size: Int get() = launches.size
-
-    private fun prune() {
-        val expired = launches.entries
-            .filter { (_, entry) ->
-                val exitedAt = entry.exitedAt
-                exitedAt != null && exitedAt.elapsedNow() >= EXITED_LAUNCH_GRACE_MS.milliseconds
-            }
-            .map { it.key }
-        expired.forEach { launches.remove(it) }
-
-        while (launches.size > MAX_LAUNCHES) {
-            // Prefer dropping launches whose player already exited, oldest first.
-            val victim = launches.entries
-                .filter { it.value.exitedAt != null }
-                .minByOrNull { it.key }
-                ?: launches.entries.minByOrNull { it.key }
-                ?: break
-            launches.remove(victim.key)
-        }
     }
 }
 
@@ -307,56 +233,24 @@ fun IosHardwareDecoderMode.localizedLabel(): String = when (this) {
     else -> label
 }
 
-internal data class PlaybackKey(
-    val sourceIdentity: String,
-    val videoId: String?,
-    val seasonNumber: Int?,
-    val episodeNumber: Int?,
-    val playbackEngine: AndroidPlaybackEngine? = null,
-)
-
 data class PlayerPlaybackSnapshot(
     val isLoading: Boolean = true,
-    /** The engine is still opening the source and has not read its tracks yet. */
-    val isOpening: Boolean = isLoading,
     val isPlaying: Boolean = false,
     val isEnded: Boolean = false,
     val durationMs: Long = 0L,
     val positionMs: Long = 0L,
     val bufferedPositionMs: Long = 0L,
     val playbackSpeed: Float = 1f,
-    val videoWidth: Int = 0,
-    val videoHeight: Int = 0,
-    val mediaInfoJson: String = "{}",
+    val videoWidth: Int? = null,
+    val videoHeight: Int? = null,
+    val videoCodec: String? = null,
+    val videoFrameRate: Float? = null,
+    val videoBitrate: Int? = null,
+    val audioCodec: String? = null,
+    val audioChannels: Int? = null,
+    val audioSampleRate: Int? = null,
+    val hdrFormat: String? = null,
     val chapters: List<PlayerChapter> = emptyList(),
-    val castAvailable: Boolean = false,
-    val castDeviceName: String? = null,
-    val animeEnhancement: AnimeEnhancementStatus? = null,
-    val discTitles: List<PlayerDiscTitle> = emptyList(),
-    val activeDiscTitleIndex: Int = -1,
-    val discExtraPlaying: Boolean = false,
-    val discFeaturePositionMs: Long = 0L,
-) {
-    val itemPositionMs: Long
-        get() = if (discExtraPlaying) discFeaturePositionMs else positionMs
-}
-
-data class PlayerDiscTitle(
-    val name: String,
-    val durationMs: Long,
-    val clipCount: Int,
-    val isFeature: Boolean,
-    val audioLanguages: List<String> = emptyList(),
-    val subtitleLanguages: List<String> = emptyList(),
-)
-
-data class AnimeEnhancementStatus(
-    val lineSharpen: Boolean,
-    val upscale: Boolean,
-    val sourceWidth: Int,
-    val sourceHeight: Int,
-    val outputWidth: Int,
-    val outputHeight: Int,
 )
 
 data class PlayerNowPlayingInfo(

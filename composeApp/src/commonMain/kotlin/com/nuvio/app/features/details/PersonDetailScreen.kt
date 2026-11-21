@@ -67,20 +67,17 @@ import coil3.compose.AsyncImage
 import coil3.compose.LocalPlatformContext
 import coil3.request.ImageRequest
 import com.nuvio.app.core.i18n.localizedShortMonthName
-import com.nuvio.app.core.ui.SkeletonPosterRow
 import com.nuvio.app.core.ui.landscapePosterHeightForWidth
 import com.nuvio.app.core.ui.landscapePosterWidth
 import com.nuvio.app.core.ui.PlatformBackHandler
 import com.nuvio.app.core.ui.nuvio
 import com.nuvio.app.core.ui.rememberPosterCardStyleUiState
-import com.nuvio.app.core.ui.skeleton
 import com.nuvio.app.features.details.components.DetailPosterRailSection
 import com.nuvio.app.features.details.components.ExpandableDescription
 import com.nuvio.app.features.home.MetaPreview
 import com.nuvio.app.features.home.components.HomePosterCard
 import com.nuvio.app.features.home.stableKey
 import com.nuvio.app.features.tmdb.TmdbMetadataService
-import com.nuvio.app.core.poster.withCustomPosterUrls
 import com.nuvio.app.features.watched.WatchedRepository
 import com.nuvio.app.features.watching.application.WatchingState
 import com.nuvio.app.features.watchprogress.CurrentDateProvider
@@ -118,7 +115,13 @@ fun PersonDetailScreen(
         WatchedRepository.ensureLoaded()
         WatchedRepository.uiState
     }.collectAsStateWithLifecycle()
-    val fullyWatchedSeriesKeys by WatchedRepository.fullyWatchedSeriesKeys.collectAsStateWithLifecycle()
+    val favoritePeopleState by remember {
+        FavoritePeopleRepository.ensureLoaded()
+        FavoritePeopleRepository.uiState
+    }.collectAsStateWithLifecycle()
+    val favoritePersonIds = remember(favoritePeopleState.people) {
+        favoritePeopleState.people.mapTo(mutableSetOf(), FavoritePerson::tmdbId)
+    }
     val resolvedAvatarTransitionKey = avatarTransitionKey ?: castAvatarSharedTransitionKey(personId)
     var selectedCreditCollection by remember(personId) { mutableStateOf<PersonCreditCollection?>(null) }
 
@@ -129,11 +132,7 @@ fun PersonDetailScreen(
             preferCrewCredits = preferCrew,
         )
         uiState = if (detail != null) {
-            val pattern = com.nuvio.app.core.poster.CustomPosterUrlRepository.let { repo ->
-                repo.ensureLoaded()
-                repo.patternForScreen(com.nuvio.app.core.poster.CustomPosterScreen.DETAILS)
-            }
-            PersonDetailUiState.Success(detail.withCustomPosterUrls(pattern))
+            PersonDetailUiState.Success(detail)
         } else {
             PersonDetailUiState.Error(getString(Res.string.person_load_failed, personName))
         }
@@ -166,7 +165,13 @@ fun PersonDetailScreen(
             is PersonDetailUiState.Success -> PersonDetailContent(
                 person = state.personDetail,
                 watchedKeys = watchedUiState.watchedKeys,
-                fullyWatchedSeriesKeys = fullyWatchedSeriesKeys,
+                selectedCreditCollection = selectedCreditCollection,
+                onOpenCreditCollection = { collection -> selectedCreditCollection = collection },
+                onCloseCreditCollection = { selectedCreditCollection = null },
+                isFavorite = state.personDetail.tmdbId in favoritePersonIds,
+                onToggleFavorite = {
+                    FavoritePeopleRepository.toggle(state.personDetail)
+                },
                 onOpenMeta = onOpenMeta,
                 initialProfilePhoto = initialProfilePhoto,
                 avatarTransitionKey = resolvedAvatarTransitionKey,
@@ -199,7 +204,11 @@ fun PersonDetailScreen(
 private fun PersonDetailContent(
     person: PersonDetail,
     watchedKeys: Set<String>,
-    fullyWatchedSeriesKeys: Set<String> = emptySet(),
+    selectedCreditCollection: PersonCreditCollection?,
+    onOpenCreditCollection: (PersonCreditCollection) -> Unit,
+    onCloseCreditCollection: () -> Unit,
+    isFavorite: Boolean,
+    onToggleFavorite: () -> Unit,
     onOpenMeta: (MetaPreview) -> Unit,
     initialProfilePhoto: String? = null,
     avatarTransitionKey: String,
@@ -320,7 +329,6 @@ private fun PersonDetailContent(
                         seriesCredits = seriesCredits,
                         upcomingCredits = upcomingCredits,
                         watchedKeys = watchedKeys,
-                        fullyWatchedSeriesKeys = fullyWatchedSeriesKeys,
                         onOpenMeta = onOpenMeta,
                         onOpenCreditCollection = { title, items ->
                             onOpenCreditCollection(PersonCreditCollection(title = title, items = items))
@@ -354,7 +362,6 @@ private fun PersonDetailContent(
                                 title = sectionTitle,
                                 items = popularCredits,
                                 watchedKeys = watchedKeys,
-                                fullyWatchedSeriesKeys = fullyWatchedSeriesKeys,
                                 headerHorizontalPadding = 20.dp,
                                 onViewAllClick = {
                                     onOpenCreditCollection(PersonCreditCollection(title = sectionTitle, items = popularCredits))
@@ -370,7 +377,6 @@ private fun PersonDetailContent(
                                 title = sectionTitle,
                                 items = latestCredits,
                                 watchedKeys = watchedKeys,
-                                fullyWatchedSeriesKeys = fullyWatchedSeriesKeys,
                                 headerHorizontalPadding = 20.dp,
                                 onViewAllClick = {
                                     onOpenCreditCollection(PersonCreditCollection(title = sectionTitle, items = latestCredits))
@@ -415,7 +421,6 @@ private fun PersonDetailContent(
                                 title = stringResource(Res.string.person_upcoming),
                                 items = upcomingCredits,
                                 watchedKeys = watchedKeys,
-                                fullyWatchedSeriesKeys = fullyWatchedSeriesKeys,
                                 headerHorizontalPadding = 20.dp,
                                 onPosterClick = onOpenMeta,
                             )
@@ -569,7 +574,6 @@ private fun WidePersonDetailContent(
     seriesCredits: List<MetaPreview>,
     upcomingCredits: List<MetaPreview>,
     watchedKeys: Set<String>,
-    fullyWatchedSeriesKeys: Set<String> = emptySet(),
     onOpenMeta: (MetaPreview) -> Unit,
     onOpenCreditCollection: (String, List<MetaPreview>) -> Unit,
     fallbackProfilePhoto: String?,
@@ -614,7 +618,6 @@ private fun WidePersonDetailContent(
                     title = sectionTitle,
                     items = popularCredits,
                     watchedKeys = watchedKeys,
-                    fullyWatchedSeriesKeys = fullyWatchedSeriesKeys,
                     headerHorizontalPadding = 0.dp,
                     onViewAllClick = { onOpenCreditCollection(sectionTitle, popularCredits) },
                     onPosterClick = onOpenMeta,
@@ -627,7 +630,6 @@ private fun WidePersonDetailContent(
                     title = sectionTitle,
                     items = latestCredits,
                     watchedKeys = watchedKeys,
-                    fullyWatchedSeriesKeys = fullyWatchedSeriesKeys,
                     headerHorizontalPadding = 0.dp,
                     onViewAllClick = { onOpenCreditCollection(sectionTitle, latestCredits) },
                     onPosterClick = onOpenMeta,
@@ -663,7 +665,6 @@ private fun WidePersonDetailContent(
                     title = stringResource(Res.string.person_upcoming),
                     items = upcomingCredits,
                     watchedKeys = watchedKeys,
-                    fullyWatchedSeriesKeys = fullyWatchedSeriesKeys,
                     headerHorizontalPadding = 0.dp,
                     onPosterClick = onOpenMeta,
                 )
@@ -1064,7 +1065,7 @@ private fun PersonDetailSkeleton(
                     skeletonPosterWidth = skeletonPosterWidth,
                     skeletonPosterHeight = skeletonPosterHeight,
                     skeletonPosterCornerRadius = posterCardStyle.cornerRadiusDp.dp,
-                    showPosterLabels = !isLandscapeShelfMode && !posterCardStyle.hideLabelsEnabled,
+                    showPosterLabels = !isLandscapeShelfMode,
                 )
             } else {
                 Column(
@@ -1085,7 +1086,8 @@ private fun PersonDetailSkeleton(
                             modifier = Modifier
                                 .then(avatarSharedElementModifier)
                                 .size(140.dp)
-                                .skeleton(CircleShape),
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.surfaceVariant),
                             contentAlignment = Alignment.Center,
                         ) {
                             if (!profilePhoto.isNullOrBlank()) {
@@ -1155,19 +1157,43 @@ private fun PersonDetailSkeleton(
                             modifier = Modifier
                                 .width(120.dp)
                                 .height(18.dp)
-                                .skeleton(RoundedCornerShape(4.dp)),
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant),
                         )
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    SkeletonPosterRow(
-                        width = skeletonPosterWidth,
-                        height = skeletonPosterHeight,
-                        cornerRadius = posterCardStyle.cornerRadiusDp.dp,
-                        horizontalPadding = 20.dp,
-                        showLabels = !isLandscapeShelfMode && !posterCardStyle.hideLabelsEnabled,
-                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        repeat(4) {
+                            Column(modifier = Modifier.width(skeletonPosterWidth)) {
+                                Box(
+                                    modifier = Modifier
+                                        .width(skeletonPosterWidth)
+                                        .height(skeletonPosterHeight)
+                                        .clip(RoundedCornerShape(posterCardStyle.cornerRadiusDp.dp))
+                                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                                )
+                                if (!isLandscapeShelfMode) {
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    SkeletonLine(
+                                        widthFraction = 1f,
+                                        height = 16.dp,
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    SkeletonLine(
+                                        widthFraction = 0.56f,
+                                        height = 12.dp,
+                                    )
+                                }
+                            }
+                        }
+                    }
 
                     Spacer(modifier = Modifier.height(32.dp))
                 }
@@ -1215,8 +1241,9 @@ private fun WidePersonDetailSkeleton(
                     modifier = Modifier
                         .then(avatarSharedElementModifier)
                         .size(148.dp)
+                        .clip(CircleShape)
                         .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.40f), CircleShape)
-                        .skeleton(CircleShape),
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
                     contentAlignment = Alignment.Center,
                 ) {
                     if (!profilePhoto.isNullOrBlank()) {
@@ -1313,15 +1340,29 @@ private fun WideSkeletonPosterRail(
             modifier = Modifier
                 .width(120.dp)
                 .height(18.dp)
-                .skeleton(RoundedCornerShape(4.dp)),
+                .clip(RoundedCornerShape(4.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant),
         )
 
-        SkeletonPosterRow(
-            width = skeletonPosterWidth,
-            height = skeletonPosterHeight,
-            cornerRadius = skeletonPosterCornerRadius,
-            showLabels = showPosterLabels,
-        )
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            repeat(6) {
+                Column(modifier = Modifier.width(skeletonPosterWidth)) {
+                    Box(
+                        modifier = Modifier
+                            .width(skeletonPosterWidth)
+                            .height(skeletonPosterHeight)
+                            .clip(RoundedCornerShape(skeletonPosterCornerRadius))
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                    )
+                    if (showPosterLabels) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        SkeletonLine(widthFraction = 1f, height = 16.dp)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        SkeletonLine(widthFraction = 0.56f, height = 12.dp)
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -1334,7 +1375,8 @@ private fun SkeletonLine(
         modifier = Modifier
             .fillMaxWidth(widthFraction)
             .height(height)
-            .skeleton(RoundedCornerShape(4.dp)),
+            .clip(RoundedCornerShape(4.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant),
     )
 }
 

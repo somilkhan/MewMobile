@@ -1,12 +1,9 @@
 package com.nuvio.app.features.player
 
-import com.nuvio.app.features.streams.SmartStreamSettingsRepository
 import com.nuvio.app.core.build.AppFeaturePolicy
-import com.nuvio.app.features.player.skip.AutoSkipSegmentType
 import com.nuvio.app.features.player.skip.NextEpisodeThresholdMode
 import com.nuvio.app.features.streams.StreamAutoPlayMode
 import com.nuvio.app.features.streams.StreamAutoPlaySource
-import com.nuvio.app.features.profiles.ProfileRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -39,29 +36,24 @@ fun snapToAllowedTimeout(value: Int): Int {
 }
 
 data class PlayerSettingsUiState(
-    val useLegacyPlayerLayout: Boolean = false,
-    val showPlayerTitleLogo: Boolean = false,
     val showLoadingOverlay: Boolean = true,
-    val showPlayerLoadingStatus: Boolean = true,
     val pauseOverlayEnabled: Boolean = true,
+    val stableOpeningOverlayEnabled: Boolean = false,
+    val chapterTitleEnabled: Boolean = false,
+    val playerLiquidGlassEnabled: Boolean = false,
+    val nextEpisodeSwipeDismissEnabled: Boolean = false,
+    val miniPlayerEnabled: Boolean = true,
+    val skipBackwardSeconds: Int = PLAYER_SKIP_SECONDS_DEFAULT,
+    val skipForwardSeconds: Int = PLAYER_SKIP_SECONDS_DEFAULT,
+    val toolbarLayout: PlayerToolbarLayout = PlayerToolbarLayout.Default,
     val showParentalGuide: Boolean = true,
     val resizeMode: PlayerResizeMode = PlayerResizeMode.Fit,
     val holdToSpeedEnabled: Boolean = true,
     val holdToSpeedValue: Float = 2f,
-    val skipBackwardSeconds: Int = PLAYER_SKIP_SECONDS_DEFAULT,
-    val skipForwardSeconds: Int = PLAYER_SKIP_SECONDS_DEFAULT,
-    val toolbarLayout: PlayerToolbarLayout = PlayerToolbarLayout.Default,
-    val legacyBottomButtons: LegacyBottomButtonLayout = LegacyPlayerButtonLayouts.DefaultBottom,
-    val legacyTopButtons: LegacyTopButtonLayout = LegacyPlayerButtonLayouts.DefaultTop,
     val touchGesturesEnabled: Boolean = true,
-    val swipeToSeekEnabled: Boolean = true,
-    /** Round/pill glass backings behind player buttons, time pills and the legacy bottom bar. */
-    val playerControlGlassEnabled: Boolean = true,
-    val showSkipButtons: Boolean = true,
-    val seekPreviewEnabled: Boolean = true,
-    val movieRecommendationsEnabled: Boolean = true,
-    val autoShowSubtitlesOnRewindEnabled: Boolean = true,
-    val autoShowSubtitlesOnMuteEnabled: Boolean = true,
+    val rememberPlayerBrightnessEnabled: Boolean = true,
+    val rememberedPlayerBrightness: Float? = null,
+    val volumeBoostPercent: Int = 100,
     val externalPlayerEnabled: Boolean = false,
     val externalPlayerForwardSubtitles: Boolean = false,
     val externalPlayerSendSkipSegments: Boolean = false,
@@ -71,33 +63,14 @@ data class PlayerSettingsUiState(
     val preferredSubtitleLanguage: String = SubtitleLanguageOption.NONE,
     val secondaryPreferredSubtitleLanguage: String? = null,
     val subtitleStyle: SubtitleStyleState = SubtitleStyleState.DEFAULT,
+    val addonSubtitleStartupMode: AddonSubtitleStartupMode = AddonSubtitleStartupMode.ALL_SUBTITLES,
     val streamReuseLastLinkEnabled: Boolean = false,
     val streamReuseLastLinkCacheHours: Int = 24,
-    val androidPlaybackEngine: AndroidPlaybackEngine = AndroidPlaybackEngine.ExoPlayer,
-    val autoSwitchPlaybackEngineOnError: Boolean = true,
-    val streamAutoPlayFallbackOnFailure: Boolean = false,
-    val streamAutoPlayFallbackMaxSources: Int = DEFAULT_SOURCE_FALLBACK_MAX_SOURCES,
-    val streamAutoPlayFallbackStartupTimeoutSeconds: Int = DEFAULT_SOURCE_STARTUP_TIMEOUT_SECONDS,
+    val androidPlaybackEngine: AndroidPlaybackEngine = AndroidPlaybackEngine.Auto,
     val androidLibmpvVideoOutput: AndroidLibmpvVideoOutput = AndroidLibmpvVideoOutput.GpuNext,
     val androidLibmpvHardwareDecodingEnabled: Boolean = true,
     val androidLibmpvYuv420pEnabled: Boolean = false,
-    val androidAnimeUpscaleEnabled: Boolean = false,
-    val androidAnimeLineSharpenEnabled: Boolean = false,
-    val androidExoChaptersEnabled: Boolean = false,
-    val chapterTitleEnabled: Boolean = true,
-    val rememberAudioDelayPerDevice: Boolean = true,
-    val persistAudioAmplification: Boolean = false,
-    val audioAmplificationDb: Int = 0,
-    val downmixEnabled: Boolean = false,
-    val audioOutputChannels: AudioOutputChannels = AudioOutputChannels.default,
-    val maintainOriginalAudioOnDownmix: Boolean = true,
-    val centerMixLevelDb: Int = 0,
-    val decoderPriority: Int = 1,
-    val mapDV7ToHevc: Boolean = false,
-    val tunnelingEnabled: Boolean = false,
-    val androidAudioPassthroughEnabled: Boolean = false,
-    val nightModeButtonEnabled: Boolean = true,
-    val nightModeEnabled: Boolean = false,
+    val androidMemorySafeBufferEnabled: Boolean = false,
     val exoNativeMemoryEnabled: Boolean = false,
     val customPlaybackBuffersEnabled: Boolean = false,
     val vodDiskCacheEnabled: Boolean = false,
@@ -109,6 +82,9 @@ data class PlayerSettingsUiState(
     val playbackBackBufferSeconds: Int = 10,
     val playbackTargetBufferMb: Int = 256,
     val vodDiskCacheSizeMb: Int = 2048,
+    val decoderPriority: Int = 1,
+    val mapDV7ToHevc: Boolean = false,
+    val tunnelingEnabled: Boolean = false,
     val streamAutoPlayMode: StreamAutoPlayMode = StreamAutoPlayMode.MANUAL,
     val streamAutoPlaySource: StreamAutoPlaySource = StreamAutoPlaySource.ALL_SOURCES,
     val streamAutoPlaySelectedAddons: Set<String> = emptySet(),
@@ -116,8 +92,6 @@ data class PlayerSettingsUiState(
     val streamAutoPlayRegex: String = "",
     val streamAutoPlayTimeoutSeconds: Int = 3,
     val skipIntroEnabled: Boolean = true,
-    val skipIntroOffsetSeconds: Int = 0,
-    val autoSkipSegmentTypes: Set<AutoSkipSegmentType> = emptySet(),
     val animeSkipEnabled: Boolean = false,
     val animeSkipClientId: String = "",
     val introDbApiKey: String = "",
@@ -128,19 +102,13 @@ data class PlayerSettingsUiState(
     val playerClockEndTimeEnabled: Boolean = false,
     val randomNextEpisodeEnabled: Boolean = false,
     val streamAutoPlayPreferBingeGroup: Boolean = true,
-    val streamAutoPlayReuseBingeGroup: Boolean = false,
+    val streamAutoPlayReuseBingeGroup: Boolean = true,
     val nextEpisodeThresholdMode: NextEpisodeThresholdMode = NextEpisodeThresholdMode.PERCENTAGE,
     val nextEpisodeThresholdPercent: Float = 99f,
     val nextEpisodeThresholdMinutesBeforeEnd: Float = 2f,
-    val preloadNextEpisodeSources: Boolean = false,
-    val miniPlayerEnabled: Boolean = true,
-    val privateViewingEnabled: Boolean = false,
-    val useLibmpvAss: Boolean = false,
-    val useLibass: Boolean = true,
+    val useLibass: Boolean = false,
     val libassRenderType: String = "CUES",
-    val libassRenderScale: String = "FULL",
-    val libassRenderMode: String = "OVERLAY",
-    val iosVideoOutputPreset: IosVideoOutputPreset = IosVideoOutputPreset.NativeEdr,
+    val iosVideoOutputPreset: IosVideoOutputPreset = IosVideoOutputPreset.Compatibility,
     val iosToneMappingMode: IosToneMappingMode = IosToneMappingMode.Auto,
     val iosTargetPrimaries: IosTargetPrimaries = IosTargetPrimaries.Auto,
     val iosTargetTransfer: IosTargetTransfer = IosTargetTransfer.Auto,
@@ -157,52 +125,29 @@ data class PlayerSettingsUiState(
     val iosGamma: Int = 0,
 )
 
-/** How many further sources falling back may try after the auto-selected one fails, by default and at most. */
-const val DEFAULT_SOURCE_FALLBACK_MAX_SOURCES = 3
-val SOURCE_FALLBACK_MAX_SOURCES_RANGE = 1..10
-
-/** How long a source may take to start before falling back treats it as failed, by default and the allowed range, in seconds. */
-const val DEFAULT_SOURCE_STARTUP_TIMEOUT_SECONDS = 15
-val SOURCE_STARTUP_TIMEOUT_SECONDS_RANGE = 5..45
-const val SOURCE_STARTUP_TIMEOUT_SECONDS_STEP = 5
-
-/**
- * Falling back to the next matching source applies only while auto source selection picks the
- * stream and the internal player plays it.
- */
-val PlayerSettingsUiState.streamAutoPlayFallbackActive: Boolean
-    get() = streamAutoPlayFallbackOnFailure &&
-        (streamAutoPlayMode != StreamAutoPlayMode.MANUAL ||
-            SmartStreamSettingsRepository.state.value.autoPlay) &&
-        !externalPlayerEnabled
-
 object PlayerSettingsRepository {
     private val _uiState = MutableStateFlow(PlayerSettingsUiState())
     val uiState: StateFlow<PlayerSettingsUiState> = _uiState.asStateFlow()
 
     private var hasLoaded = false
-    private var useLegacyPlayerLayout = false
-    private var showPlayerTitleLogo = false
     private var showLoadingOverlay = true
-    private var showPlayerLoadingStatus = true
     private var pauseOverlayEnabled = true
+    private var stableOpeningOverlayEnabled = false
+    private var chapterTitleEnabled = false
+    private var playerLiquidGlassEnabled = false
+    private var nextEpisodeSwipeDismissEnabled = false
+    private var miniPlayerEnabled = true
+    private var skipBackwardSeconds = PLAYER_SKIP_SECONDS_DEFAULT
+    private var skipForwardSeconds = PLAYER_SKIP_SECONDS_DEFAULT
+    private var toolbarLayout = PlayerToolbarLayout.Default
     private var showParentalGuide = true
     private var resizeMode = PlayerResizeMode.Fit
     private var holdToSpeedEnabled = true
     private var holdToSpeedValue = 2f
-    private var skipBackwardSeconds = PLAYER_SKIP_SECONDS_DEFAULT
-    private var skipForwardSeconds = PLAYER_SKIP_SECONDS_DEFAULT
-    private var toolbarLayout = PlayerToolbarLayout.Default
-    private var legacyBottomButtons = LegacyPlayerButtonLayouts.DefaultBottom
-    private var legacyTopButtons = LegacyPlayerButtonLayouts.DefaultTop
     private var touchGesturesEnabled = true
-    private var swipeToSeekEnabled = true
-    private var playerControlGlassEnabled = true
-    private var showSkipButtons = true
-    private var seekPreviewEnabled = true
-    private var movieRecommendationsEnabled = true
-    private var autoShowSubtitlesOnRewindEnabled = true
-    private var autoShowSubtitlesOnMuteEnabled = true
+    private var rememberPlayerBrightnessEnabled = true
+    private var rememberedPlayerBrightness: Float? = null
+    private var volumeBoostPercent = 100
     private var externalPlayerEnabled = false
     private var externalPlayerForwardSubtitles = false
     private var externalPlayerSendSkipSegments = false
@@ -212,33 +157,14 @@ object PlayerSettingsRepository {
     private var preferredSubtitleLanguage = SubtitleLanguageOption.NONE
     private var secondaryPreferredSubtitleLanguage: String? = null
     private var subtitleStyle = SubtitleStyleState.DEFAULT
+    private var addonSubtitleStartupMode = AddonSubtitleStartupMode.ALL_SUBTITLES
     private var streamReuseLastLinkEnabled = false
     private var streamReuseLastLinkCacheHours = 24
-    private var androidPlaybackEngine = AndroidPlaybackEngine.ExoPlayer
-    private var autoSwitchPlaybackEngineOnError = true
-    private var streamAutoPlayFallbackOnFailure = false
-    private var streamAutoPlayFallbackMaxSources = DEFAULT_SOURCE_FALLBACK_MAX_SOURCES
-    private var streamAutoPlayFallbackStartupTimeoutSeconds = DEFAULT_SOURCE_STARTUP_TIMEOUT_SECONDS
+    private var androidPlaybackEngine = AndroidPlaybackEngine.Auto
     private var androidLibmpvVideoOutput = AndroidLibmpvVideoOutput.GpuNext
     private var androidLibmpvHardwareDecodingEnabled = true
     private var androidLibmpvYuv420pEnabled = false
-    private var androidAnimeUpscaleEnabled = false
-    private var androidAnimeLineSharpenEnabled = false
-    private var androidExoChaptersEnabled = false
-    private var chapterTitleEnabled = true
-    private var rememberAudioDelayPerDevice = true
-    private var persistAudioAmplification = false
-    private var audioAmplificationDb = 0
-    private var downmixEnabled = false
-    private var audioOutputChannels = AudioOutputChannels.default
-    private var maintainOriginalAudioOnDownmix = true
-    private var centerMixLevelDb = 0
-    private var decoderPriority = 1
-    private var mapDV7ToHevc = false
-    private var tunnelingEnabled = false
-    private var androidAudioPassthroughEnabled = false
-    private var nightModeButtonEnabled = true
-    private var nightModeEnabled = false
+    private var androidMemorySafeBufferEnabled = false
     private var exoNativeMemoryEnabled = false
     private var customPlaybackBuffersEnabled = false
     private var vodDiskCacheEnabled = false
@@ -250,6 +176,9 @@ object PlayerSettingsRepository {
     private var playbackBackBufferSeconds = 10
     private var playbackTargetBufferMb = 256
     private var vodDiskCacheSizeMb = 2048
+    private var decoderPriority = 1
+    private var mapDV7ToHevc = false
+    private var tunnelingEnabled = false
     private var streamAutoPlayMode = StreamAutoPlayMode.MANUAL
     private var streamAutoPlaySource = StreamAutoPlaySource.ALL_SOURCES
     private var streamAutoPlaySelectedAddons: Set<String> = emptySet()
@@ -257,8 +186,6 @@ object PlayerSettingsRepository {
     private var streamAutoPlayRegex = ""
     private var streamAutoPlayTimeoutSeconds = 3
     private var skipIntroEnabled = true
-    private var skipIntroOffsetSeconds = 0
-    private var autoSkipSegmentTypes: Set<AutoSkipSegmentType> = emptySet()
     private var animeSkipEnabled = false
     private var animeSkipClientId = ""
     private var introDbApiKey = ""
@@ -269,19 +196,13 @@ object PlayerSettingsRepository {
     private var playerClockEndTimeEnabled = false
     private var randomNextEpisodeEnabled = false
     private var streamAutoPlayPreferBingeGroup = true
-    private var streamAutoPlayReuseBingeGroup = false
+    private var streamAutoPlayReuseBingeGroup = true
     private var nextEpisodeThresholdMode = NextEpisodeThresholdMode.PERCENTAGE
     private var nextEpisodeThresholdPercent = 99f
     private var nextEpisodeThresholdMinutesBeforeEnd = 2f
-    private var preloadNextEpisodeSources = false
-    private var miniPlayerEnabled = true
-    private var privateViewingEnabled = false
-    private var useLibmpvAss = false
-    private var useLibass = true
-    private var libassRenderType = "OVERLAY_OPEN_GL"
-    private var libassRenderScale = "FULL"
-    private var libassRenderMode = "OVERLAY"
-    private var iosVideoOutputPreset = IosVideoOutputPreset.NativeEdr
+    private var useLibass = false
+    private var libassRenderType = "CUES"
+    private var iosVideoOutputPreset = IosVideoOutputPreset.Compatibility
     private var iosToneMappingMode = IosToneMappingMode.Auto
     private var iosTargetPrimaries = IosTargetPrimaries.Auto
     private var iosTargetTransfer = IosTargetTransfer.Auto
@@ -308,28 +229,24 @@ object PlayerSettingsRepository {
 
     fun clearLocalState() {
         hasLoaded = false
-        useLegacyPlayerLayout = false
-        showPlayerTitleLogo = false
         showLoadingOverlay = true
-        showPlayerLoadingStatus = true
         pauseOverlayEnabled = true
+        stableOpeningOverlayEnabled = false
+        chapterTitleEnabled = false
+        playerLiquidGlassEnabled = false
+        nextEpisodeSwipeDismissEnabled = false
+        miniPlayerEnabled = true
+        skipBackwardSeconds = PLAYER_SKIP_SECONDS_DEFAULT
+        skipForwardSeconds = PLAYER_SKIP_SECONDS_DEFAULT
+        toolbarLayout = PlayerToolbarLayout.Default
         showParentalGuide = true
         resizeMode = PlayerResizeMode.Fit
         holdToSpeedEnabled = true
         holdToSpeedValue = 2f
-        skipBackwardSeconds = PLAYER_SKIP_SECONDS_DEFAULT
-        skipForwardSeconds = PLAYER_SKIP_SECONDS_DEFAULT
-        toolbarLayout = PlayerToolbarLayout.Default
-        legacyBottomButtons = LegacyPlayerButtonLayouts.DefaultBottom
-        legacyTopButtons = LegacyPlayerButtonLayouts.DefaultTop
         touchGesturesEnabled = true
-        swipeToSeekEnabled = true
-        playerControlGlassEnabled = true
-        showSkipButtons = true
-        seekPreviewEnabled = true
-        movieRecommendationsEnabled = true
-        autoShowSubtitlesOnRewindEnabled = true
-        autoShowSubtitlesOnMuteEnabled = true
+        rememberPlayerBrightnessEnabled = true
+        rememberedPlayerBrightness = null
+        volumeBoostPercent = 100
         externalPlayerEnabled = false
         externalPlayerForwardSubtitles = false
         externalPlayerSendSkipSegments = false
@@ -339,33 +256,14 @@ object PlayerSettingsRepository {
         preferredSubtitleLanguage = SubtitleLanguageOption.NONE
         secondaryPreferredSubtitleLanguage = null
         subtitleStyle = SubtitleStyleState.DEFAULT
+        addonSubtitleStartupMode = AddonSubtitleStartupMode.ALL_SUBTITLES
         streamReuseLastLinkEnabled = false
         streamReuseLastLinkCacheHours = 24
-        androidPlaybackEngine = AndroidPlaybackEngine.ExoPlayer
-        autoSwitchPlaybackEngineOnError = true
-        streamAutoPlayFallbackOnFailure = false
-        streamAutoPlayFallbackMaxSources = DEFAULT_SOURCE_FALLBACK_MAX_SOURCES
-        streamAutoPlayFallbackStartupTimeoutSeconds = DEFAULT_SOURCE_STARTUP_TIMEOUT_SECONDS
+        androidPlaybackEngine = AndroidPlaybackEngine.Auto
         androidLibmpvVideoOutput = AndroidLibmpvVideoOutput.GpuNext
         androidLibmpvHardwareDecodingEnabled = true
         androidLibmpvYuv420pEnabled = false
-        androidAnimeUpscaleEnabled = false
-        androidAnimeLineSharpenEnabled = false
-        androidExoChaptersEnabled = false
-        chapterTitleEnabled = true
-        rememberAudioDelayPerDevice = true
-        persistAudioAmplification = false
-        audioAmplificationDb = 0
-        downmixEnabled = false
-        audioOutputChannels = AudioOutputChannels.default
-        maintainOriginalAudioOnDownmix = true
-        centerMixLevelDb = 0
-        decoderPriority = 1
-        mapDV7ToHevc = false
-        tunnelingEnabled = false
-        androidAudioPassthroughEnabled = false
-        nightModeButtonEnabled = true
-        nightModeEnabled = false
+        androidMemorySafeBufferEnabled = false
         exoNativeMemoryEnabled = false
         customPlaybackBuffersEnabled = false
         vodDiskCacheEnabled = false
@@ -377,6 +275,9 @@ object PlayerSettingsRepository {
         playbackBackBufferSeconds = 10
         playbackTargetBufferMb = 256
         vodDiskCacheSizeMb = 2048
+        decoderPriority = 1
+        mapDV7ToHevc = false
+        tunnelingEnabled = false
         streamAutoPlayMode = StreamAutoPlayMode.MANUAL
         streamAutoPlaySource = StreamAutoPlaySource.ALL_SOURCES
         streamAutoPlaySelectedAddons = emptySet()
@@ -384,8 +285,6 @@ object PlayerSettingsRepository {
         streamAutoPlayRegex = ""
         streamAutoPlayTimeoutSeconds = 3
         skipIntroEnabled = true
-        skipIntroOffsetSeconds = 0
-        autoSkipSegmentTypes = emptySet()
         animeSkipEnabled = false
         animeSkipClientId = ""
         introDbApiKey = ""
@@ -396,19 +295,13 @@ object PlayerSettingsRepository {
         playerClockEndTimeEnabled = false
         randomNextEpisodeEnabled = false
         streamAutoPlayPreferBingeGroup = true
-        streamAutoPlayReuseBingeGroup = false
+        streamAutoPlayReuseBingeGroup = true
         nextEpisodeThresholdMode = NextEpisodeThresholdMode.PERCENTAGE
         nextEpisodeThresholdPercent = 99f
         nextEpisodeThresholdMinutesBeforeEnd = 2f
-        preloadNextEpisodeSources = false
-        miniPlayerEnabled = true
-        privateViewingEnabled = false
-        useLibmpvAss = false
-        useLibass = true
-        libassRenderType = "OVERLAY_OPEN_GL"
-        libassRenderScale = "FULL"
-        libassRenderMode = "OVERLAY"
-        iosVideoOutputPreset = IosVideoOutputPreset.NativeEdr
+        useLibass = false
+        libassRenderType = "CUES"
+        iosVideoOutputPreset = IosVideoOutputPreset.Compatibility
         iosToneMappingMode = IosToneMappingMode.Auto
         iosTargetPrimaries = IosTargetPrimaries.Auto
         iosTargetTransfer = IosTargetTransfer.Auto
@@ -428,30 +321,27 @@ object PlayerSettingsRepository {
 
     private fun loadFromDisk() {
         hasLoaded = true
-        useLegacyPlayerLayout = PlayerSettingsStorage.loadUseLegacyPlayerLayout() ?: false
-        showPlayerTitleLogo = PlayerSettingsStorage.loadShowPlayerTitleLogo() ?: false
         showLoadingOverlay = PlayerSettingsStorage.loadShowLoadingOverlay() ?: true
-        showPlayerLoadingStatus = PlayerSettingsStorage.loadShowPlayerLoadingStatus() ?: true
         pauseOverlayEnabled = PlayerSettingsStorage.loadPauseOverlayEnabled() ?: true
+        stableOpeningOverlayEnabled = PlayerSettingsStorage.loadStableOpeningOverlayEnabled() ?: false
+        chapterTitleEnabled = PlayerSettingsStorage.loadChapterTitleEnabled() ?: false
+        playerLiquidGlassEnabled = PlayerSettingsStorage.loadPlayerLiquidGlassEnabled() ?: false
+        nextEpisodeSwipeDismissEnabled = PlayerSettingsStorage.loadNextEpisodeSwipeDismissEnabled() ?: false
+        miniPlayerEnabled = PlayerSettingsStorage.loadMiniPlayerEnabled() ?: true
+        skipBackwardSeconds = normalizePlayerSkipSeconds(PlayerSettingsStorage.loadSkipBackwardSeconds())
+        skipForwardSeconds = normalizePlayerSkipSeconds(PlayerSettingsStorage.loadSkipForwardSeconds())
+        toolbarLayout = PlayerToolbarLayout.decode(PlayerSettingsStorage.loadToolbarLayout())
         showParentalGuide = PlayerSettingsStorage.loadShowParentalGuide() ?: true
         resizeMode = PlayerSettingsStorage.loadResizeMode()
             ?.let { runCatching { PlayerResizeMode.valueOf(it) }.getOrNull() }
             ?: PlayerResizeMode.Fit
         holdToSpeedEnabled = PlayerSettingsStorage.loadHoldToSpeedEnabled() ?: true
         holdToSpeedValue = PlayerSettingsStorage.loadHoldToSpeedValue() ?: 2f
-        skipBackwardSeconds = normalizePlayerSkipSeconds(PlayerSettingsStorage.loadSkipBackwardSeconds())
-        skipForwardSeconds = normalizePlayerSkipSeconds(PlayerSettingsStorage.loadSkipForwardSeconds())
-        toolbarLayout = PlayerToolbarLayout.decode(PlayerSettingsStorage.loadToolbarLayout())
-        legacyBottomButtons = LegacyPlayerButtonLayouts.decodeBottom(PlayerSettingsStorage.loadLegacyBottomButtons())
-        legacyTopButtons = LegacyPlayerButtonLayouts.decodeTop(PlayerSettingsStorage.loadLegacyTopButtons())
         touchGesturesEnabled = PlayerSettingsStorage.loadTouchGesturesEnabled() ?: true
-        swipeToSeekEnabled = PlayerSettingsStorage.loadSwipeToSeekEnabled() ?: true
-        playerControlGlassEnabled = PlayerSettingsStorage.loadPlayerControlGlassEnabled() ?: true
-        showSkipButtons = PlayerSettingsStorage.loadShowSkipButtons() ?: true
-        seekPreviewEnabled = PlayerSettingsStorage.loadSeekPreviewEnabled() ?: true
-        movieRecommendationsEnabled = PlayerSettingsStorage.loadMovieRecommendationsEnabled() ?: true
-        autoShowSubtitlesOnRewindEnabled = PlayerSettingsStorage.loadAutoShowSubtitlesOnRewindEnabled() ?: true
-        autoShowSubtitlesOnMuteEnabled = PlayerSettingsStorage.loadAutoShowSubtitlesOnMuteEnabled() ?: true
+        rememberPlayerBrightnessEnabled = PlayerSettingsStorage.loadRememberPlayerBrightnessEnabled() ?: true
+        rememberedPlayerBrightness = PlayerSettingsStorage.loadRememberedPlayerBrightness()
+            ?.coerceIn(0.02f, 1f)
+        volumeBoostPercent = PlayerSettingsStorage.loadVolumeBoostPercent()?.coerceIn(100, 200) ?: 100
         externalPlayerEnabled = PlayerSettingsStorage.loadExternalPlayerEnabled() ?: false
         externalPlayerForwardSubtitles = PlayerSettingsStorage.loadExternalPlayerForwardSubtitles() ?: false
         externalPlayerSendSkipSegments = PlayerSettingsStorage.loadExternalPlayerSendSkipSegments() ?: false
@@ -467,7 +357,7 @@ object PlayerSettingsRepository {
                 ?: SubtitleLanguageOption.NONE
         secondaryPreferredSubtitleLanguage =
             normalizeLanguageCode(PlayerSettingsStorage.loadSecondaryPreferredSubtitleLanguage())
-        val legacySubtitleStyle = SubtitleStyleState(
+        subtitleStyle = SubtitleStyleState(
             textColor = subtitleColorFromStorage(PlayerSettingsStorage.loadSubtitleTextColor())
                 ?: SubtitleStyleState.DEFAULT.textColor,
             backgroundColor = subtitleColorFromStorage(PlayerSettingsStorage.loadSubtitleBackgroundColor())
@@ -476,63 +366,44 @@ object PlayerSettingsRepository {
                 ?: SubtitleStyleState.DEFAULT.outlineColor,
             outlineEnabled = PlayerSettingsStorage.loadSubtitleOutlineEnabled()
                 ?: SubtitleStyleState.DEFAULT.outlineEnabled,
-            outlineWidth = (PlayerSettingsStorage.loadSubtitleOutlineWidth()
-                ?: SubtitleStyleState.DEFAULT.outlineWidth).coerceIn(subtitleOutlineWidthRange),
+            outlineWidth = normalizeSubtitleOutlineWidth(
+                PlayerSettingsStorage.loadSubtitleOutlineWidth() ?: SubtitleStyleState.DEFAULT.outlineWidth,
+            ),
+            shadowEnabled = PlayerSettingsStorage.loadSubtitleShadowEnabled()
+                ?: SubtitleStyleState.DEFAULT.shadowEnabled,
+            shadowStrength = normalizeSubtitleShadowStrength(
+                PlayerSettingsStorage.loadSubtitleShadowStrength() ?: SubtitleStyleState.DEFAULT.shadowStrength,
+            ),
             bold = PlayerSettingsStorage.loadSubtitleBold()
                 ?: SubtitleStyleState.DEFAULT.bold,
-            fontSizeSp = (PlayerSettingsStorage.loadSubtitleFontSizeSp()
-                ?: SubtitleStyleState.DEFAULT.fontSizeSp).coerceIn(subtitleFontSizeRangeSp),
+            fontSizeSp = PlayerSettingsStorage.loadSubtitleFontSizeSp()
+                ?: SubtitleStyleState.DEFAULT.fontSizeSp,
+            fontFamily = PlayerSettingsStorage.loadSubtitleFontFamily()
+                ?.let { runCatching { SubtitleFontFamily.valueOf(it) }.getOrNull() }
+                ?: SubtitleStyleState.DEFAULT.fontFamily,
+            customFontName = PlayerSettingsStorage.loadSubtitleCustomFontName(),
+            customFontPath = PlayerSettingsStorage.loadSubtitleCustomFontPath(),
             bottomOffset = PlayerSettingsStorage.loadSubtitleBottomOffset()
                 ?: SubtitleStyleState.DEFAULT.bottomOffset,
-            stripSdh = PlayerSettingsStorage.loadSubtitleStripSdh()
-                ?: SubtitleStyleState.DEFAULT.stripSdh,
             useForcedSubtitles = PlayerSettingsStorage.loadSubtitleUseForcedSubtitles()
                 ?: SubtitleStyleState.DEFAULT.useForcedSubtitles,
             showOnlyPreferredLanguages = PlayerSettingsStorage.loadSubtitleShowOnlyPreferredLanguages()
                 ?: SubtitleStyleState.DEFAULT.showOnlyPreferredLanguages,
-            appearance = decodeSubtitleAppearance(PlayerSettingsStorage.loadSubtitleAppearance()),
         )
-        subtitleStyle = SubtitleDevicePreferencesRepository.loadOrMigrate(
-            profileId = ProfileRepository.activeProfileId,
-            legacyStyle = legacySubtitleStyle,
-        )
+        addonSubtitleStartupMode = PlayerSettingsStorage.loadAddonSubtitleStartupMode()
+            ?.let { runCatching { AddonSubtitleStartupMode.valueOf(it) }.getOrNull() }
+            ?: AddonSubtitleStartupMode.ALL_SUBTITLES
         streamReuseLastLinkEnabled = PlayerSettingsStorage.loadStreamReuseLastLinkEnabled() ?: false
         streamReuseLastLinkCacheHours = PlayerSettingsStorage.loadStreamReuseLastLinkCacheHours() ?: 24
         androidPlaybackEngine = PlayerSettingsStorage.loadAndroidPlaybackEngine()
             ?.let { runCatching { AndroidPlaybackEngine.valueOf(it) }.getOrNull() }
-            ?: AndroidPlaybackEngine.ExoPlayer
-        autoSwitchPlaybackEngineOnError = PlayerSettingsStorage.loadAutoSwitchPlaybackEngineOnError() ?: true
-        streamAutoPlayFallbackOnFailure = PlayerSettingsStorage.loadStreamAutoPlayFallbackOnFailure() ?: false
-        streamAutoPlayFallbackMaxSources = PlayerSettingsStorage.loadStreamAutoPlayFallbackMaxSources()
-            ?.coerceIn(SOURCE_FALLBACK_MAX_SOURCES_RANGE)
-            ?: DEFAULT_SOURCE_FALLBACK_MAX_SOURCES
-        streamAutoPlayFallbackStartupTimeoutSeconds = PlayerSettingsStorage.loadStreamAutoPlayFallbackStartupTimeoutSeconds()
-            ?.coerceIn(SOURCE_STARTUP_TIMEOUT_SECONDS_RANGE)
-            ?: DEFAULT_SOURCE_STARTUP_TIMEOUT_SECONDS
+            ?: AndroidPlaybackEngine.Auto
         androidLibmpvVideoOutput = PlayerSettingsStorage.loadAndroidLibmpvVideoOutput()
             ?.let { runCatching { AndroidLibmpvVideoOutput.valueOf(it) }.getOrNull() }
             ?: AndroidLibmpvVideoOutput.GpuNext
         androidLibmpvHardwareDecodingEnabled = PlayerSettingsStorage.loadAndroidLibmpvHardwareDecodingEnabled() ?: true
         androidLibmpvYuv420pEnabled = PlayerSettingsStorage.loadAndroidLibmpvYuv420pEnabled() ?: false
-        androidAnimeUpscaleEnabled = PlayerSettingsStorage.loadAndroidAnimeUpscaleEnabled() ?: false
-        androidAnimeLineSharpenEnabled = PlayerSettingsStorage.loadAndroidAnimeLineSharpenEnabled() ?: false
-        androidExoChaptersEnabled = PlayerSettingsStorage.loadAndroidExoChaptersEnabled() ?: false
-        chapterTitleEnabled = PlayerSettingsStorage.loadChapterTitleEnabled() ?: true
-        rememberAudioDelayPerDevice = PlayerSettingsStorage.loadRememberAudioDelayPerDevice() ?: true
-        persistAudioAmplification = PlayerSettingsStorage.loadPersistAudioAmplification() ?: false
-        audioAmplificationDb = (PlayerSettingsStorage.loadAudioAmplificationDb() ?: 0)
-            .coerceIn(AUDIO_AMPLIFICATION_MIN_DB, AUDIO_AMPLIFICATION_MAX_DB)
-        downmixEnabled = PlayerSettingsStorage.loadDownmixEnabled() ?: false
-        audioOutputChannels = AudioOutputChannels.fromSettingValue(PlayerSettingsStorage.loadAudioOutputChannels())
-        maintainOriginalAudioOnDownmix = PlayerSettingsStorage.loadMaintainOriginalAudioOnDownmix() ?: true
-        centerMixLevelDb = (PlayerSettingsStorage.loadCenterMixLevelDb() ?: 0)
-            .coerceIn(CENTER_MIX_LEVEL_MIN_DB, CENTER_MIX_LEVEL_MAX_DB)
-        decoderPriority = PlayerSettingsStorage.loadDecoderPriority() ?: 1
-        mapDV7ToHevc = PlayerSettingsStorage.loadMapDV7ToHevc() ?: false
-        tunnelingEnabled = PlayerSettingsStorage.loadTunnelingEnabled() ?: false
-        androidAudioPassthroughEnabled = PlayerSettingsStorage.loadAndroidAudioPassthroughEnabled() ?: false
-        nightModeButtonEnabled = PlayerSettingsStorage.loadNightModeButtonEnabled() ?: true
-        nightModeEnabled = PlayerSettingsStorage.loadNightModeEnabled() ?: false
+        androidMemorySafeBufferEnabled = PlayerSettingsStorage.loadAndroidMemorySafeBufferEnabled() ?: false
         exoNativeMemoryEnabled = PlayerSettingsStorage.loadExoNativeMemoryEnabled() ?: false
         customPlaybackBuffersEnabled = PlayerSettingsStorage.loadCustomPlaybackBuffersEnabled() ?: false
         vodDiskCacheEnabled = PlayerSettingsStorage.loadVodDiskCacheEnabled() ?: false
@@ -544,6 +415,9 @@ object PlayerSettingsRepository {
         playbackBackBufferSeconds = PlayerSettingsStorage.loadPlaybackBackBufferSeconds() ?: 10
         playbackTargetBufferMb = PlayerSettingsStorage.loadPlaybackTargetBufferMb() ?: 256
         vodDiskCacheSizeMb = PlayerSettingsStorage.loadVodDiskCacheSizeMb() ?: 2048
+        decoderPriority = PlayerSettingsStorage.loadDecoderPriority() ?: 1
+        mapDV7ToHevc = PlayerSettingsStorage.loadMapDV7ToHevc() ?: false
+        tunnelingEnabled = PlayerSettingsStorage.loadTunnelingEnabled() ?: false
         streamAutoPlayMode = PlayerSettingsStorage.loadStreamAutoPlayMode()
             ?.let { runCatching { StreamAutoPlayMode.valueOf(it) }.getOrNull() }
             ?: StreamAutoPlayMode.MANUAL
@@ -574,11 +448,6 @@ object PlayerSettingsRepository {
             PlayerSettingsStorage.saveStreamAutoPlayTimeoutSeconds(streamAutoPlayTimeoutSeconds)
         }
         skipIntroEnabled = PlayerSettingsStorage.loadSkipIntroEnabled() ?: true
-        skipIntroOffsetSeconds = normalizeSkipIntroOffsetSeconds(PlayerSettingsStorage.loadSkipIntroOffsetSeconds())
-        autoSkipSegmentTypes = PlayerSettingsStorage.loadAutoSkipSegmentTypes()
-            ?.mapNotNull(AutoSkipSegmentType::fromStoredValue)?.toSet() ?: buildSet {
-                if (PlayerSettingsStorage.loadAutoSkipMovieCredits() == true) add(AutoSkipSegmentType.MOVIE_CREDITS)
-            }
         animeSkipEnabled = PlayerSettingsStorage.loadAnimeSkipEnabled() ?: false
         animeSkipClientId = PlayerSettingsStorage.loadAnimeSkipClientId() ?: ""
         introDbApiKey = PlayerSettingsStorage.loadIntroDbApiKey() ?: ""
@@ -590,20 +459,14 @@ object PlayerSettingsRepository {
         playerClockEndTimeEnabled = PlayerSettingsStorage.loadPlayerClockEndTimeEnabled() ?: false
         randomNextEpisodeEnabled = PlayerSettingsStorage.loadRandomNextEpisodeEnabled() ?: false
         streamAutoPlayPreferBingeGroup = PlayerSettingsStorage.loadStreamAutoPlayPreferBingeGroup() ?: true
-        streamAutoPlayReuseBingeGroup = PlayerSettingsStorage.loadStreamAutoPlayReuseBingeGroup() ?: false
+        streamAutoPlayReuseBingeGroup = PlayerSettingsStorage.loadStreamAutoPlayReuseBingeGroup() ?: true
         nextEpisodeThresholdMode = PlayerSettingsStorage.loadNextEpisodeThresholdMode()
             ?.let { runCatching { NextEpisodeThresholdMode.valueOf(it) }.getOrNull() }
             ?: NextEpisodeThresholdMode.PERCENTAGE
         nextEpisodeThresholdPercent = PlayerSettingsStorage.loadNextEpisodeThresholdPercent() ?: 99f
         nextEpisodeThresholdMinutesBeforeEnd = PlayerSettingsStorage.loadNextEpisodeThresholdMinutesBeforeEnd() ?: 2f
-        preloadNextEpisodeSources = PlayerSettingsStorage.loadPreloadNextEpisodeSources() ?: false
-        miniPlayerEnabled = PlayerSettingsStorage.loadMiniPlayerEnabled() ?: true
-        privateViewingEnabled = PlayerSettingsStorage.loadPrivateViewingEnabled() ?: false
-        useLibmpvAss = PlayerSettingsStorage.loadUseLibmpvAss() ?: false
-        useLibass = PlayerSettingsStorage.loadUseLibass() ?: true
+        useLibass = PlayerSettingsStorage.loadUseLibass() ?: false
         libassRenderType = PlayerSettingsStorage.loadLibassRenderType() ?: "CUES"
-        libassRenderScale = PlayerSettingsStorage.loadLibassRenderScale() ?: "FULL"
-        libassRenderMode = PlayerSettingsStorage.loadLibassRenderMode() ?: "OVERLAY"
         iosVideoOutputPreset = PlayerSettingsStorage.loadIosVideoOutputPreset()
             ?.let { runCatching { IosVideoOutputPreset.valueOf(it) }.getOrNull() }
             ?: IosVideoOutputPreset.Compatibility
@@ -632,36 +495,31 @@ object PlayerSettingsRepository {
         publish()
     }
 
-    fun setUseLegacyPlayerLayout(enabled: Boolean) {
+    fun setPlayerSkipBackwardSeconds(seconds: Int) {
         ensureLoaded()
-        if (useLegacyPlayerLayout == enabled) return
-        useLegacyPlayerLayout = enabled
+        val normalized = normalizePlayerSkipSeconds(seconds)
+        if (skipBackwardSeconds == normalized) return
+        skipBackwardSeconds = normalized
         publish()
-        PlayerSettingsStorage.saveUseLegacyPlayerLayout(enabled)
+        PlayerSettingsStorage.saveSkipBackwardSeconds(normalized)
     }
 
-    fun setShowPlayerTitleLogo(enabled: Boolean) {
+    fun setPlayerSkipForwardSeconds(seconds: Int) {
         ensureLoaded()
-        if (showPlayerTitleLogo == enabled) return
-        showPlayerTitleLogo = enabled
+        val normalized = normalizePlayerSkipSeconds(seconds)
+        if (skipForwardSeconds == normalized) return
+        skipForwardSeconds = normalized
         publish()
-        PlayerSettingsStorage.saveShowPlayerTitleLogo(enabled)
+        PlayerSettingsStorage.saveSkipForwardSeconds(normalized)
     }
 
-    fun setShowLoadingOverlay(enabled: Boolean) {
+    fun setPlayerToolbarLayout(layout: PlayerToolbarLayout) {
         ensureLoaded()
-        if (showLoadingOverlay == enabled) return
-        showLoadingOverlay = enabled
+        val normalized = PlayerToolbarLayout.decode(layout.encode())
+        if (toolbarLayout == normalized) return
+        toolbarLayout = normalized
         publish()
-        PlayerSettingsStorage.saveShowLoadingOverlay(enabled)
-    }
-
-    fun setShowPlayerLoadingStatus(enabled: Boolean) {
-        ensureLoaded()
-        if (showPlayerLoadingStatus == enabled) return
-        showPlayerLoadingStatus = enabled
-        publish()
-        PlayerSettingsStorage.saveShowPlayerLoadingStatus(enabled)
+        PlayerSettingsStorage.saveToolbarLayout(normalized.encode())
     }
 
     fun setPauseOverlayEnabled(enabled: Boolean) {
@@ -670,6 +528,54 @@ object PlayerSettingsRepository {
         pauseOverlayEnabled = enabled
         publish()
         PlayerSettingsStorage.savePauseOverlayEnabled(enabled)
+    }
+
+    fun setStableOpeningOverlayEnabled(enabled: Boolean) {
+        ensureLoaded()
+        if (stableOpeningOverlayEnabled == enabled) return
+        stableOpeningOverlayEnabled = enabled
+        publish()
+        PlayerSettingsStorage.saveStableOpeningOverlayEnabled(enabled)
+    }
+
+    fun setChapterTitleEnabled(enabled: Boolean) {
+        ensureLoaded()
+        if (chapterTitleEnabled == enabled) return
+        chapterTitleEnabled = enabled
+        publish()
+        PlayerSettingsStorage.saveChapterTitleEnabled(enabled)
+    }
+
+    fun setPlayerLiquidGlassEnabled(enabled: Boolean) {
+        ensureLoaded()
+        if (playerLiquidGlassEnabled == enabled) return
+        playerLiquidGlassEnabled = enabled
+        publish()
+        PlayerSettingsStorage.savePlayerLiquidGlassEnabled(enabled)
+    }
+
+    fun setNextEpisodeSwipeDismissEnabled(enabled: Boolean) {
+        ensureLoaded()
+        if (nextEpisodeSwipeDismissEnabled == enabled) return
+        nextEpisodeSwipeDismissEnabled = enabled
+        publish()
+        PlayerSettingsStorage.saveNextEpisodeSwipeDismissEnabled(enabled)
+    }
+
+    fun setMiniPlayerEnabled(enabled: Boolean) {
+        ensureLoaded()
+        if (miniPlayerEnabled == enabled) return
+        miniPlayerEnabled = enabled
+        publish()
+        PlayerSettingsStorage.saveMiniPlayerEnabled(enabled)
+    }
+
+    fun setShowLoadingOverlay(enabled: Boolean) {
+        ensureLoaded()
+        if (showLoadingOverlay == enabled) return
+        showLoadingOverlay = enabled
+        publish()
+        PlayerSettingsStorage.saveShowLoadingOverlay(enabled)
     }
 
     fun setShowParentalGuide(enabled: Boolean) {
@@ -705,48 +611,6 @@ object PlayerSettingsRepository {
         PlayerSettingsStorage.saveHoldToSpeedValue(normalized)
     }
 
-    fun setSkipBackwardSeconds(seconds: Int) {
-        ensureLoaded()
-        val normalized = normalizePlayerSkipSeconds(seconds)
-        if (skipBackwardSeconds == normalized) return
-        skipBackwardSeconds = normalized
-        publish()
-        PlayerSettingsStorage.saveSkipBackwardSeconds(normalized)
-    }
-
-    fun setSkipForwardSeconds(seconds: Int) {
-        ensureLoaded()
-        val normalized = normalizePlayerSkipSeconds(seconds)
-        if (skipForwardSeconds == normalized) return
-        skipForwardSeconds = normalized
-        publish()
-        PlayerSettingsStorage.saveSkipForwardSeconds(normalized)
-    }
-
-    fun setToolbarLayout(layout: PlayerToolbarLayout) {
-        ensureLoaded()
-        if (toolbarLayout == layout) return
-        toolbarLayout = layout
-        publish()
-        PlayerSettingsStorage.saveToolbarLayout(layout.encode())
-    }
-
-    fun setLegacyBottomButtons(layout: LegacyBottomButtonLayout) {
-        ensureLoaded()
-        if (legacyBottomButtons == layout) return
-        legacyBottomButtons = layout
-        publish()
-        PlayerSettingsStorage.saveLegacyBottomButtons(LegacyPlayerButtonLayouts.encodeBottom(layout))
-    }
-
-    fun setLegacyTopButtons(layout: LegacyTopButtonLayout) {
-        ensureLoaded()
-        if (legacyTopButtons == layout) return
-        legacyTopButtons = layout
-        publish()
-        PlayerSettingsStorage.saveLegacyTopButtons(LegacyPlayerButtonLayouts.encodeTop(layout))
-    }
-
     fun setTouchGesturesEnabled(enabled: Boolean) {
         ensureLoaded()
         if (touchGesturesEnabled == enabled) return
@@ -755,60 +619,33 @@ object PlayerSettingsRepository {
         PlayerSettingsStorage.saveTouchGesturesEnabled(enabled)
     }
 
-    fun setSwipeToSeekEnabled(enabled: Boolean) {
+    fun setRememberPlayerBrightnessEnabled(enabled: Boolean) {
         ensureLoaded()
-        if (swipeToSeekEnabled == enabled) return
-        swipeToSeekEnabled = enabled
+        if (rememberPlayerBrightnessEnabled == enabled) return
+        rememberPlayerBrightnessEnabled = enabled
         publish()
-        PlayerSettingsStorage.saveSwipeToSeekEnabled(enabled)
+        PlayerSettingsStorage.saveRememberPlayerBrightnessEnabled(enabled)
     }
 
-    fun setPlayerControlGlassEnabled(enabled: Boolean) {
+    fun setRememberedPlayerBrightness(level: Float) {
         ensureLoaded()
-        if (playerControlGlassEnabled == enabled) return
-        playerControlGlassEnabled = enabled
+        if (!rememberPlayerBrightnessEnabled) return
+        val normalized = level.coerceIn(0.02f, 1f)
+        if (rememberedPlayerBrightness != null && abs(rememberedPlayerBrightness!! - normalized) < 0.005f) {
+            return
+        }
+        rememberedPlayerBrightness = normalized
         publish()
-        PlayerSettingsStorage.savePlayerControlGlassEnabled(enabled)
+        PlayerSettingsStorage.saveRememberedPlayerBrightness(normalized)
     }
 
-    fun setShowSkipButtons(enabled: Boolean) {
+    fun setVolumeBoostPercent(percent: Int) {
         ensureLoaded()
-        if (showSkipButtons == enabled) return
-        showSkipButtons = enabled
+        val normalized = percent.coerceIn(100, 200)
+        if (volumeBoostPercent == normalized) return
+        volumeBoostPercent = normalized
         publish()
-        PlayerSettingsStorage.saveShowSkipButtons(enabled)
-    }
-
-    fun setSeekPreviewEnabled(enabled: Boolean) {
-        ensureLoaded()
-        if (seekPreviewEnabled == enabled) return
-        seekPreviewEnabled = enabled
-        publish()
-        PlayerSettingsStorage.saveSeekPreviewEnabled(enabled)
-    }
-
-    fun setMovieRecommendationsEnabled(enabled: Boolean) {
-        ensureLoaded()
-        if (movieRecommendationsEnabled == enabled) return
-        movieRecommendationsEnabled = enabled
-        publish()
-        PlayerSettingsStorage.saveMovieRecommendationsEnabled(enabled)
-    }
-
-    fun setAutoShowSubtitlesOnRewindEnabled(enabled: Boolean) {
-        ensureLoaded()
-        if (autoShowSubtitlesOnRewindEnabled == enabled) return
-        autoShowSubtitlesOnRewindEnabled = enabled
-        publish()
-        PlayerSettingsStorage.saveAutoShowSubtitlesOnRewindEnabled(enabled)
-    }
-
-    fun setAutoShowSubtitlesOnMuteEnabled(enabled: Boolean) {
-        ensureLoaded()
-        if (autoShowSubtitlesOnMuteEnabled == enabled) return
-        autoShowSubtitlesOnMuteEnabled = enabled
-        publish()
-        PlayerSettingsStorage.saveAutoShowSubtitlesOnMuteEnabled(enabled)
+        PlayerSettingsStorage.saveVolumeBoostPercent(normalized)
     }
 
     fun setExternalPlayerEnabled(enabled: Boolean) {
@@ -890,16 +727,38 @@ object PlayerSettingsRepository {
 
     fun setSubtitleStyle(style: SubtitleStyleState) {
         ensureLoaded()
-        val normalized = style.copy(
-            fontSizeSp = style.fontSizeSp.coerceIn(subtitleFontSizeRangeSp),
-            outlineWidth = style.outlineWidth.coerceIn(subtitleOutlineWidthRange),
-            bottomOffset = style.bottomOffset.coerceIn(0, 200),
-            appearance = style.appearance.normalized(),
-        )
+        val normalized = style.copy(outlineWidth = normalizeSubtitleOutlineWidth(style.outlineWidth))
         if (subtitleStyle == normalized) return
         subtitleStyle = normalized
         publish()
-        SubtitleDevicePreferencesRepository.save(ProfileRepository.activeProfileId, normalized)
+        PlayerSettingsStorage.saveSubtitleTextColor(normalized.textColor.toStorageHexString())
+        PlayerSettingsStorage.saveSubtitleBackgroundColor(normalized.backgroundColor.toStorageHexString())
+        PlayerSettingsStorage.saveSubtitleOutlineColor(normalized.outlineColor.toStorageHexString())
+        PlayerSettingsStorage.saveSubtitleOutlineEnabled(normalized.outlineEnabled)
+        PlayerSettingsStorage.saveSubtitleOutlineWidth(normalized.outlineWidth)
+        PlayerSettingsStorage.saveSubtitleShadowEnabled(normalized.shadowEnabled)
+        PlayerSettingsStorage.saveSubtitleShadowStrength(normalizeSubtitleShadowStrength(normalized.shadowStrength))
+        PlayerSettingsStorage.saveSubtitleBold(normalized.bold)
+        PlayerSettingsStorage.saveSubtitleFontSizeSp(normalized.fontSizeSp)
+        PlayerSettingsStorage.saveSubtitleFontFamily(normalized.fontFamily.name)
+        PlayerSettingsStorage.saveSubtitleCustomFontName(normalized.customFontName)
+        PlayerSettingsStorage.saveSubtitleCustomFontPath(normalized.customFontPath)
+        PlayerSettingsStorage.saveSubtitleBottomOffset(normalized.bottomOffset)
+        PlayerSettingsStorage.saveSubtitleUseForcedSubtitles(normalized.useForcedSubtitles)
+        PlayerSettingsStorage.saveSubtitleShowOnlyPreferredLanguages(normalized.showOnlyPreferredLanguages)
+    }
+
+    fun updateSubtitleStyle(transform: (SubtitleStyleState) -> SubtitleStyleState) {
+        ensureLoaded()
+        setSubtitleStyle(transform(subtitleStyle))
+    }
+
+    fun setAddonSubtitleStartupMode(mode: AddonSubtitleStartupMode) {
+        ensureLoaded()
+        if (addonSubtitleStartupMode == mode) return
+        addonSubtitleStartupMode = mode
+        publish()
+        PlayerSettingsStorage.saveAddonSubtitleStartupMode(mode.name)
     }
 
     fun setStreamReuseLastLinkEnabled(enabled: Boolean) {
@@ -926,40 +785,6 @@ object PlayerSettingsRepository {
         PlayerSettingsStorage.saveAndroidPlaybackEngine(engine.name)
     }
 
-    fun setAutoSwitchPlaybackEngineOnError(enabled: Boolean) {
-        ensureLoaded()
-        if (autoSwitchPlaybackEngineOnError == enabled) return
-        autoSwitchPlaybackEngineOnError = enabled
-        publish()
-        PlayerSettingsStorage.saveAutoSwitchPlaybackEngineOnError(enabled)
-    }
-
-    fun setStreamAutoPlayFallbackOnFailure(enabled: Boolean) {
-        ensureLoaded()
-        if (streamAutoPlayFallbackOnFailure == enabled) return
-        streamAutoPlayFallbackOnFailure = enabled
-        publish()
-        PlayerSettingsStorage.saveStreamAutoPlayFallbackOnFailure(enabled)
-    }
-
-    fun setStreamAutoPlayFallbackMaxSources(count: Int) {
-        ensureLoaded()
-        val normalized = count.coerceIn(SOURCE_FALLBACK_MAX_SOURCES_RANGE)
-        if (streamAutoPlayFallbackMaxSources == normalized) return
-        streamAutoPlayFallbackMaxSources = normalized
-        publish()
-        PlayerSettingsStorage.saveStreamAutoPlayFallbackMaxSources(normalized)
-    }
-
-    fun setStreamAutoPlayFallbackStartupTimeoutSeconds(seconds: Int) {
-        ensureLoaded()
-        val normalized = seconds.coerceIn(SOURCE_STARTUP_TIMEOUT_SECONDS_RANGE)
-        if (streamAutoPlayFallbackStartupTimeoutSeconds == normalized) return
-        streamAutoPlayFallbackStartupTimeoutSeconds = normalized
-        publish()
-        PlayerSettingsStorage.saveStreamAutoPlayFallbackStartupTimeoutSeconds(normalized)
-    }
-
     fun setAndroidLibmpvVideoOutput(output: AndroidLibmpvVideoOutput) {
         ensureLoaded()
         if (androidLibmpvVideoOutput == output) return
@@ -984,142 +809,12 @@ object PlayerSettingsRepository {
         PlayerSettingsStorage.saveAndroidLibmpvYuv420pEnabled(enabled)
     }
 
-    fun setAndroidAnimeUpscaleEnabled(enabled: Boolean) {
+    fun setAndroidMemorySafeBufferEnabled(enabled: Boolean) {
         ensureLoaded()
-        if (androidAnimeUpscaleEnabled == enabled) return
-        androidAnimeUpscaleEnabled = enabled
+        if (androidMemorySafeBufferEnabled == enabled) return
+        androidMemorySafeBufferEnabled = enabled
         publish()
-        PlayerSettingsStorage.saveAndroidAnimeUpscaleEnabled(enabled)
-    }
-
-    fun setAndroidAnimeLineSharpenEnabled(enabled: Boolean) {
-        ensureLoaded()
-        if (androidAnimeLineSharpenEnabled == enabled) return
-        androidAnimeLineSharpenEnabled = enabled
-        publish()
-        PlayerSettingsStorage.saveAndroidAnimeLineSharpenEnabled(enabled)
-    }
-
-    fun setAndroidExoChaptersEnabled(enabled: Boolean) {
-        ensureLoaded()
-        if (androidExoChaptersEnabled == enabled) return
-        androidExoChaptersEnabled = enabled
-        publish()
-        PlayerSettingsStorage.saveAndroidExoChaptersEnabled(enabled)
-    }
-
-    fun setChapterTitleEnabled(enabled: Boolean) {
-        ensureLoaded()
-        if (chapterTitleEnabled == enabled) return
-        chapterTitleEnabled = enabled
-        publish()
-        PlayerSettingsStorage.saveChapterTitleEnabled(enabled)
-    }
-
-    fun setRememberAudioDelayPerDevice(enabled: Boolean) {
-        ensureLoaded()
-        if (rememberAudioDelayPerDevice == enabled) return
-        rememberAudioDelayPerDevice = enabled
-        publish()
-        PlayerSettingsStorage.saveRememberAudioDelayPerDevice(enabled)
-    }
-
-    fun setPersistAudioAmplification(enabled: Boolean) {
-        ensureLoaded()
-        if (persistAudioAmplification == enabled) return
-        persistAudioAmplification = enabled
-        publish()
-        PlayerSettingsStorage.savePersistAudioAmplification(enabled)
-    }
-
-    fun setAudioAmplificationDb(db: Int) {
-        ensureLoaded()
-        val clamped = db.coerceIn(AUDIO_AMPLIFICATION_MIN_DB, AUDIO_AMPLIFICATION_MAX_DB)
-        if (audioAmplificationDb == clamped) return
-        audioAmplificationDb = clamped
-        publish()
-        PlayerSettingsStorage.saveAudioAmplificationDb(clamped)
-    }
-
-    fun setDownmixEnabled(enabled: Boolean) {
-        ensureLoaded()
-        if (downmixEnabled == enabled) return
-        downmixEnabled = enabled
-        publish()
-        PlayerSettingsStorage.saveDownmixEnabled(enabled)
-    }
-
-    fun setAudioOutputChannels(channels: AudioOutputChannels) {
-        ensureLoaded()
-        if (audioOutputChannels == channels) return
-        audioOutputChannels = channels
-        publish()
-        PlayerSettingsStorage.saveAudioOutputChannels(channels.settingValue)
-    }
-
-    fun setMaintainOriginalAudioOnDownmix(enabled: Boolean) {
-        ensureLoaded()
-        if (maintainOriginalAudioOnDownmix == enabled) return
-        maintainOriginalAudioOnDownmix = enabled
-        publish()
-        PlayerSettingsStorage.saveMaintainOriginalAudioOnDownmix(enabled)
-    }
-
-    fun setCenterMixLevelDb(db: Int) {
-        ensureLoaded()
-        val clamped = db.coerceIn(CENTER_MIX_LEVEL_MIN_DB, CENTER_MIX_LEVEL_MAX_DB)
-        if (centerMixLevelDb == clamped) return
-        centerMixLevelDb = clamped
-        publish()
-        PlayerSettingsStorage.saveCenterMixLevelDb(clamped)
-    }
-
-    fun setDecoderPriority(priority: Int) {
-        ensureLoaded()
-        if (decoderPriority == priority) return
-        decoderPriority = priority
-        publish()
-        PlayerSettingsStorage.saveDecoderPriority(priority)
-    }
-
-    fun setMapDV7ToHevc(enabled: Boolean) {
-        ensureLoaded()
-        if (mapDV7ToHevc == enabled) return
-        mapDV7ToHevc = enabled
-        publish()
-        PlayerSettingsStorage.saveMapDV7ToHevc(enabled)
-    }
-
-    fun setTunnelingEnabled(enabled: Boolean) {
-        ensureLoaded()
-        if (tunnelingEnabled == enabled) return
-        tunnelingEnabled = enabled
-        publish()
-        PlayerSettingsStorage.saveTunnelingEnabled(enabled)
-    }
-
-    fun setAndroidAudioPassthroughEnabled(enabled: Boolean) {
-        ensureLoaded()
-        if (androidAudioPassthroughEnabled == enabled) return
-        androidAudioPassthroughEnabled = enabled
-        publish()
-        PlayerSettingsStorage.saveAndroidAudioPassthroughEnabled(enabled)
-    }
-
-    fun setNightModeButtonEnabled(enabled: Boolean) {
-        ensureLoaded()
-        if (nightModeButtonEnabled == enabled) return
-        nightModeButtonEnabled = enabled
-        publish()
-        PlayerSettingsStorage.saveNightModeButtonEnabled(enabled)
-    }
-
-    fun setNightModeEnabled(enabled: Boolean) {
-        ensureLoaded()
-        if (nightModeEnabled == enabled) return
-        nightModeEnabled = enabled
-        publish()
-        PlayerSettingsStorage.saveNightModeEnabled(enabled)
+        PlayerSettingsStorage.saveAndroidMemorySafeBufferEnabled(enabled)
     }
 
     fun setExoNativeMemoryEnabled(value: Boolean) {
@@ -1210,6 +905,30 @@ object PlayerSettingsRepository {
         PlayerSettingsStorage.saveVodDiskCacheSizeMb(value)
     }
 
+    fun setDecoderPriority(priority: Int) {
+        ensureLoaded()
+        if (decoderPriority == priority) return
+        decoderPriority = priority
+        publish()
+        PlayerSettingsStorage.saveDecoderPriority(priority)
+    }
+
+    fun setMapDV7ToHevc(enabled: Boolean) {
+        ensureLoaded()
+        if (mapDV7ToHevc == enabled) return
+        mapDV7ToHevc = enabled
+        publish()
+        PlayerSettingsStorage.saveMapDV7ToHevc(enabled)
+    }
+
+    fun setTunnelingEnabled(enabled: Boolean) {
+        ensureLoaded()
+        if (tunnelingEnabled == enabled) return
+        tunnelingEnabled = enabled
+        publish()
+        PlayerSettingsStorage.saveTunnelingEnabled(enabled)
+    }
+
     fun setStreamAutoPlayMode(mode: StreamAutoPlayMode) {
         ensureLoaded()
         if (streamAutoPlayMode == mode) return
@@ -1260,30 +979,12 @@ object PlayerSettingsRepository {
         PlayerSettingsStorage.saveStreamAutoPlayTimeoutSeconds(seconds)
     }
 
-    fun setSkipIntroOffsetSeconds(seconds: Int) {
-        ensureLoaded()
-        val normalized = normalizeSkipIntroOffsetSeconds(seconds)
-        if (skipIntroOffsetSeconds == normalized) return
-        skipIntroOffsetSeconds = normalized
-        publish()
-        PlayerSettingsStorage.saveSkipIntroOffsetSeconds(normalized)
-    }
-
     fun setSkipIntroEnabled(enabled: Boolean) {
         ensureLoaded()
         if (skipIntroEnabled == enabled) return
         skipIntroEnabled = enabled
         publish()
         PlayerSettingsStorage.saveSkipIntroEnabled(enabled)
-    }
-
-    fun setAutoSkipSegmentTypeEnabled(segmentType: AutoSkipSegmentType, enabled: Boolean) {
-        ensureLoaded()
-        val updated = if (enabled) autoSkipSegmentTypes + segmentType else autoSkipSegmentTypes - segmentType
-        if (autoSkipSegmentTypes == updated) return
-        autoSkipSegmentTypes = updated
-        publish()
-        PlayerSettingsStorage.saveAutoSkipSegmentTypes(updated.mapTo(linkedSetOf()) { it.storedValue })
     }
 
     fun setAnimeSkipEnabled(enabled: Boolean) {
@@ -1398,30 +1099,6 @@ object PlayerSettingsRepository {
         PlayerSettingsStorage.saveNextEpisodeThresholdMinutesBeforeEnd(minutes)
     }
 
-    fun setPreloadNextEpisodeSources(enabled: Boolean) {
-        ensureLoaded()
-        if (preloadNextEpisodeSources == enabled) return
-        preloadNextEpisodeSources = enabled
-        publish()
-        PlayerSettingsStorage.savePreloadNextEpisodeSources(enabled)
-    }
-
-    fun setMiniPlayerEnabled(enabled: Boolean) {
-        ensureLoaded()
-        if (miniPlayerEnabled == enabled) return
-        miniPlayerEnabled = enabled
-        publish()
-        PlayerSettingsStorage.saveMiniPlayerEnabled(enabled)
-    }
-
-    fun setPrivateViewingEnabled(enabled: Boolean) {
-        ensureLoaded()
-        if (privateViewingEnabled == enabled) return
-        privateViewingEnabled = enabled
-        publish()
-        PlayerSettingsStorage.savePrivateViewingEnabled(enabled)
-    }
-
     fun setUseLibass(enabled: Boolean) {
         ensureLoaded()
         if (useLibass == enabled) return
@@ -1436,30 +1113,6 @@ object PlayerSettingsRepository {
         libassRenderType = renderType
         publish()
         PlayerSettingsStorage.saveLibassRenderType(renderType)
-    }
-
-    fun setUseLibmpvAss(enabled: Boolean) {
-        ensureLoaded()
-        if (useLibmpvAss == enabled) return
-        useLibmpvAss = enabled
-        publish()
-        PlayerSettingsStorage.saveUseLibmpvAss(enabled)
-    }
-
-    fun setLibassRenderScale(scale: String) {
-        ensureLoaded()
-        if (libassRenderScale == scale) return
-        libassRenderScale = scale
-        publish()
-        PlayerSettingsStorage.saveLibassRenderScale(scale)
-    }
-
-    fun setLibassRenderMode(mode: String) {
-        ensureLoaded()
-        if (libassRenderMode == mode) return
-        libassRenderMode = mode
-        publish()
-        PlayerSettingsStorage.saveLibassRenderMode(mode)
     }
 
     fun setIosVideoOutputPreset(preset: IosVideoOutputPreset) {
@@ -1630,28 +1283,24 @@ object PlayerSettingsRepository {
 
     private fun publish() {
         _uiState.value = PlayerSettingsUiState(
-            useLegacyPlayerLayout = useLegacyPlayerLayout,
-            showPlayerTitleLogo = showPlayerTitleLogo,
             showLoadingOverlay = showLoadingOverlay,
-            showPlayerLoadingStatus = showPlayerLoadingStatus,
             pauseOverlayEnabled = pauseOverlayEnabled,
+            stableOpeningOverlayEnabled = stableOpeningOverlayEnabled,
+            chapterTitleEnabled = chapterTitleEnabled,
+            playerLiquidGlassEnabled = playerLiquidGlassEnabled,
+            nextEpisodeSwipeDismissEnabled = nextEpisodeSwipeDismissEnabled,
+            miniPlayerEnabled = miniPlayerEnabled,
+            skipBackwardSeconds = skipBackwardSeconds,
+            skipForwardSeconds = skipForwardSeconds,
+            toolbarLayout = toolbarLayout,
             showParentalGuide = showParentalGuide,
             resizeMode = resizeMode,
             holdToSpeedEnabled = holdToSpeedEnabled,
             holdToSpeedValue = holdToSpeedValue,
-            skipBackwardSeconds = skipBackwardSeconds,
-            skipForwardSeconds = skipForwardSeconds,
-            toolbarLayout = toolbarLayout,
-            legacyBottomButtons = legacyBottomButtons,
-            legacyTopButtons = legacyTopButtons,
             touchGesturesEnabled = touchGesturesEnabled,
-            swipeToSeekEnabled = swipeToSeekEnabled,
-            playerControlGlassEnabled = playerControlGlassEnabled,
-            showSkipButtons = showSkipButtons,
-            seekPreviewEnabled = seekPreviewEnabled,
-            movieRecommendationsEnabled = movieRecommendationsEnabled,
-            autoShowSubtitlesOnRewindEnabled = autoShowSubtitlesOnRewindEnabled,
-            autoShowSubtitlesOnMuteEnabled = autoShowSubtitlesOnMuteEnabled,
+            rememberPlayerBrightnessEnabled = rememberPlayerBrightnessEnabled,
+            rememberedPlayerBrightness = rememberedPlayerBrightness,
+            volumeBoostPercent = volumeBoostPercent,
             externalPlayerEnabled = externalPlayerEnabled,
             externalPlayerForwardSubtitles = externalPlayerForwardSubtitles,
             externalPlayerSendSkipSegments = externalPlayerSendSkipSegments,
@@ -1661,33 +1310,14 @@ object PlayerSettingsRepository {
             preferredSubtitleLanguage = preferredSubtitleLanguage,
             secondaryPreferredSubtitleLanguage = secondaryPreferredSubtitleLanguage,
             subtitleStyle = subtitleStyle,
+            addonSubtitleStartupMode = addonSubtitleStartupMode,
             streamReuseLastLinkEnabled = streamReuseLastLinkEnabled,
             streamReuseLastLinkCacheHours = streamReuseLastLinkCacheHours,
             androidPlaybackEngine = androidPlaybackEngine,
-            autoSwitchPlaybackEngineOnError = autoSwitchPlaybackEngineOnError,
-            streamAutoPlayFallbackOnFailure = streamAutoPlayFallbackOnFailure,
-            streamAutoPlayFallbackMaxSources = streamAutoPlayFallbackMaxSources,
-            streamAutoPlayFallbackStartupTimeoutSeconds = streamAutoPlayFallbackStartupTimeoutSeconds,
             androidLibmpvVideoOutput = androidLibmpvVideoOutput,
             androidLibmpvHardwareDecodingEnabled = androidLibmpvHardwareDecodingEnabled,
             androidLibmpvYuv420pEnabled = androidLibmpvYuv420pEnabled,
-            androidAnimeUpscaleEnabled = androidAnimeUpscaleEnabled,
-            androidAnimeLineSharpenEnabled = androidAnimeLineSharpenEnabled,
-            androidExoChaptersEnabled = androidExoChaptersEnabled,
-            chapterTitleEnabled = chapterTitleEnabled,
-            rememberAudioDelayPerDevice = rememberAudioDelayPerDevice,
-            persistAudioAmplification = persistAudioAmplification,
-            audioAmplificationDb = audioAmplificationDb,
-            downmixEnabled = downmixEnabled,
-            audioOutputChannels = audioOutputChannels,
-            maintainOriginalAudioOnDownmix = maintainOriginalAudioOnDownmix,
-            centerMixLevelDb = centerMixLevelDb,
-            decoderPriority = decoderPriority,
-            mapDV7ToHevc = mapDV7ToHevc,
-            tunnelingEnabled = tunnelingEnabled,
-            androidAudioPassthroughEnabled = androidAudioPassthroughEnabled,
-            nightModeButtonEnabled = nightModeButtonEnabled,
-            nightModeEnabled = nightModeEnabled,
+            androidMemorySafeBufferEnabled = androidMemorySafeBufferEnabled,
             exoNativeMemoryEnabled = exoNativeMemoryEnabled,
             customPlaybackBuffersEnabled = customPlaybackBuffersEnabled,
             vodDiskCacheEnabled = vodDiskCacheEnabled,
@@ -1699,6 +1329,9 @@ object PlayerSettingsRepository {
             playbackBackBufferSeconds = playbackBackBufferSeconds,
             playbackTargetBufferMb = playbackTargetBufferMb,
             vodDiskCacheSizeMb = vodDiskCacheSizeMb,
+            decoderPriority = decoderPriority,
+            mapDV7ToHevc = mapDV7ToHevc,
+            tunnelingEnabled = tunnelingEnabled,
             streamAutoPlayMode = streamAutoPlayMode,
             streamAutoPlaySource = streamAutoPlaySource,
             streamAutoPlaySelectedAddons = streamAutoPlaySelectedAddons,
@@ -1706,8 +1339,6 @@ object PlayerSettingsRepository {
             streamAutoPlayRegex = streamAutoPlayRegex,
             streamAutoPlayTimeoutSeconds = streamAutoPlayTimeoutSeconds,
             skipIntroEnabled = skipIntroEnabled,
-            skipIntroOffsetSeconds = skipIntroOffsetSeconds,
-            autoSkipSegmentTypes = autoSkipSegmentTypes,
             animeSkipEnabled = animeSkipEnabled,
             animeSkipClientId = animeSkipClientId,
             introDbApiKey = introDbApiKey,
@@ -1722,14 +1353,8 @@ object PlayerSettingsRepository {
             nextEpisodeThresholdMode = nextEpisodeThresholdMode,
             nextEpisodeThresholdPercent = nextEpisodeThresholdPercent,
             nextEpisodeThresholdMinutesBeforeEnd = nextEpisodeThresholdMinutesBeforeEnd,
-            preloadNextEpisodeSources = preloadNextEpisodeSources,
-            miniPlayerEnabled = miniPlayerEnabled,
-            privateViewingEnabled = privateViewingEnabled,
             useLibass = useLibass,
             libassRenderType = libassRenderType,
-            useLibmpvAss = useLibmpvAss,
-            libassRenderScale = libassRenderScale,
-            libassRenderMode = libassRenderMode,
             iosVideoOutputPreset = iosVideoOutputPreset,
             iosToneMappingMode = iosToneMappingMode,
             iosTargetPrimaries = iosTargetPrimaries,
@@ -1756,15 +1381,3 @@ object PlayerSettingsRepository {
         }
     }
 }
-
-val PlayerSkipSecondsOptions = listOf(5, 10, 15, 30)
-const val PLAYER_SKIP_SECONDS_DEFAULT = 10
-
-const val SKIP_INTRO_OFFSET_SLIDER_SECONDS = 30
-const val SKIP_INTRO_OFFSET_MAX_SECONDS = 60
-
-internal fun normalizeSkipIntroOffsetSeconds(seconds: Int?): Int =
-    (seconds ?: 0).coerceIn(-SKIP_INTRO_OFFSET_MAX_SECONDS, SKIP_INTRO_OFFSET_MAX_SECONDS)
-
-internal fun normalizePlayerSkipSeconds(seconds: Int?): Int =
-    seconds?.takeIf { it in PlayerSkipSecondsOptions } ?: PLAYER_SKIP_SECONDS_DEFAULT

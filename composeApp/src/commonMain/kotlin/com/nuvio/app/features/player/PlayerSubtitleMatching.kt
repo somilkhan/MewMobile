@@ -227,9 +227,7 @@ internal object SubtitleLanguageMatching {
             .replace(Regex("\\s+"), " ")
             .trim()
 
-        fun containsAny(vararg values: String): Boolean = values.any { value ->
-            tokenized.contains(value)
-        }
+        fun containsAny(vararg values: String): Boolean = values.any(tokenized::contains)
 
         if (containsAny("portuguese", "portugues")) {
             return when {
@@ -242,30 +240,16 @@ internal object SubtitleLanguageMatching {
         }
 
         if (containsAny("spanish", "espanol", "español", "castellano")) {
-            return if (containsAny(
-                    "latin",
-                    "latino",
-                    "latinoamerica",
-                    "latinoamericano",
-                    "lat am",
-                    "latam",
-                    "es 419",
-                    "es419",
-                    "la",
-                    "(419)",
+            return if (
+                containsAny(
+                    "latin", "latino", "latinoamerica", "latinoamericano", "lat am", "latam",
+                    "es 419", "es419", "la", "(419)",
                 )
             ) {
                 "es-419"
             } else {
                 "es"
             }
-        }
-
-        if (containsAny("bahasa indonesia", "indonesian", "indonesia")) {
-            return "id"
-        }
-        if (containsAny("bahasa malaysia", "bahasa melayu", "malaysian")) {
-            return "ms"
         }
 
         return LANGUAGE_OVERRIDES[code] ?: normalizedCode
@@ -275,30 +259,23 @@ internal object SubtitleLanguageMatching {
         if (language.isNullOrBlank()) return false
         val normalizedLanguage = normalizeLanguageCode(language)
         val normalizedTarget = normalizeLanguageCode(target)
-        if (matchesNormalizedLanguage(normalizedLanguage, normalizedTarget)) {
-            return true
-        }
+        if (matchesNormalizedLanguage(normalizedLanguage, normalizedTarget)) return true
 
         val subtags = language.trim().lowercase()
             .replace('_', '-')
             .split('-', '.', '/', ' ')
-            .map { it.trim() }
-            .filter { it.isNotBlank() }
+            .map(String::trim)
+            .filter(String::isNotBlank)
         if (subtags.size <= 1) return false
         for (subtag in subtags.drop(1)) {
             if (subtag.length != 3) continue
             val normalizedSubtag = normalizeLanguageCode(subtag)
-            if (matchesNormalizedLanguage(normalizedSubtag, normalizedTarget)) {
-                return true
-            }
+            if (matchesNormalizedLanguage(normalizedSubtag, normalizedTarget)) return true
         }
         return false
     }
 
-    private fun matchesNormalizedLanguage(
-        normalizedLanguage: String,
-        normalizedTarget: String,
-    ): Boolean {
+    private fun matchesNormalizedLanguage(normalizedLanguage: String, normalizedTarget: String): Boolean {
         if (normalizedTarget == "pt") return normalizedLanguage == "pt"
         if (normalizedTarget == "es") return normalizedLanguage == "es"
         return normalizedLanguage == normalizedTarget ||
@@ -308,28 +285,26 @@ internal object SubtitleLanguageMatching {
 
     fun detectTrackLanguageVariant(language: String?, name: String?, trackId: String?): String {
         val baseLang = normalizeLanguageCode(language ?: "")
-        val haystack = listOfNotNull(name, language, trackId)
-            .joinToString(" ")
-            .lowercase()
+        val haystack = listOfNotNull(name, language, trackId).joinToString(" ").lowercase()
 
         if (baseLang == "pt" || baseLang == "por") {
-            val hasBrazilian = BRAZILIAN_TAGS.any { haystack.contains(it) }
-            val hasEuropean = EUROPEAN_PT_TAGS.any { haystack.contains(it) }
+            val hasBrazilian = BRAZILIAN_TAGS.any(haystack::contains)
+            val hasEuropean = EUROPEAN_PT_TAGS.any(haystack::contains)
             if (hasBrazilian && !hasEuropean) return "pt-br"
             if (hasEuropean && !hasBrazilian) return "pt"
             return baseLang
         }
 
         if (baseLang == "es" || baseLang == "spa") {
-            val hasLatino = LATINO_TAGS.any { haystack.contains(it) }
-            val hasCastilian = CASTILIAN_TAGS.any { haystack.contains(it) }
+            val hasLatino = LATINO_TAGS.any(haystack::contains)
+            val hasCastilian = CASTILIAN_TAGS.any(haystack::contains)
             if (hasLatino && !hasCastilian) return "es-419"
             if (hasCastilian && !hasLatino) return "es"
             return baseLang
         }
 
         if (baseLang == "ms" || baseLang == "msa" || baseLang == "may") {
-            val hasIndonesian = INDONESIAN_TAGS.any { haystack.contains(it) }
+            val hasIndonesian = INDONESIAN_TAGS.any(haystack::contains)
             if (hasIndonesian) return "id"
             return baseLang
         }
@@ -350,13 +325,11 @@ internal object SubtitleLanguageMatching {
         while (searchFrom <= haystack.length - normalizedTarget.length) {
             val matchIndex = haystack.indexOf(normalizedTarget, startIndex = searchFrom)
             if (matchIndex < 0) return false
-
             val before = matchIndex - 1
             val after = matchIndex + normalizedTarget.length
             val startsAtBoundary = before < 0 || !haystack[before].isLetterOrDigit()
             val endsAtBoundary = after >= haystack.length || !haystack[after].isLetterOrDigit()
             if (startsAtBoundary && endsAtBoundary) return true
-
             searchFrom = matchIndex + 1
         }
         return false
@@ -371,17 +344,13 @@ internal object SubtitleLanguageMatching {
         if (matchesLanguageCode(language, target)) return true
         val normalizedTarget = normalizeLanguageCode(target)
         val targetName = languageCodeToName(target)
-        val haystack = listOfNotNull(name, language, trackId)
-            .joinToString(" ")
-            .lowercase()
+        val haystack = listOfNotNull(name, language, trackId).joinToString(" ").lowercase()
         return languageCodeAppearsInHaystack(haystack, normalizedTarget) ||
             (targetName.isNotBlank() && haystack.contains(targetName))
     }
 
     fun subtitleHasAnyTag(name: String?, language: String?, trackId: String?, tags: List<String>): Boolean {
-        val haystack = listOfNotNull(name, language, trackId)
-            .joinToString(" ")
-            .lowercase()
-        return tags.any { tag -> haystack.contains(tag) }
+        val haystack = listOfNotNull(name, language, trackId).joinToString(" ").lowercase()
+        return tags.any(haystack::contains)
     }
 }

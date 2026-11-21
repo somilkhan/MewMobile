@@ -11,7 +11,6 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 enum class DownloadStatus {
-    Queued,
     Downloading,
     Waiting,
     Paused,
@@ -108,8 +107,6 @@ data class DownloadItem(
     val sourceUrl: String,
     val sourceHeaders: Map<String, String> = emptyMap(),
     val sourceResponseHeaders: Map<String, String> = emptyMap(),
-    val subtitleRequests: List<SubtitleAddonRequest> = emptyList(),
-    val sourceSubtitles: List<StreamSubtitle> = emptyList(),
     val localFileUri: String? = null,
     val fileName: String,
     val status: DownloadStatus,
@@ -121,18 +118,8 @@ data class DownloadItem(
     val createdAtEpochMs: Long,
     val updatedAtEpochMs: Long,
 ) {
-    val contentId: String
-        get() = parentMetaId.trim().ifBlank { id }
-
     val isEpisode: Boolean
         get() = seasonNumber != null && episodeNumber != null
-
-    val isActive: Boolean
-        get() = status == DownloadStatus.Downloading || status == DownloadStatus.Queued
-
-    /** Paused or failed: resuming continues a paused download and retries a failed one. */
-    val isResumable: Boolean
-        get() = status == DownloadStatus.Paused || status == DownloadStatus.Failed
 
     val isPlayable: Boolean
         get() = status == DownloadStatus.Completed && !localFileUri.isNullOrBlank()
@@ -299,7 +286,6 @@ internal fun downloadLogicalContentKey(
 enum class DownloadEnqueueResult {
     Started,
     Replaced,
-    Queued,
     MissingUrl,
     UnsupportedFormat;
 
@@ -311,26 +297,6 @@ enum class DownloadEnqueueResult {
         MissingUrl -> "No direct stream link available"
         UnsupportedFormat -> "Unsupported stream format for downloads"
     }
-}
-
-/** How many downloads are in each unfinished state. */
-internal data class DownloadStatusCounts(
-    val downloading: Int = 0,
-    val queued: Int = 0,
-    val paused: Int = 0,
-    val failed: Int = 0,
-) {
-    val hasActive: Boolean get() = downloading > 0 || queued > 0
-}
-
-internal fun List<DownloadItem>.statusCounts(): DownloadStatusCounts {
-    val byStatus = groupingBy { it.status }.eachCount()
-    return DownloadStatusCounts(
-        downloading = byStatus[DownloadStatus.Downloading] ?: 0,
-        queued = byStatus[DownloadStatus.Queued] ?: 0,
-        paused = byStatus[DownloadStatus.Paused] ?: 0,
-        failed = byStatus[DownloadStatus.Failed] ?: 0,
-    )
 }
 
 internal fun List<DownloadItem>.sortedForSeriesDownloads(): List<DownloadItem> =

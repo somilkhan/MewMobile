@@ -42,10 +42,7 @@ import nuvio.composeapp.generated.resources.player_skip
 import nuvio.composeapp.generated.resources.player_skip_intro
 import nuvio.composeapp.generated.resources.player_skip_outro
 import nuvio.composeapp.generated.resources.player_skip_recap
-import nuvio.composeapp.generated.resources.player_skip_movie_credits
-import nuvio.composeapp.generated.resources.player_skip_to_post_credits
 import org.jetbrains.compose.resources.stringResource
-import com.nuvio.app.core.ui.glass.ambientLiquidGlass
 
 @Composable
 fun SkipIntroButton(
@@ -55,24 +52,16 @@ fun SkipIntroButton(
     onSkip: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
-    skipsToPostCredits: Boolean = false,
 ) {
     var lastType by remember { mutableStateOf(interval?.type) }
-    var lastSkipsToPostCredits by remember { mutableStateOf(skipsToPostCredits) }
-    val canSkip = interval?.internalSkipAction(emptyList()) != null
-    if (canSkip) {
-        lastType = interval?.type
-        lastSkipsToPostCredits = skipsToPostCredits
-    }
-    val shouldShow = canSkip && (!dismissed || controlsVisible)
+    if (interval != null) lastType = interval.type
+    val shouldShow = interval != null && (!dismissed || controlsVisible)
 
     var autoHidden by remember { mutableStateOf(false) }
     var manuallyDismissed by remember { mutableStateOf(false) }
     val progress = remember { Animatable(0f) }
 
-    // Reset auto-hide and progress when interval category changes (opening/ending/recap),
-    // but not when the same category switches provider (e.g. op[aniskip] -> intro[chapters]).
-    val intervalCategory = interval?.type?.let { segmentCategory(it) }
+    val intervalCategory = interval?.categoryKey()
     LaunchedEffect(intervalCategory) {
         autoHidden = false
         manuallyDismissed = false
@@ -116,15 +105,8 @@ fun SkipIntroButton(
             modifier = Modifier
                 .width(IntrinsicSize.Max)
                 .clip(shape)
-                .ambientLiquidGlass(
-                    shape = shape,
-                    tint = Color(0xFF1E1E1E).copy(alpha = 0.6f),
-                    fallback = Color(0xFF1E1E1E).copy(alpha = 0.85f),
-                    blurRadius = 18.dp,
-                    refractionHeight = 10.dp,
-                    refractionAmount = 14.dp,
-                )
-                .clickable(enabled = canSkip) { onSkip() },
+                .background(Color(0xFF1E1E1E).copy(alpha = 0.85f))
+                .clickable { onSkip() },
         ) {
             Row(
                 modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp),
@@ -137,7 +119,7 @@ fun SkipIntroButton(
                     modifier = Modifier.size(20.dp),
                 )
                 Text(
-                    text = skipLabel(lastType, lastSkipsToPostCredits),
+                    text = skipLabel(lastType),
                     color = Color.White,
                     fontSize = 14.sp,
                     modifier = Modifier.padding(start = 8.dp),
@@ -166,15 +148,10 @@ fun SkipIntroButton(
 }
 
 @Composable
-private fun skipLabel(type: String?, skipsToPostCredits: Boolean): String =
+private fun skipLabel(type: String?): String =
     when (type?.lowercase()) {
         "intro", "op", "mixed-op" -> stringResource(Res.string.player_skip_intro)
-        "outro", "ed", "mixed-ed", "credits" -> stringResource(
-            if (skipsToPostCredits) Res.string.player_skip_to_post_credits else Res.string.player_skip_outro,
-        )
+        "outro", "ed", "mixed-ed", "credits" -> stringResource(Res.string.player_skip_outro)
         "recap" -> stringResource(Res.string.player_skip_recap)
-        "movie-credits" -> stringResource(
-            if (skipsToPostCredits) Res.string.player_skip_to_post_credits else Res.string.player_skip_movie_credits,
-        )
         else -> stringResource(Res.string.player_skip)
     }

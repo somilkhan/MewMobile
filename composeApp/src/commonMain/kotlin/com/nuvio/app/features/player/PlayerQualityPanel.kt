@@ -13,6 +13,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -38,8 +39,6 @@ import com.nuvio.app.core.ui.nuvio
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.action_close
 import org.jetbrains.compose.resources.stringResource
-import com.nuvio.app.core.ui.glass.ambientLiquidGlass
-import androidx.compose.ui.unit.dp
 
 @Composable
 internal fun PlayerQualityPanel(
@@ -80,16 +79,9 @@ internal fun PlayerQualityPanel(
                     modifier = Modifier
                         .widthIn(max = tokens.components.playerPanelMaxWidth)
                         .fillMaxWidth(0.92f)
-                        .heightIn(max = tokens.components.dialogMaxWidth)
+                        .heightIn(max = tokens.components.dialogMaxWidth + NuvioTokens.Space.s40)
                         .clip(tokens.shapes.playerPanel)
-                        .ambientLiquidGlass(
-                            shape = tokens.shapes.playerPanel,
-                            tint = tokens.colors.surfaceSheet.copy(alpha = tokens.colors.surfaceSheet.alpha * 0.72f),
-                            fallback = tokens.colors.surfaceSheet,
-                            blurRadius = 28.dp,
-                            refractionHeight = 10.dp,
-                            refractionAmount = 18.dp,
-                        )
+                        .background(tokens.colors.surfaceSheet)
                         .border(tokens.borders.thin, tokens.colors.borderDefault, tokens.shapes.playerPanel)
                         .clickable(
                             indication = null,
@@ -111,7 +103,7 @@ internal fun PlayerQualityPanel(
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold,
                             )
-                            PlayerDialogButton(
+                            PanelChipButton(
                                 label = stringResource(Res.string.action_close),
                                 onClick = onDismiss,
                             )
@@ -165,11 +157,9 @@ internal fun PlayerQualityPanel(
                                 LazyColumn(
                                     modifier = Modifier.padding(horizontal = tokens.spacing.cardPadding),
                                     verticalArrangement = Arrangement.spacedBy(NuvioTokens.Space.s6),
-                                    contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                                        bottom = tokens.spacing.cardPadding,
-                                    ),
+                                    contentPadding = PaddingValues(bottom = tokens.spacing.cardPadding),
                                 ) {
-                                    item(key = "auto") {
+                                    item(key = PlayerQualityAutoId) {
                                         QualityOptionRow(
                                             title = state.labelFor(null)?.let { "Auto ($it)" } ?: "Auto",
                                             subtitle = "Recommended compatible quality",

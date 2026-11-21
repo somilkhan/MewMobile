@@ -3,6 +3,7 @@
 package com.nuvio.app.features.player
 
 import androidx.media3.extractor.Extractor
+import androidx.media3.extractor.mkv.MatroskaExtractor
 
 /**
  * An AutoSync extractor wrapper that forwards everything
@@ -21,4 +22,13 @@ internal fun Extractor.replaceInnermostExtractor(replacement: Extractor): Extrac
         rewrap(wrappedExtractor.replaceInnermostExtractor(replacement))
     } else {
         replacement
+    }
+
+
+/** True when a rewrappable extractor chain ultimately contains Media3's Matroska extractor. */
+internal fun Extractor.hasInnermostMatroskaExtractor(): Boolean =
+    when (this) {
+        is RewrappableExtractor -> wrappedExtractor.hasInnermostMatroskaExtractor()
+        is MatroskaExtractor -> true
+        else -> false
     }
