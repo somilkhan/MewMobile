@@ -36,6 +36,7 @@ internal fun RootTabHost(
     val parentLifecycleState by LocalLifecycleOwner.current.lifecycle.currentStateAsState()
     val hostActive = active && parentLifecycleState.isAtLeast(Lifecycle.State.STARTED)
     val focusManager = LocalFocusManager.current
+
     DisposableEffect(selectedTab, hostActive, profileId) {
         onDispose { focusManager.clearFocus(force = true) }
     }
@@ -79,6 +80,7 @@ private fun RootTabPane(
     val lifecycleOwner = rememberLifecycleOwner(
         maxLifecycle = if (active) Lifecycle.State.RESUMED else Lifecycle.State.CREATED,
     )
+
     CompositionLocalProvider(
         LocalLifecycleOwner provides lifecycleOwner,
         LocalScreenActive provides active,

@@ -11,7 +11,6 @@ actual fun HeroTrailerPlayerSurface(
     playWhenReady: Boolean,
     muted: Boolean,
     modifier: Modifier,
-    startPositionMs: Long,
     onReady: () -> Unit,
     onEnded: () -> Unit,
     onError: () -> Unit,

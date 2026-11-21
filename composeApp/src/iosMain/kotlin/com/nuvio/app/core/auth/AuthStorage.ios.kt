@@ -17,10 +17,14 @@ actual object AuthStorage {
         NSUserDefaults.standardUserDefaults.removeObjectForKey(KEY_ANONYMOUS_USER_ID)
     }
 
-    actual fun loadFlag(key: String): Boolean =
-        NSUserDefaults.standardUserDefaults.boolForKey(key)
+    actual fun loadLocalDataOwnerUserId(): String? =
+        NSUserDefaults.standardUserDefaults.stringForKey(KEY_LOCAL_DATA_OWNER_USER_ID)
 
-    actual fun saveFlag(key: String, value: Boolean) {
-        NSUserDefaults.standardUserDefaults.setBool(value, forKey = key)
+    actual fun saveLocalDataOwnerUserId(userId: String) {
+        NSUserDefaults.standardUserDefaults.setObject(userId, forKey = KEY_LOCAL_DATA_OWNER_USER_ID)
+    }
+
+    actual fun clearLocalDataOwnerUserId() {
+        NSUserDefaults.standardUserDefaults.removeObjectForKey(KEY_LOCAL_DATA_OWNER_USER_ID)
     }
 }

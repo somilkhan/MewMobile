@@ -9,5 +9,3 @@ class IOSPlatform: Platform {
 actual fun getPlatform(): Platform = IOSPlatform()
 
 internal actual val isIos: Boolean = true
-
-internal actual val supportsPosterNavigationMotion: Boolean = false

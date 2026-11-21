@@ -2,12 +2,11 @@ package com.nuvio.app.features.downloads
 
 import com.nuvio.app.core.storage.ProfileScopedKey
 import platform.Foundation.NSUserDefaults
-import com.nuvio.app.features.profiles.MAX_PROFILES
 
 internal actual object DownloadsStorage {
     private const val payloadKey = "downloads_payload"
-    private const val offlineMetadataKey = "downloads_offline_metadata"
-    private const val downloadLocationUriKey = "download_location_uri"
+    private const val externalFolderUriKey = "external_folder_uri"
+    private const val episodeDownloadSettingsKey = "episode_download_settings"
 
     actual fun loadPayload(): String? =
         NSUserDefaults.standardUserDefaults.stringForKey(ProfileScopedKey.of(payloadKey))
@@ -16,36 +15,22 @@ internal actual object DownloadsStorage {
         NSUserDefaults.standardUserDefaults.setObject(payload, forKey = ProfileScopedKey.of(payloadKey))
     }
 
-    actual fun loadOfflineMetadataPayload(): String? =
-        NSUserDefaults.standardUserDefaults.stringForKey(ProfileScopedKey.of(offlineMetadataKey))
+    actual fun loadExternalFolderUri(): String? =
+        NSUserDefaults.standardUserDefaults.stringForKey(ProfileScopedKey.of(externalFolderUriKey))
 
-    actual fun saveOfflineMetadataPayload(payload: String) {
-        NSUserDefaults.standardUserDefaults.setObject(payload, forKey = ProfileScopedKey.of(offlineMetadataKey))
-    }
-
-    actual fun getDownloadLocationUri(): String? =
-        NSUserDefaults.standardUserDefaults.stringForKey(ProfileScopedKey.of(downloadLocationUriKey))
-
-    actual fun setDownloadLocationUri(uri: String?) {
-        if (uri == null) {
-            NSUserDefaults.standardUserDefaults.removeObjectForKey(ProfileScopedKey.of(downloadLocationUriKey))
+    actual fun saveExternalFolderUri(uri: String?) {
+        val key = ProfileScopedKey.of(externalFolderUriKey)
+        if (uri.isNullOrBlank()) {
+            NSUserDefaults.standardUserDefaults.removeObjectForKey(key)
         } else {
-            NSUserDefaults.standardUserDefaults.setObject(uri, forKey = ProfileScopedKey.of(downloadLocationUriKey))
+            NSUserDefaults.standardUserDefaults.setObject(uri, forKey = key)
         }
     }
 
-    actual fun clearUnfinishedDownloads() {
-        val defaults = NSUserDefaults.standardUserDefaults
-        (1..MAX_PROFILES).forEach { profileId ->
-            val key = ProfileScopedKey.of(payloadKey, profileId)
-            val payload = defaults.stringForKey(key) ?: return@forEach
-            val items = DownloadsCodec.decodePayload(payload).items
-            items.filter { it.status != DownloadStatus.Completed }
-                .forEach { DownloadsPlatformDownloader.removePartialFile(it.fileName) }
-            defaults.setObject(
-                DownloadsCodec.encodePayload(items.filter { it.status == DownloadStatus.Completed }),
-                forKey = key,
-            )
-        }
+    actual fun loadEpisodeDownloadSettings(): String? =
+        NSUserDefaults.standardUserDefaults.stringForKey(ProfileScopedKey.of(episodeDownloadSettingsKey))
+
+    actual fun saveEpisodeDownloadSettings(payload: String) {
+        NSUserDefaults.standardUserDefaults.setObject(payload, forKey = ProfileScopedKey.of(episodeDownloadSettingsKey))
     }
 }

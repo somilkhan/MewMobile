@@ -8,8 +8,6 @@ enum class TrailerPlaybackMode {
 expect object AppFeaturePolicy {
     val pluginsEnabled: Boolean
     val supportersContributorsPageEnabled: Boolean
-    val donationActionsEnabled: Boolean
-    val donationProgressEnabled: Boolean
     val accountDeletionEnabled: Boolean
     val personalMediaAddonCopyEnabled: Boolean
     val p2pEnabled: Boolean
@@ -18,6 +16,4 @@ expect object AppFeaturePolicy {
     val inAppUpdaterEnabled: Boolean
     val imdbRatingLogoEnabled: Boolean
     val mediaPlaybackForegroundServiceEnabled: Boolean
-    val downloadForegroundServiceEnabled: Boolean
-    val customServerConnectionsEnabled: Boolean
 }

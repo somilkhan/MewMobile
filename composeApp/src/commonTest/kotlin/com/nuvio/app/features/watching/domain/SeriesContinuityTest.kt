@@ -17,64 +17,6 @@ class SeriesContinuityTest {
     )
 
     @Test
-    fun decideSeriesPrimaryAction_restarts_completed_series_from_first_episode() {
-        val action = decideSeriesPrimaryAction(
-            content = show,
-            episodes = episodes,
-            progressRecords = listOf(
-                WatchingProgressRecord(
-                    content = show,
-                    videoId = "show:1:3",
-                    seasonNumber = 1,
-                    episodeNumber = 3,
-                    lastUpdatedEpochMs = 100L,
-                    isCompleted = true,
-                ),
-            ),
-            watchedRecords = emptyList(),
-            todayIsoDate = "2026-03-30",
-            defaultVideoId = "ep2",
-            allowRewatch = true,
-        )
-
-        assertNotNull(action)
-        assertEquals("show:1:1", action.videoId)
-        assertEquals("Play S1 E1", action.label)
-        assertNull(action.resumePositionMs)
-    }
-
-    @Test
-    fun decideSeriesPrimaryAction_has_no_next_up_after_final_episode() {
-        val action = decideSeriesPrimaryAction(
-            content = show,
-            episodes = episodes,
-            progressRecords = emptyList(),
-            watchedRecords = listOf(
-                WatchingWatchedRecord(content = show, seasonNumber = 1, episodeNumber = 3, markedAtEpochMs = 100L),
-            ),
-            todayIsoDate = "2026-03-30",
-        )
-
-        assertNull(action)
-    }
-
-    @Test
-    fun decideSeriesPrimaryAction_does_not_rewatch_unavailable_episodes() {
-        val action = decideSeriesPrimaryAction(
-            content = show,
-            episodes = episodes.map { it.copy(available = false, releasedDate = null) },
-            progressRecords = emptyList(),
-            watchedRecords = listOf(
-                WatchingWatchedRecord(content = show, seasonNumber = 1, episodeNumber = 3, markedAtEpochMs = 100L),
-            ),
-            todayIsoDate = "2026-03-30",
-            allowRewatch = true,
-        )
-
-        assertNull(action)
-    }
-
-    @Test
     fun continueWatchingProgressEntries_drops_older_resume_when_latest_series_progress_is_completed() {
         val result = continueWatchingProgressEntries(
             progressRecords = listOf(
@@ -222,11 +164,10 @@ class SeriesContinuityTest {
                 ),
             ),
             todayIsoDate = "2026-03-30",
-            allowRewatch = true,
         )
 
         assertNotNull(action)
-        assertEquals("Next Up • S1 E3", action.label)
+        assertEquals(localizedUpNextLabel(1, 3), action.label)
         assertEquals("show:1:3", action.videoId)
         assertEquals(3, action.episodeNumber)
     }
@@ -255,11 +196,10 @@ class SeriesContinuityTest {
                 ),
             ),
             todayIsoDate = "2026-03-30",
-            allowRewatch = true,
         )
 
         assertNotNull(action)
-        assertEquals("Resume S1 E2", action.label)
+        assertEquals(localizedResumeLabel(1, 2), action.label)
         assertEquals("show:1:2", action.videoId)
         assertEquals(1_500L, action.resumePositionMs)
     }
@@ -281,7 +221,7 @@ class SeriesContinuityTest {
         )
 
         assertNotNull(action)
-        assertEquals("Play S1 E1", action.label)
+        assertEquals(localizedPlayLabel(1, 1), action.label)
         assertEquals("show:1:1", action.videoId)
     }
 
@@ -383,7 +323,7 @@ class SeriesContinuityTest {
         )
 
         assertNotNull(action)
-        assertEquals("Play S0 E1", action.label)
+        assertEquals(localizedPlayLabel(0, 1), action.label)
     }
 
     @Test
@@ -413,7 +353,7 @@ class SeriesContinuityTest {
         )
 
         assertNotNull(action)
-        assertEquals("Next Up • S2 E2", action.label)
+        assertEquals(localizedUpNextLabel(2, 2), action.label)
         assertEquals("show:2:2", action.videoId)
     }
 }

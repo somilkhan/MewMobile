@@ -100,40 +100,41 @@ private fun kotlinx.serialization.json.JsonElement?.asLongOrNull(): Long? {
 }
 
 /**
- * TorBox matches hashes through its alternative-hash index and answers with the
- * canonical hash as key, so an alias hit would otherwise read as a cache miss.
+ * TorBox may return a canonical hash for a request made with an alternative hash.
+ * Retry only unresolved batch entries so alias hits are mapped to the requested hash.
+ * A failed retry returns null so callers keep availability UNKNOWN instead of NOT_CACHED.
  */
 internal suspend fun resolveTorboxAliasMatches(
     cached: Map<String, LocalDebridCachedItem>,
     requestedHashes: List<String>,
     fetchCached: suspend (String) -> Map<String, LocalDebridCachedItem>? = { null },
-): Map<String, LocalDebridCachedItem> {
+): Map<String, LocalDebridCachedItem>? {
     if (cached.keys.all { it in requestedHashes }) return cached
-    // One requested hash: every returned entry can only be its match.
     if (requestedHashes.size == 1) {
         val item = cached.values.firstOrNull() ?: return cached
         return mapOf(requestedHashes.single() to item)
     }
     val resolved = cached.toMutableMap()
-    val matches = coroutineScope {
+    val retries = coroutineScope {
         requestedHashes
             .filter { it !in resolved }
             .map { hash ->
                 async {
-                    val item = try {
-                        fetchCached(hash)?.values?.firstOrNull()
+                    val response = try {
+                        fetchCached(hash)
                     } catch (error: CancellationException) {
                         throw error
                     } catch (_: Exception) {
                         null
                     }
-                    hash to item
+                    hash to response
                 }
             }
             .awaitAll()
     }
-    matches.forEach { (hash, item) ->
-        if (item != null) resolved[hash] = item
+    if (retries.any { (_, response) -> response == null }) return null
+    retries.forEach { (hash, response) ->
+        response?.values?.firstOrNull()?.let { resolved[hash] = it }
     }
     return resolved
 }

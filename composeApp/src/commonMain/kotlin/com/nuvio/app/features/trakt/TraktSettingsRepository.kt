@@ -42,8 +42,7 @@ val TraktContinueWatchingDaysOptions: List<Int> = listOf(
 @Serializable
 enum class MoreLikeThisSourcePreference {
     TRAKT,
-    TMDB,
-    SIMKL;
+    TMDB;
 
     companion object {
         fun fromStorage(value: String?): MoreLikeThisSourcePreference =

@@ -1,63 +1,25 @@
 # Subtitle AutoSync
 
-Subtitle AutoSync compares an add-on subtitle with subtitle timing embedded in the
-playing video. Confident results can correct a constant delay, frame-rate drift,
-or the timing of individual cue groups. Failed analysis keeps the selected subtitle
-and its timing. It does not analyze audio or use speech models.
+AutoSync compares a selected add-on subtitle with subtitle timing embedded in the active video stream. It can correct a constant offset, frame-rate drift, and local cue-group timing when the match passes confidence checks. It does not analyze audio or use speech-recognition models.
 
-Enable **Auto Sync Subtitle** in **Settings → Playback → Subtitle / Audio** after
-choosing a preferred subtitle language. The switch is off by default. Its tolerance
-and Thorough/Quick search controls appear only while the switch is on. Tolerance
-keeps the original timing when the whole-film correction is within the chosen
-100–500 ms limit; Off applies all confident corrections.
+## Behavior
 
-This port supports Android's internal ExoPlayer with HTTP(S) streams and subtitles
-that its sidecar renderer supports. ASS/SSA selected with libass, libmpv, external
-players, and iOS continue using their existing subtitle behavior. There is no audio
-fallback when a video lacks usable embedded subtitle timing.
+- **Startup:** the preferred-subtitle AutoSync setting gates automatic startup selection. When enabled, startup search may try another add-on subtitle in the same language.
+- **Manual selection:** explicitly selecting an add-on subtitle requests AutoSync for that subtitle even when startup AutoSync is disabled. Manual selection does not search alternative providers.
+- **Reference loading:** indexed HTTP(S) Matroska/MP4 references are used where available. Unsupported sources or missing usable reference timing fall back to the original subtitle instead of applying a speculative correction.
+- **ExoPlayer:** confident corrections replace the active sidecar cue timeline without reloading the media source, preserving the playback buffer and cue styling. The extractor observer is rewrapped around Mew's libass-aware Matroska extractor when libass is enabled.
+- **libmpv:** confident corrections are written to a temporary subtitle file in the app cache and replace the external subtitle track. The original subtitle remains selected when analysis or rewriting fails.
+- **Cancellation:** changing subtitle, selecting an embedded track, disabling subtitles, adjusting delay manually, or leaving playback cancels stale work so an old result cannot override the newer choice.
+- **Privacy:** AutoSync does not emit raw URL diagnostics. Sidecar logs redact URL credentials, query strings, and fragments.
 
-At startup, AutoSync can try other add-on subtitles in the same language. When the
-user selects a subtitle manually, it checks only that subtitle. An automatic
-replacement updates the subtitle selection but does not persist an automatic pick
-as a new manual preference for later episodes.
+## Automated coverage
 
-Success is indicated by **Auto synced** on the selected subtitle card. Only failures
-show toasts. Changing subtitles, selecting an embedded track, disabling subtitles,
-manually adjusting delay, or leaving playback cancels pending analysis. Index
-requests start only after an add-on subtitle is selected for AutoSync. Applying a
-result swaps sidecar cues without reloading the media source or discarding its buffer.
+Common tests cover constant offsets, frame-rate drift, confidence rejection, grouped cue repairs, partial subtitles, missing intros/outros, ambiguous timelines, cancellation checkpoints, reference consistency, no-fit tracking, and parsing SRT, WebVTT, ASS/SSA, and TTML. Android source/host-test CI is run without packaging an APK; device-specific playback verification is reserved for Phase 5.
 
-AutoSync has no debug logging setting and does not emit diagnostic logs.
+## Phase 5 device checks
 
-## Sources
-
-- Mobile integration and retimer:
-  [NuvioMobile-Reshaped](https://github.com/DavidVamaiotu/NuvioMobile-Reshaped/tree/5332f76a).
-- Reviewed matcher, parser, sampled-reference handling, and UX behavior:
-  [NuvioTV PR #3703](https://github.com/NuvioMedia/NuvioTV/pull/3703), head `613dbd2d`.
-- The extractor rewrapping preserves upstream libass handling underneath AutoSync's
-  observation wrapper. Existing parsers, general player preferences, dependencies,
-  manifests, branding, and release workflows are kept intact.
-
-## Verification
-
-Local validation covered offsets, drift, grouping, confidence rejection, tolerance,
-dense dialogue, reference consistency, no-fit tracking, and subtitle formats. Local
-network tests covered subtitle HTTP cancellation, shared index requests, and retrying
-an index after its owning request is cancelled. The test files are kept outside
-the PR at the author’s request.
-
-Physical-device checks still required:
-
-1. With AutoSync off, verify ordinary subtitle selection and manual delay on Android
-   and iOS; verify libmpv and external-player behavior.
-2. Enable AutoSync and select an offset or drifting subtitle against an MKV or MP4
-   with embedded subtitles. Verify the badge appears without a success toast, and
-   playback continues without rebuffering.
-3. Check an already-aligned subtitle and a correction inside the selected tolerance.
-4. Start analysis, then switch to an embedded subtitle, disable subtitles, choose
-   another add-on subtitle, adjust delay, or leave the player. The old result must
-   not return or overwrite the new choice.
-5. Test a video without embedded subtitles and unsupported ASS/libass rendering.
-   Verify a simple failure toast and the original timing.
-6. Capture the settings rows and selected subtitle badge for PR review.
+1. Compare an already-aligned subtitle with a known offset and a drifting subtitle for both ExoPlayer and libmpv.
+2. Confirm applying a result does not rebuffer or restart playback and preserves subtitle styling.
+3. Switch to another add-on subtitle, select an embedded track, disable subtitles, change delay manually, and leave playback while analysis is running; the old result must not reappear.
+4. Check a video without usable embedded subtitle timing and an unsupported subtitle format; the original subtitle should remain intact and failure feedback should be clear.
+5. Repeat with libass enabled and with startup AutoSync disabled but a subtitle selected manually.
