@@ -459,7 +459,7 @@ object AddonRepository {
         return installManifest(profileId, generation, manifestUrl, manifest)
     }
 
-    private fun installManifest(
+    private suspend fun installManifest(
         profileId: Int,
         generation: Long,
         manifestUrl: String,
@@ -562,7 +562,9 @@ object AddonRepository {
         }
     }
 
-    fun refreshAddon(manifestUrl: String) {
+    // Mew hook: luq AddonsScreen passes forceRefresh; Mew refresh always refetches the manifest.
+    @Suppress("UNUSED_PARAMETER")
+    fun refreshAddon(manifestUrl: String, forceRefresh: Boolean = false) {
         refreshAddonInternal(manifestUrl, expectedProfileId = null, expectedGeneration = null)
     }
 

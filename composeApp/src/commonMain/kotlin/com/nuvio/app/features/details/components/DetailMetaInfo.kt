@@ -10,6 +10,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -33,7 +34,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -64,8 +68,6 @@ import com.nuvio.app.features.mdblist.MdbListMetadataService.PROVIDER_TMDB
 import com.nuvio.app.features.mdblist.MdbListMetadataService.PROVIDER_TOMATOES
 import com.nuvio.app.features.mdblist.MdbListMetadataService.PROVIDER_TRAKT
 import coil3.compose.AsyncImage
-import com.nuvio.app.features.mdblist.RottenTomatoesStatus
-import com.nuvio.app.features.mdblist.rottenTomatoesStatus
 import nuvio.composeapp.generated.resources.*
 import nuvio.composeapp.generated.resources.rating_audience_score
 import nuvio.composeapp.generated.resources.rating_imdb
@@ -91,9 +93,6 @@ fun DetailMetaInfo(
     modifier: Modifier = Modifier,
     showNuvioRead: Boolean = false,
     descriptionOnly: Boolean = false,
-    horizontalScrollPadding: Dp = 0.dp,
-    showOverallRatings: Boolean = true,
-    isMdbListActive: Boolean = false,
 ) {
     var showRatings by remember { mutableStateOf(false) }
     Column(
@@ -132,9 +131,6 @@ fun DetailMetaInfo(
         }
         val semanticMetadata = remember(descriptionOnly, meta.ageRating, meta.imdbRating, meta.externalRatings) {
             if (descriptionOnly) DetailHeaderMetadataData(null, null) else detailHeaderMetadataData(meta)
-        }.let { data ->
-            // luq: honor the "show overall ratings" meta-screen setting for the IMDb score.
-            if (showOverallRatings) data else data.copy(rawImdbRating = null)
         }
         val ratings = if (descriptionOnly) emptyList() else meta.externalRatings
         val hasMetaRow = releaseLine != null ||
@@ -453,39 +449,22 @@ private fun DetailStandardOverview(
 }
 
 @Composable
-internal fun DetailRatingsRow(
+private fun DetailRatingsRow(
     ratings: List<MetaExternalRating>,
-    modifier: Modifier = Modifier,
-    horizontalScrollPadding: Dp = 0.dp,
-    onClick: (() -> Unit)? = null,
+    horizontalScrollPadding: Dp,
+    onClick: (() -> Unit)?,
 ) {
-    RatingsRow(
-        ratings = ratings,
-        modifier = modifier
-            .nuvioHorizontalScrollBleed(horizontalScrollPadding)
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState())
-            .padding(horizontal = horizontalScrollPadding),
-    )
-}
-
-@Composable
-internal fun RatingsRow(
-    ratings: List<MetaExternalRating>,
-    modifier: Modifier = Modifier,
-    maxItems: Int = Int.MAX_VALUE,
-) {
-    val orderedRatings = remember(ratings, maxItems) {
+    val orderedRatings = remember(ratings) {
         val bySource = ratings.associateBy { it.source }
         ratingVisuals.mapNotNull { visuals ->
             bySource[visuals.source]?.let { rating -> visuals to rating }
-        }.take(maxItems)
+        }
     }
 
     if (orderedRatings.isEmpty()) return
 
     Row(
-        modifier = modifier
+        modifier = Modifier
             .nuvioHorizontalScrollBleed(horizontalScrollPadding)
             .fillMaxWidth()
             .horizontalScroll(rememberScrollState())
@@ -511,16 +490,15 @@ internal fun RatingsRow(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 if (visuals.source == PROVIDER_IMDB && !AppFeaturePolicy.imdbRatingLogoEnabled) {
-                    ImdbRatingSourceLabel(storeTextStyle = ratingTextStyle)
+                    ImdbRatingSourceLabel(
+                        storeTextStyle = ratingTextStyle,
+                        storeTextColor = visuals.valueColor,
+                    )
                 } else {
-                    val logoHeight = when (rating.rottenTomatoesStatus) {
-                        RottenTomatoesStatus.CERTIFIED_FRESH, RottenTomatoesStatus.VERIFIED_HOT -> 24.dp
-                        else -> 16.dp
-                    }
                     Image(
-                        painter = painterResource(visuals.logoFor(rating)),
+                        painter = painterResource(visuals.logo),
                         contentDescription = visuals.displayName,
-                        modifier = Modifier.size(width = maxOf(visuals.logoWidth, logoHeight), height = logoHeight),
+                        modifier = Modifier.size(width = visuals.logoWidth, height = 16.dp),
                     )
                 }
                 Spacer(modifier = Modifier.width(4.dp))
@@ -795,18 +773,31 @@ private val EpisodeRatingBad = Color(0xFFFF1744)
 private val EpisodeRatingGarbage = Color(0xFF9C4DCC)
 
 @Composable
-internal fun ImdbRatingSourceLabel(storeTextStyle: TextStyle) {
+private fun ImdbRatingSourceLabel(
+    storeTextStyle: TextStyle,
+    storeTextColor: Color,
+) {
     if (AppFeaturePolicy.imdbRatingLogoEnabled) {
-        Image(
-            painter = painterResource(Res.drawable.rating_imdb),
-            contentDescription = stringResource(Res.string.source_imdb),
-            modifier = Modifier.size(width = 30.dp, height = 16.dp),
-        )
+        Surface(
+            shape = RoundedCornerShape(4.dp),
+            color = ImdbYellow,
+        ) {
+            Text(
+                text = stringResource(Res.string.source_imdb),
+                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                style = MaterialTheme.typography.labelMedium.copy(
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = 0.sp,
+                ),
+                color = ImdbBlack,
+            )
+        }
     } else {
         Text(
             text = stringResource(Res.string.source_imdb),
             style = storeTextStyle,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = storeTextColor,
             maxLines = 1,
         )
     }
@@ -863,6 +854,20 @@ internal fun DetailHeroMetaBadge(
 }
 
 @Composable
+private fun MetaBadgeText(
+    text: String,
+    color: Color,
+) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelMedium,
+        color = color,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+    )
+}
+
+@Composable
 internal fun DetailImdbRating(
     rating: String,
     fallbackColor: Color,
@@ -897,17 +902,6 @@ private data class RatingVisuals(
     val valueColor: Color,
     val format: (Double) -> String,
 )
-
-private fun RatingVisuals.logoFor(rating: MetaExternalRating): DrawableResource =
-    when (rating.rottenTomatoesStatus) {
-        RottenTomatoesStatus.FRESH -> Res.drawable.rating_rotten_tomatoes
-        RottenTomatoesStatus.ROTTEN -> Res.drawable.rating_rotten_tomatoes_rotten
-        RottenTomatoesStatus.CERTIFIED_FRESH -> Res.drawable.rating_rotten_tomatoes_certified
-        RottenTomatoesStatus.HOT -> Res.drawable.rating_audience_score
-        RottenTomatoesStatus.STALE -> Res.drawable.rating_audience_stale
-        RottenTomatoesStatus.VERIFIED_HOT -> Res.drawable.rating_audience_verified_hot
-        null -> logo
-    }
 
 private val ratingVisuals = listOf(
     RatingVisuals(
@@ -986,3 +980,56 @@ internal fun formatOneDecimal(value: Double): String {
 private fun formatWhole(value: Double): String = value.roundToInt().toString()
 
 private fun formatPercent(value: Double): String = "${value.roundToInt()}%"
+
+// Mew hook: luq home hero (HomeHeroMetaRows) uses these upstream rating helpers.
+@Composable
+internal fun RatingsRow(
+    ratings: List<MetaExternalRating>,
+    modifier: Modifier = Modifier,
+    maxItems: Int = Int.MAX_VALUE,
+) {
+    val orderedRatings = remember(ratings, maxItems) {
+        val bySource = ratings.associateBy { it.source }
+        ratingVisuals.mapNotNull { visuals ->
+            bySource[visuals.source]?.let { rating -> visuals to rating }
+        }.take(maxItems)
+    }
+    if (orderedRatings.isEmpty()) return
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        orderedRatings.forEach { (visuals, rating) ->
+            val ratingTextStyle = MaterialTheme.typography.titleSmall.copy(
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.sp,
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (visuals.source == PROVIDER_IMDB && !AppFeaturePolicy.imdbRatingLogoEnabled) {
+                    ImdbRatingSourceLabel(storeTextStyle = ratingTextStyle)
+                } else {
+                    Image(
+                        painter = painterResource(visuals.logo),
+                        contentDescription = visuals.displayName,
+                        modifier = Modifier.size(width = visuals.logoWidth, height = 16.dp),
+                    )
+                }
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = visuals.format(rating.value),
+                    style = ratingTextStyle,
+                    color = visuals.valueColor,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+internal fun ImdbRatingSourceLabel(storeTextStyle: TextStyle) {
+    ImdbRatingSourceLabel(
+        storeTextStyle = storeTextStyle,
+        storeTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}

@@ -133,7 +133,7 @@ private suspend fun parseAddonSubtitles(response: String, request: SubtitleAddon
     val subtitles = Json.parseToJsonElement(response).jsonObject["subtitles"]?.jsonArray.orEmpty()
     return subtitles.mapIndexedNotNull { index, element ->
         val obj = element as? JsonObject ?: return@mapIndexedNotNull null
-        val url = obj.stringValue("url")?.takeIf(::isSupportedAddonSubtitleUrl) ?: return@mapIndexedNotNull null
+        val url = obj.stringValue("url") ?: return@mapIndexedNotNull null
         val language = listOf("lang", "language", "languageCode", "locale", "label")
             .firstNotNullOfOrNull(obj::stringValue) ?: "unknown"
         val addonProvidedId = obj.stringValue("id")

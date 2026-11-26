@@ -61,7 +61,6 @@ internal actual object PlatformLocalAccountDataCleaner {
                 .clear()
                 .apply()
         }
-        com.nuvio.app.features.downloads.DownloadsPlatformDownloader.clearUnfinishedTransfers()
         context.filesDir.resolve("nuvio_plugin_scrapers").deleteRecursively()
     }
 }

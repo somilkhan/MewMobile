@@ -16,6 +16,8 @@ internal expect object SimklAuthStorage {
     fun saveAccessToken(value: String?)
     fun loadCodeVerifier(): String?
     fun saveCodeVerifier(value: String?)
+    fun loadRefreshToken(): String?
+    fun saveRefreshToken(value: String?)
     fun loadManualClientId(): String?
     fun saveManualClientId(value: String?)
     fun removeProfile(profileId: Int)

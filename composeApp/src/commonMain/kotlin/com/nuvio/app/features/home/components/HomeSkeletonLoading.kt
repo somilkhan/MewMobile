@@ -219,6 +219,7 @@ internal fun HomeSkeletonHero(
 fun HomeSkeletonRow(
     modifier: Modifier = Modifier,
     horizontalPadding: Dp = 0.dp,
+    showHeaderAccent: Boolean = false, // Mew hook: catalog underline placeholder
 ) {
     val brush = rememberHomeSkeletonBrush()
     val posterCardStyle = rememberPosterCardStyleUiState()
@@ -244,6 +245,16 @@ fun HomeSkeletonRow(
                 .clip(RoundedCornerShape(6.dp))
                 .background(brush),
         )
+        if (showHeaderAccent) {
+            Box(
+                modifier = Modifier
+                    .width(60.dp)
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(brush),
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+        }
         Row(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {

@@ -56,6 +56,10 @@ import nuvio.composeapp.generated.resources.compose_player_no_audio_tracks_avail
 import nuvio.composeapp.generated.resources.compose_player_reset
 import org.jetbrains.compose.resources.stringResource
 import kotlin.math.abs
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
+import com.nuvio.app.core.ui.nuvio
 
 private const val AUDIO_DELAY_HOLD_STEP_MS = 50
 private const val AUDIO_DELAY_HOLD_FAST_STEP_MS = 100

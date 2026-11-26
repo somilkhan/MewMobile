@@ -22,6 +22,7 @@ import com.nuvio.app.features.trakt.TraktTrackingProgressProvider
 import com.nuvio.app.features.wetrakr.WeTrakrTracker
 import com.nuvio.app.features.publicmetadb.PublicMetaDbTracker
 import com.nuvio.app.features.watching.sync.TraktWatchedSyncAdapter
+import com.nuvio.app.features.mdblist.MdbListTracker
 
 fun ensureTrackingProvidersRegistered() {
     MdbListTracker.register()

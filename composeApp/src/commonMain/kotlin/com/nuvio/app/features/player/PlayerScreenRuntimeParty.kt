@@ -565,7 +565,7 @@ internal fun BoxScope.RenderParty(
                 party?.media?.let { media ->
                     showPartyPanel = false
                     flushWatchProgress()
-                    args.onOpenPartyMedia(media)
+                    args.onOpenPartyMedia?.invoke(media)
                 }
             },
             onLeave = {

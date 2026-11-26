@@ -112,7 +112,7 @@ internal fun NavigationBarPreview(
                 val previewTabs = listOf(AppScreenTab.Home, AppScreenTab.Search, AppScreenTab.Library, AppScreenTab.Settings)
                 TabletFloatingTopBar(
                     selectedTab = previewTabs[selectedIndex],
-                    showLiveTv = false,
+                    liveTvEnabled = false, // Mew App.kt signature
                     onTabSelected = { tab -> previewTabs.indexOf(tab).takeIf { it >= 0 }?.let { selectedIndex = it } },
                     onProfileSelected = {},
                     onAddProfileRequested = {},

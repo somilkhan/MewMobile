@@ -303,12 +303,14 @@ internal fun SettingsClickableRow(
 @Composable
 internal fun SettingsNavigationRow(
     title: String,
-    description: String,
+    description: String?,
     icon: ImageVector? = null,
     iconPainter: Painter? = null,
     enabled: Boolean = true,
     isTablet: Boolean,
     highlighted: Boolean = false,
+    // luq: optional trailing slot (e.g. loading indicator).
+    trailingContent: (@Composable RowScope.() -> Unit)? = null,
     onClick: () -> Unit,
 ) {
     val tokens = MaterialTheme.nuvio
@@ -383,15 +385,18 @@ internal fun SettingsNavigationRow(
                     title = title,
                     highlighted = highlighted,
                 )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = description,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = tokens.colors.textMuted,
-                    modifier = Modifier.alpha(0.92f),
-                )
+                if (!description.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = description,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = tokens.colors.textMuted,
+                        modifier = Modifier.alpha(0.92f),
+                    )
+                }
             }
         }
+        trailingContent?.invoke(this)
     }
 }
 

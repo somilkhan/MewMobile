@@ -26,6 +26,7 @@ object TmdbSettingsRepository {
     private var useArtwork = true
     private var useBasicInfo = true
     private var useDetails = true
+    private var useReleaseDates = false // Mew
     private var useCredits = true
     private var useProductions = true
     private var useNetworks = true
@@ -237,6 +238,7 @@ object TmdbSettingsRepository {
         useArtwork = TmdbSettingsStorage.loadUseArtwork() ?: true
         useBasicInfo = TmdbSettingsStorage.loadUseBasicInfo() ?: true
         useDetails = TmdbSettingsStorage.loadUseDetails() ?: true
+        useReleaseDates = TmdbSettingsStorage.loadUseReleaseDates() ?: false // Mew
         useCredits = TmdbSettingsStorage.loadUseCredits() ?: true
         useProductions = TmdbSettingsStorage.loadUseProductions() ?: true
         useNetworks = TmdbSettingsStorage.loadUseNetworks() ?: true
@@ -269,6 +271,7 @@ object TmdbSettingsRepository {
             useArtwork = useArtwork,
             useBasicInfo = useBasicInfo,
             useDetails = useDetails,
+            useReleaseDates = useReleaseDates, // Mew
             useCredits = useCredits,
             useProductions = useProductions,
             useNetworks = useNetworks,

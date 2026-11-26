@@ -107,14 +107,6 @@ actual fun HeroTrailerPlayerSurface(
         label = "heroTrailerLetterboxZoom",
     )
 
-    var hasRenderedFirstFrame by remember(exoPlayer) { mutableStateOf(false) }
-    var letterboxZoom by remember(exoPlayer) { mutableFloatStateOf(1f) }
-    val letterboxZoomState = androidx.compose.animation.core.animateFloatAsState(
-        targetValue = letterboxZoom,
-        animationSpec = androidx.compose.animation.core.tween(durationMillis = 400),
-        label = "heroTrailerLetterboxZoom",
-    )
-
     fun detachVideoSurface() {
         playerContainer?.detachPlayer(exoPlayer)
         playerContainer?.alpha = 0f
@@ -152,10 +144,6 @@ actual fun HeroTrailerPlayerSurface(
 
             override fun onVideoSizeChanged(videoSize: VideoSize) {
                 playerContainer?.setVideoSize(videoSize)
-            }
-
-            override fun onRenderedFirstFrame() {
-                hasRenderedFirstFrame = true
             }
 
             override fun onPlayerError(error: PlaybackException) {
@@ -268,26 +256,6 @@ actual fun HeroTrailerPlayerSurface(
         while (isActive) {
             latestOnPositionUpdate.value(exoPlayer.currentPosition)
             delay(500L)
-        }
-    }
-
-    LaunchedEffect(exoPlayer, hasRenderedFirstFrame) {
-        letterboxZoom = 1f
-        if (!hasRenderedFirstFrame) return@LaunchedEffect
-        val tracker = LetterboxTracker()
-        val sampler = LetterboxSampler()
-        try {
-            while (true) {
-                delay(LetterboxDetector.SAMPLE_INTERVAL_MS)
-                if (LetterboxDetector.isSampleWindowOver(exoPlayer.currentPosition, exoPlayer.duration)) break
-                if (!exoPlayer.isPlaying) continue
-                val textureView = playerContainer?.textureView ?: continue
-                val bar = sampler.sample(textureView) ?: continue
-                letterboxZoom = tracker.onSample(bar) ?: continue
-                break
-            }
-        } finally {
-            sampler.release()
         }
     }
 

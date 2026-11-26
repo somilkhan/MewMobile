@@ -932,9 +932,8 @@ object HomeCatalogSettingsRepository {
             heroSourceEnabled = isCatalog &&
                 selectedHeroSourceCount(excludingKey = key) < HERO_SOURCE_SELECTION_LIMIT,
             order = _uiState.value.items.firstOrNull { it.key == key }?.order
-                ?: ((preferences.values.maxOfOrNull { it.order } ?: -1) + 1),
-            rowPlacement = HomeCatalogRowPlacement.NORMAL.storageValue,
                 ?: ((currentPreferences.values.maxOfOrNull { it.order } ?: -1) + 1),
+            rowPlacement = HomeCatalogRowPlacement.NORMAL.storageValue,
         )
     }
 

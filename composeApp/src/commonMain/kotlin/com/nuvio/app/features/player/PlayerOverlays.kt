@@ -109,6 +109,7 @@ internal data class GestureFeedbackState(
     val secondaryMessageArgs: List<Any> = emptyList(),
     val secondaryMessageColor: Color? = null,
     val accentColor: Color? = null,
+    val level: Float? = null, // upstream (luq) gesture level bar
 )
 
 @Composable

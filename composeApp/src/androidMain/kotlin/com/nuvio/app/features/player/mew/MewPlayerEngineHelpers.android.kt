@@ -1,6 +1,7 @@
 package com.nuvio.app.features.player
 
 import androidx.media3.common.MimeTypes
+import androidx.media3.exoplayer.DefaultLoadControl
 import java.util.Locale
 
 // Mew-only helpers kept outside PlayerEngine.android.kt so upstream engine updates merge cleanly.
@@ -29,3 +30,27 @@ internal fun shouldProbeSubtitleMimeType(url: String): Boolean {
     val extension = filename.substringAfterLast('.', missingDelimiterValue = "")
     return extension !in setOf("srt", "vtt", "webvtt", "ass", "ssa", "ttml", "dfxp", "xml")
 }
+
+// Mew default load control used by PlaybackBuffering when custom buffers are off.
+internal fun buildAndroidLoadControl(memorySafeBufferEnabled: Boolean): DefaultLoadControl =
+    DefaultLoadControl.Builder().apply {
+        if (memorySafeBufferEnabled) {
+            setTargetBufferBytes(48 * 1024 * 1024)
+            setBufferDurationsMs(
+                10_000,
+                40_000,
+                DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_MS,
+                4_000,
+            )
+            setBackBuffer(0, false)
+            setPrioritizeTimeOverSizeThresholds(false)
+        } else {
+            setTargetBufferBytes(100 * 1024 * 1024)
+            setBufferDurationsMs(
+                15_000,
+                70_000,
+                DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_MS,
+                5_000,
+            )
+        }
+    }.build()

@@ -10,13 +10,14 @@ internal fun routeProfileSelection(
     isEditMode: Boolean,
     activeProfileIndex: Int? = null,
     onEditProfile: (NuvioProfile) -> Unit,
-    onActiveProfileSelected: (NuvioProfile) -> Unit,
+    onActiveProfileSelected: ((NuvioProfile) -> Unit)? = null,
     onPinRequired: (NuvioProfile) -> Unit,
     onProfileSelected: (NuvioProfile) -> Unit,
 ) {
     when {
         isEditMode -> onEditProfile(profile)
-        profile.profileIndex == activeProfileIndex -> onActiveProfileSelected(profile)
+        activeProfileIndex != null && profile.profileIndex == activeProfileIndex && onActiveProfileSelected != null ->
+            onActiveProfileSelected(profile)
         profile.pinEnabled -> onPinRequired(profile)
         else -> onProfileSelected(profile)
     }

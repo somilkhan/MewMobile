@@ -142,6 +142,7 @@ fun NuvioPosterZoomActionOverlay(
     subtitle: String?,
     synopsis: String? = null,
     isWatched: Boolean = false,
+    blurred: Boolean = false,
     depthSurface: NuvioCardDepthSurface = NuvioCardDepthSurface.Posters,
     anchor: PosterZoomAnchor?,
     actions: List<PosterZoomOverlayAction>,

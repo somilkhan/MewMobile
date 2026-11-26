@@ -74,6 +74,11 @@ private fun HomeCatalogRowSectionContent(
     onPosterLongClick: ((MetaPreview) -> Unit)?,
 ) {
     val posterCardStyle = rememberPosterCardStyleUiState()
+    // Mew hook: hideCatalogUnderline setting.
+    val homeCatalogSettings by remember {
+        HomeCatalogSettingsRepository.snapshot()
+        HomeCatalogSettingsRepository.uiState
+    }.collectAsStateWithLifecycle()
     val rowState = rememberLazyListState()
     val prefetchTargets = remember(entries, posterCardStyle) {
         entries.map { item ->

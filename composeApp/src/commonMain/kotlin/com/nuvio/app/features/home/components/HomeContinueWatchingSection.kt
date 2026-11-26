@@ -969,7 +969,7 @@ private fun ContinueWatchingWideCard(
                 shape = RoundedCornerShape(cornerRadius),
             )
             .nuvioKeyboardFocusIndicator(
-                RoundedCornerShape(layout.cardRadius),
+                RoundedCornerShape(cornerRadius),
                 onClick != null || onLongClick != null,
             )
             .combinedClickable(
@@ -1470,7 +1470,6 @@ internal fun rememberContinueWatchingLayout(
         wideContentPadding = base.wideContentPadding * 1.4f,
         posterCardWidth = base.posterCardWidth * visualScale,
         posterCardHeight = base.posterCardHeight * visualScale,
-        cardRadius = base.cardRadius * 1.4f,
         progressHeight = base.progressHeight * 1.5f,
         posterTitleBlockHeight = base.posterTitleBlockHeight * 1.5f,
     )

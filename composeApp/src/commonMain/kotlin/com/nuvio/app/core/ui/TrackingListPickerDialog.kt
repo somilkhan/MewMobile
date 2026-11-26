@@ -23,6 +23,7 @@ import nuvio.composeapp.generated.resources.action_save
 import nuvio.composeapp.generated.resources.compose_tracking_list_picker_loading
 import nuvio.composeapp.generated.resources.compose_tracking_list_picker_subtitle
 import org.jetbrains.compose.resources.stringResource
+import com.nuvio.app.features.tracking.membershipTitle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

@@ -3,6 +3,7 @@ package com.nuvio.app.core.ui
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.RememberObserver
 import androidx.compose.runtime.getValue
@@ -92,6 +93,7 @@ internal fun Modifier.posterCardClickable(
         .then(this)
     if (onClick == null && onLongClick == null) return posterModifier
     return posterModifier
+        .nuvioKeyboardFocusIndicator(RoundedCornerShape(zoomCornerRadius)) // Mew hook: keyboard focus ring
         .combinedClickable(
             interactionSource = null,
             indication = if (onPosterClickAnchor == null) LocalIndication.current else null,

@@ -13,6 +13,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import com.nuvio.app.core.ui.AppTheme
 import com.nuvio.app.core.ui.ThemeColors
+import androidx.compose.foundation.layout.Row
 
 /**
  * Product-facing Mew brand lockup.

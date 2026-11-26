@@ -37,9 +37,6 @@ data class AddonSubtitle(
     val title: String? = null,
 )
 
-internal val AddonSubtitle.selectionKey: String
-    get() = "${addonName.orEmpty()}|$id|$url"
-
 enum class SubtitleTab {
     BuiltIn,
     Addons,

@@ -413,7 +413,7 @@ internal fun PlayerScreenRuntime.RenderPlayerRuntimeUi(
                 seasonNumber = activeSeasonNumber,
                 episodeNumber = activeEpisodeNumber,
                 episodeTitle = activeEpisodeTitle,
-                pauseDescription = pauseDescription ?: activeStreamSubtitle,
+                pauseDescription = activePauseDescription ?: activeStreamSubtitle,
                 providerName = activeProviderName,
                 metrics = metrics,
                 horizontalSafePadding = horizontalSafePadding,
@@ -994,6 +994,7 @@ private fun BoxScope.RenderPlaybackOverlays(
         nextEpisodeAutoPlayReady = nextEpisodeAutoPlayReady,
         nextEpisodeAutoPlaySourceName = nextEpisodeAutoPlaySourceName,
         nextEpisodeAutoPlayCountdown = nextEpisodeAutoPlayCountdown,
+        blurUnwatchedEpisodes = metaScreenSettingsUiState.blurUnwatchedEpisodes,
         onPlayNextEpisode = {
             if (!partyBlocksControl()) playPreparedNextEpisode()
         },
@@ -1234,7 +1235,6 @@ private fun PlayerScreenRuntime.RenderPlayerModals() {
         onSubtitleDelayReset = { setSubtitleDelay(0) },
         onSyncByEarClick = { openSubtitleSyncByEar() },
         onAutoSyncCapture = { captureSubtitleAutoSyncTime() },
-        onSyncByEarClick = { openSubtitleSyncByEar() },
         onAutoSyncCueSelected = { cue -> applySubtitleAutoSyncCue(cue) },
         onAutoSyncReload = { loadSubtitleAutoSyncCues(force = true) },
         onTogglePlayback = { togglePlayback() },

@@ -89,6 +89,7 @@ import com.nuvio.app.features.tracking.WatchProgressSource
 import com.nuvio.app.features.watched.WatchedItem
 import com.nuvio.app.features.watched.WatchedRepository
 import com.nuvio.app.features.watched.WatchedUiState
+import com.nuvio.app.features.watched.resolveWatchedBadgesBulk
 import com.nuvio.app.features.watched.episodePlaybackId
 import com.nuvio.app.features.watched.watchedItemKey
 import com.nuvio.app.features.watchprogress.CachedInProgressItem
@@ -153,6 +154,7 @@ import kotlinx.coroutines.CancellationException
 import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
 import kotlin.math.abs
+import com.nuvio.app.features.watched.resolveWatchedBadgesBulk
 
 @Composable
 fun HomeScreen(
@@ -817,7 +819,7 @@ fun HomeScreen(
     }
 
     val catalogRefreshKey = remember(enabledAddons, cloudStreamUiState.registryRevision) {
-        buildHomeCatalogRefreshSignature(enabledAddons) +
+        buildAddonCatalogRefreshSignature(enabledAddons) +
             "cloudstream:${cloudStreamUiState.registryRevision}:${cloudStreamUiState.plugins.count { it.isRunnable }}"
     }
 
@@ -862,11 +864,12 @@ fun HomeScreen(
         activeProfileId,
         effectiveWatchProgressSource,
         cwCacheGeneration,
-    ) {
+    ) { active ->
+        if (!active || preparedProjectionGeneration != cachedProjectionGeneration) return@ScreenActivityEffect
         // Do not wait for remote history when playback has already recorded a local completion.
         // The later remote validation still removes stale results once both snapshots are ready.
         if (!shouldValidateMissingNextUpSeeds && completedSeriesCandidates.isEmpty()) {
-            return@LaunchedEffect
+            return@ScreenActivityEffect
         }
 
         if (completedSeriesCandidates.isEmpty()) {

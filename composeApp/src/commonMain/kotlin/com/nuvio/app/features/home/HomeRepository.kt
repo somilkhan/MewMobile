@@ -482,6 +482,10 @@ object HomeRepository {
         }
     }
 
+    // Mew hook: completed-request short-circuit needs a non-empty cached section.
+    private fun hasRenderableCachedSection(cacheKey: String): Boolean =
+        cachedSections[cacheKey]?.items?.isNotEmpty() == true
+
     private fun publishCurrentState(
         isLoading: Boolean,
         requestKey: String?,

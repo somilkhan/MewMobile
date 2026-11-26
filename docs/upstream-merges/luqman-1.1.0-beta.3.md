@@ -92,7 +92,7 @@ TODO: apply /tmp/enhanced_new.patch (enhanced be3fb89c5+aa698c015) after conflic
 - details/PersonDetailScreen — union: Mew favorite people + credit collections, luq fullyWatchedSeriesKeys.
 - details/components/DetailTrailersSection — luq Menu/MenuItem (core/ui/Menu.kt luq-only) + Mew cardDepthStyle.
 - player/PlayerSurfaceGestures — Mew volume-boost-percent gesture algorithm (matches Mew audio boost UI) + luq gesture-end logging; luq setCombinedVolumeLevel left available in PlayerScreenSupport.
-- player/PlayerTrackSelection — luq whole file (superset; Mew-only findPreferredTrackIndex was unused).
+- player/PlayerTrackSelection — luq whole file + Mew hook findPreferredTrackIndex (used by kept Mew TrackActions).
 - player/PlayerPlaybackOverlays — union: Mew stable-opening-overlay toggle + swipe-dismiss next card; luq movie recommendation card, skip/card stacking, loading status message + network speed (speed shown on Mew StableOpeningOverlay which already supports it).
 - player/SubtitleModal — KEPT MEW dispatcher (Enhanced vs Nuvio selector style). luq's modal changes (structure keys, duplicate-safe lazy keys, fling-stop clicks, addon title/label, AutoSyncedChip, sync-by-ear) ported into Mew's NuvioSubtitleModal.kt.
 - player/SubtitleStylePanel — KEPT MEW (sync panel, style cards, autosync controls); appended luq shared controls SubtitleStyleSection/SubtitleStyleStepper(+button, hold repeat)/SubtitleTextAction needed by luq AudioTrackModal and SubtitleAppearanceControls (luq-only add).
@@ -172,3 +172,8 @@ TODO: apply /tmp/enhanced_new.patch (enhanced be3fb89c5+aa698c015) after conflic
 - Dedupes: HomeScreen dropNextUpItemsClaimedByOtherSeries/distinctBySeedContentIdentity, PlayerScreenRuntimeEffects isControllerOnActivePlayback, skip segmentCategory (kept SkipModels).
 - expect/actual: NativeTabBridge.android (publishNativeTabBarBehavior, accent gradient), HeroTrailerPlayerSurface startPositionMs (+playstore/iOS app store actuals).
 - Strings: new/changed user-facing strings rebranded Nuvio->Mew (keeps upstream Nuvio / Nuvio Supporter / Supporting Nuvio / Nuvio tier / Nuvio web panel).
+- HomeCatalogSettingsSyncService: restored Mew version (legacy multi-platform pull); luq shared-settings cache not adopted (CI fix).
+- player/PlayerQualitySelector: luq version (selectedVariantFor, logging) + Mew forceHls param (// Mew hook).
+- details/components/DetailMetaInfo: restored Mew version (auto-merge was broken) + luq RatingsRow/ImdbRatingSourceLabel(storeTextStyle)/DetailHeroMetaBadge(secondaryText) for luq HomeHeroMetaRows; TabletDetailHero.kt (unused luq) removed.
+- player/SubtitleForwarder, AddonSubtitleLoader: luq verbatim (Mew never changed; auto-merge had dropped luq extras/url filter).
+- settings/ThemeColorPicker.kt — LUQ whole file (needed by luq NavigationBarSettingsSheet).

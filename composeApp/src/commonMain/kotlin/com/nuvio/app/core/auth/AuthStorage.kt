@@ -7,4 +7,6 @@ internal expect object AuthStorage {
     fun loadLocalDataOwnerUserId(): String?
     fun saveLocalDataOwnerUserId(userId: String)
     fun clearLocalDataOwnerUserId()
+    fun loadFlag(key: String): Boolean
+    fun saveFlag(key: String, value: Boolean)
 }

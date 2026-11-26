@@ -178,6 +178,7 @@ internal class PlayerScreenRuntime(
     var activeSeasonNumber by mutableStateOf(seasonNumber)
     var activeEpisodeNumber by mutableStateOf(episodeNumber)
     var activeEpisodeTitle by mutableStateOf(episodeTitle)
+    var activePauseDescription by mutableStateOf(pauseDescription)
     var activeEpisodeThumbnail by mutableStateOf(episodeThumbnail)
     var activeVideoId by mutableStateOf(videoId)
     var activeSubtitleExtras by mutableStateOf(args.subtitleExtras)

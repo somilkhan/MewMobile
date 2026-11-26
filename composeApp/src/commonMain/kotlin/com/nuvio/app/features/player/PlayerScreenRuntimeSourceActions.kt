@@ -395,6 +395,7 @@ private fun PlayerScreenRuntime.switchToPreparedLiveChannel(channel: LiveTvChann
     activeEpisodeNumber = null
     activeEpisodeTitle = null
     activeStreamType = channel.streamType
+    activePauseDescription = null
     activeEpisodeThumbnail = null
     activeVideoId = channel.id
     activeInitialPositionMs = 0L
@@ -639,6 +640,7 @@ internal fun PlayerScreenRuntime.switchToDownloadedEpisode(downloadItem: Downloa
     activeEpisodeNumber = episode.episode
     activeEpisodeTitle = episode.title
     activeEpisodeThumbnail = episode.thumbnail
+    activePauseDescription = episode.overview
     activeVideoId = resolvedVideoId
     activeInitialPositionMs = epResumePositionMs
     activeInitialProgressFraction = epResumeFraction
@@ -1009,6 +1011,7 @@ private fun PlayerScreenRuntime.applyEpisodeStreamMetadata(
     activeEpisodeNumber = episode.episode
     activeEpisodeTitle = episode.title
     activeEpisodeThumbnail = episode.thumbnail
+    activePauseDescription = episode.overview
     activeVideoId = episode.id
     activeInitialPositionMs = resume.positionMs
     activeInitialProgressFraction = resume.fraction

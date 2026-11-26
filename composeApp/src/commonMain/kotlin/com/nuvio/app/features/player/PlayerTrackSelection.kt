@@ -55,6 +55,27 @@ internal data class SubtitleAutoSelectionPlan(
     val mode: SubtitleAutoSelectionMode,
 )
 
+// Mew hook: used by the kept Mew PlayerScreenRuntimeTrackActions.
+internal fun <T> findPreferredTrackIndex(
+    tracks: List<T>,
+    targets: List<String>,
+    language: (T) -> String?,
+): Int {
+    if (targets.isEmpty()) return -1
+    for (target in targets) {
+        val matchIndex = tracks.indexOfFirst { track ->
+            languageMatchesPreference(
+                trackLanguage = language(track),
+                targetLanguage = target,
+            )
+        }
+        if (matchIndex >= 0) {
+            return matchIndex
+        }
+    }
+    return -1
+}
+
 internal fun resolveAudioTrackLanguageTarget(track: AudioTrack?): String? {
     if (track == null) return null
 

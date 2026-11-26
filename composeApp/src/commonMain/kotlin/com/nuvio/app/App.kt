@@ -86,6 +86,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.zIndex
@@ -135,8 +136,8 @@ import com.nuvio.app.core.ui.NuvioPosterZoomActionOverlay
 import com.nuvio.app.core.ui.PosterZoomAnchor
 import com.nuvio.app.core.ui.PosterZoomAnchorHolder
 import com.nuvio.app.core.ui.PosterZoomOverlayAction
-import dev.chrisbanes.haze.hazeSource
-import dev.chrisbanes.haze.rememberHazeState
+import com.nuvio.app.core.ui.glass.nuvioBackdropSource
+import com.nuvio.app.core.ui.glass.rememberNuvioBackdrop
 import com.nuvio.app.core.ui.NuvioStatusModal
 import com.nuvio.app.core.ui.PlatformBackHandler
 import com.nuvio.app.core.ui.platformExitApp
@@ -900,7 +901,7 @@ private fun MainAppContent(
         var showExitConfirmation by rememberSaveable { mutableStateOf(false) }
         var selectedPosterActionTarget by remember { mutableStateOf<PosterActionTarget?>(null) }
         var selectedPosterAnchor by remember { mutableStateOf<PosterZoomAnchor?>(null) }
-        val posterOverlayHazeState = rememberHazeState()
+        val posterOverlayHazeState = rememberNuvioBackdrop() // Mew hook: luq liquid-glass backdrop
         var selectedContinueWatchingForActions by remember { mutableStateOf<ContinueWatchingItem?>(null) }
         var selectedContinueWatchingZoomAnchor by remember { mutableStateOf<PosterZoomAnchor?>(null) }
         var requestedSettingsPageName by rememberSaveable { mutableStateOf<String?>(null) }
@@ -1454,6 +1455,10 @@ private fun MainAppContent(
                                 )
                             }
 
+                            is AddAddonResult.TrackingConsentRequired -> {
+                                AddonRepository.requestTrackingConsent(result.manifest)
+                            }
+
                             is AddAddonResult.Error -> {
                                 NuvioToastController.show(result.message)
                             }
@@ -1895,6 +1900,10 @@ private fun MainAppContent(
             LibrarySourceMode.LOCAL -> stringResource(Res.string.compose_catalog_subtitle_library)
             LibrarySourceMode.TRAKT -> stringResource(Res.string.compose_catalog_subtitle_trakt_library)
             LibrarySourceMode.SIMKL -> stringResource(Res.string.compose_catalog_subtitle_simkl_library)
+            LibrarySourceMode.MDBLIST -> stringResource(Res.string.library_mdblist_title)
+            LibrarySourceMode.ANILIST -> stringResource(Res.string.library_anilist_title)
+            LibrarySourceMode.WETRAKR -> stringResource(Res.string.library_wetrakr_title)
+            LibrarySourceMode.PUBLICMETADB -> stringResource(Res.string.library_publicmetadb_title)
         }
 
         val onLibrarySectionViewAllClick: (LibrarySection, LibrarySortOption) -> Unit = { section, sortOption ->
@@ -2127,7 +2136,7 @@ private fun MainAppContent(
                     .fillMaxSize()
                     .then(
                         if (selectedPosterActionTarget != null || selectedContinueWatchingZoomAnchor != null) {
-                            Modifier.hazeSource(state = posterOverlayHazeState)
+                            Modifier.nuvioBackdropSource(posterOverlayHazeState)
                         } else {
                             Modifier
                         },
@@ -2583,7 +2592,7 @@ private fun MainAppContent(
                                                 .align(Alignment.BottomCenter)
                                                 .onSizeChanged { miniPlayerBottomBarHeightPx = it.height },
                                             scrollState = navBarScrollState,
-                                            hazeState = null,
+                                            backdrop = null,
                                         ) {
                                             NavItem(
                                                 selected = selectedTab == AppScreenTab.Home,
@@ -3919,7 +3928,7 @@ private fun MainAppContent(
                                 },
                             ),
                         ),
-                        hazeState = posterOverlayHazeState,
+                        backdrop = posterOverlayHazeState,
                         onDismissed = {
                             selectedPosterActionTarget = null
                             selectedPosterAnchor = null
@@ -3984,7 +3993,7 @@ private fun MainAppContent(
                                     ),
                                 )
                             },
-                            hazeState = posterOverlayHazeState,
+                            backdrop = posterOverlayHazeState,
                             onDismissed = {
                                 selectedContinueWatchingForActions = null
                                 selectedContinueWatchingZoomAnchor = null
@@ -4295,16 +4304,19 @@ private fun AppTabHost(
     }
 
 @Composable
-private fun TabletFloatingTopBar(
+internal fun TabletFloatingTopBar(
     selectedTab: AppScreenTab,
     liveTvEnabled: Boolean,
     onTabSelected: (AppScreenTab) -> Unit,
     onProfileSelected: (NuvioProfile) -> Unit,
     onAddProfileRequested: () -> Unit,
     modifier: Modifier = Modifier,
+    // luq: settings preview passes a fixed inset instead of the status bar padding.
+    topInset: Dp? = null,
 ) {
     val tokens = MaterialTheme.nuvio
-    val statusBarPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    val statusBarPadding = topInset?.let { it - NuvioTokens.Space.s10 }
+        ?: WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
 
     Box(
         modifier = modifier

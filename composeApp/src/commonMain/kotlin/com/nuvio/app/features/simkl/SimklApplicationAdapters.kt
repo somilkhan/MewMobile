@@ -94,8 +94,6 @@ object SimklWatchedSyncAdapter : TrackingWatchedProvider {
         }
         SimklSyncRepository.ensureLoaded()
         val snapshot = SimklSyncRepository.state.value.snapshot
-        val pushableItems = simklHistoryPushItems(items)
-        if (pushableItems.isEmpty()) return
         val historyItems = pushableItems.map { item ->
             TrackingHistoryItem(
                 media = snapshot.mediaReference(

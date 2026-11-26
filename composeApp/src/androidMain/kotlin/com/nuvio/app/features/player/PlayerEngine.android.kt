@@ -2346,8 +2346,11 @@ private class NuvioLibmpvView(
 
     val subtitleVideoAspectRatio: Float
         get() = latestSnapshot.let { snapshot ->
-            if (snapshot.videoWidth > 0 && snapshot.videoHeight > 0) {
-                snapshot.videoWidth.toFloat() / snapshot.videoHeight.toFloat()
+            // Mew hook: Mew snapshot keeps nullable video dimensions.
+            val width = snapshot.videoWidth ?: 0
+            val height = snapshot.videoHeight ?: 0
+            if (width > 0 && height > 0) {
+                width.toFloat() / height.toFloat()
             } else {
                 0f
             }

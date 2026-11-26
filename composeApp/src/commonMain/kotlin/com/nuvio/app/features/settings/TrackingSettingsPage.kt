@@ -142,6 +142,9 @@ import nuvio.composeapp.generated.resources.trakt_watch_progress_source_trakt
 import nuvio.composeapp.generated.resources.trakt_watch_progress_subtitle
 import nuvio.composeapp.generated.resources.trakt_watch_progress_title
 import org.jetbrains.compose.resources.stringResource
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 
 internal fun LazyListScope.trackingSettingsContent(
     isTablet: Boolean,
@@ -600,11 +603,11 @@ private fun TrackingPreferenceActionRow(
     isLoading: Boolean = false,
     enabled: Boolean = true,
 ) {
+    val tokens = MaterialTheme.nuvio
     SettingsNavigationRow(
         title = title,
         description = listOfNotNull(
             description,
-            if (isLoading) "$value..." else value,
             supportingMessage?.takeIf(String::isNotBlank),
         ).joinToString("\n"),
         enabled = enabled,

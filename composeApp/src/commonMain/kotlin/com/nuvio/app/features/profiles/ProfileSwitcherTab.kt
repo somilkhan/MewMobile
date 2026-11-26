@@ -115,6 +115,7 @@ fun ProfileSwitcherTab(
 
     val haptic = LocalHapticFeedback.current
     val density = LocalDensity.current
+    val tokens = MaterialTheme.nuvio
 
     var showPopup by remember { mutableStateOf(false) }
     // Keep popup composed while exit animation plays

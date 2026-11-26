@@ -98,6 +98,7 @@ import nuvio.composeapp.generated.resources.settings_backup_import_failed
 import nuvio.composeapp.generated.resources.settings_backup_import_partial
 import org.jetbrains.compose.resources.getString
 import kotlin.time.Clock
+import com.nuvio.app.core.time.EpisodeReleaseDatePlatform
 
 internal object SettingsConfigTransfer {
     private const val PREFERRED_DOWNLOAD_RESOLUTION_KEY = "preferred_download_resolution"
@@ -1027,7 +1028,7 @@ internal object SettingsConfigTransfer {
 
     private fun importTmdbSettings(payload: JsonObject) {
         payload.decodeSyncBoolean("enabled")?.let { TmdbSettingsStorage.saveEnabled(it) }
-        payload.decodeSyncString("api_key")?.let { TmdbSettingsStorage.saveApiKey(it) }
+        payload.decodeSyncString("api_key")?.let { TmdbSettingsStorage.saveApiKey(it, EpisodeReleaseDatePlatform.nowEpochMs()) }
         payload.decodeSyncString("language")?.let { TmdbSettingsStorage.saveLanguage(it) }
         payload.decodeSyncBoolean("use_trailers")?.let { TmdbSettingsStorage.saveUseTrailers(it) }
         payload.decodeSyncBoolean("use_artwork")?.let { TmdbSettingsStorage.saveUseArtwork(it) }
@@ -1059,7 +1060,7 @@ internal object SettingsConfigTransfer {
 
     private fun importMdbListSettings(payload: JsonObject) {
         payload.decodeSyncBoolean("enabled")?.let { MdbListSettingsStorage.saveEnabled(it) }
-        payload.decodeSyncString("api_key")?.let { MdbListSettingsStorage.saveApiKey(it) }
+        payload.decodeSyncString("api_key")?.let { MdbListSettingsStorage.saveApiKey(it, EpisodeReleaseDatePlatform.nowEpochMs()) }
         payload.decodeSyncBoolean("use_imdb")?.let { MdbListSettingsStorage.saveUseImdb(it) }
         payload.decodeSyncBoolean("use_tmdb")?.let { MdbListSettingsStorage.saveUseTmdb(it) }
         payload.decodeSyncBoolean("use_tomatoes")?.let { MdbListSettingsStorage.saveUseTomatoes(it) }

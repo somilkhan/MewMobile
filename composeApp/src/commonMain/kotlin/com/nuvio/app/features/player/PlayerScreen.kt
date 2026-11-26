@@ -121,7 +121,6 @@ fun PlayerScreen(
             subtitleExtras = subtitleExtras,
             launchId = launchId,
             sourceFilename = sourceFilename,
-            onOpenPartyMedia = onOpenPartyMedia,
             stream = stream,
             sourceFromLinkCache = sourceFromLinkCache,
             sourceAutoSelected = sourceAutoSelected,

@@ -71,6 +71,7 @@ internal fun PlaybackSubtitleSettings(
                 AutoSyncPlaybackSettingsRows(
                     isTablet = isTablet,
                     enabled = !settings.externalPlayerEnabled,
+                    preferredSubtitleLanguage = settings.preferredSubtitleLanguage, // Mew hook
                 )
                 SettingsGroupDivider(isTablet = isTablet)
                 SettingsSwitchRow(
