@@ -79,7 +79,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import co.touchlab.kermit.Logger
 import coil3.compose.AsyncImage
 import com.nuvio.app.core.build.AppFeaturePolicy
 import com.nuvio.app.core.build.TrailerPlaybackMode
@@ -111,15 +110,14 @@ import com.nuvio.app.features.details.components.DetailProductionSection
 import com.nuvio.app.features.details.components.DetailSeriesContent
 import com.nuvio.app.features.details.components.DetailTrailersSection
 import com.nuvio.app.features.details.components.readableDetailContentColor
+import com.nuvio.app.features.details.components.BatchDownloadDialog
 import com.nuvio.app.features.details.components.EpisodeDownloadFlowSheet
 import com.nuvio.app.features.details.components.EpisodeWatchedActionSheet
 import com.nuvio.app.features.details.components.SeasonWatchedActionSheet
 import com.nuvio.app.features.details.components.TrailerPlayerPopup
-import com.nuvio.app.features.downloads.DownloadQueueMode
+import com.nuvio.app.features.downloads.BatchDownloadCoordinator
+import com.nuvio.app.features.downloads.BatchQueueResult
 import com.nuvio.app.features.downloads.DownloadsRepository
-import com.nuvio.app.features.downloads.EpisodeDownloadCoordinator
-import com.nuvio.app.features.downloads.EpisodeDownloadSettingsStorage
-import com.nuvio.app.features.downloads.EpisodeDownloadTarget
 import com.nuvio.app.features.home.MetaPreview
 import com.nuvio.app.features.library.LibraryRepository
 import com.nuvio.app.features.library.toLibraryItem
@@ -157,8 +155,6 @@ import com.nuvio.app.features.watching.application.WatchingState
 import nuvio.composeapp.generated.resources.anime_tracking_action
 import com.kmpalette.rememberDominantColorState
 import com.kmpalette.extensions.painter.rememberPainterDominantColorState
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import nuvio.composeapp.generated.resources.*
@@ -1699,6 +1695,24 @@ fun MetaDetailsScreen(
                             )
                         }
 
+                        val activeBatchPlan by BatchDownloadCoordinator.activePlan.collectAsStateWithLifecycle()
+                        activeBatchPlan?.let { plan ->
+                            BatchDownloadDialog(
+                                plan = plan,
+                                isEpisodeWatched = { episode ->
+                                    isEpisodeWatchedForActions(meta, episode, watchedUiState.watchedKeys, progressByVideoId)
+                                },
+                                onDismissRequest = { BatchDownloadCoordinator.closePlan() },
+                                onConfirm = {
+                                    val message = when (BatchDownloadCoordinator.queuePlan()) {
+                                        BatchQueueResult.Queued -> Res.string.downloads_enqueue_queued_multiple
+                                        BatchQueueResult.NothingToQueue -> Res.string.season_download_no_source_found
+                                    }
+                                    detailsScope.launch { NuvioToastController.show(getString(message)) }
+                                },
+                            )
+                        }
+
                         selectedSeasonForActions?.let { selectedSeason ->
                             val seasonLabel = selectedSeasonLabel(selectedSeason)
                             val seasonEpisodes = remember(meta, selectedSeason, todayIsoDate) {
@@ -1746,7 +1760,7 @@ fun MetaDetailsScreen(
                                     )
                                 },
                                 onDownloadSeason = if (enhancedSettings.seasonBatchDownloadEnabled) {
-                                    ({ enqueueSeasonBatch(detailsScope, meta, seasonEpisodes) })
+                                    ({ BatchDownloadCoordinator.openPlan(meta = meta, season = selectedSeason) })
                                 } else {
                                     null
                                 },
@@ -1880,51 +1894,6 @@ private fun MetaDetails.isSeriesLikeForEpisodeRatings(): Boolean {
     val normalizedType = type.trim().lowercase()
     val hasNumberedEpisodes = videos.any { it.season != null && it.episode != null }
     return hasNumberedEpisodes && normalizedType in setOf("series", "show", "tv", "tvshow")
-}
-
-private fun enqueueSeasonBatch(
-    scope: CoroutineScope,
-    meta: MetaDetails,
-    episodes: List<MetaVideo>,
-) {
-    val targets = episodes
-        .filter { it.available }
-        .map { video ->
-            EpisodeDownloadTarget(
-                videoId = video.id,
-                seasonNumber = video.season,
-                episodeNumber = video.episode,
-                title = video.title,
-                thumbnail = video.thumbnail,
-                overview = video.overview,
-                embeddedStreams = video.streams,
-                parentMetaId = meta.id,
-                parentMetaType = meta.type,
-            )
-        }
-    if (targets.isEmpty()) return
-    val settings = EpisodeDownloadSettingsStorage.load()
-        .copy(downloadMode = DownloadQueueMode.OneAtATime)
-    scope.launch {
-        try {
-            EpisodeDownloadCoordinator.enqueueAuto(
-                contentType = meta.type,
-                parentMetaId = meta.id,
-                parentMetaType = meta.type,
-                title = meta.name,
-                logo = meta.logo,
-                poster = meta.poster,
-                background = meta.background,
-                targets = targets,
-                settings = settings,
-                onProgress = {},
-            )
-        } catch (error: CancellationException) {
-            throw error
-        } catch (error: Throwable) {
-            Logger.withTag("SeasonBatchDownload").w(error) { "enqueueSeasonBatch failed" }
-        }
-    }
 }
 
 @Composable

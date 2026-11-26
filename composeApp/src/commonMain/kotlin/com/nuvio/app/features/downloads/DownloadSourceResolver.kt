@@ -1094,7 +1094,7 @@ private fun isDownloadCandidate(stream: StreamItem): Boolean =
     stream.playableDirectUrl?.isSupportedDownloadUrl() == true ||
         DirectDebridPlaybackResolver.shouldResolveToPlayableStream(stream)
 
-private fun List<DownloadSourceOption>.pickBestForQuality(
+internal fun List<DownloadSourceOption>.pickBestForQuality(
     preferred: DownloadPreferredQuality,
 ): DownloadSourceOption? {
     if (isEmpty()) return null

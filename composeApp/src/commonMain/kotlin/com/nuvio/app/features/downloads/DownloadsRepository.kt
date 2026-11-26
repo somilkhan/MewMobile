@@ -967,7 +967,7 @@ private fun sanitizeResponseHeaders(headers: Map<String, String>?): Map<String, 
         }
         .toMap()
 
-private fun buildLogicalKey(
+internal fun buildLogicalKey(
     parentMetaId: String,
     seasonNumber: Int?,
     episodeNumber: Int?,
