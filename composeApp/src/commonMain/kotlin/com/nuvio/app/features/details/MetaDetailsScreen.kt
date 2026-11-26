@@ -747,9 +747,11 @@ fun MetaDetailsScreen(
                         label = stringResource(Res.string.streams_download_file),
                         icon = Icons.Default.Download,
                         onClick = {
-                            episodeDownloadRequest = EpisodeDownloadRequest(
-                                initialEpisodes = emptyList(),
-                                showStartPrompt = true,
+                            BatchDownloadCoordinator.openPlan(
+                                meta = meta,
+                                season = seriesAction?.seasonNumber
+                                    ?: meta.videos.mapNotNull { it.season }.firstOrNull { it > 0 }
+                                    ?: 1,
                             )
                         },
                     )
