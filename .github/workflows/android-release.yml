@@ -402,6 +402,12 @@ jobs:
           echo "Effective CI Gradle memory settings:"
           grep -E '^(org\.gradle\.jvmargs|org\.gradle\.workers\.max|kotlin\.daemon\.jvmargs|kotlin\.native\.jvmArgs)=' gradle.properties
 
+      - name: Set up Rust for native Android libraries
+        if: env.RELEASE_MODE != 'dry-run'
+        run: |
+          rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
+          cargo install cargo-ndk --locked
+
       - name: Build full release APKs
         if: env.RELEASE_MODE != 'dry-run'
         run: ./gradlew :androidApp:assembleFullRelease --stacktrace --max-workers=2

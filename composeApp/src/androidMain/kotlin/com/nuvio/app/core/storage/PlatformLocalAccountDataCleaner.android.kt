@@ -4,6 +4,7 @@ import android.content.Context
 
 internal actual object PlatformLocalAccountDataCleaner {
     private val preferenceNames = listOf(
+        "episode_shuffle",
         "nuvio_addons",
         "nuvio_library",
         "nuvio_library_display_settings",
@@ -18,6 +19,14 @@ internal actual object PlatformLocalAccountDataCleaner {
         "nuvio_debrid_settings",
         "nuvio_tmdb_settings",
         "nuvio_mdblist_settings",
+        "nuvio_mdblist_auth",
+        "nuvio_mdblist_sync",
+        "nuvio_anilist_auth",
+        "nuvio_anilist_sync",
+        "nuvio_wetrakr_auth",
+        "nuvio_wetrakr_sync",
+        "nuvio_publicmetadb_auth",
+        "nuvio_publicmetadb_sync",
         "nuvio_auth",
         "nuvio_trakt_auth",
         "nuvio_simkl_auth",
@@ -52,6 +61,7 @@ internal actual object PlatformLocalAccountDataCleaner {
                 .clear()
                 .apply()
         }
+        com.nuvio.app.features.downloads.DownloadsPlatformDownloader.clearUnfinishedTransfers()
         context.filesDir.resolve("nuvio_plugin_scrapers").deleteRecursively()
     }
 }

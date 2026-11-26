@@ -3,6 +3,7 @@ package com.nuvio.app.features.home.components
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -11,6 +12,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nuvio.app.core.ui.NuvioShelfSection
 import com.nuvio.app.core.ui.NuvioViewAllPillSize
+import com.nuvio.app.core.ui.PosterRowImagePrefetchEffect
 import com.nuvio.app.core.ui.rememberPosterCardStyleUiState
 import com.nuvio.app.features.home.HomeCatalogSettingsRepository
 import com.nuvio.app.features.home.HomeCatalogSection
@@ -72,10 +74,14 @@ private fun HomeCatalogRowSectionContent(
     onPosterLongClick: ((MetaPreview) -> Unit)?,
 ) {
     val posterCardStyle = rememberPosterCardStyleUiState()
-    val homeCatalogSettings by remember {
-        HomeCatalogSettingsRepository.snapshot()
-        HomeCatalogSettingsRepository.uiState
-    }.collectAsStateWithLifecycle()
+    val rowState = rememberLazyListState()
+    val prefetchTargets = remember(entries, posterCardStyle) {
+        entries.map { item ->
+            item.homePosterImages(posterCardStyle, useLandscapeBackdropMode = posterCardStyle.catalogLandscapeModeEnabled)
+                .toPrefetchTarget()
+        }
+    }
+    PosterRowImagePrefetchEffect(state = rowState, targets = prefetchTargets)
 
     NuvioShelfSection(
         title = section.title,
@@ -87,6 +93,7 @@ private fun HomeCatalogRowSectionContent(
         onViewAllClick = onViewAllClick,
         viewAllPillSize = NuvioViewAllPillSize.Compact,
         key = { item -> item.stableKey() },
+        state = rowState,
     ) { item ->
         HomePosterCard(
             item = item,

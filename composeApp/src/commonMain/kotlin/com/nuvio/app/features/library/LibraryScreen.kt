@@ -142,6 +142,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import com.nuvio.app.features.servers.ServerRepository
 import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.stringResource
 
@@ -156,6 +157,9 @@ fun LibraryScreen(
     onConnectCloudClick: (() -> Unit)? = null,
     onDownloadsClick: (() -> Unit)? = null,
     onOpenDownload: ((DownloadItem) -> Unit)? = null,
+    onPreviewClick: ((com.nuvio.app.features.home.MetaPreview) -> Unit)? = null,
+    onPreviewLongClick: ((com.nuvio.app.features.home.MetaPreview) -> Unit)? = null,
+    onCatalogClick: ((com.nuvio.app.features.home.HomeCatalogSection) -> Unit)? = null,
 ) {
     val uiState by remember {
         LibraryRepository.ensureLoaded()
@@ -185,8 +189,20 @@ fun LibraryScreen(
     val networkStatusUiState by NetworkStatusRepository.uiState.collectAsStateWithLifecycle()
     var observedOfflineState by remember { mutableStateOf(false) }
     var sourceModeName by rememberSaveable { mutableStateOf(LibraryViewMode.Saved.name) }
-    val sourceMode = remember(sourceModeName) {
+    val serversUiState by remember {
+        ServerRepository.ensureLoaded()
+        ServerRepository.uiState
+    }.collectAsStateWithLifecycle()
+    val hasServers = serversUiState.connections.any { it.enabled }
+    val sourceMode = remember(sourceModeName, hasServers) {
         runCatching { LibraryViewMode.valueOf(sourceModeName) }.getOrDefault(LibraryViewMode.Saved)
+            .takeUnless { it == LibraryViewMode.Servers && !hasServers }
+            ?: LibraryViewMode.Saved
+    }
+    var serverShelves by remember { mutableStateOf<List<LibraryServerShelf>?>(null) }
+    var serverShelvesRequest by remember { mutableStateOf(0) }
+    LaunchedEffect(sourceMode, serversUiState.revision, serverShelvesRequest) {
+        if (sourceMode == LibraryViewMode.Servers) serverShelves = loadServerShelves()
     }
     var downloadsFilterName by rememberSaveable { mutableStateOf(LibraryDownloadsFilter.All.name) }
     val downloadsFilter = remember(downloadsFilterName) {
@@ -405,13 +421,17 @@ fun LibraryScreen(
                         NuvioScreenHeader(
                             title = if (sourceMode == LibraryViewMode.Cloud) {
                                 stringResource(Res.string.library_title)
-                            } else if (sourceMode == LibraryViewMode.Downloads) {
+                            } else if (sourceMode == LibraryViewMode.Downloaded) {
                                 stringResource(Res.string.compose_settings_root_downloads_title)
                             } else {
                                 when (uiState.sourceMode) {
                                     LibrarySourceMode.LOCAL -> stringResource(Res.string.library_title)
                                     LibrarySourceMode.TRAKT -> stringResource(Res.string.library_trakt_title)
                                     LibrarySourceMode.SIMKL -> stringResource(Res.string.library_simkl_title)
+                                    LibrarySourceMode.MDBLIST -> "MDBList"
+                                    LibrarySourceMode.ANILIST -> "AniList"
+                                    LibrarySourceMode.WETRAKR -> "WeTrakr"
+                                    LibrarySourceMode.PUBLICMETADB -> "PublicMetaDB"
                                 }
                             },
                             modifier = Modifier.padding(horizontal = 16.dp),
@@ -459,6 +479,7 @@ fun LibraryScreen(
                         )
                         LibrarySourceSwitch(
                             selectedMode = sourceMode,
+                            showServers = hasServers,
                             onModeSelected = { mode ->
                                 sourceModeName = mode.name
                             },
@@ -501,7 +522,7 @@ fun LibraryScreen(
                     onRefresh = { CloudLibraryRepository.refresh() },
                     onConnectCloudClick = onConnectCloudClick,
                 )
-            } else if (sourceMode == LibraryViewMode.Downloads) {
+            } else if (sourceMode == LibraryViewMode.Downloaded) {
                 downloadsLibraryContent(
                     uiState = downloadsUiState,
                     showHeaderAccent = true,
@@ -510,6 +531,16 @@ fun LibraryScreen(
                     onOpenDownload = onOpenDownload,
                     onDownloadsClick = onDownloadsClick,
                     onSelectDownload = { selectedDownloadId = it.id },
+                )
+            } else if (sourceMode == LibraryViewMode.Servers) {
+                serverLibraryContent(
+                    shelves = serverShelves,
+                    watchedKeys = watchedUiState.watchedKeys,
+                    fullyWatchedSeriesKeys = fullyWatchedSeriesKeys,
+                    onCatalogClick = onCatalogClick,
+                    onPosterClick = onPreviewClick,
+                    onPosterLongClick = onPreviewLongClick,
+                    onRetry = { serverShelvesRequest++ },
                 )
             } else {
                 when {
@@ -540,6 +571,7 @@ fun LibraryScreen(
                                         LibrarySourceMode.LOCAL -> stringResource(Res.string.library_load_failed)
                                         LibrarySourceMode.TRAKT -> stringResource(Res.string.library_trakt_load_failed)
                                         LibrarySourceMode.SIMKL -> stringResource(Res.string.library_simkl_load_failed)
+                                        else -> stringResource(Res.string.library_load_failed)
                                     },
                                     message = uiState.errorMessage.orEmpty(),
                                     actionLabel = stringResource(Res.string.action_retry),
@@ -564,11 +596,13 @@ fun LibraryScreen(
                                         LibrarySourceMode.LOCAL -> stringResource(Res.string.library_empty_title)
                                         LibrarySourceMode.TRAKT -> stringResource(Res.string.library_trakt_empty_title)
                                         LibrarySourceMode.SIMKL -> stringResource(Res.string.library_simkl_empty_title)
+                                        else -> stringResource(Res.string.library_empty_title)
                                     },
                                     message = when (uiState.sourceMode) {
                                         LibrarySourceMode.LOCAL -> stringResource(Res.string.library_empty_message)
                                         LibrarySourceMode.TRAKT -> stringResource(Res.string.library_trakt_empty_message)
                                         LibrarySourceMode.SIMKL -> stringResource(Res.string.library_simkl_empty_message)
+                                        else -> stringResource(Res.string.library_empty_message)
                                     },
                                 )
                             }
@@ -1876,6 +1910,7 @@ private fun LazyListScope.cloudLibrarySkeletonItems() {
 @Composable
 private fun LibrarySourceSwitch(
     selectedMode: LibraryViewMode,
+    showServers: Boolean,
     onModeSelected: (LibraryViewMode) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -1892,14 +1927,21 @@ private fun LibrarySourceSwitch(
         )
         LibraryChip(
             label = stringResource(Res.string.compose_settings_root_downloads_title),
-            selected = selectedMode == LibraryViewMode.Downloads,
-            onClick = { onModeSelected(LibraryViewMode.Downloads) },
+            selected = selectedMode == LibraryViewMode.Downloaded,
+            onClick = { onModeSelected(LibraryViewMode.Downloaded) },
         )
         LibraryChip(
             label = stringResource(Res.string.library_source_cloud),
             selected = selectedMode == LibraryViewMode.Cloud,
             onClick = { onModeSelected(LibraryViewMode.Cloud) },
         )
+        if (showServers) {
+            LibraryChip(
+                label = stringResource(Res.string.library_source_servers),
+                selected = selectedMode == LibraryViewMode.Servers,
+                onClick = { onModeSelected(LibraryViewMode.Servers) },
+            )
+        }
     }
 }
 
@@ -2419,12 +2461,6 @@ private fun CloudSkeletonBlock(
             .clip(RoundedCornerShape(cornerRadius))
             .background(brush),
     )
-}
-
-private enum class LibraryViewMode {
-    Saved,
-    Downloads,
-    Cloud,
 }
 
 private fun LazyListScope.librarySections(

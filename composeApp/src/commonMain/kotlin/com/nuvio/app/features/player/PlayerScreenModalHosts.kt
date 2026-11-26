@@ -1,9 +1,11 @@
 package com.nuvio.app.features.player
 
 import androidx.compose.runtime.Composable
+import com.nuvio.app.isIos
 import com.nuvio.app.features.details.MetaDetailsUiState
 import com.nuvio.app.features.details.MetaVideo
 import com.nuvio.app.features.downloads.DownloadsRepository
+import com.nuvio.app.features.livetv.LiveTvChannel
 import com.nuvio.app.features.p2p.P2pConsentDialog
 import com.nuvio.app.features.p2p.P2pSettingsRepository
 import com.nuvio.app.features.settings.NuvioAudioSelectorStyle
@@ -27,6 +29,17 @@ internal fun PlayerScreenModalHosts(
     audioSelectorStyle: NuvioAudioSelectorStyle,
     onAudioTrackSelected: (Int) -> Unit,
     onAudioModalDismissed: () -> Unit,
+    showAudioDelay: Boolean,
+    audioDelayMs: Int,
+    onAudioDelayChanged: (Int) -> Unit,
+    showAudioAmplification: Boolean,
+    audioAmplificationDb: Int,
+    keepAudioAmplification: Boolean,
+    onAudioAmplificationChanged: (Int) -> Unit,
+    onKeepAudioAmplificationChanged: (Boolean) -> Unit,
+    showCenterMix: Boolean,
+    centerMixLevelDb: Int,
+    onCenterMixLevelChanged: (Int) -> Unit,
     showSubtitleModal: Boolean,
     activeSubtitleTab: SubtitleTab,
     subtitleSelectorStyle: NuvioSubtitleSelectorStyle,
@@ -49,6 +62,7 @@ internal fun PlayerScreenModalHosts(
     onSubtitleStyleChanged: ((SubtitleStyleState) -> SubtitleStyleState) -> Unit,
     onSubtitleDelayChanged: (Int) -> Unit,
     onSubtitleDelayReset: () -> Unit,
+    onSyncByEarClick: () -> Unit,
     onAutoSyncCapture: () -> Unit,
     onSyncByEarClick: () -> Unit,
     onAutoSyncCueSelected: (SubtitleSyncCue) -> Unit,
@@ -59,20 +73,29 @@ internal fun PlayerScreenModalHosts(
     playerSettings: PlayerSettingsUiState,
     onVideoSettingsChanged: () -> Unit,
     onVideoSettingsModalDismissed: () -> Unit,
+    animeEnhancementStatus: AnimeEnhancementStatus? = null,
+    showSourcesPanel: Boolean,
+    sourceStreamsState: StreamsUiState,
+    contentTitle: String,
+    activeEpisodeTitle: String?,
+    currentStream: PlayerCurrentStream,
     showQualityPanel: Boolean,
     playerQualityState: PlayerQualitySelectionState,
     selectedPlayerQualityId: String?,
     currentQualityLabel: String?,
+    selectedQualityVariant: PlayerQualityVariant?,
+    selectedQualityIsAuto: Boolean,
     onPlayerQualitySelected: (String?) -> Unit,
     onQualityPanelDismissed: () -> Unit,
-    showSourcesPanel: Boolean,
-    sourceStreamsState: StreamsUiState,
-    activeSourceUrl: String,
-    activeStreamTitle: String,
     onSourceFilterSelected: (String?) -> Unit,
     onSourceStreamSelected: (StreamItem) -> Unit,
     onReloadSources: () -> Unit,
     onSourcesPanelDismissed: () -> Unit,
+    showLiveChannelsPanel: Boolean,
+    liveTvChannels: List<LiveTvChannel>,
+    activeLiveChannelId: String?,
+    onLiveChannelSelected: (LiveTvChannel) -> Unit,
+    onLiveChannelsPanelDismissed: () -> Unit,
     isSeries: Boolean,
     showEpisodesPanel: Boolean,
     allEpisodes: List<MetaVideo>,
@@ -104,6 +127,9 @@ internal fun PlayerScreenModalHosts(
     onSubmitIntroEndTimeChanged: (String) -> Unit,
     onSubmitIntroDismissed: () -> Unit,
     onSubmitIntroSuccess: () -> Unit,
+    showStreamInfoModal: Boolean,
+    mediaInfoJson: String,
+    onStreamInfoModalDismissed: () -> Unit,
 ) {
     if (pendingP2pSwitch != null) {
         P2pConsentDialog(
@@ -136,6 +162,17 @@ internal fun PlayerScreenModalHosts(
         selectorStyle = audioSelectorStyle,
         onTrackSelected = onAudioTrackSelected,
         onDismiss = onAudioModalDismissed,
+        showAudioDelay = showAudioDelay,
+        audioDelayMs = audioDelayMs,
+        onAudioDelayChanged = onAudioDelayChanged,
+        showAudioAmplification = showAudioAmplification,
+        audioAmplificationDb = audioAmplificationDb,
+        keepAudioAmplification = keepAudioAmplification,
+        onAudioAmplificationChanged = onAudioAmplificationChanged,
+        onKeepAudioAmplificationChanged = onKeepAudioAmplificationChanged,
+        showCenterMix = showCenterMix,
+        centerMixLevelDb = centerMixLevelDb,
+        onCenterMixLevelChanged = onCenterMixLevelChanged,
     )
 
     SubtitleModal(
@@ -163,6 +200,7 @@ internal fun PlayerScreenModalHosts(
         onStyleChanged = onSubtitleStyleChanged,
         onSubtitleDelayChanged = onSubtitleDelayChanged,
         onSubtitleDelayReset = onSubtitleDelayReset,
+        onSyncByEarClick = onSyncByEarClick,
         onAutoSyncCapture = onAutoSyncCapture,
         onSyncByEarClick = onSyncByEarClick,
         onAutoSyncCueSelected = onAutoSyncCueSelected,
@@ -172,19 +210,17 @@ internal fun PlayerScreenModalHosts(
     )
 
     IosVideoSettingsModal(
-        visible = showVideoSettingsModal,
+        visible = showVideoSettingsModal && isIos,
         settings = playerSettings,
         onSettingsChanged = onVideoSettingsChanged,
         onDismiss = onVideoSettingsModalDismissed,
     )
 
-    PlayerQualityPanel(
-        visible = showQualityPanel,
-        state = playerQualityState,
-        selectedQualityId = selectedPlayerQualityId,
-        currentResolutionLabel = currentQualityLabel,
-        onQualitySelected = onPlayerQualitySelected,
-        onDismiss = onQualityPanelDismissed,
+    AnimeEnhancementPanel(
+        visible = showVideoSettingsModal && !isIos,
+        settings = playerSettings,
+        status = animeEnhancementStatus,
+        onDismiss = onVideoSettingsModalDismissed,
     )
 
     PlayerSourcesPanel(
@@ -196,6 +232,23 @@ internal fun PlayerScreenModalHosts(
         onStreamSelected = onSourceStreamSelected,
         onReload = onReloadSources,
         onDismiss = onSourcesPanelDismissed,
+    )
+
+    PlayerLiveChannelsPanel(
+        visible = showLiveChannelsPanel,
+        channels = liveTvChannels,
+        currentStreamUrl = liveTvChannels.firstOrNull { it.id == activeLiveChannelId }?.streamUrl,
+        onChannelSelected = onLiveChannelSelected,
+        onDismiss = onLiveChannelsPanelDismissed,
+    )
+
+    PlayerQualityPanel(
+        visible = showQualityPanel,
+        state = playerQualityState,
+        selectedQualityId = selectedPlayerQualityId,
+        currentResolutionLabel = currentQualityLabel,
+        onQualitySelected = onPlayerQualitySelected,
+        onDismiss = onQualityPanelDismissed,
     )
 
     if (isSeries) {
@@ -248,6 +301,14 @@ internal fun PlayerScreenModalHosts(
             onSuccess = onSubmitIntroSuccess,
         )
     }
+
+    PlaybackInfoModal(
+        visible = showStreamInfoModal,
+        mediaInfoJson = mediaInfoJson,
+        selectedQualityVariant = selectedQualityVariant,
+        selectedQualityIsAuto = selectedQualityIsAuto,
+        onDismiss = onStreamInfoModalDismissed,
+    )
 }
 
 internal fun selectDownloadedEpisodeForPlayback(

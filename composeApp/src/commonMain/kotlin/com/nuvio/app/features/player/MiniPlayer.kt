@@ -67,8 +67,11 @@ internal object MiniPlayerController {
     var hostedRuntime: PlayerScreenRuntime? by mutableStateOf(null)
         private set
 
+    var parkedInPictureInPicture by mutableStateOf(false)
+        internal set
+
     val isActive: Boolean
-        get() = minimized && hostedLaunch != null
+        get() = (minimized && hostedLaunch != null) || parkedInPictureInPicture
 
     /** Runs after each composition with the launch of the top player route, if any. */
     fun commit(topLaunch: PlayerLaunch?, enabled: Boolean) {
@@ -116,6 +119,14 @@ internal object MiniPlayerController {
     fun detach(runtime: PlayerScreenRuntime) {
         if (hostedRuntime === runtime) hostedRuntime = null
     }
+}
+
+internal fun PlayerScreenRuntime.canHandOffToMiniPlayer(): Boolean =
+    MiniPlayerController.hostedRuntime === this && !isMiniPresentation
+
+internal fun PlayerScreenRuntime.handOffToMiniPlayer(): Boolean {
+    if (!canHandOffToMiniPlayer()) return false
+    return MiniPlayerController.requestMinimize()
 }
 
 /** Called before leaving the full player. Keeps the engine alive as a mini card when enabled. */

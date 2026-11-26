@@ -169,13 +169,6 @@ actual object TmdbSettingsStorage {
         NSUserDefaults.standardUserDefaults.setBool(enabled, forKey = ProfileScopedKey.of(key))
     }
 
-    actual fun loadTitleLanguage(): String? =
-        NSUserDefaults.standardUserDefaults.stringForKey(ProfileScopedKey.of(titleLanguageKey))
-
-    actual fun saveTitleLanguage(value: String) {
-        NSUserDefaults.standardUserDefaults.setObject(value, forKey = ProfileScopedKey.of(titleLanguageKey))
-    }
-
     actual fun exportToSyncPayload(): JsonObject = buildJsonObject {
         loadEnabled()?.let { put(enabledKey, encodeSyncBoolean(it)) }
         loadLanguage()?.let { put(languageKey, encodeSyncString(it)) }

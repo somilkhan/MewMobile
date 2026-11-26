@@ -12,6 +12,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
+import com.nuvio.app.core.ui.background.appGlassBackdrop
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.isSpecified
@@ -53,7 +55,11 @@ import com.kyant.backdrop.isRuntimeShaderSupported
 import com.kyant.backdrop.shadow.Shadow
 
 object LiquidGlassSettings {
-    var enabled: Boolean by mutableStateOf(true)
+    var userChoice: Boolean? by mutableStateOf(null)
+    var glassUiActive: Boolean by mutableStateOf(false)
+
+    val enabled: Boolean
+        get() = userChoice ?: !glassUiActive
 }
 
 fun isLiquidGlassAvailable(): Boolean = isRenderEffectSupported()
@@ -275,7 +281,8 @@ internal fun Modifier.liquidGlassSurface(
     backdropOpacity: Float = 1f,
 ): Modifier =
     if (backdrop == null || !isLiquidGlassSupported()) {
-        if (fallbackBrush != null) clip(shape).background(fallbackBrush) else clip(shape).background(fallback)
+        val staticGlass = clip(shape).composed { appGlassBackdrop(shape) }
+        if (fallbackBrush != null) staticGlass.background(fallbackBrush) else staticGlass.background(fallback)
     } else {
         drawBackdrop(
             backdrop = backdrop,
@@ -337,6 +344,7 @@ internal fun Modifier.ambientLiquidGlass(
     withShadow: Boolean = false,
     fallbackBrush: Brush? = null,
     backdropOpacity: Float = 1f,
+    staticFromBackdrop: Boolean = false,
 ): Modifier {
     val backdrop = LocalLiquidGlassBackdrop.current
     val host = backdrop as? LiquidGlassBackdropHost
@@ -347,6 +355,9 @@ internal fun Modifier.ambientLiquidGlass(
         }
     }
     val ready = backdrop != null && (host?.isReady ?: true)
+    if (staticFromBackdrop && ready && backdrop is NuvioBackdrop && !isLiquidGlassSupported()) {
+        return clip(shape) then StaticBackdropGlassElement(backdrop, tint)
+    }
     return liquidGlassSurface(
         backdrop = if (ready) backdrop else null,
         shape = shape,
@@ -361,4 +372,54 @@ internal fun Modifier.ambientLiquidGlass(
         fallbackBrush = fallbackBrush,
         backdropOpacity = backdropOpacity,
     )
+}
+
+private class StaticBackdropGlassElement(
+    val backdrop: NuvioBackdrop,
+    val tint: Color,
+) : ModifierNodeElement<StaticBackdropGlassNode>() {
+
+    override fun create(): StaticBackdropGlassNode = StaticBackdropGlassNode(backdrop, tint)
+
+    override fun update(node: StaticBackdropGlassNode) {
+        node.backdrop = backdrop
+        node.tint = tint
+        node.invalidateDraw()
+    }
+
+    override fun InspectorInfo.inspectableProperties() {
+        name = "staticBackdropGlass"
+        properties["backdrop"] = backdrop
+        properties["tint"] = tint
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is StaticBackdropGlassElement) return false
+        return backdrop == other.backdrop && tint == other.tint
+    }
+
+    override fun hashCode(): Int = 31 * backdrop.hashCode() + tint.hashCode()
+}
+
+private class StaticBackdropGlassNode(
+    var backdrop: NuvioBackdrop,
+    var tint: Color,
+) : DrawModifierNode, GlobalPositionAwareModifierNode, Modifier.Node() {
+
+    private var coordinates: LayoutCoordinates? = null
+
+    override fun onGloballyPositioned(coordinates: LayoutCoordinates) {
+        this.coordinates = coordinates
+        invalidateDraw()
+    }
+
+    override fun ContentDrawScope.draw() {
+        val target = coordinates
+        if (target != null) {
+            with(backdrop) { drawBackdrop(requireDensity(), target, null) }
+        }
+        if (tint.alpha > 0f) drawRect(tint)
+        drawContent()
+    }
 }

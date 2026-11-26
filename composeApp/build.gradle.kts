@@ -3,11 +3,13 @@ import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
-import org.gradle.api.tasks.InputFile
-import org.gradle.api.tasks.Optional
+import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.TaskAction
+import org.gradle.process.CommandLineArgumentProvider
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.plugin.mpp.TestExecutable
+import org.jetbrains.kotlin.gradle.targets.native.tasks.KotlinNativeSimulatorTest
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
 import java.util.Properties
 
@@ -15,8 +17,7 @@ abstract class GenerateRuntimeConfigsTask : DefaultTask() {
     @get:OutputDirectory
     abstract val outputDir: DirectoryProperty
 
-    @get:Optional
-    @get:InputFile
+    @get:InputFiles
     abstract val localPropertiesFile: RegularFileProperty
 
     @get:Input
@@ -224,6 +225,19 @@ abstract class GenerateRuntimeConfigsTask : DefaultTask() {
             ?.replace("http://api.introdb.app", "https://api.introdb.app")
             ?: "https://api.introdb.app"
 
+        outDir.resolve("com/nuvio/app/features/mdblist").apply {
+            mkdirs()
+            resolve("MdbListConfig.kt").writeText(
+                """
+                |package com.nuvio.app.features.mdblist
+                |
+                |object MdbListConfig {
+                |    const val CLIENT_ID = "${props.getProperty("MDBLIST_CLIENT_ID", "")}"
+                |}
+                """.trimMargin()
+            )
+        }
+
         outDir.resolve("com/nuvio/app/features/player/skip").apply {
             mkdirs()
             resolve("IntroDbConfig.kt").writeText(
@@ -246,6 +260,7 @@ abstract class GenerateRuntimeConfigsTask : DefaultTask() {
                 |object ImdbEpisodeRatingsConfig {
                 |    const val IMDB_RATINGS_API_BASE_URL = "${props.getProperty("IMDB_RATINGS_API_BASE_URL", "https://seriesgraph.com/")}"
                 |    const val IMDB_TAPFRAME_API_BASE_URL = "${props.getProperty("IMDB_TAPFRAME_API_BASE_URL", "https://imdb.tapframe.space/")}"
+                |    const val OMDB_API_KEY = "${props.getProperty("OMDB_API_KEY", "")}"
                 |}
                 """.trimMargin()
             )
@@ -338,8 +353,12 @@ val supabaseProps = Properties().apply {
     if (propsFile.exists()) propsFile.inputStream().use { load(it) }
 }
 val appVersionConfigFile = rootProject.file("iosApp/Configuration/Version.xcconfig")
-val releaseAppVersionName = readXcconfigValue(appVersionConfigFile, "MARKETING_VERSION")
+val releaseAppVersionName = providers.gradleProperty("nuvio.app.versionName").orNull
+    ?: readXcconfigValue(appVersionConfigFile, "MARKETING_VERSION")
     ?: error("MARKETING_VERSION is missing from ${appVersionConfigFile.path}")
+val iosReleaseDisabledPhases = providers.gradleProperty("nuvio.ios.releaseDisablePhases").orNull
+    ?.trim()
+    ?.takeIf { it.isNotEmpty() }
 val releaseAppVersionCode = readXcconfigValue(appVersionConfigFile, "CURRENT_PROJECT_VERSION")
     ?.toIntOrNull()
     ?: error("CURRENT_PROJECT_VERSION is missing or invalid in ${appVersionConfigFile.path}")
@@ -494,6 +513,14 @@ tasks.withType<KotlinCompilationTask<*>>().configureEach {
     }
 }
 
+composeCompiler {
+    stabilityConfigurationFiles.add(layout.projectDirectory.file("compose-stability.conf"))
+    if (providers.gradleProperty("nuvio.composeCompilerReports").map(String::toBoolean).getOrElse(false)) {
+        reportsDestination.set(layout.buildDirectory.dir("compose_compiler"))
+        metricsDestination.set(layout.buildDirectory.dir("compose_compiler"))
+    }
+}
+
 kotlin {
     android {
         namespace = "com.nuvio.app"
@@ -563,23 +590,48 @@ kotlin {
             baseName = "ComposeApp"
             isStatic = true
             freeCompilerArgs += listOf("-Xbinary=bundleId=$iosFrameworkBundleId")
-            if (iosDistribution == "full" && buildType.name == "RELEASE") {
-                optimized = true
-                freeCompilerArgs += "-Xdisable-phases=DevirtualizationAnalysis,RemoveRedundantCallsToStaticInitializersPhase"
+            iosReleaseDisabledPhases?.let { phases ->
+                if (buildType == org.jetbrains.kotlin.gradle.plugin.mpp.NativeBuildType.RELEASE) {
+                    freeCompilerArgs += listOf("-Xdisable-phases=$phases")
+                }
             }
+
+            // Biometric authentication and the profile PIN cache use Apple Security,
+            // LocalAuthentication, and CoreFoundation APIs on every iOS distribution.
+            linkerOpts(
+                "-framework", "Security",
+                "-framework", "LocalAuthentication",
+                "-framework", "CoreFoundation",
+            )
             if (iosDistribution == "full") {
                 linkerOpts(
                     "-lc++",
-                    "-framework", "Security",
                     "-framework", "SystemConfiguration",
-                    "-framework", "CoreFoundation",
                 )
+            }
+        }
+
+        if (iosTarget.name == "iosSimulatorArm64") {
+            val testEntitlements = project.file("src/iosTest/resources/keychain-test.entitlements")
+            iosTarget.binaries.withType<TestExecutable>().configureEach {
+                linkerOpts("-sectcreate", "__TEXT", "__entitlements", testEntitlements.absolutePath)
+                linkTaskProvider.configure { inputs.file(testEntitlements) }
             }
         }
     }
     
+    compilerOptions {
+        freeCompilerArgs.add("-Xexpect-actual-classes")
+    }
+
     sourceSets {
-        val commonMain by getting {
+        all {
+            languageSettings.optIn("coil3.annotation.ExperimentalCoilApi")
+        }
+        matching { it.name.startsWith("ios") }.configureEach {
+            languageSettings.optIn("kotlinx.cinterop.BetaInteropApi")
+        }
+        val commonMain = getByName("commonMain") {
             kotlin.srcDir(generatedRuntimeConfigDir)
         }
         androidMain {
@@ -591,25 +643,32 @@ kotlin {
             dependencies {
                 implementation(libs.compose.uiToolingPreview)
                 implementation(libs.androidx.appcompat)
+                implementation(libs.androidx.documentfile)
                 implementation(libs.androidx.activity.compose)
                 implementation(libs.androidx.core.splashscreen)
                 implementation(libs.androidx.work.runtime)
+                implementation(libs.androidx.biometric)
                 implementation(libs.coil.gif)
                 implementation("androidx.recyclerview:recyclerview:1.4.0")
                 implementation("com.squareup.okhttp3:okhttp:4.12.0")
                 implementation("com.squareup.okhttp3:okhttp-dnsoverhttps:4.12.0")
                 implementation("com.google.code.gson:gson:2.11.0")
                 implementation("org.tukaani:xz:1.10")
-                implementation("io.github.peerless2012:ass-media:0.4.0-beta01")
+                // libass - atlas-based subtitle rendering (from NuvioMedia/nuvio-libass)
+                implementation(files("libs/nuvio-libass-release.aar"))
                 implementation(libs.ktor.client.okhttp)
                 implementation(libs.sentry.android)
+                implementation(libs.play.services.cast.framework)
+                implementation(libs.androidx.mediarouter)
                 implementation(libs.androidx.media3.exoplayer.hls)
                 implementation(libs.androidx.media3.exoplayer.dash)
                 implementation(libs.androidx.media3.exoplayer.smoothstreaming)
                 implementation(libs.androidx.media3.exoplayer.rtsp)
                 implementation(libs.androidx.media3.datasource)
+                implementation(libs.androidx.media3.database)
                 implementation(libs.androidx.media3.datasource.okhttp)
                 implementation(libs.androidx.media3.decoder)
+                implementation(libs.androidx.media3.effect)
                 implementation(libs.androidx.media3.session)
                 implementation(libs.androidx.media3.common)
                 implementation(libs.androidx.media3.container)
@@ -639,7 +698,7 @@ kotlin {
                 }
             }
         }
-        getByName("androidHostTest") {
+        val androidHostTest = getByName("androidHostTest") {
             dependencies {
                 implementation(libs.androidx.activity.compose)
                 implementation("org.robolectric:robolectric:4.16")
@@ -667,6 +726,7 @@ kotlin {
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
             implementation(libs.compose.material3)
+            implementation(libs.compose.materialRipple)
             implementation(libs.compose.materialIconsExtended)
             implementation(libs.compose.ui)
             implementation(libs.compose.components.resources)
@@ -674,6 +734,7 @@ kotlin {
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
             implementation(libs.kotlinx.serialization.json)
+            implementation(libs.kotlinx.datetime)
             implementation(libs.kotlinx.atomicfu)
             implementation(libs.kmpalette.core)
             implementation(libs.androidx.navigation.compose)
@@ -683,13 +744,27 @@ kotlin {
             implementation(libs.supabase.realtime)
             implementation(libs.supabase.auth)
             implementation(libs.supabase.functions)
+            implementation(libs.supabase.storage)
             implementation(libs.reorderable)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutines.test)
+            implementation("io.ktor:ktor-client-mock:${libs.versions.ktor.get()}")
         }
     }
+}
+
+val bootIosTestSimulator = tasks.register<Exec>("bootIosTestSimulator") {
+    val device = tasks.named<KotlinNativeSimulatorTest>("iosSimulatorArm64Test").flatMap { it.device }
+    commandLine("xcrun", "simctl", "boot")
+    argumentProviders.add(CommandLineArgumentProvider { listOf(device.get()) })
+    isIgnoreExitValue = true
+}
+
+tasks.withType<KotlinNativeSimulatorTest>().configureEach {
+    standalone.set(false)
+    dependsOn(bootIosTestSimulator)
 }
 
 configurations.matching { it.name == "iosMainImplementation" }.configureEach {

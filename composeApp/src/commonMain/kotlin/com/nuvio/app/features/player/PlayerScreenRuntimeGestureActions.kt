@@ -3,6 +3,8 @@ package com.nuvio.app.features.player
 import androidx.compose.runtime.Composable
 import com.nuvio.app.features.party.PartyRepository
 import androidx.compose.runtime.State
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -12,6 +14,8 @@ import kotlinx.coroutines.launch
 import nuvio.composeapp.generated.resources.*
 import kotlin.math.abs
 import kotlin.math.roundToInt
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.TimeSource
 
 internal data class PlayerSurfaceGestureCallbacks(
     val onSurfaceTap: State<(Offset) -> Unit>,
@@ -27,6 +31,7 @@ internal data class PlayerSurfaceGestureCallbacks(
     val revealLockedOverlay: State<() -> Unit>,
     val isHoldToSpeedGestureActive: State<Boolean>,
     val touchGesturesEnabled: State<Boolean>,
+    val swipeToSeekEnabled: State<Boolean>,
     val playerControlsLocked: State<Boolean>,
     val currentPositionMs: State<Long>,
     val currentDurationMs: State<Long>,
@@ -69,8 +74,14 @@ internal fun PlayerScreenRuntime.lockPlayerControls() {
     showAudioModal = false
     showSubtitleModal = false
     showVideoSettingsModal = false
+    showStreamInfoModal = false
+    showUserRatingSheet = false
+    showStreamInfo = false
+    showPartyPanel = false
     showSourcesPanel = false
     showEpisodesPanel = false
+    showChaptersPanel = false
+    showDiscTitlesPanel = false
     episodeStreamsPanelState = EpisodeStreamsPanelState()
     PlayerStreamsRepository.clearEpisodeStreams()
 }
@@ -132,11 +143,13 @@ internal fun PlayerScreenRuntime.showBrightnessFeedback(level: Float) {
             messageRes = Res.string.compose_player_brightness_level,
             messageArgs = listOf("$percentage%"),
             icon = GestureFeedbackIcon.Brightness,
+            level = level.coerceIn(0f, 1f),
         ),
     )
 }
 
 internal fun PlayerScreenRuntime.showVolumeFeedback(level: PlayerAudioLevel) {
+    notifyVolumeLevelForAutoSubtitle(level)
     val percentage = (level.fraction.coerceIn(0f, PlayerMaximumVolumeGestureFraction) * 100f).roundToInt()
     val boostRatio = ((percentage - 100f) / 100f).coerceIn(0f, 1f)
     showGestureFeedback(
@@ -164,7 +177,19 @@ internal fun PlayerScreenRuntime.applyVolumeBoostPercent(percent: Int) {
     playerController?.setVolumeBoost(normalized / 100f)
 }
 
+internal const val PlayerKeyVolumeStep = 1f / 15f
+
+internal fun PlayerScreenRuntime.changeVolumeBy(delta: Float) {
+    val controller = gestureController ?: return
+    val current = controller.currentVolume()?.fraction ?: return
+    controller.setVolume(current + delta)?.let(::showVolumeFeedback)
+}
+
 internal fun PlayerScreenRuntime.togglePlayback() {
+    if (isPartyControlLocked) {
+        toggleOwnPlayback()
+        return
+    }
     if (playbackSnapshot.isPlaying) {
         shouldPlay = false
         playerController?.pause()
@@ -176,6 +201,26 @@ internal fun PlayerScreenRuntime.togglePlayback() {
         playerController?.play()
     }
     controlsVisible = true
+    publishPartyPlayback(positionMs = if (playbackSnapshot.isEnded) 0L else currentPlaybackPositionMs())
+}
+
+/** Sets the requested state; system controls may send pause, skip and play in a row. */
+internal fun PlayerScreenRuntime.setPlaybackPlaying(playing: Boolean) {
+    if (playing == shouldPlay) return
+    if (isPartyControlLocked) {
+        toggleOwnPlayback()
+        return
+    }
+    val restart = playing && playbackSnapshot.isEnded
+    if (restart) playerController?.seekTo(0L)
+    shouldPlay = playing
+    if (playing) playerController?.play() else playerController?.pause()
+    // A seek issued just before may not be reflected in the playback snapshot yet.
+    val positionMs = pendingSeekTarget
+        ?.takeIf { (_, mark) -> mark.elapsedNow() < PendingSeekWindow }
+        ?.first
+        ?: currentPlaybackPositionMs()
+    publishPartyPlayback(positionMs = if (restart) 0L else positionMs)
 }
 
 internal fun manualSeekTargetPosition(positionMs: Long, durationMs: Long): Long =
@@ -189,27 +234,57 @@ internal fun PlayerScreenRuntime.rememberManualSeekPosition(positionMs: Long) {
     initialSeekApplied = true
 }
 
-internal fun PlayerScreenRuntime.seekToPosition(positionMs: Long) {
-    val targetPositionMs = manualSeekTargetPosition(
+internal fun PlayerScreenRuntime.seekToPosition(
+    positionMs: Long,
+    notifyRewind: Boolean = true,
+) {
+    trySeekToPosition(positionMs, notifyRewind)
+}
+
+internal fun PlayerScreenRuntime.trySeekToPosition(
+    positionMs: Long,
+    notifyRewind: Boolean = true,
+): Boolean {
+    val requestedPositionMs = manualSeekTargetPosition(
         positionMs = positionMs,
         durationMs = playbackSnapshot.durationMs,
     )
-    val controller = playerController ?: return
+    val targetPositionMs = if (isPartyControlLocked) {
+        ownSeekTarget(requestedPositionMs) ?: return false
+    } else {
+        requestedPositionMs
+    }
+    val controller = playerController ?: return false
+    val fromPositionMs = playbackSnapshot.positionMs.coerceAtLeast(0L)
+    lastManualSkipSeekPositions = fromPositionMs to targetPositionMs
+    pendingSeekTarget = targetPositionMs to TimeSource.Monotonic.markNow()
     controller.seekTo(targetPositionMs)
     rememberManualSeekPosition(targetPositionMs)
     scheduleProgressSyncAfterSeek()
+    publishPartyPlayback(positionMs = targetPositionMs)
+    if (notifyRewind && targetPositionMs < fromPositionMs) {
+        notifyRewindOccurred(fromPositionMs)
+    }
+    return true
 }
 
 internal fun PlayerScreenRuntime.seekBy(offsetMs: Long) {
-    val currentPositionMs = playbackSnapshot.positionMs.coerceAtLeast(0L)
+    val fromMs = pendingSeekTarget
+        ?.takeIf { (_, mark) -> mark.elapsedNow() < PendingSeekWindow }
+        ?.first
+        ?: playbackSnapshot.positionMs
+    val currentPositionMs = fromMs.coerceAtLeast(0L)
     val targetPositionMs = (currentPositionMs + offsetMs).coerceAtLeast(0L).let { position ->
         playbackSnapshot.durationMs.takeIf { it > 0L }?.let { position.coerceAtMost(it) } ?: position
     }
-    seekToPosition(targetPositionMs)
+    if (!trySeekToPosition(targetPositionMs, notifyRewind = false)) return
     controlsVisible = true
     when {
         offsetMs > 0L -> showSeekFeedback(PlayerSeekDirection.Forward, offsetMs)
-        offsetMs < 0L -> showSeekFeedback(PlayerSeekDirection.Backward, abs(offsetMs))
+        offsetMs < 0L -> {
+            showSeekFeedback(PlayerSeekDirection.Backward, abs(offsetMs))
+            notifyRewindOccurred(currentPositionMs)
+        }
     }
 }
 
@@ -229,6 +304,23 @@ internal fun PlayerScreenRuntime.skipStepMs(direction: PlayerSeekDirection): Lon
         skipForwardSeconds = playerSettingsUiState.skipForwardSeconds,
     )
 
+/**
+ * Single entry point for hardware-keyboard shortcuts, whichever layer recognised the key.
+ */
+internal fun PlayerScreenRuntime.handleKeyboardShortcut(shortcut: PlayerKeyboardShortcut) {
+    if (playerControlsLocked || isAnyOverlayVisible) return
+    when (shortcut) {
+        PlayerKeyboardShortcut.TogglePlayback -> togglePlayback()
+        PlayerKeyboardShortcut.SeekBackward -> seekBy(-skipStepMs(PlayerSeekDirection.Backward))
+        PlayerKeyboardShortcut.SeekForward -> seekBy(skipStepMs(PlayerSeekDirection.Forward))
+        PlayerKeyboardShortcut.VolumeUp -> changeVolumeBy(PlayerKeyVolumeStep)
+        PlayerKeyboardShortcut.VolumeDown -> changeVolumeBy(-PlayerKeyVolumeStep)
+        PlayerKeyboardShortcut.Exit -> {
+            flushWatchProgress()
+            args.onBack()
+        }
+    }
+}
 internal fun PlayerScreenRuntime.handleDoubleTapSeek(direction: PlayerSeekDirection) {
     val stepMs = skipStepMs(direction)
     val currentPositionMs = playbackSnapshot.positionMs.coerceAtLeast(0L)
@@ -242,10 +334,8 @@ internal fun PlayerScreenRuntime.handleDoubleTapSeek(direction: PlayerSeekDirect
             amountMs = stepMs,
         )
     }
-    accumulatedSeekState = nextState
-
     val maxDurationMs = playbackSnapshot.durationMs.takeIf { it > 0L }
-    val targetPositionMs = when (direction) {
+    val requestedPositionMs = when (direction) {
         PlayerSeekDirection.Backward -> {
             (nextState.baselinePositionMs - nextState.amountMs).coerceAtLeast(0L)
         }
@@ -254,8 +344,12 @@ internal fun PlayerScreenRuntime.handleDoubleTapSeek(direction: PlayerSeekDirect
             maxDurationMs?.let { unclamped.coerceAtMost(it) } ?: unclamped
         }
     }
-    seekToPosition(targetPositionMs)
+    if (!trySeekToPosition(requestedPositionMs, notifyRewind = false)) return
+    accumulatedSeekState = nextState
     showSeekFeedback(direction, nextState.amountMs)
+    if (direction == PlayerSeekDirection.Backward) {
+        notifyRewindOccurred(nextState.baselinePositionMs)
+    }
 
     accumulatedSeekResetJob?.cancel()
     accumulatedSeekResetJob = scope.launch {
@@ -295,20 +389,37 @@ internal fun PlayerScreenRuntime.pinchVideoZoom(zoomFactor: Float) {
     if (next == videoZoom) return
     videoZoom = next
     playerController?.setVideoZoom(next)
-    showGestureMessage((next * 100f).roundToInt().toString() + "%")
+    showGestureFeedback(
+        GestureFeedbackState(
+            message = "${(next * 100f).roundToInt()}%",
+            icon = GestureFeedbackIcon.VideoZoom,
+        ),
+    )
+}
+
+internal fun PlayerScreenRuntime.setPlaybackSpeedFromPicker(speed: Float) {
+    if (partyBlocksControl()) return
+    partyRateNudge = null
+    playerController?.setPlaybackSpeed(speed)
+    publishPartyPlayback(rate = speed)
+    showGestureMessage(formatPlaybackSpeedLabel(speed))
 }
 
 internal fun PlayerScreenRuntime.cyclePlaybackSpeed() {
+    if (partyBlocksControl()) return
     val speeds = listOf(1f, 1.25f, 1.5f, 2f)
     val current = playbackSnapshot.playbackSpeed
     val next = speeds.firstOrNull { it > current + 0.01f } ?: speeds.first()
+    partyRateNudge = null
     playerController?.setPlaybackSpeed(next)
+    publishPartyPlayback(rate = next)
     showGestureMessage(formatPlaybackSpeedLabel(next))
     controlsVisible = true
 }
 
 internal fun PlayerScreenRuntime.activateHoldToSpeed() {
     if (!playerSettingsUiState.holdToSpeedEnabled) return
+    if (isPartySynced) return
     val controller = playerController ?: return
     if (speedBoostRestoreSpeed != null) return
 
@@ -384,9 +495,10 @@ internal fun PlayerScreenRuntime.rememberSurfaceGestureCallbacks(): PlayerSurfac
         revealLockedOverlay = rememberUpdatedState(::revealLockedOverlay),
         isHoldToSpeedGestureActive = rememberUpdatedState(isHoldToSpeedGestureActive),
         touchGesturesEnabled = rememberUpdatedState(playerSettingsUiState.touchGesturesEnabled),
+        swipeToSeekEnabled = rememberUpdatedState(playerSettingsUiState.swipeToSeekEnabled),
         playerControlsLocked = rememberUpdatedState(playerControlsLocked),
-        currentPositionMs = rememberUpdatedState(playbackSnapshot.positionMs.coerceAtLeast(0L)),
-        currentDurationMs = rememberUpdatedState(playbackSnapshot.durationMs),
+        currentPositionMs = remember(this) { derivedStateOf { playbackSnapshot.positionMs.coerceAtLeast(0L) } },
+        currentDurationMs = remember(this) { derivedStateOf { playbackSnapshot.durationMs } },
         commitHorizontalSeek = rememberUpdatedState { targetPositionMs: Long ->
             seekToPosition(targetPositionMs)
         },
@@ -406,3 +518,5 @@ private fun boostedVolumeAccent(boostRatio: Float): Color {
         alpha = 1f,
     )
 }
+
+private val PendingSeekWindow = 1_500.milliseconds

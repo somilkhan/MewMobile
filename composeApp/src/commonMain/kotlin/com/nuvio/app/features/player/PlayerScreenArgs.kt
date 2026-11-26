@@ -1,6 +1,7 @@
 package com.nuvio.app.features.player
 
 import androidx.compose.ui.Modifier
+import com.nuvio.app.features.party.PartyMedia
 
 internal data class PlayerScreenArgs(
     val profileId: Int,
@@ -16,9 +17,10 @@ internal data class PlayerScreenArgs(
     val initialBingeGroup: String?,
     val pauseDescription: String?,
     val onBack: () -> Unit,
-    val onOpenPartyMedia: ((com.nuvio.app.features.party.PartyMedia) -> Unit)?,
+    val onOpenPartyMedia: ((PartyMedia) -> Unit)? = null,
     val onOpenInExternalPlayer: ((ExternalPlayerPlaybackRequest) -> Unit)?,
     val onOpenExternalUrl: ((String) -> Unit)?,
+    val onOpenMetaDetails: ((com.nuvio.app.features.home.MetaPreview) -> Unit)? = null,
     val modifier: Modifier,
     val logo: String?,
     val poster: String?,
@@ -45,4 +47,10 @@ internal data class PlayerScreenArgs(
     val initialStreamInfoHash: String? = null,
     val miniPlayerLaunch: PlayerLaunch? = null,
     val miniPresentation: Boolean = false,
+    val subtitleExtras: SubtitleRequestExtras? = null,
+    val launchId: Long? = null,
+    val sourceFilename: String? = null,
+    val stream: com.nuvio.app.features.streams.StreamItem? = null,
+    val sourceFromLinkCache: Boolean = false,
+    val sourceAutoSelected: Boolean = false,
 )

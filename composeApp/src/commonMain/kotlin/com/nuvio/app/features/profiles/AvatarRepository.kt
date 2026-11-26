@@ -36,7 +36,7 @@ object AvatarRepository {
         doFetch()
     }
 
-    suspend fun refreshAvatars() {
+    suspend fun refreshAvatars(@Suppress("UNUSED_PARAMETER") force: Boolean = false) {
         hydrateFromCacheIfNeeded()
         if (!loaded) return
         doFetch()

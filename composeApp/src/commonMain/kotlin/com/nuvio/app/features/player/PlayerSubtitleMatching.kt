@@ -252,6 +252,13 @@ internal object SubtitleLanguageMatching {
             }
         }
 
+        if (containsAny("bahasa indonesia", "indonesian", "indonesia")) {
+            return "id"
+        }
+        if (containsAny("bahasa malaysia", "bahasa melayu", "malaysian")) {
+            return "ms"
+        }
+
         return LANGUAGE_OVERRIDES[code] ?: normalizedCode
     }
 
@@ -304,7 +311,7 @@ internal object SubtitleLanguageMatching {
         }
 
         if (baseLang == "ms" || baseLang == "msa" || baseLang == "may") {
-            val hasIndonesian = INDONESIAN_TAGS.any(haystack::contains)
+            val hasIndonesian = INDONESIAN_TAGS.any { haystack.contains(it) }
             if (hasIndonesian) return "id"
             return baseLang
         }

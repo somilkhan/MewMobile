@@ -19,6 +19,17 @@ import platform.Foundation.NSUserDefaults
 
 actual object PlayerSettingsStorage {
     private const val pendingExternalPlaybackKey = "pending_external_playback"
+    private const val nextEpisodeSwipeDismissEnabledKey = "next_episode_swipe_dismiss_enabled"
+    private const val playerClockEndTimeEnabledKey = "player_clock_end_time_enabled"
+    private const val playerLiquidGlassEnabledKey = "player_liquid_glass_enabled"
+    private const val randomNextEpisodeEnabledKey = "random_next_episode_enabled"
+    private const val stableOpeningOverlayEnabledKey = "stable_opening_overlay_enabled"
+    private const val subtitleCustomFontNameKey = "subtitle_custom_font_name"
+    private const val subtitleCustomFontPathKey = "subtitle_custom_font_path"
+    private const val subtitleFontFamilyKey = "subtitle_font_family"
+    private const val subtitleShadowEnabledKey = "subtitle_shadow_enabled"
+    private const val subtitleShadowStrengthKey = "subtitle_shadow_strength"
+    private const val subtitleSyncMenuEnabledKey = "subtitle_sync_menu_enabled"
     private const val playbackBrightnessKey = "playback_brightness"
     private const val useLegacyPlayerLayoutKey = "use_legacy_player_layout"
     private const val showPlayerTitleLogoKey = "show_player_title_logo"
@@ -248,6 +259,33 @@ actual object PlayerSettingsStorage {
         NSUserDefaults.standardUserDefaults.setFloat(level, forKey = ProfileScopedKey.of(playbackBrightnessKey))
     }
 
+    // Mew hook: Mew-only player settings (brightness memory, volume boost, memory-safe buffers, addon subtitle startup).
+    private const val rememberPlayerBrightnessEnabledKey = "remember_player_brightness_enabled"
+    private const val rememberedPlayerBrightnessKey = "remembered_player_brightness"
+    private const val volumeBoostPercentKey = "volume_boost_percent"
+    private const val addonSubtitleStartupModeKey = "addon_subtitle_startup_mode"
+    private const val androidMemorySafeBufferEnabledKey = "android_memory_safe_buffer_enabled"
+
+    actual fun loadRememberPlayerBrightnessEnabled(): Boolean? = loadBoolean(rememberPlayerBrightnessEnabledKey)
+    actual fun saveRememberPlayerBrightnessEnabled(enabled: Boolean) = saveBoolean(rememberPlayerBrightnessEnabledKey, enabled)
+    actual fun loadRememberedPlayerBrightness(): Float? {
+        val defaults = NSUserDefaults.standardUserDefaults
+        val key = ProfileScopedKey.of(rememberedPlayerBrightnessKey)
+        return if (defaults.objectForKey(key) != null) defaults.floatForKey(key) else null
+    }
+    actual fun saveRememberedPlayerBrightness(level: Float) {
+        NSUserDefaults.standardUserDefaults.setFloat(level.coerceIn(0.02f, 1f), forKey = ProfileScopedKey.of(rememberedPlayerBrightnessKey))
+    }
+    actual fun loadVolumeBoostPercent(): Int? = loadInt(volumeBoostPercentKey)
+    actual fun saveVolumeBoostPercent(percent: Int) = saveInt(volumeBoostPercentKey, percent)
+    actual fun loadAddonSubtitleStartupMode(): String? =
+        NSUserDefaults.standardUserDefaults.stringForKey(ProfileScopedKey.of(addonSubtitleStartupModeKey))
+    actual fun saveAddonSubtitleStartupMode(mode: String) {
+        NSUserDefaults.standardUserDefaults.setObject(mode, forKey = ProfileScopedKey.of(addonSubtitleStartupModeKey))
+    }
+    actual fun loadAndroidMemorySafeBufferEnabled(): Boolean? = loadBoolean(androidMemorySafeBufferEnabledKey)
+    actual fun saveAndroidMemorySafeBufferEnabled(enabled: Boolean) = saveBoolean(androidMemorySafeBufferEnabledKey, enabled)
+
     private fun loadBoolean(keyBase: String): Boolean? {
         val defaults = NSUserDefaults.standardUserDefaults
         val key = ProfileScopedKey.of(keyBase)
@@ -322,14 +360,6 @@ actual object PlayerSettingsStorage {
     actual fun saveNextEpisodeSwipeDismissEnabled(enabled: Boolean) {
         NSUserDefaults.standardUserDefaults.setBool(enabled, forKey = ProfileScopedKey.of(nextEpisodeSwipeDismissEnabledKey))
     }
-    actual fun loadMiniPlayerEnabled(): Boolean? {
-        val defaults = NSUserDefaults.standardUserDefaults
-        val key = ProfileScopedKey.of(miniPlayerEnabledKey)
-        return if (defaults.objectForKey(key) != null) defaults.boolForKey(key) else null
-    }
-    actual fun saveMiniPlayerEnabled(enabled: Boolean) {
-        NSUserDefaults.standardUserDefaults.setBool(enabled, forKey = ProfileScopedKey.of(miniPlayerEnabledKey))
-    }
 
     actual fun loadShowLoadingOverlay(): Boolean? {
         val defaults = NSUserDefaults.standardUserDefaults
@@ -349,20 +379,6 @@ actual object PlayerSettingsStorage {
 
     actual fun saveShowPlayerLoadingStatus(enabled: Boolean) {
         saveBoolean(showPlayerLoadingStatusKey, enabled)
-    }
-
-    actual fun loadPauseOverlayEnabled(): Boolean? {
-        val defaults = NSUserDefaults.standardUserDefaults
-        val key = ProfileScopedKey.of(pauseOverlayEnabledKey)
-        return if (defaults.objectForKey(key) != null) {
-            defaults.boolForKey(key)
-        } else {
-            null
-        }
-    }
-
-    actual fun savePauseOverlayEnabled(enabled: Boolean) {
-        NSUserDefaults.standardUserDefaults.setBool(enabled, forKey = ProfileScopedKey.of(pauseOverlayEnabledKey))
     }
 
     actual fun loadUseLegacyPlayerLayout(): Boolean? {
@@ -441,13 +457,6 @@ actual object PlayerSettingsStorage {
         NSUserDefaults.standardUserDefaults.setFloat(speed, forKey = ProfileScopedKey.of(holdToSpeedValueKey))
     }
 
-    actual fun loadToolbarLayout(): String? =
-        NSUserDefaults.standardUserDefaults.stringForKey(ProfileScopedKey.of(toolbarLayoutKey))
-
-    actual fun saveToolbarLayout(layout: String) {
-        NSUserDefaults.standardUserDefaults.setObject(layout, forKey = ProfileScopedKey.of(toolbarLayoutKey))
-    }
-
     actual fun loadLegacyBottomButtons(): String? =
         NSUserDefaults.standardUserDefaults.stringForKey(ProfileScopedKey.of(legacyBottomButtonsKey))
 
@@ -462,17 +471,9 @@ actual object PlayerSettingsStorage {
         NSUserDefaults.standardUserDefaults.setObject(layout, forKey = ProfileScopedKey.of(legacyTopButtonsKey))
     }
 
-    actual fun loadSkipBackwardSeconds(): Int? = loadInt(skipBackwardSecondsKey)
-
-    actual fun saveSkipBackwardSeconds(seconds: Int) = saveInt(skipBackwardSecondsKey, seconds)
-
     actual fun loadSkipIntroOffsetSeconds(): Int? = loadInt(skipIntroOffsetSecondsKey)
 
     actual fun saveSkipIntroOffsetSeconds(seconds: Int) = saveInt(skipIntroOffsetSecondsKey, seconds)
-
-    actual fun loadSkipForwardSeconds(): Int? = loadInt(skipForwardSecondsKey)
-
-    actual fun saveSkipForwardSeconds(seconds: Int) = saveInt(skipForwardSecondsKey, seconds)
 
     actual fun loadTouchGesturesEnabled(): Boolean? = loadBoolean(touchGesturesEnabledKey)
 
@@ -935,20 +936,6 @@ actual object PlayerSettingsStorage {
 
     actual fun saveAndroidExoChaptersEnabled(enabled: Boolean) {
         NSUserDefaults.standardUserDefaults.setBool(enabled, forKey = ProfileScopedKey.of(androidExoChaptersEnabledKey))
-    }
-
-    actual fun loadChapterTitleEnabled(): Boolean? {
-        val defaults = NSUserDefaults.standardUserDefaults
-        val key = ProfileScopedKey.of(chapterTitleEnabledKey)
-        return if (defaults.objectForKey(key) != null) {
-            defaults.boolForKey(key)
-        } else {
-            null
-        }
-    }
-
-    actual fun saveChapterTitleEnabled(enabled: Boolean) {
-        NSUserDefaults.standardUserDefaults.setBool(enabled, forKey = ProfileScopedKey.of(chapterTitleEnabledKey))
     }
 
     actual fun loadRememberAudioDelayPerDevice(): Boolean? {

@@ -56,6 +56,30 @@ import org.jetbrains.compose.resources.stringResource
 import com.nuvio.app.core.ui.isTvLayoutProfileEnabled
 import kotlin.math.abs
 import kotlin.math.roundToInt
+import androidx.compose.foundation.LocalIndication
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Hearing
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import com.nuvio.app.core.ui.nuvio
+import nuvio.composeapp.generated.resources.Res
+import nuvio.composeapp.generated.resources.compose_player_auto_sync
+import nuvio.composeapp.generated.resources.compose_player_capture_line
+import nuvio.composeapp.generated.resources.compose_player_loading_lines
+import nuvio.composeapp.generated.resources.compose_player_no_subtitle_lines_found
+import nuvio.composeapp.generated.resources.compose_player_reload
+import nuvio.composeapp.generated.resources.compose_player_reset
+import nuvio.composeapp.generated.resources.compose_player_select_addon_subtitle_first
+import nuvio.composeapp.generated.resources.compose_player_style
+import nuvio.composeapp.generated.resources.compose_player_subtitle_delay
+import nuvio.composeapp.generated.resources.compose_player_sync_by_ear
+import nuvio.composeapp.generated.resources.subtitle_reset_appearance
+import kotlinx.coroutines.isActive
 
 @Composable
 fun SubtitleStylePanel(
@@ -1065,3 +1089,151 @@ private fun formatCueTimestamp(timeMs: Long): String {
     val seconds = totalSeconds % 60L
     return "${minutes}:${seconds.toString().padStart(2, '0')}"
 }
+
+// ---- luq 1.1.0-beta.3 shared subtitle/audio controls (used by AudioTrackModal and SubtitleAppearanceControls) ----
+private const val STEPPER_HOLD_START_MS = 500L
+private const val STEPPER_HOLD_REPEAT_MS = 100L
+@Composable
+internal fun SubtitleStyleSection(
+    title: String,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text(
+            text = title,
+            color = Color.White,
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        content()
+    }
+}
+
+/**
+ * [onDecreaseHold] and [onIncreaseHold], when set, repeat while the button is held and get how
+ * long it has been held; releasing after a repeat does not add a tap.
+ */
+@Composable
+internal fun SubtitleStyleStepper(
+    value: String,
+    onDecrease: () -> Unit,
+    onIncrease: () -> Unit,
+    valueWidth: Dp = 84.dp,
+    enabled: Boolean = true,
+    onDecreaseHold: ((heldMs: Long) -> Unit)? = null,
+    onIncreaseHold: ((heldMs: Long) -> Unit)? = null,
+) {
+    Row(
+        modifier = Modifier.alpha(if (enabled) 1f else 0.42f),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        SubtitleStepperButton(
+            icon = Icons.Rounded.Remove,
+            onClick = onDecrease,
+            enabled = enabled,
+            onHold = onDecreaseHold,
+        )
+        Box(
+            modifier = Modifier
+                .widthIn(min = valueWidth)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Color.White.copy(alpha = 0.06f))
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = value,
+                color = Color.White,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
+        SubtitleStepperButton(
+            icon = Icons.Rounded.Add,
+            onClick = onIncrease,
+            enabled = enabled,
+            onHold = onIncreaseHold,
+        )
+    }
+}
+
+@Composable
+private fun SubtitleStepperButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onClick: () -> Unit,
+    enabled: Boolean,
+    onHold: ((heldMs: Long) -> Unit)? = null,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    // True while a hold is repeating, so the release that ends it is not also counted as a tap.
+    // The click runs before the release recomposes and cancels the hold, which clears it.
+    val holdRepeated = remember { BooleanArray(1) }
+    if (onHold != null) {
+        val isPressed by interactionSource.collectIsPressedAsState()
+        val latestOnHold by rememberUpdatedState(onHold)
+        LaunchedEffect(isPressed, enabled) {
+            if (!isPressed || !enabled) return@LaunchedEffect
+            try {
+                delay(STEPPER_HOLD_START_MS)
+                var heldMs = STEPPER_HOLD_START_MS
+                while (isActive) {
+                    holdRepeated[0] = true
+                    latestOnHold(heldMs)
+                    delay(STEPPER_HOLD_REPEAT_MS)
+                    heldMs += STEPPER_HOLD_REPEAT_MS
+                }
+            } finally {
+                holdRepeated[0] = false
+            }
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .size(40.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color.White.copy(alpha = 0.08f))
+            .clickable(
+                interactionSource = interactionSource,
+                indication = LocalIndication.current,
+                enabled = enabled,
+            ) {
+                if (holdRepeated[0]) holdRepeated[0] = false else onClick()
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = Color.White,
+            modifier = Modifier.size(20.dp),
+        )
+    }
+}
+
+@Composable
+internal fun SubtitleTextAction(
+    label: String,
+    onClick: () -> Unit,
+    enabled: Boolean = true,
+) {
+    val tokens = MaterialTheme.nuvio
+
+    Box(
+        modifier = Modifier
+            .alpha(if (enabled) 1f else tokens.opacity.disabled)
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color.White.copy(alpha = 0.08f))
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+    ) {
+        Text(
+            text = label,
+            color = Color.White,
+            style = MaterialTheme.typography.labelLarge,
+        )
+    }
+}
+

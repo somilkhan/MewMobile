@@ -53,6 +53,8 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.nuvio.app.core.ui.NuvioBackButton
 import com.nuvio.app.core.ui.nuvioTypeScale
+import com.nuvio.app.core.ui.LocalVerticalBarPadding
+import com.nuvio.app.core.ui.centeredVerticalBarPadding
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.compose_player_close
 import org.jetbrains.compose.resources.stringResource
@@ -128,6 +130,7 @@ internal fun StableOpeningOverlay(
             onClick = onBack,
             modifier = Modifier
                 .align(Alignment.TopEnd)
+                .padding(LocalVerticalBarPadding.current)
                 .windowInsetsPadding(WindowInsets.safeContent.only(WindowInsetsSides.Top))
                 .padding(top = 20.dp, start = horizontalSafePadding, end = horizontalSafePadding + 20.dp),
             containerColor = Color.Black.copy(alpha = 0.3f),
@@ -150,7 +153,7 @@ internal fun StableOpeningOverlay(
         Layout(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(24.dp),
+                .padding(centeredVerticalBarPadding(24.dp)),
             content = {
                 Box(contentAlignment = Alignment.Center) {
                     if (logoUrl != null && !logoLoadError) {

@@ -97,7 +97,6 @@ internal actual object PlatformLocalAccountDataCleaner {
     actual fun wipe() {
         val defaults = NSUserDefaults.standardUserDefaults
 
-        com.nuvio.app.features.downloads.DownloadsStorage.clearUnfinishedDownloads()
 
         plainKeys.forEach(defaults::removeObjectForKey)
 

@@ -2,8 +2,8 @@ package com.nuvio.app.features.player
 
 /**
  * Reads the chapters once per source, when it has loaded: libmpv lists them itself, ExoPlayer
- * reads them from the file (when allowed), so a rebuffer must not read them again. Chapters feed
- * skip intro only, and only while "Skip Intro" is on.
+ * reads them from the file (when allowed), so a rebuffer must not read them again. They always
+ * feed skip intro, and reach the chapter UI only while "Show Chapters" is on, on either engine.
  */
 internal suspend fun PlayerScreenRuntime.loadChaptersIfNeeded() {
     val controller = playerController ?: return
@@ -12,17 +12,48 @@ internal suspend fun PlayerScreenRuntime.loadChaptersIfNeeded() {
     val loaded = PlayerChapters.normalize(controller.getChapters())
     if (activeSourceUrl != sourceUrl || playerController !== controller) return
     chaptersLoadedForSourceUrl = sourceUrl
+    chapters = if (playerSettingsUiState.androidExoChaptersEnabled) loaded else emptyList()
     onChaptersLoaded(loaded)
 }
 
+internal fun PlayerScreenRuntime.clearChaptersIfDisabled() {
+    if (playerSettingsUiState.androidExoChaptersEnabled) return
+    chapters = emptyList()
+    chaptersLoadedForSourceUrl = null
+    showChaptersPanel = false
+}
+
+internal fun PlayerScreenRuntime.openChaptersPanel() {
+    if (chapters.isEmpty()) return
+    showChaptersPanel = true
+    showSourcesPanel = false
+    showEpisodesPanel = false
+    showQualityPanel = false
+    showSpeedPanel = false
+    showLiveChannelsPanel = false
+    controlsVisible = false
+}
+
+internal fun PlayerScreenRuntime.selectChapter(index: Int) {
+    val chapter = chapters.getOrNull(index) ?: return
+    showChaptersPanel = false
+    lastManualSkipSeekPositions = playbackSnapshot.positionMs to chapter.startMs
+    finishTimelineScrub(chapter.startMs)
+    playerController?.seekTo(chapter.startMs)
+    scheduleProgressSyncAfterSeek()
+    controlsVisible = true
+}
+
 /**
- * Engines that do not implement getChapters (iOS mpv) or read them asynchronously publish
- * chapters on the playback snapshot instead; use those for skip detection.
+ * Fork: engines that do not implement getChapters (iOS mpv) or read them asynchronously publish
+ * chapters on the playback snapshot instead; use those for skip detection and, when "Show
+ * Chapters" is on, for the chapter UI.
  */
 internal fun PlayerScreenRuntime.adoptSnapshotChaptersIfNeeded() {
     val fromSnapshot = PlayerChapters.normalize(playbackSnapshot.chapters)
     if (fromSnapshot.isEmpty()) return
     if (skipDetectionChapters.isEmpty()) onChaptersLoaded(fromSnapshot)
+    if (playerSettingsUiState.androidExoChaptersEnabled && chapters.isEmpty()) chapters = fromSnapshot
 }
 
 /**

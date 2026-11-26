@@ -51,8 +51,9 @@ data class AppUpdaterUiState(
 )
 
 @Serializable
-private data class GitHubReleaseDto(
+internal data class GitHubReleaseDto( // Mew hook: internal so WhatsNew (luq) can reuse it
     @SerialName("tag_name") val tagName: String? = null,
+    @SerialName("published_at") val publishedAt: String? = null,
     val name: String? = null,
     val body: String? = null,
     val draft: Boolean = false,
@@ -63,7 +64,7 @@ private data class GitHubReleaseDto(
 )
 
 @Serializable
-private data class GitHubAssetDto(
+internal data class GitHubAssetDto(
     val name: String,
     @SerialName("browser_download_url") val browserDownloadUrl: String,
     val size: Long? = null,

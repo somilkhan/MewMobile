@@ -11,11 +11,13 @@ actual fun HeroTrailerPlayerSurface(
     playWhenReady: Boolean,
     muted: Boolean,
     modifier: Modifier,
+    startPositionMs: Long,
     onReady: () -> Unit,
     onEnded: () -> Unit,
     onError: () -> Unit,
     seekRequest: HeroTrailerSeekRequest?,
     onPlaybackStateChanged: (HeroTrailerPlaybackSnapshot) -> Unit,
+    onPositionUpdate: (Long) -> Unit,
 ) {
     LaunchedEffect(sourceUrl) {
         onError()

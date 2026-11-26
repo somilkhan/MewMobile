@@ -2,6 +2,12 @@ package com.nuvio.app.features.settings
 
 import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import com.nuvio.app.core.ui.LocalScreenActive
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
@@ -20,7 +26,7 @@ internal fun MemberBrandWordmark(
     height: Dp,
     modifier: Modifier = Modifier,
 ) {
-    AppBrandWordmark(
+    Row(
         modifier = modifier.height(height),
         contentDescription = "Mew",
     )

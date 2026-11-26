@@ -194,6 +194,7 @@ internal fun WatchProgressEntry.isLiveTvProgressEntry(): Boolean =
 private fun String.isLikelyLiveTvProgressValue(): Boolean =
     trim().lowercase() in setOf(
         "live-tv",
+        "live",
         "livetv",
         "live_tv",
         "channel",

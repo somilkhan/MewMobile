@@ -26,11 +26,11 @@ object TmdbSettingsRepository {
     private var useArtwork = true
     private var useBasicInfo = true
     private var useDetails = true
-    private var useReleaseDates = false
     private var useCredits = true
     private var useProductions = true
     private var useNetworks = true
     private var useEpisodes = true
+    private var useEpisodeRatings = true
     private var useSeasonPosters = true
     private var useMoreLikeThis = true
     private var useCollections = true
@@ -176,6 +176,15 @@ object TmdbSettingsRepository {
         persist = TmdbSettingsStorage::saveUseEpisodes,
     )
 
+    fun setUseEpisodeRatings(value: Boolean) {
+        ensureLoaded()
+        if (useEpisodeRatings == value) return
+        useEpisodeRatings = value
+        publish()
+        TmdbSettingsStorage.saveUseEpisodeRatings(value)
+        invalidateEpisodeRatingMetadata()
+    }
+
     fun setUseSeasonPosters(value: Boolean) = setBoolean(
         current = useSeasonPosters,
         next = value,
@@ -211,6 +220,9 @@ object TmdbSettingsRepository {
     }
 
     private fun loadFromDisk() {
+        val wasLoaded = hasLoaded
+        val previousApiKey = apiKey
+        val previousUseEpisodeRatings = useEpisodeRatings
         hasLoaded = true
         apiKey = TmdbSettingsStorage.loadApiKey()?.trim().orEmpty()
         if (apiKey.isNotBlank() && TmdbSettingsStorage.loadApiKeyUpdatedAtEpochMs() == null) {
@@ -225,16 +237,22 @@ object TmdbSettingsRepository {
         useArtwork = TmdbSettingsStorage.loadUseArtwork() ?: true
         useBasicInfo = TmdbSettingsStorage.loadUseBasicInfo() ?: true
         useDetails = TmdbSettingsStorage.loadUseDetails() ?: true
-        useReleaseDates = TmdbSettingsStorage.loadUseReleaseDates() ?: false
         useCredits = TmdbSettingsStorage.loadUseCredits() ?: true
         useProductions = TmdbSettingsStorage.loadUseProductions() ?: true
         useNetworks = TmdbSettingsStorage.loadUseNetworks() ?: true
         useEpisodes = TmdbSettingsStorage.loadUseEpisodes() ?: true
+        useEpisodeRatings = TmdbSettingsStorage.loadUseEpisodeRatings() ?: true
         useSeasonPosters = TmdbSettingsStorage.loadUseSeasonPosters() ?: true
         useMoreLikeThis = TmdbSettingsStorage.loadUseMoreLikeThis() ?: true
         useCollections = TmdbSettingsStorage.loadUseCollections() ?: true
         titleLanguage = TmdbTitleLanguage.fromStorageId(TmdbSettingsStorage.loadTitleLanguage())
         publish()
+        if (wasLoaded && previousApiKey != apiKey) {
+            invalidateMetadata()
+        }
+        if (wasLoaded && previousUseEpisodeRatings != useEpisodeRatings) {
+            invalidateEpisodeRatingMetadata()
+        }
     }
 
     private fun invalidateMetadata() {
@@ -251,11 +269,11 @@ object TmdbSettingsRepository {
             useArtwork = useArtwork,
             useBasicInfo = useBasicInfo,
             useDetails = useDetails,
-            useReleaseDates = useReleaseDates,
             useCredits = useCredits,
             useProductions = useProductions,
             useNetworks = useNetworks,
             useEpisodes = useEpisodes,
+            useEpisodeRatings = useEpisodeRatings,
             useSeasonPosters = useSeasonPosters,
             useMoreLikeThis = useMoreLikeThis,
             useCollections = useCollections,
@@ -266,6 +284,10 @@ object TmdbSettingsRepository {
     private fun defaultTmdbLanguage(): String {
         val preferred = DeviceLanguagePreferences.preferredLanguageCodes().firstOrNull()
         return normalizeLanguage(preferred).ifBlank { "en" }
+    }
+
+    private fun invalidateEpisodeRatingMetadata() {
+        MetaDetailsRepository.clear()
     }
 }
 

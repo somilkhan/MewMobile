@@ -21,9 +21,11 @@ expect fun HeroTrailerPlayerSurface(
     playWhenReady: Boolean,
     muted: Boolean,
     modifier: Modifier,
+    startPositionMs: Long = 0L,
     onReady: () -> Unit,
     onEnded: () -> Unit,
     onError: () -> Unit,
     seekRequest: HeroTrailerSeekRequest? = null,
     onPlaybackStateChanged: (HeroTrailerPlaybackSnapshot) -> Unit = {},
+    onPositionUpdate: (Long) -> Unit = {},
 )

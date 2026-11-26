@@ -26,7 +26,7 @@ sealed interface AppRoute : NavKey {
 
 @Serializable
 sealed interface SettingsDestinationRoute : AppRoute {
-    override val preferredTabName: String
+    override val preferredTabName: String?
         get() = "Settings"
 }
 
@@ -41,6 +41,8 @@ data class DetailRoute(
     val type: String,
     val id: String,
     override val title: String? = null,
+    val initialSeasonNumber: Int? = null,
+    val initialEpisodeNumber: Int? = null,
 ) : AppRoute
 
 @Serializable
@@ -83,7 +85,22 @@ data class MetaScreenSettingsRoute(override val title: String = "") : SettingsDe
 data class ContinueWatchingSettingsRoute(override val title: String = "") : SettingsDestinationRoute
 
 @Serializable
-data class DownloadsSettingsRoute(override val title: String = "") : SettingsDestinationRoute
+data class PartyRoute(
+    val code: String = "",
+    override val title: String = "",
+) : SettingsDestinationRoute
+
+@Serializable
+data class DownloadsRoute(override val title: String = "") : AppRoute {
+    override val preferredTabName: String
+        get() = "Library"
+}
+
+@Serializable
+data class DownloadsSettingsRoute(override val title: String = "") : SettingsDestinationRoute {
+    override val preferredTabName: String?
+        get() = null
+}
 
 @Serializable
 data class DownloadShowRoute(
@@ -105,6 +122,12 @@ data class SupportersContributorsSettingsRoute(override val title: String = "") 
 
 @Serializable
 data class LicensesAttributionsSettingsRoute(override val title: String = "") : SettingsDestinationRoute
+
+@Serializable
+data class WhatsNewSettingsRoute(override val title: String = "") : SettingsDestinationRoute
+
+@Serializable
+data class ProfileEditRoute(override val title: String = "") : SettingsDestinationRoute
 
 @Serializable
 data class CollectionsRoute(override val title: String = "") : SettingsDestinationRoute

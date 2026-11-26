@@ -1,5 +1,6 @@
 package com.nuvio.app.features.settings
 
+import com.nuvio.app.core.ui.background.appGlassBackdrop
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
@@ -11,6 +12,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.FlowRowScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
@@ -38,6 +42,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -60,11 +65,15 @@ import com.nuvio.app.core.ui.LocalTvLayoutProfile
 import com.nuvio.app.core.ui.NuvioActionLabel
 import com.nuvio.app.core.ui.NuvioBackButton
 import com.nuvio.app.core.ui.NuvioSectionLabel
+import com.nuvio.app.core.ui.accentBrush
+import com.nuvio.app.core.ui.gradientMask
 import com.nuvio.app.core.ui.nuvio
+import com.nuvio.app.core.ui.themePalette
 import com.nuvio.app.core.ui.nuvioConsumePointerEvents
 import com.nuvio.app.core.ui.nuvioKeyboardFocusIndicator
 import com.nuvio.app.core.ui.rememberAnimatedAccentBrush
 import com.nuvio.app.features.home.HomeCatalogSettingsItem
+import com.nuvio.app.features.home.HomeCatalogRowPlacement
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.settings_homescreen_collection_with_addon
 import nuvio.composeapp.generated.resources.settings_homescreen_display_name
@@ -73,6 +82,11 @@ import nuvio.composeapp.generated.resources.settings_homescreen_hidden
 import nuvio.composeapp.generated.resources.settings_homescreen_not_in_hero
 import nuvio.composeapp.generated.resources.settings_homescreen_pinned
 import nuvio.composeapp.generated.resources.settings_homescreen_pinned_to_top
+import nuvio.composeapp.generated.resources.settings_homescreen_pinned_to_bottom
+import nuvio.composeapp.generated.resources.settings_homescreen_home_placement
+import nuvio.composeapp.generated.resources.settings_homescreen_placement_default
+import nuvio.composeapp.generated.resources.settings_homescreen_pin_top
+import nuvio.composeapp.generated.resources.settings_homescreen_pin_bottom
 import nuvio.composeapp.generated.resources.settings_homescreen_reorder
 import nuvio.composeapp.generated.resources.settings_homescreen_visible
 import nuvio.composeapp.generated.resources.settings_new_feature_badge
@@ -87,9 +101,9 @@ private fun SettingsCard(
 ) {
     val tokens = MaterialTheme.nuvio
     Surface(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth().appGlassBackdrop(tokens.shapes.card),
         color = tokens.colors.surface,
-        shape = if (isTablet) RoundedCornerShape(NuvioTokens.Radius.xl) else tokens.shapes.compactCard,
+        shape = tokens.shapes.card,
         border = BorderStroke(
             tokens.borders.hairline,
             tokens.colors.borderSubtle,
@@ -153,6 +167,7 @@ internal fun TabletPageHeader(
                     contentColor = tokens.colors.textPrimary,
                     buttonSize = NuvioTokens.Space.s36,
                     iconSize = tokens.icons.md,
+                    hiddenUnderNativeNavigation = false,
                 )
             }
             Text(
@@ -209,6 +224,11 @@ internal fun SettingsSidebarItem(
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
+                    modifier = if (selected) {
+                        Modifier.gradientMask(MaterialTheme.themePalette.accentBrush())
+                    } else {
+                        Modifier
+                    },
                     tint = if (selected) primary else contentColor,
                 )
             }
@@ -233,7 +253,9 @@ internal fun SettingsSection(
     val tokens = MaterialTheme.nuvio
     Column {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = NuvioTokens.Radius.card),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -246,6 +268,35 @@ internal fun SettingsSection(
         }
         Spacer(modifier = Modifier.height(if (isTablet) tokens.spacing.listGap else NuvioTokens.Space.s10))
         content()
+    }
+}
+
+@Composable
+internal fun SettingsClickableRow(
+    title: String,
+    enabled: Boolean = true,
+    isTablet: Boolean,
+    onClick: () -> Unit,
+) {
+    val tokens = MaterialTheme.nuvio
+    val verticalPadding = if (isTablet) 16.dp else 14.dp
+    val horizontalPadding = if (isTablet) 20.dp else 16.dp
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = horizontalPadding, vertical = verticalPadding)
+            .alpha(if (enabled) NuvioTokens.Opacity.visible else tokens.opacity.medium),
+        horizontalArrangement = Arrangement.Start,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.bodyLarge,
+            color = tokens.colors.accent,
+            fontWeight = FontWeight.Medium,
+        )
     }
 }
 
@@ -319,6 +370,7 @@ internal fun SettingsNavigationRow(
                             Icon(
                                 imageVector = icon,
                                 contentDescription = null,
+                                modifier = Modifier.gradientMask(MaterialTheme.themePalette.accentBrush()),
                                 tint = tokens.colors.accent,
                             )
                         }
@@ -351,11 +403,11 @@ internal fun SettingsSwitchRow(
     enabled: Boolean = true,
     isTablet: Boolean,
     highlighted: Boolean = false,
+    horizontalPadding: Dp = if (isTablet) 20.dp else 16.dp,
     onCheckedChange: (Boolean) -> Unit,
 ) {
     val tokens = MaterialTheme.nuvio
     val verticalPadding = if (isTablet) 16.dp else 14.dp
-    val horizontalPadding = if (isTablet) 20.dp else 16.dp
     val highlightShape = RoundedCornerShape(if (isTablet) NuvioTokens.Radius.lg else NuvioTokens.Radius.md)
     val highlightBrush = if (highlighted) {
         rememberAnimatedAccentBrush() ?: SolidColor(tokens.colors.accent)
@@ -410,6 +462,53 @@ internal fun SettingsSwitchRow(
             highlighted = highlighted,
             modifier = Modifier.padding(start = 4.dp),
         )
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun SettingsChipRow(
+    title: String,
+    description: String,
+    isTablet: Boolean,
+    footer: String? = null,
+    chips: @Composable FlowRowScope.() -> Unit,
+) {
+    val tokens = MaterialTheme.nuvio
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(
+                horizontal = if (isTablet) 20.dp else 16.dp,
+                vertical = if (isTablet) 16.dp else 14.dp,
+            ),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge,
+                color = tokens.colors.textPrimary,
+                fontWeight = FontWeight.Medium,
+            )
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodyMedium,
+                color = tokens.colors.textMuted,
+            )
+        }
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            content = chips,
+        )
+        if (footer != null) {
+            Text(
+                text = footer,
+                style = MaterialTheme.typography.bodySmall,
+                color = tokens.colors.textMuted,
+            )
+        }
     }
 }
 
@@ -505,6 +604,7 @@ internal fun HomescreenCatalogRow(
     onExpandedChange: (Boolean) -> Unit,
     onTitleChange: (String) -> Unit,
     onEnabledChange: (Boolean) -> Unit,
+    onRowPlacementChange: (HomeCatalogRowPlacement) -> Unit,
     dragHandleScope: ReorderableCollectionItemScope,
     onPinnedDragAttempt: () -> Unit = {},
 ) {
@@ -560,12 +660,17 @@ internal fun HomescreenCatalogRow(
                                 stringResource(Res.string.settings_homescreen_hidden)
                             },
                         )
-                        if (item.isCollection) {
-                            if (item.isPinnedToTop) {
+                        when {
+                            item.isPinnedToTop || item.rowPlacement == HomeCatalogRowPlacement.PINNED_TOP -> {
                                 append(" • ")
                                 append(stringResource(Res.string.settings_homescreen_pinned_to_top))
                             }
-                        } else {
+                            item.rowPlacement == HomeCatalogRowPlacement.PINNED_BOTTOM -> {
+                                append(" • ")
+                                append(stringResource(Res.string.settings_homescreen_pinned_to_bottom))
+                            }
+                        }
+                        if (!item.isCollection) {
                             append(" • ")
                             append(
                                 if (item.heroSourceEnabled) {
@@ -628,25 +733,50 @@ internal fun HomescreenCatalogRow(
             }
         }
 
-        AnimatedVisibility(visible = expanded && !item.isCollection) {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                OutlinedTextField(
-                    value = item.customTitle,
-                    onValueChange = onTitleChange,
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    label = { Text(stringResource(Res.string.settings_homescreen_display_name)) },
-                    placeholder = { Text(item.defaultTitle) },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = tokens.colors.borderFocus.copy(alpha = tokens.opacity.strong),
-                        unfocusedBorderColor = tokens.colors.borderDefault.copy(alpha = tokens.opacity.medium),
-                        focusedContainerColor = tokens.colors.surface,
-                        unfocusedContainerColor = tokens.colors.surface,
-                        disabledContainerColor = tokens.colors.surface,
-                    ),
+        AnimatedVisibility(visible = expanded) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (!item.isCollection) {
+                    OutlinedTextField(
+                        value = item.customTitle, onValueChange = onTitleChange,
+                        modifier = Modifier.fillMaxWidth(), singleLine = true,
+                        label = { Text(stringResource(Res.string.settings_homescreen_display_name)) },
+                        placeholder = { Text(item.defaultTitle) },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = tokens.colors.borderFocus.copy(alpha = tokens.opacity.strong),
+                            unfocusedBorderColor = tokens.colors.borderDefault.copy(alpha = tokens.opacity.medium),
+                            focusedContainerColor = tokens.colors.surface, unfocusedContainerColor = tokens.colors.surface,
+                            disabledContainerColor = tokens.colors.surface,
+                        ),
+                    )
+                }
+                Text(
+                    stringResource(Res.string.settings_homescreen_home_placement),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = tokens.colors.textMuted,
                 )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    TextButton(
+                        onClick = { onRowPlacementChange(HomeCatalogRowPlacement.NORMAL) },
+                        enabled = item.rowPlacement != HomeCatalogRowPlacement.NORMAL,
+                    ) {
+                        Text(stringResource(Res.string.settings_homescreen_placement_default))
+                    }
+                    TextButton(
+                        onClick = { onRowPlacementChange(HomeCatalogRowPlacement.PINNED_TOP) },
+                        enabled = item.rowPlacement != HomeCatalogRowPlacement.PINNED_TOP && !item.isPinnedToTop,
+                    ) {
+                        Text(stringResource(Res.string.settings_homescreen_pin_top))
+                    }
+                    TextButton(
+                        onClick = { onRowPlacementChange(HomeCatalogRowPlacement.PINNED_BOTTOM) },
+                        enabled = item.rowPlacement != HomeCatalogRowPlacement.PINNED_BOTTOM && !item.isPinnedToTop,
+                    ) {
+                        Text(stringResource(Res.string.settings_homescreen_pin_bottom))
+                    }
+                }
             }
         }
     }

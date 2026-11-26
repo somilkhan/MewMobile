@@ -95,7 +95,6 @@ internal data class CloudStreamSearchRequest(
 
 internal sealed interface StreamLoadCompletion {
     data class Addon(val group: AddonStreamGroup) : StreamLoadCompletion
-    data class CloudStreamProvider(val group: AddonStreamGroup) : StreamLoadCompletion
     data class PluginScraper(
         val addonId: String,
         val streams: List<StreamItem>,

@@ -158,4 +158,38 @@ private fun descriptorFixture(): DescriptorFixture {
         userSetName = "My Addon",
     )
     return DescriptorFixture(addon, manifest, catalog)
+
+    @Test
+    fun `addon refresh signature tracks unresolved terminal and loaded manifest states`() {
+        val pendingAddon = ManagedAddon(
+            manifestUrl = "https://example.test/manifest.json",
+            isRefreshing = true,
+        )
+        val failedAddon = pendingAddon.copy(
+            isRefreshing = false,
+            errorMessage = "Timed out",
+        )
+        val loadedAddon = pendingAddon.copy(
+            manifest = AddonManifest(
+                id = "addon",
+                name = "Addon",
+                description = "",
+                version = "1.0.0",
+                resources = listOf(AddonResource(name = "meta", types = listOf("movie"))),
+                types = listOf("movie"),
+                catalogs = emptyList(),
+                transportUrl = pendingAddon.manifestUrl,
+            ),
+            isRefreshing = false,
+        )
+
+        val pendingSignature = buildAddonCatalogRefreshSignature(listOf(pendingAddon))
+        val failedSignature = buildAddonCatalogRefreshSignature(listOf(failedAddon))
+        val loadedSignature = buildAddonCatalogRefreshSignature(listOf(loadedAddon))
+
+        assertTrue(pendingSignature.isNotEmpty())
+        assertNotEquals(pendingSignature, failedSignature)
+        assertNotEquals(pendingSignature, loadedSignature)
+        assertNotEquals(failedSignature, loadedSignature)
+    }
 }

@@ -17,6 +17,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.nuvio.app.core.format.formatReleaseDateForDisplay
+import com.nuvio.app.core.format.formatUsdAmountForDisplay
+import com.nuvio.app.core.i18n.localizedMediaStatusLabel
 import com.nuvio.app.features.details.MetaDetails
 import com.nuvio.app.features.details.formatRuntimeForDisplay
 import nuvio.composeapp.generated.resources.*
@@ -35,7 +37,9 @@ fun DetailAdditionalInfoSection(
         stringResource(Res.string.details_movie_details)
     }
     val rows = buildList {
-        meta.status?.let { add(stringResource(Res.string.details_status) to it) }
+        meta.status?.let {
+            add(stringResource(Res.string.details_status) to localizedMediaStatusLabel(it, isSeriesLike))
+        }
         meta.releaseInfo?.let {
             add(stringResource(Res.string.details_release_info) to formatReleaseDateForDisplay(it))
         }
@@ -46,6 +50,12 @@ fun DetailAdditionalInfoSection(
         meta.country?.let { add(stringResource(Res.string.details_origin_country) to it) }
         meta.language?.let {
             add(stringResource(Res.string.details_original_language) to it.uppercase())
+        }
+        formatUsdAmountForDisplay(meta.budget)?.let {
+            add(stringResource(Res.string.details_budget) to it)
+        }
+        formatUsdAmountForDisplay(meta.revenue)?.let {
+            add(stringResource(Res.string.details_revenue) to it)
         }
     }
     if (rows.isEmpty()) return

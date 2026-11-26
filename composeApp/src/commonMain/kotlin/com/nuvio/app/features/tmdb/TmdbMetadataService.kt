@@ -25,6 +25,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
+import com.nuvio.app.features.details.MoreLikeThisPage
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -42,7 +45,7 @@ object TmdbMetadataService {
 
     private val enrichmentCache = mutableMapOf<String, TmdbEnrichment>()
     private val seasonEpisodeCache = mutableMapOf<String, TmdbCachedSeasonEpisodeEnrichment>()
-    private val moreLikeThisCache = mutableMapOf<String, List<MetaPreview>>()
+    private val moreLikeThisCache = mutableMapOf<String, MoreLikeThisPage>()
     private val collectionCache = mutableMapOf<String, Pair<String?, List<MetaPreview>>>()
     private val trailerCache = mutableMapOf<String, List<MetaTrailer>>()
     private val personCache = mutableMapOf<String, PersonDetail>()
@@ -65,6 +68,82 @@ object TmdbMetadataService {
             enrichmentCache.clear()
             previewArtworkCache.clear()
         }
+    }
+
+    // Upstream (luq) API: used by ServerMatcher.
+    fun cachedOriginalTitle(tmdbId: String, type: String): String? {
+        val mediaType = TmdbService.normalizeMediaType(type)
+        val prefix = "$tmdbId:$mediaType:"
+        return synchronized(cacheLock) {
+            enrichmentCache.entries.firstOrNull { it.key.startsWith(prefix) }?.value?.originalTitle
+        }
+    }
+
+    private val backdropCache = linkedMapOf<String, String?>()
+    private val backdropCacheMutex = Mutex()
+    private val backdropRequests = Semaphore(4)
+
+    // Upstream (luq) API: localized backdrops for poster rails.
+    suspend fun fetchLocalizedBackdrop(id: String, type: String, language: String): String? =
+        withContext(Dispatchers.Default) {
+            val mediaType = TmdbService.normalizeMediaType(type)
+            if (mediaType != "movie" && mediaType != "tv") return@withContext null
+            val normalizedLanguage = normalizeTmdbLanguage(language)
+            backdropRequests.withPermit {
+                val tmdbId = TmdbService.ensureTmdbId(id, mediaType) ?: return@withPermit null
+                val cacheKey = "$tmdbId:$mediaType:$normalizedLanguage"
+                backdropCacheMutex.withLock {
+                    if (backdropCache.containsKey(cacheKey)) return@withPermit backdropCache[cacheKey]
+                }
+                val images = fetch<TmdbImagesResponse>(
+                    endpoint = "$mediaType/$tmdbId/images",
+                    query = mapOf("include_image_language" to tmdbImageLanguages(normalizedLanguage)),
+                ) ?: return@withPermit null
+                val backdrop = buildImageUrl(
+                    images.backdrops.selectBestLocalizedImagePath(normalizedLanguage),
+                    "w1280",
+                )
+                backdropCacheMutex.withLock {
+                    backdropCache[cacheKey] = backdrop
+                    if (backdropCache.size > 256) backdropCache.remove(backdropCache.keys.first())
+                }
+                backdrop
+            }
+        }
+
+    suspend fun prefetchEnrichment(
+        type: String,
+        id: String,
+        settings: TmdbSettings,
+    ) {
+        if (!settings.enabled) return
+        val tmdbType = normalizeMetaType(type)
+        val tmdbId = TmdbService.ensureTmdbId(id, tmdbType) ?: return
+        fetchEnrichment(
+            tmdbId = tmdbId,
+            mediaType = tmdbType,
+            language = settings.language,
+            settings = settings,
+        )
+    }
+
+    // Upstream (luq) API: paged "more like this" for the catalog screen.
+    suspend fun fetchMoreLikeThisPage(
+        itemId: String,
+        itemType: String,
+        page: Int,
+        settings: TmdbSettings,
+    ): MoreLikeThisPage {
+        if (!settings.enabled || !settings.useMoreLikeThis) return MoreLikeThisPage()
+        val mediaType = normalizeMetaType(itemType)
+        if (mediaType != "movie" && mediaType != "tv") return MoreLikeThisPage()
+        val tmdbId = TmdbService.ensureTmdbId(itemId, mediaType)?.toIntOrNull() ?: return MoreLikeThisPage()
+        return fetchMoreLikeThis(
+            tmdbId = tmdbId,
+            mediaType = mediaType,
+            language = normalizeTmdbLanguage(settings.language),
+            page = page,
+        )
     }
 
     suspend fun fetchPersonDetail(
@@ -1103,6 +1182,7 @@ object TmdbMetadataService {
         val enrichment = TmdbEnrichment(
             localizedTitle = localizedTitle,
             titleAliases = listOfNotNull(localizedTitle, originalTitle).cleanTmdbTitleAliases(localizedTitle),
+            originalTitle = originalTitle,
             description = description,
             genres = genres,
             backdrop = buildImageUrl(
@@ -1293,14 +1373,21 @@ object TmdbMetadataService {
         tmdbId: Int,
         mediaType: String,
         language: String,
-    ): List<MetaPreview> {
-        val cacheKey = "$tmdbId:$mediaType:$language:recommendations"
+    ): List<MetaPreview> = fetchMoreLikeThis(tmdbId, mediaType, language, page = 1).items.take(12)
+
+    private suspend fun fetchMoreLikeThis(
+        tmdbId: Int,
+        mediaType: String,
+        language: String,
+        page: Int,
+    ): MoreLikeThisPage {
+        val cacheKey = "$tmdbId:$mediaType:$language:recommendations:$page"
         cacheGet(moreLikeThisCache, cacheKey)?.let { return it }
 
         val response = fetch<TmdbRecommendationResponse>(
             endpoint = "$mediaType/$tmdbId/recommendations",
-            query = mapOf("language" to language),
-        ) ?: return emptyList()
+            query = mapOf("language" to language, "page" to page.toString()),
+        ) ?: return MoreLikeThisPage()
 
         val items = response.results
             .filter { it.id > 0 }
@@ -1332,10 +1419,13 @@ object TmdbMetadataService {
                     imdbRating = recommendation.voteAverage?.formatRating(),
                 )
             }
-            .take(12)
 
-        cachePut(moreLikeThisCache, cacheKey, items)
-        return items
+        val result = MoreLikeThisPage(
+            items = items,
+            hasMore = response.totalPages?.let { page < it } ?: false,
+        )
+        cachePut(moreLikeThisCache, cacheKey, result)
+        return result
     }
 
     private suspend fun fetchCollection(
@@ -1528,6 +1618,7 @@ internal fun resolveTmdbWatchProviderRegion(
 internal data class TmdbEnrichment(
     val localizedTitle: String?,
     val titleAliases: List<String> = emptyList(),
+    val originalTitle: String? = null,
     val description: String?,
     val genres: List<String>,
     val backdrop: String?,
@@ -1834,20 +1925,6 @@ private fun buildImageUrl(path: String?, size: String): String? {
     return "https://image.tmdb.org/t/p/$size$clean"
 }
 
-private fun List<TmdbImage>.selectBestLocalizedImagePath(normalizedLanguage: String): String? {
-    if (isEmpty()) return null
-    val languageCode = normalizedLanguage.substringBefore("-")
-    val regionCode = normalizedLanguage.substringAfter("-", "").uppercase().takeIf { it.length == 2 }
-        ?: defaultLanguageRegions[languageCode]
-    return sortedWith(
-        compareByDescending<TmdbImage> { it.iso6391 == languageCode && it.iso31661 == regionCode }
-            .thenByDescending { it.iso6391 == languageCode && it.iso31661 == null }
-            .thenByDescending { it.iso6391 == languageCode }
-            .thenByDescending { it.iso6391 == "en" }
-            .thenByDescending { it.iso6391 == null },
-    ).firstOrNull()?.filePath
-}
-
 private fun List<TmdbImage>.selectOriginalOrLocalizedImagePath(
     normalizedLanguage: String,
     originalLanguage: String?,
@@ -1910,6 +1987,7 @@ private val watchProviderDefaultRegions = mapOf(
     "zh" to "CN",
 )
 
+internal const val TMDB_RECOMMENDATIONS_PAGE_SIZE = 20
 private const val TMDB_EPISODE_ENRICHMENT_TTL_MS = 24L * 60L * 60L * 1_000L
 private const val TMDB_RETRY_BASE_DELAY_MS = 250L
 
@@ -2079,22 +2157,6 @@ private data class TmdbCrewMember(
 )
 
 @Serializable
-private data class TmdbImagesResponse(
-    val logos: List<TmdbImage> = emptyList(),
-    val posters: List<TmdbImage> = emptyList(),
-    val backdrops: List<TmdbImage> = emptyList(),
-)
-
-@Serializable
-private data class TmdbImage(
-    @SerialName("file_path") val filePath: String? = null,
-    @SerialName("iso_639_1") val iso6391: String? = null,
-    @SerialName("iso_3166_1") val iso31661: String? = null,
-    @SerialName("vote_average") val voteAverage: Double? = null,
-    @SerialName("vote_count") val voteCount: Int? = null,
-)
-
-@Serializable
 private data class TmdbMovieReleaseDatesResponse(
     val results: List<TmdbMovieReleaseDateCountry> = emptyList(),
 )
@@ -2165,6 +2227,8 @@ private data class TmdbCollectionRef(
 @Serializable
 private data class TmdbRecommendationResponse(
     val results: List<TmdbRecommendationItem> = emptyList(),
+    val page: Int? = null,
+    @SerialName("total_pages") val totalPages: Int? = null,
 )
 
 @Serializable

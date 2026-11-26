@@ -21,6 +21,9 @@ import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PlaylistAddCheckCircle
+import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material.icons.rounded.StarBorder
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -40,6 +43,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.nuvio.app.core.i18n.localizedEpisodeTitle
+import com.nuvio.app.core.ui.NuvioBottomSheetActionRow
+import com.nuvio.app.core.ui.NuvioBottomSheetDivider
+import com.nuvio.app.core.ui.NuvioModalBottomSheet
+import com.nuvio.app.core.ui.dismissNuvioBottomSheet
+import com.nuvio.app.core.ui.nuvio
+import com.nuvio.app.core.ui.nuvioSafeBottomPadding
 import com.nuvio.app.core.i18n.localizedSeasonEpisodeCode
 import com.nuvio.app.core.ui.NuvioMediaActionOverlay
 import com.nuvio.app.features.details.MetaVideo
@@ -56,6 +65,9 @@ import nuvio.composeapp.generated.resources.anime_tracking_action
 import nuvio.composeapp.generated.resources.play_manually
 import nuvio.composeapp.generated.resources.streams_download_file
 import org.jetbrains.compose.resources.stringResource
+import nuvio.composeapp.generated.resources.user_rating_rate_episode
+import nuvio.composeapp.generated.resources.user_rating_rate_season
+import nuvio.composeapp.generated.resources.user_rating_value
 
 @Composable
 fun EpisodeWatchedActionSheet(
@@ -73,6 +85,8 @@ fun EpisodeWatchedActionSheet(
     showPlayManually: Boolean = false,
     onPlayManually: (() -> Unit)? = null,
     onTracking: (() -> Unit)? = null,
+    userRating: Int? = null,
+    onRate: (() -> Unit)? = null,
 ) {
     val artwork = episodeActionSheetArtwork(episode)
 
@@ -144,6 +158,14 @@ fun EpisodeWatchedActionSheet(
                         },
                         onClick = { dismissAfter(onToggleSeasonWatched) },
                     )
+                    if (onRate != null) {
+                        EpisodeSheetDivider()
+                        UserRatingActionRow(
+                            title = stringResource(Res.string.user_rating_rate_episode),
+                            userRating = userRating,
+                            onClick = { dismissAfter(onRate) },
+                        )
+                    }
                     if (showPlayManually && onPlayManually != null) {
                         EpisodeSheetDivider()
                         EpisodeSheetActionRow(
@@ -175,6 +197,8 @@ fun SeasonWatchedActionSheet(
     onToggleSeasonWatched: () -> Unit,
     onMarkPreviousSeasonsWatched: () -> Unit,
     onDownloadSeason: (() -> Unit)? = null,
+    userRating: Int? = null,
+    onRate: (() -> Unit)? = null,
 ) {
     NuvioMediaActionOverlay(
         artworkUrl = null,
@@ -230,6 +254,17 @@ fun SeasonWatchedActionSheet(
                             },
                         )
                     }
+                    if (onRate != null) {
+                        EpisodeSheetDivider()
+                        UserRatingActionRow(
+                            title = stringResource(Res.string.user_rating_rate_season, seasonLabel),
+                            userRating = userRating,
+                            onClick = {
+                                onRate()
+                                onDismiss()
+                            },
+                        )
+                    }
                     if (canMarkPreviousSeasons) {
                         EpisodeSheetDivider()
                         EpisodeSheetActionRow(
@@ -245,6 +280,23 @@ fun SeasonWatchedActionSheet(
             }
         }
     }
+}
+
+@Composable
+private fun UserRatingActionRow(
+    title: String,
+    userRating: Int?,
+    onClick: () -> Unit,
+) {
+    EpisodeSheetActionRow(
+        icon = if (userRating != null) Icons.Rounded.Star else Icons.Rounded.StarBorder,
+        title = if (userRating != null) {
+            "$title · ${stringResource(Res.string.user_rating_value, userRating)}"
+        } else {
+            title
+        },
+        onClick = onClick,
+    )
 }
 
 @Composable

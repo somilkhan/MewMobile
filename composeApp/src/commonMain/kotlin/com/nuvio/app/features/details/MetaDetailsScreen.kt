@@ -108,6 +108,8 @@ import com.nuvio.app.features.details.components.DetailMetaInfo
 import com.nuvio.app.features.details.components.DetailPosterRailSection
 import com.nuvio.app.features.details.components.DetailProductionSection
 import com.nuvio.app.features.details.components.DetailSeriesContent
+import com.nuvio.app.features.details.components.rememberEpisodeDownloadLookup
+import com.nuvio.app.features.details.components.rememberEpisodeNavigatorState
 import com.nuvio.app.features.details.components.DetailTrailersSection
 import com.nuvio.app.features.details.components.readableDetailContentColor
 import com.nuvio.app.features.details.components.BatchDownloadDialog
@@ -880,7 +882,7 @@ fun MetaDetailsScreen(
                 var heroTrailerPlaybackSource by remember(meta.id, heroTrailerCandidate?.id) { mutableStateOf<TrailerPlaybackSource?>(null) }
                 var heroTrailerReady by remember(meta.id, heroTrailerCandidate?.id) { mutableStateOf(false) }
                 var heroTrailerFinished by remember(meta.id, heroTrailerCandidate?.id) { mutableStateOf(false) }
-                val heroTrailerMuted by HeroTrailerAudioState.muted.collectAsStateWithLifecycle()
+                val heroTrailerMuted by HeroTrailerAudioState.muted(HeroTrailerSurface.Details).collectAsStateWithLifecycle()
                 var cinematicTrailerMuted by remember(meta.id, metaScreenSettingsUiState.heroTrailerSoundEnabled) {
                     mutableStateOf(!metaScreenSettingsUiState.heroTrailerSoundEnabled)
                 }
@@ -1361,7 +1363,7 @@ fun MetaDetailsScreen(
                                             dominantBackdropImageBitmap = imageBitmap
                                         },
                                         onHeroTrailerMuteToggle = {
-                                            HeroTrailerAudioState.toggleMuted()
+                                            HeroTrailerAudioState.toggleMuted(HeroTrailerSurface.Details)
                                         },
                                         onHeroTrailerReady = {
                                             if (!heroTrailerFinished) {
@@ -2425,8 +2427,15 @@ private fun ConfiguredMetaSections(
             }
             MetaScreenSectionKey.EPISODES -> {
                 if (hasEpisodes) {
+                    // Mew hook: luq DetailSeriesContent hoists season state + download lookup.
+                    val episodeNavigator = rememberEpisodeNavigatorState(meta.id)
+                    val episodeDownloadFor = rememberEpisodeDownloadLookup(meta.id)
                     DetailSeriesContent(
                         meta = meta,
+                        episodeDownloadFor = episodeDownloadFor,
+                        selectedSeason = episodeNavigator.selectedSeason,
+                        onSeasonSelected = episodeNavigator::selectSeason,
+                        episodeRatingsVisibility = if (showEpisodeRatings) settings.episodeRatingsVisibility else EpisodeRatingsVisibility.HIDE_EPISODES,
                         showHeader = showHeader,
                         preferredSeasonNumber = preferredEpisodeSeasonNumber,
                         preferredEpisodeNumber = preferredEpisodeNumber,
@@ -2435,7 +2444,6 @@ private fun ConfiguredMetaSections(
                         watchedKeys = watchedKeys,
                         episodeRatings = episodeImdbRatings,
                         blurUnwatchedEpisodes = blurUnwatchedEpisodes,
-                        showEpisodeRatings = showEpisodeRatings,
                         onEpisodeClick = onEpisodeClick,
                         onEpisodeLongPress = onEpisodeLongPress,
                         onSeasonLongPress = onSeasonLongPress,

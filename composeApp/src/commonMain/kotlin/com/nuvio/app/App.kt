@@ -472,6 +472,31 @@ private object NativeAppGateRequests {
     }
 }
 
+@Composable
+private fun MewThemedAppSurface(
+    appTheme: com.nuvio.app.core.ui.AppTheme,
+    customFirst: androidx.compose.ui.graphics.Color,
+    customSecond: androidx.compose.ui.graphics.Color,
+    amoled: Boolean,
+    content: @Composable () -> Unit,
+) {
+    NuvioTheme(
+        appTheme = appTheme,
+        customFirst = customFirst,
+        customSecond = customSecond,
+        amoled = amoled,
+    ) {
+        com.nuvio.app.core.ui.background.AppBackgroundHost {
+            content()
+        }
+    }
+}
+
+fun setPlayerParkedInPictureInPicture(parked: Boolean) {
+    com.nuvio.app.core.ui.background.AppBackgroundRepository.setPlayerParked(parked)
+    com.nuvio.app.features.player.MiniPlayerController.parkedInPictureInPicture = parked
+}
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalCoilApi::class)
 @Composable
 @Preview
@@ -490,12 +515,15 @@ fun App(
     onAppReady: ((Boolean) -> Unit)? = null,
     onTabTitles: ((home: String, search: String, library: String, profile: String, switchProfile: String, addProfile: String) -> Unit)? = null,
 ) {
-    setSingletonImageLoaderFactory { context ->
+    if (!com.nuvio.app.core.ui.platformProvidesImageLoader) setSingletonImageLoaderFactory { context ->
         ImageLoader.Builder(context)
             .crossfade(false)
             .diskCachePolicy(CachePolicy.ENABLED)
             .memoryCachePolicy(CachePolicy.ENABLED)
             .components {
+                add(com.nuvio.app.core.poster.CustomPosterFallbackInterceptor())
+                add(com.nuvio.app.features.servers.plex.PlexArtworkInterceptor())
+                add(com.nuvio.app.features.servers.silo.SiloArtworkInterceptor())
                 add(SvgDecoder.Factory())
                 add(
                     coil3.network.ktor3.KtorNetworkFetcherFactory(
@@ -516,7 +544,7 @@ fun App(
     val customThemeSecondColor by remember { ThemeSettingsRepository.customThemeSecondColor }
         .collectAsStateWithLifecycle()
     NuvioKeyboardInputProvider {
-    NuvioTheme(
+    MewThemedAppSurface(
         appTheme = selectedTheme,
         customFirst = customThemeFirstColor,
         customSecond = customThemeSecondColor,
@@ -540,7 +568,7 @@ fun App(
                     NativeAppGateRequests.requestProfileSelection()
                 },
             )
-            return@NuvioTheme
+            return@MewThemedAppSurface
         }
 
         LaunchedEffect(Unit) {
@@ -1065,7 +1093,6 @@ private fun MainAppContent(
     }
 
     LaunchedEffect(liveTvEnabled, selectedTab) {
-        LiveTvRepository.setFeatureEnabled(liveTvEnabled)
         NativeTabBridge.publishLiveTvEnabled(liveTvEnabled)
         if (!liveTvEnabled && selectedTab == AppScreenTab.LiveTv) {
             activateTab(AppScreenTab.Home)
@@ -1560,8 +1587,9 @@ private fun MainAppContent(
                 return
             }
             if (recordRecent) {
-                LiveTvRepository.recordRecentChannel(channel)
+                LiveTvRepository.markChannelWatched(channel)
             }
+            val channel = runCatching { LiveTvRepository.prepareForPlayback(channel) }.getOrDefault(channel)
             launchPlayer(
                 PlayerLaunch(
                     profileId = activePlaybackProfileId,
@@ -1571,13 +1599,13 @@ private fun MainAppContent(
                     streamType = channel.streamType,
                     logo = channel.logoUrl,
                     streamTitle = channel.name,
-                    streamSubtitle = channel.group.takeIf { it.isNotBlank() },
+                    streamSubtitle = channel.group?.takeIf { it.isNotBlank() },
                     providerName = providerName,
                     providerAddonId = "live-tv",
-                    contentType = "live-tv",
+                    contentType = "live",
                     videoId = channel.id,
                     parentMetaId = channel.id.ifBlank { channel.streamUrl },
-                    parentMetaType = "live-tv",
+                    parentMetaType = "live",
                 ),
             )
         }
@@ -1610,31 +1638,15 @@ private fun MainAppContent(
                     }
 
                     is LiveTvIncomingSource.SourceUrl -> {
-                        LiveTvRepository.load(request.url)
-                            .onSuccess { channels ->
-                                if (channels.size == 1) {
-                                    openLiveTvChannel(channels.first(), providerName = "Shared")
-                                } else {
-                                    handleRootTabClick(AppScreenTab.LiveTv)
-                                }
-                            }
-                            .onFailure { error ->
-                                NuvioToastController.show(error.message ?: "Unable to open shared playlist.")
-                            }
+                        // Mew hook: shared playlist URL is added to luq Live TV playlists.
+                        LiveTvRepository.addPlaylistUrl(request.url)
+                        handleRootTabClick(AppScreenTab.LiveTv)
                     }
 
                     is LiveTvIncomingSource.PlaylistData -> {
-                        LiveTvRepository.loadLocalPlaylist(request.fileName, request.data)
-                            .onSuccess { channels ->
-                                if (channels.size == 1) {
-                                    openLiveTvChannel(channels.first(), providerName = "Shared")
-                                } else {
-                                    handleRootTabClick(AppScreenTab.LiveTv)
-                                }
-                            }
-                            .onFailure { error ->
-                                NuvioToastController.show(error.message ?: "Unable to open shared playlist.")
-                            }
+                        // Mew hook: shared M3U file is added to luq Live TV playlists.
+                        LiveTvRepository.addLocalPlaylist(request.fileName, request.data)
+                        handleRootTabClick(AppScreenTab.LiveTv)
                     }
 
                     is LiveTvIncomingSource.Magnet -> {
@@ -2333,6 +2345,30 @@ private fun MainAppContent(
                                         },
                                         onPosterLongClick = { meta ->
                                             openPosterActions(PosterActionTarget(preview = meta))
+                                        },
+                                        onLiveTvVodClick = { vod ->
+                                            coroutineScope.launch { launchPlayer(
+                                                PlayerLaunch(
+                                                    profileId = activePlaybackProfileId,
+                                                    title = vod.title,
+                                                    sourceUrl = vod.streamUrl,
+                                                    sourceHeaders = vod.headers,
+                                                    streamType = vod.streamType,
+                                                    poster = vod.posterUrl,
+                                                    background = vod.episodeThumbnail ?: vod.posterUrl,
+                                                    seasonNumber = vod.seasonNumber,
+                                                    episodeNumber = vod.episodeNumber,
+                                                    episodeTitle = vod.episodeTitle,
+                                                    episodeThumbnail = vod.episodeThumbnail,
+                                                    streamTitle = vod.episodeTitle ?: vod.title,
+                                                    providerName = "Live TV",
+                                                    providerAddonId = "live-tv",
+                                                    contentType = "vod",
+                                                    videoId = null,
+                                                    parentMetaId = vod.id,
+                                                    parentMetaType = "live",
+                                                ),
+                                            ) }
                                         },
                                         onLiveTvChannelClick = { channel ->
                                             coroutineScope.launch {
@@ -4135,6 +4171,7 @@ private fun AppTabHost(
     onPosterClick: ((MetaPreview) -> Unit)? = null,
     onPosterLongClick: ((MetaPreview) -> Unit)? = null,
     onLiveTvChannelClick: ((LiveTvChannel) -> Unit)? = null,
+    onLiveTvVodClick: ((com.nuvio.app.features.livetv.LiveTvVodPlayback) -> Unit)? = null,
     onLibraryPosterClick: ((LibraryItem) -> Unit)? = null,
     onLibraryPosterLongClick: ((LibraryItem, LibrarySection) -> Unit)? = null,
     onLibrarySectionViewAllClick: ((LibrarySection, LibrarySortOption) -> Unit)? = null,
@@ -4209,6 +4246,7 @@ private fun AppTabHost(
                         LiveTvScreen(
                             modifier = Modifier.fillMaxSize(),
                             onChannelClick = { channel -> onLiveTvChannelClick?.invoke(channel) },
+                            onVodClick = { vod -> onLiveTvVodClick?.invoke(vod) },
                         )
                     }
                 }

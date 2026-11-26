@@ -21,7 +21,31 @@ class SimklHistoryPushGuardTest {
     )
 
     @Test
-    fun `series-level marks are not sent to Simkl history as watched episodes`() {
+    fun `a mark without an episode never reaches Simkl for a series`() {
+        assertTrue(simklHistoryPushItems(listOf(mark("series"))).isEmpty())
+        assertTrue(simklHistoryPushItems(listOf(mark("show"))).isEmpty())
+        assertTrue(simklHistoryPushItems(listOf(mark("tv"))).isEmpty())
+        assertTrue(simklHistoryPushItems(listOf(mark("anime"))).isEmpty())
+        assertTrue(simklHistoryPushItems(listOf(mark("documentary-series"))).isEmpty())
+    }
+
+    @Test
+    fun `episode marks always reach Simkl`() {
+        val pushed = simklHistoryPushItems(listOf(mark("series", season = 1, episode = 1)))
+        assertEquals(1, pushed.size)
+        assertEquals(1, pushed.single().season)
+        assertEquals(1, pushed.single().episode)
+    }
+
+    @Test
+    fun `films need no episode`() {
+        assertEquals(1, simklHistoryPushItems(listOf(mark("movie"))).size)
+        assertEquals(1, simklHistoryPushItems(listOf(mark("film"))).size)
+        assertEquals(1, simklHistoryPushItems(listOf(mark("Movie"))).size)
+    }
+
+    @Test
+    fun `the episodes of a whole-series action still travel`() {
         val pushed = simklHistoryPushItems(
             listOf(
                 mark("series"),
@@ -58,5 +82,28 @@ class SimklHistoryPushGuardTest {
             ).isEmpty(),
         )
         assertTrue(simklExplicitlyCompletedSeries(listOf(mark("movie", id = "movie-1"))).isEmpty())
+    }
+
+    @Test
+    fun `a series marked together with its episodes is an explicit completion`() {
+        val series = simklExplicitlyCompletedSeries(
+            listOf(
+                mark("series"),
+                mark("series", season = 1, episode = 1),
+                mark("series", season = 1, episode = 2),
+            ),
+        )
+
+        assertEquals(1, series.size)
+        assertEquals(null, series.single().episode)
+    }
+
+    @Test
+    fun `an automatic series mark on its own never moves Simkl to Completed`() {
+        assertTrue(simklExplicitlyCompletedSeries(listOf(mark("series"))).isEmpty())
+        assertTrue(
+            simklExplicitlyCompletedSeries(listOf(mark("series", season = 3, episode = 4))).isEmpty(),
+        )
+        assertTrue(simklExplicitlyCompletedSeries(listOf(mark("movie"))).isEmpty())
     }
 }
