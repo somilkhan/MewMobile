@@ -621,6 +621,12 @@ fun App(
         }
 
         var gateScreen by rememberSaveable { mutableStateOf(AppGateScreen.Loading.name) }
+        // luq parity: the intro always plays for at least AppIntroMinDurationMs before routing.
+        var introHoldElapsed by rememberSaveable { mutableStateOf(false) }
+        LaunchedEffect(Unit) {
+            kotlinx.coroutines.delay(AppIntroMinDurationMs)
+            introHoldElapsed = true
+        }
         var editingProfile by remember { mutableStateOf<NuvioProfile?>(null) }
         var isNewProfile by remember { mutableStateOf(false) }
         var autoSkipProfileSelection by rememberSaveable { mutableStateOf(false) }
@@ -687,7 +693,8 @@ fun App(
             }
         }
 
-        LaunchedEffect(authState, networkStatusUiState.condition, profileState.profiles) {
+        LaunchedEffect(authState, networkStatusUiState.condition, profileState.profiles, introHoldElapsed) {
+            if (!introHoldElapsed) return@LaunchedEffect
             val cachedProfiles = profileState.profiles
             val hasCachedProfileAccess =
                 cachedProfiles.isNotEmpty() &&
@@ -762,21 +769,13 @@ fun App(
             targetState = gateScreen,
             label = "app_gate",
             transitionSpec = {
-                if (
-                    initialState == AppGateScreen.Loading.name &&
-                    targetState == AppGateScreen.Main.name
-                ) {
-                    // Main mounts its own identical launch overlay, so hand off without a jump.
-                    EnterTransition.None togetherWith ExitTransition.None
-                } else {
-                    (fadeIn(tween(400)) + scaleIn(tween(400), initialScale = 0.94f))
-                        .togetherWith(fadeOut(tween(250)))
-                }
+                (fadeIn(tween(400)) + scaleIn(tween(400), initialScale = 0.94f))
+                    .togetherWith(fadeOut(tween(250)))
             },
         ) { currentGate ->
             when (currentGate) {
                 AppGateScreen.Loading.name -> {
-                    AppLaunchOverlay(modifier = Modifier.fillMaxSize())
+                    AppIntroContent(modifier = Modifier.fillMaxSize())
                 }
                 AppGateScreen.Auth.name -> {
                     AuthScreen(modifier = Modifier.fillMaxSize())
@@ -4159,13 +4158,16 @@ private fun MainAppContent(
             launchOverlayState.targetState = ownsAppRuntime && !initialHomeReady
             androidx.compose.animation.AnimatedVisibility(
                 visibleState = launchOverlayState,
-                enter = fadeIn(tween(0)),
+                enter = fadeIn(),
                 exit = fadeOut(tween(400)),
                 modifier = Modifier
                     .fillMaxSize()
                     .zIndex(30f),
             ) {
-                AppLaunchOverlay(modifier = Modifier.fillMaxSize())
+                AppLaunchOverlay(
+                    profile = profileState.activeProfile ?: profileState.profiles.firstOrNull(),
+                    modifier = Modifier.fillMaxSize(),
+                )
             }
 
             }
@@ -4598,90 +4600,26 @@ private fun TabletTopPillItem(
     }
 }
 
-@OptIn(ExperimentalResourceApi::class)
+/**
+ * Shown while Home paints its first catalog (luq parity: AppShellComponents.AppLaunchOverlay).
+ * The active profile's avatar, or the Mew wordmark before one exists, springs in over the app
+ * background, with no spinner. Mew keeps its own 2.5s cap (MainLaunchOverlayMaxHoldMs).
+ */
 @Composable
 private fun AppLaunchOverlay(
+    profile: NuvioProfile?,
     modifier: Modifier = Modifier,
 ) {
-    val tokens = MaterialTheme.nuvio
-    val splashTransition = rememberInfiniteTransition(label = "mew_splash_mascot")
-    val mascotOffsetY by splashTransition.animateFloat(
-        initialValue = -7f,
-        targetValue = 7f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1500, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "mascot_offset",
-    )
-    // Fade the mascot in once decoded so it never pops onto an empty frame.
-    var mascotLoaded by remember { mutableStateOf(false) }
-    val mascotAlpha by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = if (mascotLoaded) 1f else 0f,
-        animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
-        label = "mascot_alpha",
-    )
     Box(
         modifier = modifier
             .zIndex(NuvioTokens.Z.dialog)
             .nuvioConsumePointerEvents()
-            // Same colour as the Android window/splash background (@color/nuvio_background),
-            // so the system splash -> Compose hand-off has no visible colour step.
-            .background(MewLaunchBackground),
-        contentAlignment = Alignment.Center,
+            .background(MaterialTheme.nuvio.colors.background),
     ) {
         PlatformBackHandler(enabled = true) { }
-
-        // Scene is drawn directly: instant first frame and no stretching on tablets/landscape.
-        androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize()) {
-            val mascotWidth = size.width * 0.58f
-            val shadowCenter = androidx.compose.ui.geometry.Offset(
-                x = center.x,
-                y = center.y + mascotWidth * 0.30f,
-            )
-            val shadowRx = mascotWidth * 0.26f
-            val shadowRy = mascotWidth * 0.03f
-            drawOval(
-                color = Color.White.copy(alpha = 0.12f),
-                topLeft = androidx.compose.ui.geometry.Offset(shadowCenter.x - shadowRx, shadowCenter.y - shadowRy),
-                size = androidx.compose.ui.geometry.Size(shadowRx * 2f, shadowRy * 2f),
-            )
-            val unit = mascotWidth / 760f
-            drawCircle(Color.White.copy(alpha = 0.5f), 6f * unit, center + androidx.compose.ui.geometry.Offset(-262f * unit, -390f * unit))
-            drawCircle(Color.White.copy(alpha = 0.4f), 8f * unit, center + androidx.compose.ui.geometry.Offset(288f * unit, -270f * unit))
-            drawCircle(Color.White.copy(alpha = 0.3f), 5f * unit, center + androidx.compose.ui.geometry.Offset(-312f * unit, 110f * unit))
-        }
-
-        AsyncImage(
-            model = Res.getUri("drawable/mew_splash_mascot.svg"),
-            contentDescription = "Mew",
-            onSuccess = { mascotLoaded = true },
-            modifier = Modifier
-                .fillMaxWidth(0.58f)
-                .aspectRatio(760f / 560f)
-                .graphicsLayer { alpha = mascotAlpha }
-                .offset(y = mascotOffsetY.dp),
-            contentScale = ContentScale.Fit,
-        )
-
-        Column(
-            modifier = Modifier
-                .align(Alignment.Center)
-                .padding(top = 230.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            NuvioLoadingIndicator(color = Color.White)
-            Spacer(modifier = Modifier.height(tokens.spacing.controlGap))
-            Text(
-                text = stringResource(Res.string.profile_loading_enhancing_experience),
-                style = MaterialTheme.typography.bodyLarge,
-                color = Color.White.copy(alpha = 0.72f),
-            )
-        }
+        MewLaunchLoadingContent(modifier = Modifier.fillMaxSize(), profile = profile)
     }
 }
-
-private val MewLaunchBackground = Color(0xFF0D0D0D)
 
 private fun AppRoute?.toDiagnosticArea(): DiagnosticArea = when (this) {
     null -> DiagnosticArea.Startup

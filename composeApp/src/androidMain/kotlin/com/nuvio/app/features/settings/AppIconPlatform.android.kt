@@ -52,7 +52,7 @@ internal actual object AppIconPlatform {
     fun currentLauncherIconResource(context: Context): Int {
         val option = AppIconOption.fromPlatformName(currentIconName(context))
         val resourceName = if (option == AppIconOption.ORIGINAL) {
-            "ic_launcher_alt_enhanced"
+            "ic_launcher"
         } else {
             "ic_launcher_${option.key}"
         }
