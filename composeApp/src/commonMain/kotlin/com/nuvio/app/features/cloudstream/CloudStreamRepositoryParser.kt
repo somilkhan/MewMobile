@@ -99,14 +99,15 @@ object CloudStreamRepositoryParser {
     }
 }
 
+private val cloudStreamRepositoryDeepLinkPrefix =
+    Regex("""^(?:cloudstreamrepo://|https?://cs\.repo/\??)""", RegexOption.IGNORE_CASE)
+
 fun normalizeCloudStreamRepositoryUrl(rawUrl: String): String {
     var value = rawUrl.trim()
     require(value.isNotBlank()) { "CloudStream repository URL is required" }
-    value = value
-        .removePrefix("cloudstreamrepo://")
-        .removePrefix("https://cs.repo/?")
-        .removePrefix("http://cs.repo/?")
-        .trim()
+    // UPSTREAM: RepositoryManager.parseRepoUrl strips `cloudstreamrepo://` and
+    // `https://cs.repo/` with an optional `?`, so both `cs.repo/?x` and `cs.repo/x` work.
+    value = value.replace(cloudStreamRepositoryDeepLinkPrefix, "").trim()
     if (!value.startsWith("http://") && !value.startsWith("https://")) {
         value = "https://$value"
     }

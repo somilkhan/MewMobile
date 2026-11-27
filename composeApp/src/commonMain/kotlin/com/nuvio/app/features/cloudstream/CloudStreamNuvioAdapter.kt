@@ -1,6 +1,7 @@
 package com.nuvio.app.features.cloudstream
 
 import com.nuvio.app.features.details.MetaDetails
+import com.nuvio.app.features.details.MetaPerson
 import com.nuvio.app.features.details.MetaVideo
 import com.nuvio.app.features.home.MetaPreview
 import com.nuvio.app.features.home.PosterShape
@@ -51,7 +52,7 @@ fun CloudStreamLoadItem.toMetaDetails(): MetaDetails {
         listOf(
             MetaVideo(
                 id = routeId,
-                title = if (type == CloudStreamTvType.Live) "Canlı yayın" else name,
+                title = name,
                 available = true,
                 thumbnail = backgroundUrl ?: posterUrl,
             ),
@@ -66,6 +67,7 @@ fun CloudStreamLoadItem.toMetaDetails(): MetaDetails {
                 season = episode.season,
                 episode = episode.episode,
                 overview = episode.description,
+                runtime = episode.runtimeMinutes?.takeIf { it > 0 },
             )
         }
     }
@@ -83,6 +85,13 @@ fun CloudStreamLoadItem.toMetaDetails(): MetaDetails {
         },
         genres = tags,
         videos = videos,
+        logo = logoUrl,
+        ageRating = contentRating,
+        // Same shape as Cinemeta's runtime field ("142 min"), which the details UI already formats.
+        runtime = durationMinutes?.let { "$it min" },
+        cast = cast.map { member ->
+            MetaPerson(name = member.name, role = member.character, photo = member.photoUrl)
+        },
     )
 }
 
@@ -91,11 +100,11 @@ fun CloudStreamPlaybackSource.toStreamItem(
     providerName: String,
 ): StreamItem {
     val parsedUrl = parseCloudStreamPlaybackUrl(url)
-    val requestHeaders = buildMap {
-        putAll(parsedUrl.headers)
-        putAll(headers)
-        referer?.takeIf { it.isNotBlank() }?.let { put("Referer", it) }
-    }
+    val requestHeaders = mergeCloudStreamRequestHeaders(
+        urlHeaders = parsedUrl.headers,
+        linkHeaders = headers,
+        referer = referer,
+    )
     val qualityLabel = quality?.cloudStreamQualityLabel()
     val inferredStreamType = inferCloudStreamType(parsedUrl.url)
     return StreamItem(
@@ -124,6 +133,31 @@ fun CloudStreamPlaybackSource.toStreamItem(
             )
         },
     )
+}
+
+/**
+ * UPSTREAM: ExtractorLink.getAllHeaders() — the link's own headers win, and `referer` is only
+ * added when no header named referer (any casing) is present. HTTP header names are
+ * case-insensitive, so later sources replace earlier keys regardless of casing instead of
+ * sending both `referer` and `Referer`. Precedence: `url|k=v` pipe headers < link headers.
+ */
+internal fun mergeCloudStreamRequestHeaders(
+    urlHeaders: Map<String, String>,
+    linkHeaders: Map<String, String>,
+    referer: String?,
+): Map<String, String> {
+    val merged = linkedMapOf<String, String>()
+    fun putHeader(name: String, value: String) {
+        merged.keys.firstOrNull { it.equals(name, ignoreCase = true) }?.let(merged::remove)
+        merged[name] = value
+    }
+    urlHeaders.forEach { (name, value) -> putHeader(name, value) }
+    linkHeaders.forEach { (name, value) -> putHeader(name, value) }
+    val effectiveReferer = referer?.takeIf { it.isNotBlank() }
+    if (effectiveReferer != null && linkHeaders.keys.none { it.equals("referer", ignoreCase = true) }) {
+        putHeader("Referer", effectiveReferer)
+    }
+    return merged
 }
 
 private fun Int.cloudStreamQualityLabel(): String? =

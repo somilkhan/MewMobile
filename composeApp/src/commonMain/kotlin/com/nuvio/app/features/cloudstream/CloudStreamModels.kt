@@ -103,6 +103,13 @@ enum class CloudStreamTvType {
     AsianDrama,
     Music,
     Torrent,
+
+    /**
+     * UPSTREAM: TvType.NSFW. Kept distinct from [Other] because [Other] means "any type"
+     * for provider eligibility; folding NSFW into it routed adult-only plugins to every
+     * movie/series stream request.
+     */
+    Nsfw,
     Other,
     ;
 
@@ -111,7 +118,7 @@ enum class CloudStreamTvType {
             Movie, AnimeMovie, Documentary -> "movie"
             TvSeries, Anime, Ova, Cartoon, AsianDrama -> "series"
             Live, Music -> "live"
-            Torrent, Other -> "other"
+            Torrent, Nsfw, Other -> "other"
         }
 
     companion object {
@@ -125,8 +132,11 @@ enum class CloudStreamTvType {
             "documentary" -> Documentary
             "cartoon" -> Cartoon
             "asiandrama" -> AsianDrama
-            "music" -> Music
+            // UPSTREAM TvType: Music, AudioBook, Audio and Podcast are all audio-only media.
+            "music", "audiobook", "audio", "podcast" -> Music
             "torrent" -> Torrent
+            "nsfw" -> Nsfw
+            // Others, CustomMedia, Video and future values stay permissive.
             else -> Other
         }
     }
@@ -336,6 +346,8 @@ data class CloudStreamEpisode(
     val episode: Int? = null,
     val posterUrl: String? = null,
     val description: String? = null,
+    /** UPSTREAM: Episode.runTime, in minutes. */
+    val runtimeMinutes: Int? = null,
 )
 
 data class CloudStreamLoadItem(
@@ -350,6 +362,21 @@ data class CloudStreamLoadItem(
     val ratingPercent: Int? = null,
     val tags: List<String> = emptyList(),
     val episodes: List<CloudStreamEpisode> = emptyList(),
+    val logoUrl: String? = null,
+    /** Runtime in minutes, as reported by the provider (`LoadResponse.duration`). */
+    val durationMinutes: Int? = null,
+    val contentRating: String? = null,
+    val cast: List<CloudStreamCastMember> = emptyList(),
+    /** UPSTREAM: LoadResponse.getImdbId() from syncData, when the provider set it. */
+    val imdbId: String? = null,
+    /** UPSTREAM: LoadResponse.getTMDbId() from syncData, when the provider set it. */
+    val tmdbId: String? = null,
+)
+
+data class CloudStreamCastMember(
+    val name: String,
+    val character: String? = null,
+    val photoUrl: String? = null,
 )
 
 sealed interface CloudStreamProviderError {
@@ -368,3 +395,35 @@ internal fun shouldKeepCloudStreamPluginEnabled(
     statusCanInstall: Boolean,
     compatibilityIsRunnable: Boolean,
 ): Boolean = wasEnabled && statusCanInstall && compatibilityIsRunnable
+
+/**
+ * UPSTREAM: APIRepository.isInvalidData. CloudStream never calls load()/loadLinks() with
+ * these placeholder values; providers rely on the host to filter them.
+ */
+internal fun isInvalidCloudStreamData(data: String): Boolean =
+    data.isEmpty() || data == "[]" || data == "about:blank"
+
+/**
+ * UPSTREAM: ResultViewModel2 numbers episodes without an explicit number as `index + 1`.
+ * TV series index after sorting by `season * 10_000 + episode` (nulls as 0, stable);
+ * anime index within each DubStatus list in provider order ([sortBySeasonAndEpisode] = false).
+ * Without this, unnumbered episodes cannot be matched to a requested S/E and sort by name.
+ */
+internal fun fillMissingCloudStreamEpisodeNumbers(
+    episodes: List<CloudStreamEpisode>,
+    sortBySeasonAndEpisode: Boolean,
+): List<CloudStreamEpisode> {
+    if (episodes.none { it.episode == null }) return episodes
+    val ordered = if (sortBySeasonAndEpisode) {
+        episodes.sortedBy { (it.season?.times(10_000) ?: 0) + (it.episode ?: 0) }
+    } else {
+        episodes
+    }
+    return ordered.mapIndexed { index, episode ->
+        if (episode.episode != null) episode else episode.copy(episode = index + 1)
+    }
+}
+
+/** UPSTREAM: SimklSyncServices ids are only meaningful when non-blank. */
+internal fun normalizeCloudStreamExternalId(value: String?): String? =
+    value?.trim()?.takeIf { it.isNotEmpty() && it != "null" }

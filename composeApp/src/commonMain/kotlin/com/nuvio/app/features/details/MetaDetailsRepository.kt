@@ -23,11 +23,8 @@ import com.nuvio.app.features.servers.serverFailure
 import com.nuvio.app.features.tmdb.TMDB_RECOMMENDATIONS_PAGE_SIZE
 import com.nuvio.app.features.trakt.MoreLikeThisSourcePreference
 import com.nuvio.app.features.watched.WatchedClock
-import com.nuvio.app.features.cloudstream.CloudStreamRepository
 import com.nuvio.app.features.cloudstream.CloudStreamRouteData
-import com.nuvio.app.features.cloudstream.isCloudStreamDiscoveryAllowed
 import com.nuvio.app.features.cloudstream.parseCloudStreamRouteId
-import com.nuvio.app.features.cloudstream.toMetaDetails
 import com.nuvio.app.features.home.HomeCatalogSettingsRepository
 import com.nuvio.app.features.home.filterReleasedItems
 import com.nuvio.app.features.mdblist.MdbListMetadataService
@@ -486,12 +483,6 @@ object MetaDetailsRepository {
         }
     }
 
-    private fun isCloudStreamRouteAllowed(id: String): Boolean {
-        if (parseCloudStreamRouteId(id) == null) return true
-        TmdbSettingsRepository.ensureLoaded()
-        return isCloudStreamDiscoveryAllowed(TmdbSettingsRepository.snapshot().enabled)
-    }
-
     // Upstream (luq): lightweight background lookups and media-server details.
     private val backgroundBackoffUntilByHost = mutableMapOf<String, Long>()
 
@@ -615,7 +606,6 @@ object MetaDetailsRepository {
 
     private const val FETCH_TIMEOUT_MS = 5_000L
     private const val METADATA_BASE_TOTAL_TIMEOUT_MS = 5_000L
-    private const val CLOUDSTREAM_DETAIL_TIMEOUT_MS = 120_000L
     private const val FIRST_PAINT_ENRICHMENT_BUDGET_MS = 2_000L
     private const val METADATA_PROVIDER_READY_TIMEOUT_MS = 10_000L
     private const val TMDB_FALLBACK_TIMEOUT_MS = 10_000L
@@ -735,18 +725,14 @@ object MetaDetailsRepository {
                 }
         }
         parseCloudStreamRouteId(id)?.let { route ->
-            return withTimeoutOrNull(CLOUDSTREAM_DETAIL_TIMEOUT_MS) {
-                CloudStreamRepository.load(route.providerId, route.data)
-                    .getOrNull()
-                    ?.toMetaDetails()
-                    ?.let { meta ->
-                        BaseMetadataResult(
-                            meta = meta,
-                            source = BaseMetadataSource.CloudStream,
-                            fallbackItemId = id,
-                        )
-                    }
-            }
+            return loadCloudStreamMetaDetails(route) // Mew hook
+                ?.let { meta ->
+                    BaseMetadataResult(
+                        meta = meta,
+                        source = BaseMetadataSource.CloudStream,
+                        fallbackItemId = id,
+                    )
+                }
         }
 
         val metaLookupId = resolveMetaLookupId(itemId = id, itemType = type)

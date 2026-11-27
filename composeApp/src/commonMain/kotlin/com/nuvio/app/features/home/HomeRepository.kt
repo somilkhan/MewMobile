@@ -14,12 +14,8 @@ import com.nuvio.app.features.collection.CollectionSource
 import com.nuvio.app.features.collection.TmdbCollectionSourceResolver
 import com.nuvio.app.features.collection.catalogRouteKey
 import com.nuvio.app.features.collection.findCollectionCatalog
-import com.nuvio.app.features.cloudstream.CLOUDSTREAM_DISCOVERY_TIMEOUT_MS
 import com.nuvio.app.features.cloudstream.CloudStreamPluginItem
 import com.nuvio.app.features.cloudstream.CloudStreamRepository
-import com.nuvio.app.features.cloudstream.CloudStreamSearchItem
-import com.nuvio.app.features.cloudstream.isCloudStreamDiscoveryAllowed
-import com.nuvio.app.features.cloudstream.toMetaPreview
 import com.nuvio.app.features.servers.ServerCatalog
 import com.nuvio.app.features.tmdb.TmdbMetadataService
 import com.nuvio.app.features.tmdb.TmdbSettings
@@ -36,82 +32,19 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.math.absoluteValue
 import kotlin.random.Random
 import kotlin.time.Clock
 import kotlin.time.TimeSource
-
-/**
- * CloudStream home shelves are a fallback discovery surface only. When at least one
- * Stremio-style add-on catalog is enabled, its catalogs own Home; CloudStream remains
- * available independently for stream extraction.
- */
-internal fun shouldShowCloudStreamHomeCatalogs(
-    hasAddonCatalogs: Boolean,
-    tmdbEnabled: Boolean,
-): Boolean = !hasAddonCatalogs && tmdbEnabled
-
-internal fun effectiveHomeCloudStreamProviderId(
-    selectedProviderId: String?,
-    hasAddonCatalogs: Boolean,
-): String? = selectedProviderId.takeUnless { hasAddonCatalogs }
-
-internal fun buildCloudStreamHomeSections(
-    providerStorageKey: String,
-    providerId: String,
-    providerName: String,
-    categories: List<Pair<String, List<CloudStreamSearchItem>>>,
-): List<HomeCatalogSection> {
-    val categoryNameCounts = categories.groupingBy { it.first }.eachCount()
-    val occurrenceByName = mutableMapOf<String, Int>()
-    return categories.mapIndexedNotNull { categoryIndex, (categoryName, items) ->
-        if (items.isEmpty()) return@mapIndexedNotNull null
-        val occurrence = (occurrenceByName[categoryName] ?: 0) + 1
-        occurrenceByName[categoryName] = occurrence
-        val displayName = if ((categoryNameCounts[categoryName] ?: 0) > 1) {
-            "$categoryName $occurrence"
-        } else {
-            categoryName
-        }
-        val previews = items.take(HOME_CATALOG_PREVIEW_FETCH_LIMIT).map { it.toMetaPreview() }
-        HomeCatalogSection(
-            key = cloudStreamSectionKey(providerStorageKey, categoryName, categoryIndex),
-            title = displayName,
-            subtitle = "$providerName · CloudStream",
-            addonName = providerName,
-            target = CatalogTarget.CloudStream(
-                providerId = providerId,
-                categoryName = categoryName,
-                contentType = items.first().type.nuvioType,
-                supportsPagination = false,
-                categoryIndex = categoryIndex,
-            ),
-            items = previews,
-            availableItemCount = items.size,
-            hasMore = items.size > previews.size,
-        )
-    }
-}
-
-private data class CloudHomeProviderResult(
-    val sections: List<HomeCatalogSection>,
-    val errorMessage: String?,
-)
-
-private data class CloudHomeSectionsResult(
-    val sections: List<HomeCatalogSection>,
-    val errorMessage: String?,
-)
 
 object HomeRepository {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -214,33 +147,18 @@ object HomeRepository {
         val activeAddons = addons.enabledAddons()
         lastRefreshAddonSignature = buildAddonCatalogRefreshSignature(addons)
         val hasAddonCatalogs = activeAddons.any { it.manifest != null }
-        // CloudStream catalogs are a fallback only. Do not mix their home shelves with
-        // enabled add-on catalogs; CloudStream provider execution for stream extraction
-        // is handled independently by StreamsRepository.
-        val tmdbEnabled = isCloudStreamDiscoveryAllowed(TmdbSettingsRepository.snapshot().enabled)
         val selectedProviderId = effectiveHomeCloudStreamProviderId(
             selectedProviderId = _selectedCloudStreamProviderId.value,
             hasAddonCatalogs = hasAddonCatalogs,
         )
-        val cloudPlugins = if (shouldShowCloudStreamHomeCatalogs(hasAddonCatalogs, tmdbEnabled)) {
-            cloudState.plugins
-                .filter(CloudStreamPluginItem::isRunnable)
-                .filter { selectedProviderId == null || it.metadata.id.value == selectedProviderId }
-        } else {
-            emptyList()
-        }
+        val cloudPlugins = selectHomeCloudStreamPlugins(cloudState.plugins, hasAddonCatalogs, selectedProviderId) // Mew hook
         val requests = buildHomeCatalogDefinitions(activeAddons)
         currentDefinitions = requests
         val requestCacheKeys = requests.mapTo(mutableSetOf(), HomeCatalogDefinition::cacheKey)
         cachedSections = cachedSections.filterKeys(requestCacheKeys::contains)
         val requestKey = buildString {
             append(requests.joinToString(separator = "|", transform = HomeCatalogDefinition::cacheKey))
-            append("|cloudstream=")
-            append(cloudState.registryRevision)
-            append(':')
-            append(cloudPlugins.joinToString(separator = ",") { it.metadata.id.value })
-            append("|selectedCloudStreamProvider=")
-            append(selectedProviderId.orEmpty())
+            appendCloudStreamHomeRequestKey(cloudState.registryRevision, cloudPlugins, selectedProviderId) // Mew hook
         }
         currentRequestKey = requestKey
 
@@ -745,58 +663,15 @@ object HomeRepository {
         )
     }
 
+    // Mew hook: CloudStream MainPage scan lives in mew/MewCloudStreamHomeSupport.kt.
     private suspend fun loadCloudSections(
         plugins: List<CloudStreamPluginItem>,
         requestKey: String,
-    ): CloudHomeSectionsResult {
-        val sections = mutableListOf<HomeCatalogSection>()
-        var firstError: String? = null
-        val scanPlugins = plugins
-        val gate = Semaphore(HOME_CLOUDSTREAM_PROVIDER_CONCURRENCY)
-        val resultChannel = Channel<Pair<CloudStreamPluginItem, CloudHomeProviderResult>>(Channel.BUFFERED)
-        coroutineScope {
-            scanPlugins.forEach { plugin ->
-                launch {
-                    val result = gate.withPermit {
-                        val mainPage = withTimeoutOrNull(HOME_CLOUDSTREAM_PROVIDER_TIMEOUT_MS) {
-                            CloudStreamRepository.getMainPage(plugin.metadata.id.value, page = 1)
-                        }
-                        if (mainPage == null) {
-                            CloudHomeProviderResult(emptyList(), "${plugin.metadata.name} timed out")
-                        } else {
-                            mainPage.fold(
-                                onSuccess = { categories ->
-                                    CloudHomeProviderResult(
-                                        buildCloudStreamHomeSections(
-                                            providerStorageKey = plugin.metadata.id.storageKey,
-                                            providerId = plugin.metadata.id.value,
-                                            providerName = plugin.metadata.name,
-                                            categories = categories,
-                                        ),
-                                        null,
-                                    )
-                                },
-                                onFailure = { error -> CloudHomeProviderResult(emptyList(), error.message) },
-                            )
-                        }
-                    }
-                    resultChannel.send(plugin to result)
-                }
-            }
-            repeat(scanPlugins.size) {
-                val (_, result) = resultChannel.receive()
-                // Keep every category returned by each runnable provider as its own shelf.
-                // Per-provider timeouts keep a broken extension from blocking the progressive scan.
-                if (result.sections.isNotEmpty()) sections += result.sections
-                if (firstError == null) firstError = result.errorMessage
-                if (sections.isNotEmpty() && activeRequestKey == requestKey) {
-                    cachedCloudSections = sections.toList()
-                    publishCurrentState(isLoading = true, requestKey = requestKey)
-                }
-            }
+    ): CloudHomeSectionsResult = loadCloudStreamHomeSections(plugins) { sections ->
+        if (activeRequestKey == requestKey) {
+            cachedCloudSections = sections
+            publishCurrentState(isLoading = true, requestKey = requestKey)
         }
-        resultChannel.close()
-        return CloudHomeSectionsResult(sections = sections, errorMessage = firstError)
     }
     private suspend fun HomeCatalogDefinition.toServerSection(connectionId: String): HomeCatalogSection {
         val target = CatalogTarget.Server(connectionId, catalogId, type)
@@ -986,10 +861,8 @@ private const val HOME_COLLECTION_HERO_SOURCE_LIMIT = 6
 private const val HOME_COLLECTION_HERO_SOURCE_ITEM_LIMIT = 8
 private const val HOME_CATALOG_MAX_CONCURRENT_FETCHES = 6
 private const val HOME_CATALOG_FETCH_TIMEOUT_MS = 30_000L
-private const val HOME_CATALOG_PREVIEW_FETCH_LIMIT = 18
+internal const val HOME_CATALOG_PREVIEW_FETCH_LIMIT = 18 // Mew hook: used by MewCloudStreamHomeSupport.kt
 private const val HOME_CATALOG_PUBLISH_INTERVAL = 2
-internal const val HOME_CLOUDSTREAM_PROVIDER_TIMEOUT_MS = CLOUDSTREAM_DISCOVERY_TIMEOUT_MS + 5_000L
-private const val HOME_CLOUDSTREAM_PROVIDER_CONCURRENCY = 4
 private const val HOME_CATALOG_REQUEST_TIMEOUT_MS = 12_000L
 private const val HOME_COLLECTION_HERO_SOURCE_TIMEOUT_MS = 10_000L
 private const val HOME_HERO_LOCALIZED_ARTWORK_BATCH_SIZE = 3

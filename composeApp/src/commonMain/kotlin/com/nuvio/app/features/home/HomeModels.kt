@@ -48,12 +48,6 @@ data class HomeCatalogSection(
     val hasMore: Boolean = false,
 )
 
-internal fun cloudStreamSectionKey(
-    providerStorageKey: String,
-    categoryName: String,
-    categoryIndex: Int = 0,
-): String = "cloudstream:$providerStorageKey:$categoryIndex:$categoryName"
-
 fun HomeCatalogSection.canOpenCatalog(previewLimit: Int): Boolean =
     availableItemCount > previewLimit || hasMore
 

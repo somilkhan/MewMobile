@@ -16,6 +16,8 @@ import com.lagradost.cloudstream3.CommonActivity
 import com.lagradost.cloudstream3.LiveSearchResponse
 import com.lagradost.cloudstream3.LiveStreamLoadResponse
 import com.lagradost.cloudstream3.LoadResponse
+import com.lagradost.cloudstream3.LoadResponse.Companion.getImdbId
+import com.lagradost.cloudstream3.LoadResponse.Companion.getTMDbId
 import com.lagradost.cloudstream3.MainAPI
 import com.lagradost.cloudstream3.MainPageRequest
 import com.lagradost.cloudstream3.MovieLoadResponse
@@ -26,12 +28,14 @@ import com.lagradost.cloudstream3.TvSeriesLoadResponse
 import com.lagradost.cloudstream3.TvSeriesSearchResponse
 import com.lagradost.cloudstream3.TvType
 import com.lagradost.cloudstream3.actions.VideoClickActionHolder
+import com.lagradost.cloudstream3.fixUrl
 import com.lagradost.cloudstream3.plugins.BasePlugin
 import com.lagradost.cloudstream3.plugins.Plugin
 import com.lagradost.cloudstream3.plugins.PluginData
 import com.lagradost.cloudstream3.plugins.PluginManager
 import com.lagradost.cloudstream3.network.initClient
 import com.lagradost.cloudstream3.syncproviders.SyncIdName
+import com.lagradost.cloudstream3.utils.DrmExtractorLink
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.ExtractorLinkType
 import com.lagradost.cloudstream3.utils.extractorApis
@@ -389,6 +393,7 @@ internal actual object CloudStreamPlatformRuntime {
         activityReference?.get()?.let(CommonActivity::setActivityInstance)
         CloudStreamApp.context = context
         setContext(WeakReference(context))
+        installSyncIdPrefixes()
 
         if (hostInitialized) return
 
@@ -405,6 +410,19 @@ internal actual object CloudStreamPlatformRuntime {
             "CloudStream HTTP client initialized defaultTimeoutSeconds=${app.defaultTimeOut}",
         )
 
+    }
+
+    /**
+     * UPSTREAM: AccountManager.initMainAPI() assigns these before any plugin loads. The
+     * library defaults are all "", so without it LoadResponse.addMalId/addAniListId and
+     * addImdbId/addTMDbId (stored under simklIdPrefix) overwrite the same syncData key and
+     * getImdbId()/getTMDbId() return nothing or garbage.
+     */
+    private fun installSyncIdPrefixes() {
+        LoadResponse.malIdPrefix = "mal"
+        LoadResponse.kitsuIdPrefix = "kitsu"
+        LoadResponse.aniListIdPrefix = "anilist"
+        LoadResponse.simklIdPrefix = "simkl"
     }
 
     private fun currentNativeRepositorySyncGeneration(): Long =
@@ -575,11 +593,17 @@ internal actual object CloudStreamPlatformRuntime {
     ) {
         fun unload() {
             runCatching { instance.beforeUnload() }
-            providers.forEach { api ->
+            // UPSTREAM: PluginManager.unloadPlugin removes everything whose sourcePlugin is this
+            // file, not only what existed right after load(). Plugins may register MainAPIs or
+            // extractors later from coroutines; those must not outlive the plugin.
+            val ownedApis = (providers + APIHolder.apis.filter { it.sourcePlugin == path }).distinct()
+            ownedApis.forEach { api ->
                 APIHolder.allProviders.remove(api)
                 APIHolder.removePluginMapping(api)
             }
+            APIHolder.allProviders.removeAll { it.sourcePlugin == path }
             extractorApis.removeAll(extractors.toSet())
+            extractorApis.removeAll { it.sourcePlugin == path }
             VideoClickActionHolder.allVideoClickActions.removeAll { it.sourcePlugin == path }
             PluginManager.unregister(path)
         }
@@ -734,7 +758,7 @@ private class AndroidDexCloudStreamProvider(
                     api.getLoadUrl(syncName, externalId)
                 }?.takeIf(String::isNotBlank) ?: return@runCatching null
                 withTimeout(stageTimeout(api.loadTimeoutMs, DEFAULT_LOAD_TIMEOUT_MS)) {
-                    api.load(url)
+                    api.load(api.fixUrl(url))
                 }?.toNuvioLoadItem(api)
             }.onFailure { error ->
                 log.w(error) { "CloudStream external-id load failed api=${api.name} id=$externalId" }
@@ -749,8 +773,11 @@ private class AndroidDexCloudStreamProvider(
         RuntimeDiagnostics.recordLog(
             "cs-load-timeout-config provider=${api.name} hintMs=${api.loadTimeoutMs} effectiveMs=$effectiveTimeoutMs",
         )
+        // UPSTREAM: APIRepository.load rejects placeholder data and passes api.fixUrl(url),
+        // so providers may return relative or protocol-relative search URLs.
+        require(!isInvalidCloudStreamData(route.data)) { "CloudStream provider returned no details" }
         val response = withTimeout(effectiveTimeoutMs) {
-            api.load(route.data)
+            api.load(api.fixUrl(route.data))
         } ?: error("CloudStream provider returned no details")
         response.toNuvioLoadItem(api)
     }
@@ -758,6 +785,10 @@ private class AndroidDexCloudStreamProvider(
     override suspend fun loadLinks(data: String): List<CloudStreamPlaybackSource> = withContext(Dispatchers.IO) {
         val route = decodeAndroidDexRoute(data)
         val api = findProvider(route.providerClassName)
+        // UPSTREAM: APIRepository.loadLinks returns false without calling the provider.
+        if (isInvalidCloudStreamData(route.data)) {
+            error("CloudStream provider returned no playable links (provider=${api.name}, invalid data)")
+        }
         val subtitles = Collections.synchronizedList(mutableListOf<CloudStreamSubtitle>())
         val links = Collections.synchronizedList(mutableListOf<ExtractorLink>())
         // Match the real CloudStream/Nuvio execution contract: loadLinks() is allowed
@@ -766,30 +797,48 @@ private class AndroidDexCloudStreamProvider(
         val completed = withTimeoutOrNull(
             stageTimeout(api.loadLinksTimeoutMs, DEFAULT_LINK_TIMEOUT_MS),
         ) {
-            runCatching {
+            try {
                 api.loadLinks(
                     data = route.data,
                     isCasting = false,
                     subtitleCallback = { subtitle ->
                         subtitles += CloudStreamSubtitle(
                             url = subtitle.url,
-                            language = subtitle.lang,
+                            // UPSTREAM: SubtitleFile.langTag is the IETF tag ("en", "pt-BR");
+                            // lang is a display name. Match on the tag when the extension sets it.
+                            language = subtitle.langTag?.takeIf(String::isNotBlank) ?: subtitle.lang,
                             name = subtitle.lang,
                             headers = subtitle.headers.orEmpty(),
                         )
                     },
                     callback = links::add,
                 )
-            }.onFailure { error ->
+            } catch (error: CancellationException) {
+                // Let the timeout (handled by withTimeoutOrNull) and caller cancellation
+                // propagate instead of reporting them as a provider failure.
+                throw error
+            } catch (error: Throwable) {
                 log.w(error) {
                     "CloudStream loadLinks threw provider=${api.name} " +
                         "links=${links.size} error=${error.javaClass.simpleName}: ${error.message}"
                 }
-            }.getOrDefault(false)
+                false
+            }
         }
 
+        // UPSTREAM: RepoLinkGenerator drops blank URLs and de-duplicates subtitles by URL.
         val subtitleSnapshot = synchronized(subtitles) { subtitles.toList() }
-        val linkSnapshot = synchronized(links) { links.toList() }
+            .filter { it.url.isNotBlank() }
+            .distinctBy { it.url }
+        val emittedLinks = synchronized(links) { links.toList() }
+        // ExtractorLinkPlayList has url = "" and DrmExtractorLink needs a DRM session; Mew's
+        // player supports neither, so exposing them only produces streams that cannot start.
+        val linkSnapshot = emittedLinks.filter { link -> link.url.isNotBlank() && link !is DrmExtractorLink }
+        if (linkSnapshot.size != emittedLinks.size) {
+            RuntimeDiagnostics.recordLog(
+                "cs-load-links-unsupported provider=${api.name} dropped=${emittedLinks.size - linkSnapshot.size}",
+            )
+        }
 
         RuntimeDiagnostics.recordLog(
             "cs-load-links-result provider=${api.name} completed=${completed != null} " +
@@ -860,15 +909,21 @@ private class AndroidDexCloudStreamProvider(
         val playbackData = when (this) {
             is MovieLoadResponse -> dataUrl
             is LiveStreamLoadResponse -> dataUrl
-            is TorrentLoadResponse -> magnet ?: torrent ?: url
+            // UPSTREAM: ResultViewModel2 uses `torrent ?: magnet` for TorrentLoadResponse.
+            is TorrentLoadResponse -> torrent?.takeIf(String::isNotBlank) ?: magnet?.takeIf(String::isNotBlank) ?: url
             else -> url
         }
         val episodes = when (this) {
-            is TvSeriesLoadResponse -> episodes.map { episode -> episode.toNuvioEpisode(api) }
+            is TvSeriesLoadResponse -> fillMissingCloudStreamEpisodeNumbers(
+                episodes.map { episode -> episode.toNuvioEpisode(api) },
+                sortBySeasonAndEpisode = true,
+            ).map { episode -> episode.withDisplayName(variant = null) }
             is AnimeLoadResponse -> episodes.flatMap { (dubStatus, values) ->
-                values.map { episode ->
-                    episode.toNuvioEpisode(api, dubStatus.name.takeUnless { episodes.size == 1 })
-                }
+                val variant = dubStatus.name.takeUnless { episodes.size == 1 }
+                fillMissingCloudStreamEpisodeNumbers(
+                    values.map { episode -> episode.toNuvioEpisode(api) },
+                    sortBySeasonAndEpisode = false,
+                ).map { episode -> episode.withDisplayName(variant) }
             }
             else -> emptyList()
         }
@@ -882,22 +937,47 @@ private class AndroidDexCloudStreamProvider(
             description = plot,
             year = year,
             ratingPercent = score?.toInt(100),
-            tags = tags.orEmpty(),
+            // UPSTREAM: APIRepository.load drops blank tags.
+            tags = tags.orEmpty().filter(String::isNotBlank),
             episodes = episodes,
+            logoUrl = logoUrl?.takeIf(String::isNotBlank),
+            durationMinutes = duration?.takeIf { it > 0 },
+            contentRating = contentRating?.takeIf(String::isNotBlank),
+            cast = nuvioCast(),
+            imdbId = runCatching { getImdbId() }.getOrNull().let(::normalizeCloudStreamExternalId),
+            tmdbId = runCatching { getTMDbId() }.getOrNull().let(::normalizeCloudStreamExternalId),
         )
     }
 
+    /**
+     * UPSTREAM: LoadResponse.actors carries the provider's cast with photos. Read it
+     * defensively so one malformed entry never fails the whole details load.
+     */
+    private fun LoadResponse.nuvioCast(): List<CloudStreamCastMember> =
+        runCatching {
+            actors.orEmpty().mapNotNull { entry ->
+                val name = entry.actor.name.trim().takeIf(String::isNotBlank) ?: return@mapNotNull null
+                CloudStreamCastMember(
+                    name = name,
+                    character = entry.roleString?.trim()?.takeIf(String::isNotBlank),
+                    photoUrl = entry.actor.image?.trim()?.takeIf(String::isNotBlank),
+                )
+            }.distinctBy { it.name.lowercase() }
+        }.onFailure { error ->
+            log.w(error) { "CloudStream cast mapping failed api=$apiName" }
+        }.getOrDefault(emptyList())
+
     private fun com.lagradost.cloudstream3.Episode.toNuvioEpisode(
         api: MainAPI,
-        variant: String? = null,
     ): CloudStreamEpisode = CloudStreamEpisode(
         data = encodeAndroidDexRoute(api.javaClass.name, data),
-        name = listOfNotNull(name?.takeIf(String::isNotBlank), variant).joinToString(" · ")
-            .ifBlank { "Episode ${episode ?: ""}".trim() },
+        // The display name is finalised by withDisplayName() once missing numbers are assigned.
+        name = name?.trim().orEmpty(),
         season = season,
         episode = episode,
         posterUrl = posterUrl,
         description = description,
+        runtimeMinutes = runTime?.takeIf { it > 0 },
     )
 
     private companion object {
@@ -928,6 +1008,11 @@ private class AndroidDexCloudStreamProvider(
         private const val MIN_PROVIDER_TIMEOUT_MS = 5_000L
         private const val MAX_LOAD_TIMEOUT_MS = 480_000L
     }
+}
+
+private fun CloudStreamEpisode.withDisplayName(variant: String?): CloudStreamEpisode {
+    val base = name.ifBlank { "Episode ${episode ?: ""}".trim() }
+    return copy(name = listOfNotNull(base, variant).joinToString(" · "))
 }
 
 private data class AndroidDexRoute(val providerClassName: String, val data: String)
@@ -962,5 +1047,6 @@ private fun TvType?.toNuvioTvType(): CloudStreamTvType = when (this) {
     TvType.AsianDrama -> CloudStreamTvType.AsianDrama
     TvType.Live -> CloudStreamTvType.Live
     TvType.Music, TvType.Audio, TvType.AudioBook, TvType.Podcast -> CloudStreamTvType.Music
+    TvType.NSFW -> CloudStreamTvType.Nsfw
     else -> CloudStreamTvType.Other
 }
