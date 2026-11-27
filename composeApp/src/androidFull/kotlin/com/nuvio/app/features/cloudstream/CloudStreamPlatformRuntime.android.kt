@@ -986,5 +986,6 @@ private fun TvType?.toNuvioTvType(): CloudStreamTvType = when (this) {
     TvType.AsianDrama -> CloudStreamTvType.AsianDrama
     TvType.Live -> CloudStreamTvType.Live
     TvType.Music, TvType.Audio, TvType.AudioBook, TvType.Podcast -> CloudStreamTvType.Music
+    TvType.NSFW -> CloudStreamTvType.Nsfw
     else -> CloudStreamTvType.Other
 }

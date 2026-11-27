@@ -103,6 +103,13 @@ enum class CloudStreamTvType {
     AsianDrama,
     Music,
     Torrent,
+
+    /**
+     * UPSTREAM: TvType.NSFW. Kept distinct from [Other] because [Other] means "any type"
+     * for provider eligibility; folding NSFW into it routed adult-only plugins to every
+     * movie/series stream request.
+     */
+    Nsfw,
     Other,
     ;
 
@@ -111,7 +118,7 @@ enum class CloudStreamTvType {
             Movie, AnimeMovie, Documentary -> "movie"
             TvSeries, Anime, Ova, Cartoon, AsianDrama -> "series"
             Live, Music -> "live"
-            Torrent, Other -> "other"
+            Torrent, Nsfw, Other -> "other"
         }
 
     companion object {
@@ -125,8 +132,11 @@ enum class CloudStreamTvType {
             "documentary" -> Documentary
             "cartoon" -> Cartoon
             "asiandrama" -> AsianDrama
-            "music" -> Music
+            // UPSTREAM TvType: Music, AudioBook, Audio and Podcast are all audio-only media.
+            "music", "audiobook", "audio", "podcast" -> Music
             "torrent" -> Torrent
+            "nsfw" -> Nsfw
+            // Others, CustomMedia, Video and future values stay permissive.
             else -> Other
         }
     }
