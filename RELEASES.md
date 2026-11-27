@@ -94,15 +94,30 @@ NUVIO_UPDATE_GITHUB_REPO=MewMobile
 These property names are retained as internal compatibility identifiers; their
 current defaults target `somilkhan/MewMobile` for Mew releases.
 
-The app checks published, non-prerelease GitHub Releases at startup. A release is
-offered only when it contains a compatible APK and has a version newer than the
-installed app. The GitHub release body is displayed as the in-app changelog.
+The app checks the 20 most recent GitHub Releases at startup. On the Stable
+channel it ignores pre-releases and prefers releases cut from `main` or
+`enhanced`. On the Beta channel it also considers pre-releases. A release is
+offered only when it contains a compatible APK and has a newer version than the
+installed app, so `0.6.0` outranks `0.6.0-beta.2`, which outranks `0.6.0-beta.1`.
+The GitHub release body is displayed as the in-app changelog.
+
+Release notes are the matching `CHANGELOG.md` section followed by a commit list.
+The list only follows this repository's first-parent history, so upstream
+commits that arrive through merges are left out and should be summarised in the
+changelog by hand. Reverts, merge-repair commits and work that was undone later
+in the same range are dropped too.
 
 ## Release checklist
 
-1. Update `CHANGELOG.md` with the current Mew release identity.
-2. Increment `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in
-   `iosApp/Configuration/Version.xcconfig`.
-3. Build and test `fullRelease`.
-4. Confirm the release contents with the repository owner.
-5. Run the Android release workflow in `publish` mode.
+1. Merge the release branch into `main` and dispatch releases from `main`.
+2. Add a `CHANGELOG.md` section whose heading starts with the exact version,
+   for example `## 0.6.0-beta.1 - 2026-11-27`.
+3. Increment `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in
+   `iosApp/Configuration/Version.xcconfig`. Use a `-beta.N` suffix for betas.
+   This must be the last application change; only the changelog, release
+   workflow and release scripts may change after it.
+4. Run the Android release workflow in `dry-run` mode and read the generated
+   notes in the run summary.
+5. Confirm the release contents with the repository owner.
+6. Run the workflow in `publish` mode. For a beta, set `channel` to `beta`
+   so it is published as a GitHub pre-release.

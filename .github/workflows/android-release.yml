@@ -5,7 +5,7 @@ on:
   # Add [release-beta] to either to ship on the Beta update channel (published as a GitHub pre-release).
   push:
     branches:
-      - enhanced
+      - main
   workflow_dispatch:
     inputs:
       mode:
@@ -292,6 +292,7 @@ jobs:
             --to "${CURRENT_BUMP}" \
             --repository "${GITHUB_REPOSITORY}" \
             --exclude "${EXCLUDE_COMMITS}" \
+            --first-parent \
             > release-commits.md
 
           if [[ ! -s release-commits.md ]]; then

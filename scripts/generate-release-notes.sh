@@ -6,13 +6,14 @@ from_ref=""
 to_ref="HEAD"
 repository="${GITHUB_REPOSITORY:-}"
 offline=false
+first_parent=false
 exclude_commits="${RELEASE_NOTES_EXCLUDE_COMMITS:-}"
 exclude_refs=()
 upstream_ref=""
 upstream_repository=""
 
 usage() {
-    echo "Usage: $0 --from <commit> [--to <commit>] [--repository <owner/repo>] [--exclude <hashes>] [--exclude-ref <ref>]... [--offline]" >&2
+    echo "Usage: $0 --from <commit> [--to <commit>] [--repository <owner/repo>] [--exclude <hashes>] [--exclude-ref <ref>]... [--offline] [--first-parent]" >&2
 }
 
 while [[ $# -gt 0 ]]; do
@@ -47,6 +48,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --offline)
             offline=true
+            shift
+            ;;
+        --first-parent)
+            first_parent=true
             shift
             ;;
         -h|--help)
@@ -97,6 +102,9 @@ is_release_note() {
     [[ ! "$subject_lower" =~ $version_bump_pattern ]] || return 1
     [[ ! "$subject_lower" =~ $cleanup_pattern ]] || return 1
     [[ ! "$subject_lower" =~ $conventional_noise_pattern ]] || return 1
+    # Reverts and upstream-merge repair commits describe how a merge was done, not what users get.
+    local merge_noise_pattern='^(revert|merge)([[:space:][:punct:]].*)?$|\(round [0-9]+\)|^fix\(merge\)|(after|from) (the )?[a-z0-9 ._-]*merge|^add files via upload'
+    [[ ! "$subject_lower" =~ $merge_noise_pattern ]] || return 1
     return 0
 }
 
@@ -124,10 +132,12 @@ resolve_username() {
         fi
     fi
 
-    if [[ -z "$username" ]]; then
-        username="$(printf '%s' "$author_name" | tr -cd '[:alnum:]_-')"
+    if [[ -n "$username" ]]; then
+        # Only real GitHub logins get an @ so release notes never mention unrelated accounts.
+        printf '@%s' "$username"
+    else
+        printf '%s' "${author_name:-unknown}"
     fi
-    printf '%s' "${username:-unknown}"
 }
 
 resolve_pull_request() {
@@ -184,14 +194,21 @@ emit_notes() {
     [[ "$seen_subjects" != *$'\n'"$normalized_subject"$'\n'* ]] || continue
     seen_subjects+="${normalized_subject}"$'\n'
 
-    display_subject="$(printf '%s' "$subject" | sed -E 's/[[:space:]]+$//; s/\.$//')"
+    display_subject="$(printf '%s' "$subject" | sed -E 's/[[:space:]]*\[(build-apk|release-[a-z]+|skip ci)\]//g; s/[[:space:]]+$//; s/\.$//')"
     username="$(resolve_username "$commit" "$author_name" "$author_email")"
-    printf -- '- %s %s @%s  \n' "$short_hash" "$display_subject" "$username"
+    printf -- '- %s %s %s  \n' "$short_hash" "$display_subject" "$username"
 done < <(
-        git log "$@" --no-merges \
+        git log "$@" --no-merges ${first_parent_args[@]+"${first_parent_args[@]}"} \
             --format="%H${separator}%h${separator}%s${separator}%an${separator}%ae"
     )
 }
+
+# --first-parent lists only commits made on this repository's own line of history.
+# Upstream work that arrives through merge commits is summarised in CHANGELOG.md instead.
+first_parent_args=()
+if [[ "$first_parent" == true ]]; then
+    first_parent_args=(--first-parent)
+fi
 
 upstream_args=()
 upstream_base=""
@@ -199,6 +216,26 @@ if [[ -n "$upstream_ref" ]] && git cat-file -e "${upstream_ref}^{commit}" 2>/dev
     upstream_args=("^${upstream_ref}")
     upstream_base="$(git merge-base "$to_ref" "$upstream_ref" || true)"
 fi
+
+# Drop work that was undone inside the release range so notes only list what ships:
+# commits named by "This reverts commit <sha>" and commits rolled back by a
+# "restore <branch> to last green <sha>" reset (everything after <sha> up to the reset).
+collect_undone_commits() {
+    local range_args=("$@")
+    local commit subject body target
+    while IFS= read -r commit; do
+        subject="$(git log -1 --format=%s "$commit")"
+        body="$(git log -1 --format=%B "$commit")"
+        while read -r target; do
+            [[ -n "$target" ]] && printf '%s\n' "$target"
+        done < <(printf '%s\n' "$body" | sed -nE 's/.*This reverts commit ([0-9a-f]{7,40}).*/\1/p')
+        target="$(printf '%s' "$subject" | sed -nE 's/.*[Rr]estore [^ ]+ to last green (commit |tree )?\(?([0-9a-f]{7,40})\)?.*/\2/p')"
+        if [[ -n "$target" ]] && git cat-file -e "${target}^{commit}" 2>/dev/null; then
+            git rev-list ${first_parent_args[@]+"${first_parent_args[@]}"} "${target}..${commit}^"
+        fi
+    done < <(git rev-list ${first_parent_args[@]+"${first_parent_args[@]}"} "${range_args[@]}")
+}
+exclude_commits="${exclude_commits} $(collect_undone_commits "${from_ref}..${to_ref}" | tr '\n' ' ')"
 
 fork_notes="$(emit_notes "$repository" "${from_ref}..${to_ref}" ${exclude_refs[@]+"${exclude_refs[@]}"} ${upstream_args[@]+"${upstream_args[@]}"})"
 upstream_notes=""
