@@ -9,6 +9,9 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -100,6 +103,7 @@ import androidx.navigation3.ui.NavDisplay
 import androidx.savedstate.serialization.SavedStateConfiguration
 import coil3.ImageLoader
 import coil3.annotation.ExperimentalCoilApi
+import androidx.compose.ui.graphics.graphicsLayer
 import coil3.compose.AsyncImage
 import coil3.compose.setSingletonImageLoaderFactory
 import coil3.request.CachePolicy
@@ -758,8 +762,16 @@ fun App(
             targetState = gateScreen,
             label = "app_gate",
             transitionSpec = {
-                (fadeIn(tween(400)) + scaleIn(tween(400), initialScale = 0.94f))
-                    .togetherWith(fadeOut(tween(250)))
+                if (
+                    initialState == AppGateScreen.Loading.name &&
+                    targetState == AppGateScreen.Main.name
+                ) {
+                    // Main mounts its own identical launch overlay, so hand off without a jump.
+                    EnterTransition.None togetherWith ExitTransition.None
+                } else {
+                    (fadeIn(tween(400)) + scaleIn(tween(400), initialScale = 0.94f))
+                        .togetherWith(fadeOut(tween(250)))
+                }
             },
         ) { currentGate ->
             when (currentGate) {
@@ -1113,11 +1125,12 @@ private fun MainAppContent(
         }
     }
 
-    // Let Compose draw the Mew-branded launch surface once, then reveal the app shell.
-    // Content discovery remains progressive inside Home; it is not a startup prerequisite.
+    // luq-style reveal: keep the Mew launch surface until Home paints its first catalog
+    // (usually instant from the cached snapshot / addon HTTP cache), then cross-fade. The cap
+    // keeps Mew's promise that network catalogs are never a hard startup prerequisite.
     LaunchedEffect(ownsAppRuntime) {
         if (!ownsAppRuntime) return@LaunchedEffect
-        withFrameNanos { }
+        kotlinx.coroutines.delay(MainLaunchOverlayMaxHoldMs)
         initialHomeReady = true
     }
 
@@ -2514,7 +2527,7 @@ private fun MainAppContent(
                                         onRequestedSettingsPageConsumed = {
                                             requestedSettingsPageName = null
                                         },
-                                        onInitialHomeContentRendered = {},
+                                        onInitialHomeContentRendered = { initialHomeReady = true },
                                     )
                                 }
 
@@ -4140,9 +4153,26 @@ private fun MainAppContent(
                     .zIndex(20f),
             )
 
+            val launchOverlayState = remember(ownsAppRuntime) {
+                MutableTransitionState(ownsAppRuntime && !initialHomeReady)
+            }
+            launchOverlayState.targetState = ownsAppRuntime && !initialHomeReady
+            androidx.compose.animation.AnimatedVisibility(
+                visibleState = launchOverlayState,
+                enter = fadeIn(tween(0)),
+                exit = fadeOut(tween(400)),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .zIndex(30f),
+            ) {
+                AppLaunchOverlay(modifier = Modifier.fillMaxSize())
+            }
+
             }
         }
 }
+
+private const val MainLaunchOverlayMaxHoldMs = 2_500L
 
 @Composable
 private fun rememberGuardedPopBackStack(
@@ -4584,28 +4614,52 @@ private fun AppLaunchOverlay(
         ),
         label = "mascot_offset",
     )
+    // Fade the mascot in once decoded so it never pops onto an empty frame.
+    var mascotLoaded by remember { mutableStateOf(false) }
+    val mascotAlpha by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (mascotLoaded) 1f else 0f,
+        animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
+        label = "mascot_alpha",
+    )
     Box(
         modifier = modifier
             .zIndex(NuvioTokens.Z.dialog)
             .nuvioConsumePointerEvents()
-            .background(Color(0xFF0B0C0C)),
+            // Same colour as the Android window/splash background (@color/nuvio_background),
+            // so the system splash -> Compose hand-off has no visible colour step.
+            .background(MewLaunchBackground),
         contentAlignment = Alignment.Center,
     ) {
         PlatformBackHandler(enabled = true) { }
 
-        AsyncImage(
-            model = Res.getUri("drawable/mew_splash_scene.svg"),
-            contentDescription = null,
-            modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.FillBounds,
-        )
+        // Scene is drawn directly: instant first frame and no stretching on tablets/landscape.
+        androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize()) {
+            val mascotWidth = size.width * 0.58f
+            val shadowCenter = androidx.compose.ui.geometry.Offset(
+                x = center.x,
+                y = center.y + mascotWidth * 0.30f,
+            )
+            val shadowRx = mascotWidth * 0.26f
+            val shadowRy = mascotWidth * 0.03f
+            drawOval(
+                color = Color.White.copy(alpha = 0.12f),
+                topLeft = androidx.compose.ui.geometry.Offset(shadowCenter.x - shadowRx, shadowCenter.y - shadowRy),
+                size = androidx.compose.ui.geometry.Size(shadowRx * 2f, shadowRy * 2f),
+            )
+            val unit = mascotWidth / 760f
+            drawCircle(Color.White.copy(alpha = 0.5f), 6f * unit, center + androidx.compose.ui.geometry.Offset(-262f * unit, -390f * unit))
+            drawCircle(Color.White.copy(alpha = 0.4f), 8f * unit, center + androidx.compose.ui.geometry.Offset(288f * unit, -270f * unit))
+            drawCircle(Color.White.copy(alpha = 0.3f), 5f * unit, center + androidx.compose.ui.geometry.Offset(-312f * unit, 110f * unit))
+        }
 
         AsyncImage(
             model = Res.getUri("drawable/mew_splash_mascot.svg"),
             contentDescription = "Mew",
+            onSuccess = { mascotLoaded = true },
             modifier = Modifier
                 .fillMaxWidth(0.58f)
                 .aspectRatio(760f / 560f)
+                .graphicsLayer { alpha = mascotAlpha }
                 .offset(y = mascotOffsetY.dp),
             contentScale = ContentScale.Fit,
         )
@@ -4626,6 +4680,8 @@ private fun AppLaunchOverlay(
         }
     }
 }
+
+private val MewLaunchBackground = Color(0xFF0D0D0D)
 
 private fun AppRoute?.toDiagnosticArea(): DiagnosticArea = when (this) {
     null -> DiagnosticArea.Startup

@@ -146,6 +146,8 @@ open class MainActivity : AppCompatActivity() {
         AutoSyncPreferencesAndroid.initialize(applicationContext) // AutoSync hook
         window.setBackgroundDrawableResource(R.color.nuvio_background)
         SyncClientIdentityStorage.initialize(applicationContext)
+        // luq: on-disk HTTP cache for addon manifests/catalogs so cold starts reuse responses.
+        AddonHttpClientProvider.initialize(applicationContext)
         AddonStorage.initialize(applicationContext)
         CloudStreamPlatformStorage.initialize(this)
         CloudStreamPlatformRuntime.initialize(applicationContext)
@@ -162,7 +164,6 @@ open class MainActivity : AppCompatActivity() {
         com.nuvio.app.features.shuffle.EpisodeShuffleStorage.initialize(applicationContext)
         HomeCatalogSettingsStorage.initialize(applicationContext)
         PlayerSettingsStorage.initialize(applicationContext)
-        AutoSyncPreferencesAndroid.initialize(applicationContext)
         com.nuvio.app.features.player.seekpreview.SeekPreviewAndroid.initialize(applicationContext)
         PlayerTrackPreferenceStorage.initialize(applicationContext)
         P2pSettingsStorage.initialize(applicationContext)
