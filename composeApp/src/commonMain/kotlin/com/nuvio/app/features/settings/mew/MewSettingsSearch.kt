@@ -86,21 +86,21 @@ internal fun mewSettingsSearchEntries(): List<SettingsSearchEntry> {
         icon = Icons.Rounded.AutoAwesome,
     )
     addRow(
-        page = SettingsPage.NuvioEnhanced,
+        page = SettingsPage.MewDetails,
         key = "cinematic-detail-header",
         title = stringResource(Res.string.nuvio_enhanced_cinematic_detail_header_title),
         description = stringResource(Res.string.nuvio_enhanced_cinematic_detail_header_desc),
-        pageLabel = nuvioEnhancedPage,
+        pageLabel = stringResource(SettingsPage.MewDetails.titleRes),
         section = stringResource(Res.string.nuvio_enhanced_detail_presentation_title),
         category = enhancedCategory,
         icon = Icons.Rounded.AutoAwesome,
     )
     addRow(
-        page = SettingsPage.NuvioEnhanced,
+        page = SettingsPage.MewDetails,
         key = "cinematic-header-content",
         title = stringResource(Res.string.nuvio_enhanced_cinematic_header_content_title),
         description = stringResource(Res.string.nuvio_enhanced_cinematic_header_content_desc),
-        pageLabel = nuvioEnhancedPage,
+        pageLabel = stringResource(SettingsPage.MewDetails.titleRes),
         section = stringResource(Res.string.nuvio_enhanced_detail_presentation_title),
         category = enhancedCategory,
         icon = Icons.Rounded.AutoAwesome,
@@ -116,146 +116,157 @@ internal fun mewSettingsSearchEntries(): List<SettingsSearchEntry> {
         icon = Icons.Rounded.Favorite,
     )
     addRow(
-        page = SettingsPage.NuvioEnhanced,
+        page = SettingsPage.MewHero,
         key = "hero-auto-scroll",
         title = stringResource(Res.string.settings_advanced_hero_auto_scroll),
         description = stringResource(Res.string.settings_advanced_hero_auto_scroll_description),
-        pageLabel = nuvioEnhancedPage,
+        pageLabel = stringResource(SettingsPage.MewHero.titleRes),
         section = stringResource(Res.string.nuvio_enhanced_section_hero_experience),
         category = enhancedCategory,
         icon = Icons.Rounded.AutoAwesome,
     )
     addRow(
-        page = SettingsPage.NuvioEnhanced,
+        page = SettingsPage.MewHero,
         key = "hero-motion-preview",
         title = stringResource(Res.string.settings_advanced_hero_motion_preview),
         description = stringResource(Res.string.settings_advanced_hero_motion_preview_description),
-        pageLabel = nuvioEnhancedPage,
+        pageLabel = stringResource(SettingsPage.MewHero.titleRes),
         section = stringResource(Res.string.nuvio_enhanced_section_hero_experience),
         category = enhancedCategory,
         icon = Icons.Rounded.AutoAwesome,
     )
     addRow(
-        page = SettingsPage.NuvioEnhanced,
+        page = SettingsPage.MewHero,
         key = "streaming-showcase-hero",
         title = stringResource(Res.string.nuvio_enhanced_showcase_hero_title),
         description = stringResource(Res.string.nuvio_enhanced_showcase_hero_desc),
-        pageLabel = nuvioEnhancedPage,
+        pageLabel = stringResource(SettingsPage.MewHero.titleRes),
         section = stringResource(Res.string.nuvio_enhanced_section_hero_experience),
         category = enhancedCategory,
         icon = Icons.Rounded.AutoAwesome,
     )
     addRow(
-        page = SettingsPage.NuvioEnhanced,
+        page = SettingsPage.MewHero,
         key = "streaming-showcase-video-preview",
         title = stringResource(Res.string.nuvio_enhanced_showcase_video_preview_title),
         description = stringResource(Res.string.nuvio_enhanced_showcase_video_preview_desc),
-        pageLabel = nuvioEnhancedPage,
+        pageLabel = stringResource(SettingsPage.MewHero.titleRes),
         section = stringResource(Res.string.nuvio_enhanced_section_hero_experience),
         category = enhancedCategory,
         icon = Icons.Rounded.AutoAwesome,
     )
     addRow(
-        page = SettingsPage.NuvioEnhanced,
+        page = SettingsPage.MewHero,
         key = "streaming-showcase-video-preview-sound",
         title = stringResource(Res.string.nuvio_enhanced_showcase_video_preview_sound_title),
         description = stringResource(Res.string.nuvio_enhanced_showcase_video_preview_sound_desc),
-        pageLabel = nuvioEnhancedPage,
+        pageLabel = stringResource(SettingsPage.MewHero.titleRes),
         section = stringResource(Res.string.nuvio_enhanced_section_hero_experience),
         category = enhancedCategory,
         icon = Icons.Rounded.AutoAwesome,
     )
     addRow(
-        page = SettingsPage.NuvioEnhanced,
+        page = SettingsPage.MewApp,
         key = "network-dns-over-https",
         title = stringResource(Res.string.settings_advanced_section_network),
         description = stringResource(Res.string.settings_advanced_doh_description),
-        pageLabel = nuvioEnhancedPage,
+        pageLabel = stringResource(SettingsPage.MewApp.titleRes),
         section = stringResource(Res.string.nuvio_enhanced_section_network),
         category = enhancedCategory,
         icon = Icons.Rounded.Link,
     )
     addRow(
-        page = SettingsPage.NuvioEnhanced,
+        page = SettingsPage.MewDetails,
         key = "hero-trailer-playback",
         title = stringResource(Res.string.settings_meta_hero_trailer_playback),
         description = stringResource(Res.string.settings_meta_hero_trailer_playback_description),
-        pageLabel = nuvioEnhancedPage,
+        pageLabel = stringResource(SettingsPage.MewDetails.titleRes),
         section = stringResource(Res.string.nuvio_enhanced_section_details_experience),
         category = enhancedCategory,
         icon = Icons.Rounded.PlayArrow,
     )
     addRow(
-        page = SettingsPage.NuvioEnhanced,
+        page = SettingsPage.MewDetails,
         key = "hero-trailer-sound",
         title = stringResource(Res.string.settings_meta_hero_trailer_sound),
         description = stringResource(Res.string.settings_meta_hero_trailer_sound_description),
-        pageLabel = nuvioEnhancedPage,
+        pageLabel = stringResource(SettingsPage.MewDetails.titleRes),
         section = stringResource(Res.string.nuvio_enhanced_section_details_experience),
         category = enhancedCategory,
         icon = Icons.Rounded.PlayArrow,
     )
     addRow(
-        page = SettingsPage.NuvioEnhanced,
+        page = SettingsPage.MewPlayer,
         key = "random-next-episode",
         title = stringResource(Res.string.settings_playback_random_next_episode),
         description = stringResource(Res.string.settings_playback_random_next_episode_description),
-        pageLabel = nuvioEnhancedPage,
+        pageLabel = stringResource(SettingsPage.MewPlayer.titleRes),
         section = stringResource(Res.string.nuvio_enhanced_section_player_tools),
         category = enhancedCategory,
         icon = Icons.Rounded.PlayArrow,
     )
     addRow(
-        page = SettingsPage.NuvioEnhanced,
+        page = SettingsPage.MewDetails,
         key = "show-episode-ratings",
         title = stringResource(Res.string.settings_meta_show_episode_ratings),
         description = stringResource(Res.string.settings_meta_show_episode_ratings_description),
-        pageLabel = nuvioEnhancedPage,
+        pageLabel = stringResource(SettingsPage.MewDetails.titleRes),
         section = stringResource(Res.string.nuvio_enhanced_section_details_experience),
         category = enhancedCategory,
         icon = Icons.Rounded.PlayArrow,
     )
     addRow(
-        page = SettingsPage.NuvioEnhanced,
+        page = SettingsPage.MewPlayer,
         key = "content-warnings",
         title = stringResource(Res.string.settings_playback_parental_guide),
         description = stringResource(Res.string.settings_playback_parental_guide_description),
-        pageLabel = nuvioEnhancedPage,
-        section = stringResource(Res.string.nuvio_enhanced_section_app_experience),
+        pageLabel = stringResource(SettingsPage.MewPlayer.titleRes),
+        section = stringResource(Res.string.nuvio_enhanced_section_player_tools),
         category = enhancedCategory,
         icon = Icons.Rounded.PlayArrow,
     )
     addRow(
-        page = SettingsPage.NuvioEnhanced,
+        page = SettingsPage.MewPlayer,
         key = "background-stream-prefetch",
         title = stringResource(Res.string.nuvio_enhanced_background_stream_prefetch_title),
         description = stringResource(Res.string.nuvio_enhanced_background_stream_prefetch_desc),
-        pageLabel = nuvioEnhancedPage,
-        section = stringResource(Res.string.nuvio_enhanced_section_app_experience),
+        pageLabel = stringResource(SettingsPage.MewPlayer.titleRes),
+        section = stringResource(Res.string.nuvio_enhanced_section_player_tools),
         category = enhancedCategory,
         icon = Icons.Rounded.PlayArrow,
     )
     addRow(
-        page = SettingsPage.NuvioEnhanced,
+        page = SettingsPage.MewHome,
         key = "enhanced-ready-badge",
         title = stringResource(Res.string.settings_continue_watching_ready_badge_title),
         description = stringResource(Res.string.settings_continue_watching_ready_badge_description),
-        pageLabel = nuvioEnhancedPage,
-        section = stringResource(Res.string.nuvio_enhanced_section_app_experience),
+        pageLabel = stringResource(SettingsPage.MewHome.titleRes),
+        section = stringResource(Res.string.nuvio_enhanced_section_nuvio_experience),
         category = enhancedCategory,
         icon = Icons.Rounded.AutoAwesome,
     )
     if (!isIos) {
         addRow(
-            page = SettingsPage.NuvioEnhanced,
+            page = SettingsPage.MewPlayer,
             key = "memory-safe-buffer",
             title = stringResource(Res.string.settings_playback_android_memory_safe_buffer),
             description = stringResource(Res.string.settings_playback_android_memory_safe_buffer_description),
-            pageLabel = nuvioEnhancedPage,
-            section = stringResource(Res.string.nuvio_enhanced_section_app_experience),
+            pageLabel = stringResource(SettingsPage.MewPlayer.titleRes),
+            section = stringResource(Res.string.nuvio_enhanced_section_player_tools),
             category = enhancedCategory,
             icon = Icons.Rounded.PlayArrow,
         )
     }
+    MewSettingsSection.entries
+        .filter { it != MewSettingsSection.Hub && it.isAvailable }
+        .forEach { section ->
+            addPage(
+                page = section.page,
+                key = "page-${section.name.lowercase()}",
+                title = stringResource(section.page.titleRes),
+                description = section.descriptionRes?.let { stringResource(it) }.orEmpty(),
+                icon = section.page.icon,
+            )
+        }
     return entries
 }

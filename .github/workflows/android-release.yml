@@ -2,6 +2,7 @@ name: Build Mew Release
 
 on:
   # A commit carrying [release-build] builds artifacts; [release-publish] builds and publishes the public release.
+  # Add [release-beta] to either to ship on the Beta update channel (published as a GitHub pre-release).
   push:
     branches:
       - enhanced
@@ -18,6 +19,14 @@ on:
           - publish
           - attach-universal
         default: dry-run
+      channel:
+        description: Update channel. Beta releases are published as GitHub pre-releases and only reach users on the Beta channel.
+        required: false
+        type: choice
+        options:
+          - stable
+          - beta
+        default: stable
       exclude_commits:
         description: Optional comma-separated commit hashes to omit from the notes
         required: false
@@ -184,6 +193,7 @@ jobs:
     env:
       RELEASE_MODE: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[release-publish]') && 'publish' || github.event_name == 'push' && 'build' || inputs.mode }}
       INCLUDE_IOS: ${{ github.event_name == 'push' && false || inputs.include_ios }}
+      RELEASE_CHANNEL: ${{ github.event_name == 'push' && (contains(github.event.head_commit.message, '[release-beta]') && 'beta' || 'stable') || inputs.channel || 'stable' }}
       GH_TOKEN: ${{ github.token }}
       RELEASE_PROPERTIES_BASE64: ${{ secrets.MEW_LOCAL_PROPERTIES_BASE64 || secrets.NUVIO_LOCAL_PROPERTIES_BASE64 }}
       RELEASE_KEYSTORE_BASE64: ${{ secrets.MEW_RELEASE_KEYSTORE_BASE64 }}
@@ -526,11 +536,18 @@ jobs:
           release_args=(
             "${RELEASE_TAG}"
             --target "${RELEASE_BRANCH}"
-            --title "${RELEASE_VERSION}"
+            --title "${RELEASE_TAG}"
             --notes-file release-notes.md
           )
           if [[ "${RELEASE_MODE}" == "draft" ]]; then
             release_args+=(--draft)
+          fi
+          # Beta channel (or a pre-release version such as 0.6.0-beta.1): publish as a GitHub
+          # pre-release so only users on the in-app Beta channel are offered it.
+          if [[ "${RELEASE_CHANNEL}" == "beta" || "${RELEASE_TAG}" == *-* ]]; then
+            release_args+=(--prerelease)
+          else
+            release_args+=(--latest)
           fi
           gh release create "${release_args[@]}" "${release_apks[@]}" "${release_ipas[@]}"
 

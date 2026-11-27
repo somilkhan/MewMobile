@@ -10,6 +10,10 @@ expect object AppUpdaterPlatform {
 
     fun setIgnoredTag(tag: String?)
 
+    fun getUpdateChannel(): String?
+
+    fun setUpdateChannel(channel: String)
+
     suspend fun downloadApk(
         assetUrl: String,
         assetName: String,

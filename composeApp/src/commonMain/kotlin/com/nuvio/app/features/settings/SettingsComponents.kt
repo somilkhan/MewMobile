@@ -6,7 +6,6 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -50,7 +49,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -318,24 +316,10 @@ internal fun SettingsNavigationRow(
     val verticalPadding = if (isTablet) 16.dp else 14.dp
     val horizontalPadding = if (isTablet) 20.dp else 16.dp
     val highlightShape = RoundedCornerShape(if (isTablet) NuvioTokens.Radius.lg else NuvioTokens.Radius.md)
-    val highlightBrush = if (highlighted) {
-        rememberAnimatedAccentBrush() ?: SolidColor(tokens.colors.accent)
-    } else {
-        null
-    }
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .then(
-                if (highlighted) {
-                    Modifier
-                        .background(tokens.colors.accent.copy(alpha = 0.08f), highlightShape)
-                        .border(tokens.borders.hairline, highlightBrush ?: SolidColor(tokens.colors.accent), highlightShape)
-                } else {
-                    Modifier
-                },
-            )
             .nuvioKeyboardFocusIndicator(highlightShape, enabled)
             .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = horizontalPadding, vertical = verticalPadding)
@@ -414,23 +398,9 @@ internal fun SettingsSwitchRow(
     val tokens = MaterialTheme.nuvio
     val verticalPadding = if (isTablet) 16.dp else 14.dp
     val highlightShape = RoundedCornerShape(if (isTablet) NuvioTokens.Radius.lg else NuvioTokens.Radius.md)
-    val highlightBrush = if (highlighted) {
-        rememberAnimatedAccentBrush() ?: SolidColor(tokens.colors.accent)
-    } else {
-        null
-    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .then(
-                if (highlighted) {
-                    Modifier
-                        .background(tokens.colors.accent.copy(alpha = 0.08f), highlightShape)
-                        .border(tokens.borders.hairline, highlightBrush ?: SolidColor(tokens.colors.accent), highlightShape)
-                } else {
-                    Modifier
-                },
-            )
             .nuvioKeyboardFocusIndicator(highlightShape, enabled)
             .clickable(enabled = enabled) { onCheckedChange(!checked) }
             .padding(horizontal = horizontalPadding, vertical = verticalPadding),
@@ -563,8 +533,10 @@ private fun SettingsGradientSwitch(
     }
 }
 
+// Mew: unseen features get a small "New" pill beside the title; the row itself keeps the
+// standard settings styling.
 @Composable
-private fun SettingsRowTitle(
+internal fun SettingsRowTitle(
     title: String,
     highlighted: Boolean,
 ) {
@@ -579,8 +551,6 @@ private fun SettingsRowTitle(
             style = MaterialTheme.typography.bodyLarge,
             color = tokens.colors.textPrimary,
             fontWeight = FontWeight.Medium,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
         )
         if (highlighted) {
             Surface(

@@ -68,6 +68,8 @@ import com.nuvio.app.features.streams.StreamBadgeSettingsStorage
 import com.nuvio.app.features.tmdb.TmdbSettingsRepository
 import com.nuvio.app.features.tmdb.TmdbSettingsStorage
 import com.nuvio.app.features.updater.AppUpdaterPlatform
+import com.nuvio.app.features.updater.UpdateChannel
+import com.nuvio.app.features.updater.UpdatePreferences
 import com.nuvio.app.features.watchprogress.ContinueWatchingPreferencesRepository
 import com.nuvio.app.features.watchprogress.ContinueWatchingPreferencesStorage
 import kotlinx.coroutines.CancellationException
@@ -450,6 +452,9 @@ internal object SettingsConfigTransfer {
         if (DnsSettingsRepository.isSupported) {
             put("dns_provider", DnsSettingsRepository.provider.value.storageId)
         }
+        if (AppUpdaterPlatform.isSupported) {
+            put("update_channel", UpdatePreferences.shared.channel.value.storedValue)
+        }
     }
 
     private fun importGeneralSettings(payload: JsonObject) {
@@ -457,6 +462,9 @@ internal object SettingsConfigTransfer {
         payload.boolean("search_history_enabled")?.let(SearchHistoryRepository::setEnabled)
         if (DnsSettingsRepository.isSupported) {
             payload.string("dns_provider")?.let { DnsSettingsRepository.setProvider(DnsProvider.fromStorage(it)) }
+        }
+        if (AppUpdaterPlatform.isSupported) {
+            UpdateChannel.fromStoredValue(payload.string("update_channel"))?.let(UpdatePreferences.shared::setChannel)
         }
     }
 

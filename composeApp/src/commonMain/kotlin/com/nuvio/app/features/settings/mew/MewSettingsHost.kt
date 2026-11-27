@@ -64,20 +64,25 @@ internal val SettingsPage.isMewPage: Boolean
     get() = this == SettingsPage.FavoriteActors ||
         this == SettingsPage.NuvioEnhanced ||
         this == SettingsPage.CloudStream ||
-        this == SettingsPage.AiAssistant
+        this == SettingsPage.AiAssistant ||
+        MewSettingsSection.forPage(this) != null
 
 /** Renders the Mew-only settings pages. Called from one `when` branch per layout. */
 internal fun LazyListScope.mewSettingsPageContent(
     page: SettingsPage,
     isTablet: Boolean,
     host: MewSettingsHost,
+    onPageChange: (SettingsPage) -> Unit,
 ) {
+    MewSettingsSection.forPage(page)?.let { section ->
+        nuvioEnhancedSettingsContent(isTablet = isTablet, section = section, onPageChange = onPageChange)
+        return
+    }
     when (page) {
         SettingsPage.FavoriteActors -> favoritePeopleContent(
             isTablet = isTablet,
             onFavoritePersonClick = host.onFavoritePersonClick,
         )
-        SettingsPage.NuvioEnhanced -> nuvioEnhancedSettingsContent(isTablet = isTablet)
         SettingsPage.CloudStream -> if (AppFeaturePolicy.pluginsEnabled) {
             cloudStreamSettingsContent()
         } else {

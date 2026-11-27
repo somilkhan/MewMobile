@@ -36,6 +36,14 @@ import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.AccountCircle
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.Backup
+import androidx.compose.material.icons.rounded.BugReport
+import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.rounded.Movie
+import androidx.compose.material.icons.rounded.PlayCircle
+import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.material.icons.rounded.ViewCarousel
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -184,6 +192,47 @@ internal enum class SettingsPage(
         titleRes = Res.string.settings_nuvio_enhanced_title,
         category = SettingsCategory.System,
         parentPage = Root,
+    ),
+    // Mew: sub-pages of the Mew hub (see mew/MewSettingsHub.kt).
+    MewHome(
+        titleRes = Res.string.mew_settings_page_home,
+        category = SettingsCategory.System,
+        parentPage = NuvioEnhanced,
+    ),
+    MewHero(
+        titleRes = Res.string.mew_settings_page_hero,
+        category = SettingsCategory.System,
+        parentPage = NuvioEnhanced,
+    ),
+    MewDetails(
+        titleRes = Res.string.mew_settings_page_details,
+        category = SettingsCategory.System,
+        parentPage = NuvioEnhanced,
+    ),
+    MewPlayer(
+        titleRes = Res.string.mew_settings_page_player,
+        category = SettingsCategory.System,
+        parentPage = NuvioEnhanced,
+    ),
+    MewApp(
+        titleRes = Res.string.mew_settings_page_app,
+        category = SettingsCategory.System,
+        parentPage = NuvioEnhanced,
+    ),
+    MewDownloads(
+        titleRes = Res.string.mew_settings_page_downloads,
+        category = SettingsCategory.System,
+        parentPage = NuvioEnhanced,
+    ),
+    MewBackup(
+        titleRes = Res.string.mew_settings_page_backup,
+        category = SettingsCategory.System,
+        parentPage = NuvioEnhanced,
+    ),
+    MewDiagnostics(
+        titleRes = Res.string.mew_settings_page_diagnostics,
+        category = SettingsCategory.System,
+        parentPage = NuvioEnhanced,
     ),
     Notifications(
         titleRes = Res.string.compose_settings_page_notifications,
@@ -340,6 +389,14 @@ internal val SettingsPage.icon: ImageVector
         SettingsPage.LiveTv -> Icons.Default.LiveTv
         SettingsPage.FavoriteActors -> Icons.Default.Favorite
         SettingsPage.NuvioEnhanced -> Icons.Rounded.AutoAwesome
+        SettingsPage.MewHome -> Icons.Rounded.Home
+        SettingsPage.MewHero -> Icons.Rounded.ViewCarousel
+        SettingsPage.MewDetails -> Icons.Rounded.Movie
+        SettingsPage.MewPlayer -> Icons.Rounded.PlayCircle
+        SettingsPage.MewApp -> Icons.Rounded.Tune
+        SettingsPage.MewDownloads -> Icons.Rounded.Download
+        SettingsPage.MewBackup -> Icons.Rounded.Backup
+        SettingsPage.MewDiagnostics -> Icons.Rounded.BugReport
         SettingsPage.CloudStream -> Icons.Default.Cloud
         SettingsPage.AiAssistant -> Icons.Rounded.AutoAwesome
     }

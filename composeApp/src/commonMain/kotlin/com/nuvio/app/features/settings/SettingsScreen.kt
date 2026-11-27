@@ -893,8 +893,8 @@ private fun MobileSettingsScreen(
                     isTablet = false,
                     uiState = liveTvUiState,
                 )
-                SettingsPage.FavoriteActors, SettingsPage.NuvioEnhanced, SettingsPage.CloudStream, SettingsPage.AiAssistant ->
-                    mewSettingsPageContent(page, isTablet = false, host = mewHost) // Mew hook
+                else ->
+                    mewSettingsPageContent(page, isTablet = false, host = mewHost, onPageChange = onPageChange) // Mew hook
             }
         }
         }
@@ -1361,8 +1361,8 @@ private fun TabletSettingsScreen(
                         isTablet = true,
                         uiState = liveTvUiState,
                     )
-                    SettingsPage.FavoriteActors, SettingsPage.NuvioEnhanced, SettingsPage.CloudStream, SettingsPage.AiAssistant ->
-                        mewSettingsPageContent(page, isTablet = true, host = mewHost) // Mew hook
+                    else ->
+                        mewSettingsPageContent(page, isTablet = true, host = mewHost, onPageChange = onPageChange) // Mew hook
                 }
             }
             }

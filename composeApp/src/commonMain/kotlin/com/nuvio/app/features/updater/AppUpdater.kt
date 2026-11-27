@@ -129,6 +129,11 @@ internal object VersionUtils {
     fun firstBuildCode(vararg values: String?): Int? =
         values.firstNotNullOfOrNull(::parseBuildCode)
 
+    private val buildMarkerPattern = Regex("build\\d+", RegexOption.IGNORE_CASE)
+
+    private fun SemanticVersion.withoutBuildMarkers(): SemanticVersion =
+        copy(prerelease = prerelease.filterNot { buildMarkerPattern.matches(it) })
+
     fun isRemoteNewer(
         remote: String?,
         local: String?,
@@ -154,6 +159,18 @@ internal object VersionUtils {
             if (remoteValue != localValue) return remoteValue > localValue
         }
 
+        // Same base version: a stable release outranks its betas, and later betas outrank
+        // earlier ones (0.6.0 > 0.6.0-beta.2 > 0.6.0-beta.1).
+        // "-build93" suffixes are build markers, not pre-release labels, so they are stripped.
+        val remoteSemantic = parse(remote)?.withoutBuildMarkers()
+        val localSemantic = parse(local)?.withoutBuildMarkers()
+        if (remoteSemantic != null && localSemantic != null &&
+            (remoteSemantic.prerelease.isNotEmpty() || localSemantic.prerelease.isNotEmpty())
+        ) {
+            val order = remoteSemantic.compareTo(localSemantic)
+            if (order != 0) return order > 0
+        }
+
         return if (resolvedRemoteBuildCode != null && localBuildCode != null) {
             resolvedRemoteBuildCode > localBuildCode
         } else {
@@ -163,7 +180,7 @@ internal object VersionUtils {
 }
 
 private object AppUpdaterRepository {
-    suspend fun getLatestChannelUpdate(): Result<AppUpdate> = runCatching {
+    suspend fun getLatestChannelUpdate(channel: UpdateChannel): Result<AppUpdate> = runCatching {
         val response = httpRequestRaw(
             method = "GET",
             url = "$gitHubApiBase/repos/${AppUpdateConfig.GITHUB_OWNER}/${AppUpdateConfig.GITHUB_REPO}/releases?per_page=20",
@@ -178,9 +195,14 @@ private object AppUpdaterRepository {
         }
 
         val releases = appUpdaterJson.decodeFromString<List<GitHubReleaseDto>>(response.body)
-        val release = releases.firstOrNull { it.isInstallableRelease() && it.matchesRequestedChannel() }
-            ?: releases.firstOrNull { it.isInstallableRelease() }
-            ?: throw NoChannelReleaseException()
+            .filter { it.isInstallableRelease() }
+        // luq parity: ReleaseSelector drops pre-releases on Stable and ranks by semantic
+        // version, so a stable 0.6.0 outranks 0.6.0-beta.2 on Beta.
+        val eligible = ReleaseSelector.eligibleReleases(releases, channel)
+        val release = when (channel) {
+            UpdateChannel.STABLE -> eligible.firstOrNull { it.matchesRequestedChannel() } ?: eligible.firstOrNull()
+            UpdateChannel.BETA -> eligible.firstOrNull()
+        } ?: throw NoChannelReleaseException()
 
         val tag = release.tagName?.takeIf { it.isNotBlank() }
             ?: release.name?.takeIf { it.isNotBlank() }
@@ -202,7 +224,7 @@ private object AppUpdaterRepository {
     }
 
     private fun GitHubReleaseDto.isInstallableRelease(): Boolean =
-        !draft && !prerelease && chooseBestApkAsset(assets) != null
+        !draft && chooseBestApkAsset(assets) != null
 
     private fun GitHubReleaseDto.matchesRequestedChannel(): Boolean {
         if (releaseChannelBranches.any { channel ->
@@ -284,7 +306,7 @@ class AppUpdaterController internal constructor(
             }
 
             val ignoredTag = AppUpdaterPlatform.getIgnoredTag()
-            val result = AppUpdaterRepository.getLatestChannelUpdate()
+            val result = AppUpdaterRepository.getLatestChannelUpdate(UpdatePreferences.shared.channel.value)
 
             result.onSuccess { update ->
                 val remoteNewer = VersionUtils.isRemoteNewer(
