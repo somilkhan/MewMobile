@@ -66,6 +66,7 @@ import com.nuvio.app.core.ui.labelRes
 import com.nuvio.app.core.ui.ThemeColors
 import com.nuvio.app.core.ui.ThemeAccentColor
 import com.nuvio.app.core.ui.isEnhanced
+import com.nuvio.app.core.ui.SumiThemeSwatch
 import com.nuvio.app.core.ui.rememberAnimatedAccentBrush
 import com.nuvio.app.core.ui.nuvioKeyboardFocusIndicator
 import com.nuvio.app.isIos
@@ -211,6 +212,7 @@ internal fun LazyListScope.appearanceSettingsContent(
                     ThemeSectionLabel(stringResource(Res.string.settings_appearance_theme_enhanced))
                     ThemeGrid(
                         themes = listOf(
+                            AppTheme.SUMI, // Mew: Sumi leads the Enhanced section
                             AppTheme.MEW,
                             AppTheme.MESSENGER,
                             AppTheme.AMETHYST,
@@ -626,6 +628,17 @@ private fun ThemeChip(
                             imageVector = Icons.Default.Check,
                             contentDescription = stringResource(Res.string.cd_selected),
                             tint = Color.White,
+                            modifier = Modifier.size(22.dp),
+                        )
+                    }
+                }
+            } else if (theme == AppTheme.SUMI) {
+                SumiThemeSwatch(isSelected = isSelected, modifier = Modifier.size(44.dp)) {
+                    if (isSelected) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = stringResource(Res.string.cd_selected),
+                            tint = palette.focusRing,
                             modifier = Modifier.size(22.dp),
                         )
                     }

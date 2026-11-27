@@ -5,6 +5,7 @@
     <string name="theme_rose_gold">ذهبي وردي</string>
     <string name="theme_arctic_blue">أزرق قطبي</string>
     <string name="theme_graphite">رمادي جرافيتي</string>
+    <string name="theme_sumi">Sumi</string>
     <string name="profile_choose_background">اختيار خلفية الملف الشخصي</string>
     <string name="profile_background_member_note">يمكن ضبط عناوين URL للخلفيات المخصصة من لوحة Mew على الويب.</string>
     <string name="profile_background_normal">عادية</string>

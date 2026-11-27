@@ -284,6 +284,22 @@ object ThemeColors {
         backgroundCard = Color(0xFF222222),
     )
 
+    // Mew: Sumi (墨, ink). Snowy teahouse ink with washi-paper ivory actions and
+    // sakura-nezumi (cherry-blossom grey) as the quiet second colour. Deliberately a single
+    // accent colour so every primary button is one solid fill, never a gradient.
+    val Sumi = ThemeColorPalette(
+        secondary = Color(0xFFE9DCD7),
+        secondaryVariant = Color(0xFFC7B3B0),
+        nativeAccentHex = "#E9DCD7",
+        onSecondary = Color(0xFF1C1718),
+        onSecondaryVariant = Color(0xFF1C1718),
+        focusRing = Color(0xFFF3E9E5),
+        focusBackground = Color(0xFF2E2629),
+        background = Color(0xFF0F0D0E),
+        backgroundElevated = Color(0xFF1A1719),
+        backgroundCard = Color(0xFF241F22),
+    )
+
     fun getColorPalette(
         theme: AppTheme,
         customFirst: Color = ThemeAccentColor.PINK.color,
@@ -318,6 +334,7 @@ object ThemeColors {
             AppTheme.ROSE_GOLD -> RoseGold
             AppTheme.ARCTIC_BLUE -> ArcticBlue
             AppTheme.GRAPHITE -> Graphite
+            AppTheme.SUMI -> Sumi
         }
     }
 

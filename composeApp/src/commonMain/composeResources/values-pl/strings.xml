@@ -2034,6 +2034,7 @@
     <string name="theme_rose_gold">Różowe złoto</string>
     <string name="theme_arctic_blue">Arktyczny</string>
     <string name="theme_graphite">Grafit</string>
+    <string name="theme_sumi">Sumi</string>
     <string name="theme_custom">Własny</string>
     <string name="profile_choose_background">Wybierz tło profilu</string>
     <string name="profile_background_member_note">Niestandardowe adresy URL tła można skonfigurować w panelu Mew.</string>

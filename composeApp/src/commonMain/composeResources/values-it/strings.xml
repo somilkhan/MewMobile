@@ -2001,6 +2001,7 @@
     <string name="theme_rose_gold">Oro rosa</string>
     <string name="theme_arctic_blue">Blu artico</string>
     <string name="theme_graphite">Grafite</string>
+    <string name="theme_sumi">Sumi</string>
     <string name="profile_background_member_note">Gli URL personalizzati per lo sfondo possono essere configurati dal pannello web di Mew.</string>
     <string name="action_delete_confirm_message">Sei sicuro di volerlo eliminare?</string>
     <string name="action_remove_anyway">Rimuovi comunque</string>

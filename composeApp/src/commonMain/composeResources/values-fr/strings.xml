@@ -4,6 +4,7 @@
     <string name="theme_rose_gold">Or rose</string>
     <string name="theme_arctic_blue">Bleu arctique</string>
     <string name="theme_graphite">Graphite</string>
+    <string name="theme_sumi">Sumi</string>
     <string name="profile_choose_background">Choisir l’arrière-plan du profil</string>
     <string name="profile_background_member_note">Les URL d’arrière-plan personnalisé peuvent être configurées depuis le panneau web de Nuvio.</string>
     <string name="profile_background_normal">Normal</string>

@@ -4,6 +4,7 @@
     <string name="theme_rose_gold">Розовое золото</string>
     <string name="theme_arctic_blue">Арктический синий</string>
     <string name="theme_graphite">Графит</string>
+    <string name="theme_sumi">Sumi</string>
     <string name="profile_choose_background">Выберите фон профиля</string>
     <string name="profile_background_member_note">Пользовательские фоновые изображения URL можно настроить с помощью веб-панели Mew.</string>
     <string name="profile_background_normal">Нормальный</string>

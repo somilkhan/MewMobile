@@ -14,6 +14,7 @@ import nuvio.composeapp.generated.resources.theme_graphite
 import nuvio.composeapp.generated.resources.theme_mew
 import nuvio.composeapp.generated.resources.theme_jade
 import nuvio.composeapp.generated.resources.theme_rose_gold
+import nuvio.composeapp.generated.resources.theme_sumi
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.StringResource
 
@@ -54,6 +55,12 @@ enum class ProfileBackgroundPreset(
         labelRes = Res.string.theme_graphite,
         resourcePath = "drawable/profile_background_graphite.png",
     ),
+    // Mew: the live backdrop is drawn in code (SumiProfileBackdrop); the SVG is the picker thumbnail.
+    SUMI(
+        key = "sumi",
+        labelRes = Res.string.theme_sumi,
+        resourcePath = "drawable/profile_background_sumi.svg",
+    ),
     ;
 
     val storedValue: String
@@ -74,6 +81,7 @@ enum class ProfileBackgroundPreset(
             AppTheme.ROSE_GOLD -> ROSE_GOLD
             AppTheme.ARCTIC_BLUE -> ARCTIC_BLUE
             AppTheme.GRAPHITE -> GRAPHITE
+            AppTheme.SUMI -> SUMI
             else -> null
         }
     }

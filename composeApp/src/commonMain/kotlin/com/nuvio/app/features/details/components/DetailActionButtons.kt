@@ -48,6 +48,7 @@ import com.nuvio.app.core.ui.AppIconResource
 import com.nuvio.app.core.ui.appIconPainter
 import com.nuvio.app.core.ui.nuvioKeyboardFocusIndicator
 import com.nuvio.app.core.ui.rememberActionAccentStyle
+import com.nuvio.app.core.ui.sumiBlossomVine
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.action_play
 import nuvio.composeapp.generated.resources.details_actions_menu_label
@@ -107,6 +108,7 @@ fun DetailActionButtons(
                 modifier = Modifier
                     .weight(1f)
                     .height(buttonHeight)
+                    .sumiBlossomVine(onAccent = true) // Mew: Sumi theme only
                     .clip(playShape)
                     .background(playAccent.brush, playShape),
                 shape = playShape,
@@ -276,6 +278,7 @@ private fun DetailWideAction(
     Surface(
         modifier = modifier
             .height(height)
+            .sumiBlossomVine(onAccent = false, mirrored = true, cornerRadius = 14.dp) // Mew: Sumi theme only
             .clip(shape),
         shape = shape,
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.82f),

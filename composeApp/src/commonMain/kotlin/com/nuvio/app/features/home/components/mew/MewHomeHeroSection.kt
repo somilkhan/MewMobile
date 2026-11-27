@@ -90,6 +90,7 @@ import com.nuvio.app.core.build.AppFeaturePolicy
 import com.nuvio.app.core.build.TrailerPlaybackMode
 import com.nuvio.app.core.format.extractReleaseYearForDisplay
 import com.nuvio.app.core.ui.rememberActionAccentStyle
+import com.nuvio.app.core.ui.sumiBlossomVine
 import com.nuvio.app.core.ui.LocalTvLayoutProfile
 import com.nuvio.app.core.ui.rememberAnimatedLineBrush
 import com.nuvio.app.core.ui.rememberAnimatedSoftBrush
@@ -1753,6 +1754,11 @@ private fun StreamingShowcaseNetflixButton(
     Row(
         modifier = modifier
             .height(height)
+            .sumiBlossomVine(
+                onAccent = primary,
+                mirrored = !primary,
+                cornerRadius = if (compact) 7.dp else 9.dp,
+            )
             .clip(shape)
             .then(
                 when {
@@ -2807,6 +2813,7 @@ private fun HeroCtaButton(
     val softBrush = rememberAnimatedSoftBrush()
     Box(
         modifier = Modifier
+            .sumiBlossomVine(onAccent = true)
             .clip(shape)
             .then(
                 if (softBrush != null) {
