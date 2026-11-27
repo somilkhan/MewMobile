@@ -28,6 +28,7 @@ import com.lagradost.cloudstream3.TvSeriesLoadResponse
 import com.lagradost.cloudstream3.TvSeriesSearchResponse
 import com.lagradost.cloudstream3.TvType
 import com.lagradost.cloudstream3.actions.VideoClickActionHolder
+import com.lagradost.cloudstream3.fixUrl
 import com.lagradost.cloudstream3.plugins.BasePlugin
 import com.lagradost.cloudstream3.plugins.Plugin
 import com.lagradost.cloudstream3.plugins.PluginData
@@ -750,7 +751,7 @@ private class AndroidDexCloudStreamProvider(
                     api.getLoadUrl(syncName, externalId)
                 }?.takeIf(String::isNotBlank) ?: return@runCatching null
                 withTimeout(stageTimeout(api.loadTimeoutMs, DEFAULT_LOAD_TIMEOUT_MS)) {
-                    api.load(url)
+                    api.load(api.fixUrl(url))
                 }?.toNuvioLoadItem(api)
             }.onFailure { error ->
                 log.w(error) { "CloudStream external-id load failed api=${api.name} id=$externalId" }
@@ -765,8 +766,11 @@ private class AndroidDexCloudStreamProvider(
         RuntimeDiagnostics.recordLog(
             "cs-load-timeout-config provider=${api.name} hintMs=${api.loadTimeoutMs} effectiveMs=$effectiveTimeoutMs",
         )
+        // UPSTREAM: APIRepository.load rejects placeholder data and passes api.fixUrl(url),
+        // so providers may return relative or protocol-relative search URLs.
+        require(!isInvalidCloudStreamData(route.data)) { "CloudStream provider returned no details" }
         val response = withTimeout(effectiveTimeoutMs) {
-            api.load(route.data)
+            api.load(api.fixUrl(route.data))
         } ?: error("CloudStream provider returned no details")
         response.toNuvioLoadItem(api)
     }
@@ -774,6 +778,10 @@ private class AndroidDexCloudStreamProvider(
     override suspend fun loadLinks(data: String): List<CloudStreamPlaybackSource> = withContext(Dispatchers.IO) {
         val route = decodeAndroidDexRoute(data)
         val api = findProvider(route.providerClassName)
+        // UPSTREAM: APIRepository.loadLinks returns false without calling the provider.
+        if (isInvalidCloudStreamData(route.data)) {
+            error("CloudStream provider returned no playable links (provider=${api.name}, invalid data)")
+        }
         val subtitles = Collections.synchronizedList(mutableListOf<CloudStreamSubtitle>())
         val links = Collections.synchronizedList(mutableListOf<ExtractorLink>())
         // Match the real CloudStream/Nuvio execution contract: loadLinks() is allowed
@@ -878,7 +886,8 @@ private class AndroidDexCloudStreamProvider(
         val playbackData = when (this) {
             is MovieLoadResponse -> dataUrl
             is LiveStreamLoadResponse -> dataUrl
-            is TorrentLoadResponse -> magnet ?: torrent ?: url
+            // UPSTREAM: ResultViewModel2 uses `torrent ?: magnet` for TorrentLoadResponse.
+            is TorrentLoadResponse -> torrent?.takeIf(String::isNotBlank) ?: magnet?.takeIf(String::isNotBlank) ?: url
             else -> url
         }
         val episodes = when (this) {
@@ -905,7 +914,8 @@ private class AndroidDexCloudStreamProvider(
             description = plot,
             year = year,
             ratingPercent = score?.toInt(100),
-            tags = tags.orEmpty(),
+            // UPSTREAM: APIRepository.load drops blank tags.
+            tags = tags.orEmpty().filter(String::isNotBlank),
             episodes = episodes,
             logoUrl = logoUrl?.takeIf(String::isNotBlank),
             durationMinutes = duration?.takeIf { it > 0 },
