@@ -3,7 +3,6 @@ package com.nuvio.app.features.profiles
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -47,6 +46,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
@@ -61,20 +63,18 @@ import coil3.request.ImageRequest
 import coil3.compose.AsyncImage
 import com.nuvio.app.core.auth.AuthRepository
 import com.nuvio.app.core.auth.AuthState
-import com.nuvio.app.core.ui.appTheme
 import com.nuvio.app.core.ui.nuvioKeyboardFocusIndicator
 import com.nuvio.app.features.settings.MemberBrandWordmark
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.ExperimentalResourceApi
-import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 @OptIn(ExperimentalResourceApi::class)
 @Composable
 fun ProfileSelectionScreen(
-    onProfileSelected: (NuvioProfile) -> Unit,
+    onProfileSelected: (NuvioProfile, Offset) -> Unit,
     onEditProfile: (NuvioProfile) -> Unit,
     onAddProfile: () -> Unit,
     modifier: Modifier = Modifier,
@@ -83,18 +83,20 @@ fun ProfileSelectionScreen(
     val profileState by ProfileRepository.state.collectAsStateWithLifecycle()
     val avatars by AvatarRepository.avatars.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
-    var pinDialogProfile by remember { mutableStateOf<NuvioProfile?>(null) }
+    // Carries the tapped avatar's window-space centre through the PIN dialog (luq parity) so the
+    // launch overlay can glide the avatar from where it was tapped.
+    var pinDialogSelection by remember { mutableStateOf<Pair<NuvioProfile, Offset>?>(null) }
     var isEditMode by remember { mutableStateOf(false) }
 
     val titleProgress = remember { Animatable(0f) }
     val manageAlpha = remember { Animatable(0f) }
-    val onProfileClick: (NuvioProfile) -> Unit = { profile ->
+    val onProfileClick: (NuvioProfile, Offset) -> Unit = { profile, tapCenter ->
         routeProfileSelection(
             profile = profile,
             isEditMode = isEditMode,
             onEditProfile = onEditProfile,
-            onPinRequired = { pinDialogProfile = it },
-            onProfileSelected = onProfileSelected,
+            onPinRequired = { pinDialogSelection = it to tapCenter },
+            onProfileSelected = { onProfileSelected(it, tapCenter) },
         )
     }
 
@@ -116,10 +118,6 @@ fun ProfileSelectionScreen(
 
     val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val backgroundProfile = profileState.activeProfile ?: profileState.profiles.firstOrNull()
-    val appTheme = MaterialTheme.appTheme
-    val effectiveBackground = remember(backgroundProfile?.backgroundUrl, appTheme) {
-        effectiveProfileBackground(backgroundProfile, appTheme)
-    }
 
     BoxWithConstraints(
         modifier = modifier
@@ -127,35 +125,10 @@ fun ProfileSelectionScreen(
     ) {
         val isTabletLayout = maxWidth >= 768.dp
 
-        if (effectiveBackground.preset != null) {
-            AsyncImage(
-                model = Res.getUri(effectiveBackground.preset.resourcePath),
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop,
-            )
-        } else {
-            Image(
-                painter = painterResource(DefaultProfileBackgroundResource),
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop,
-            )
-        }
-        ProfileRemoteBackgroundImage(
-            imageUrl = effectiveBackground.customImageUrl,
-            profileIndex = backgroundProfile?.profileIndex,
+        MewProfileBackdrop(
+            profile = backgroundProfile,
             modifier = Modifier.fillMaxSize(),
-            targetWidth = maxWidth,
-            targetHeight = maxHeight,
         )
-        if (effectiveBackground.customImageUrl != null) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.28f)),
-            )
-        }
 
         Column(
             modifier = Modifier
@@ -222,8 +195,8 @@ fun ProfileSelectionScreen(
                                     avatars = avatars,
                                     isEditMode = isEditMode,
                                     animDelay = currentIndex * 80,
-                                    onClick = {
-                                        onProfileClick(profile)
+                                    onClick = { tapCenter ->
+                                        onProfileClick(profile, tapCenter)
                                     },
                                 )
                             } else {
@@ -257,8 +230,8 @@ fun ProfileSelectionScreen(
                                             avatars = avatars,
                                             isEditMode = isEditMode,
                                             animDelay = currentIndex * 80,
-                                            onClick = {
-                                                onProfileClick(profile)
+                                            onClick = { tapCenter ->
+                                                onProfileClick(profile, tapCenter)
                                             },
                                         )
                                     } else {
@@ -315,15 +288,15 @@ fun ProfileSelectionScreen(
         }
     }
 
-    pinDialogProfile?.let { profile ->
+    pinDialogSelection?.let { (profile, tapCenter) ->
         PinEntryDialog(
             profileName = profile.name,
             onVerify = { pin -> ProfileRepository.verifyPin(profile.profileIndex, pin) },
             onVerified = {
-                pinDialogProfile = null
-                onProfileSelected(profile)
+                pinDialogSelection = null
+                onProfileSelected(profile, tapCenter)
             },
-            onDismiss = { pinDialogProfile = null },
+            onDismiss = { pinDialogSelection = null },
         )
     }
 }
@@ -334,7 +307,7 @@ private fun ProfileAvatarCard(
     avatars: List<AvatarCatalogItem>,
     isEditMode: Boolean,
     animDelay: Int,
-    onClick: () -> Unit,
+    onClick: (tapCenter: Offset) -> Unit,
 ) {
     val avatarColor = remember(profile.avatarColorHex) {
         parseHexColor(profile.avatarColorHex)
@@ -362,6 +335,7 @@ private fun ProfileAvatarCard(
         animProgress.animateTo(1f, tween(500, easing = FastOutSlowInEasing))
     }
 
+    var avatarCenterInWindow by remember { mutableStateOf(Offset.Zero) }
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val pressScale = if (isPressed) 0.95f else 1f
@@ -382,12 +356,19 @@ private fun ProfileAvatarCard(
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
-                onClick = onClick,
+                onClick = { onClick(avatarCenterInWindow) },
             )
             .padding(8.dp),
     ) {
         Box(
-            modifier = Modifier.size(110.dp),
+            modifier = Modifier
+                .size(110.dp)
+                .onGloballyPositioned { coordinates ->
+                    avatarCenterInWindow = coordinates.positionInWindow() + Offset(
+                        coordinates.size.width / 2f,
+                        coordinates.size.height / 2f,
+                    )
+                },
             contentAlignment = Alignment.Center,
         ) {
             if (avatarImageUrl != null) {

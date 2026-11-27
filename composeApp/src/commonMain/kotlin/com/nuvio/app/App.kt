@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -103,6 +104,7 @@ import androidx.navigation3.ui.NavDisplay
 import androidx.savedstate.serialization.SavedStateConfiguration
 import coil3.ImageLoader
 import coil3.annotation.ExperimentalCoilApi
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
 import coil3.compose.AsyncImage
 import coil3.compose.setSingletonImageLoaderFactory
@@ -235,6 +237,7 @@ import com.nuvio.app.features.player.SubtitleLanguageOption
 import com.nuvio.app.features.player.sanitizePlaybackHeaders
 import com.nuvio.app.features.player.sanitizePlaybackResponseHeaders
 import com.nuvio.app.features.profiles.AvatarRepository
+import com.nuvio.app.features.profiles.MewProfileBackdrop
 import com.nuvio.app.features.profiles.NativeProfileSwitcherPopup
 import com.nuvio.app.features.profiles.NuvioProfile
 import com.nuvio.app.features.profiles.ProfileEditScreen
@@ -769,8 +772,17 @@ fun App(
             targetState = gateScreen,
             label = "app_gate",
             transitionSpec = {
-                (fadeIn(tween(400)) + scaleIn(tween(400), initialScale = 0.94f))
-                    .togetherWith(fadeOut(tween(250)))
+                if (
+                    initialState == AppGateScreen.ProfileSelection.name &&
+                    targetState == AppGateScreen.Main.name
+                ) {
+                    // luq parity: a quick, unscaled cross-fade so the tapped avatar hands off
+                    // to the launch overlay's emblem in place before it glides to the centre.
+                    fadeIn(tween(180)).togetherWith(fadeOut(tween(180)))
+                } else {
+                    (fadeIn(tween(400)) + scaleIn(tween(400), initialScale = 0.94f))
+                        .togetherWith(fadeOut(tween(250)))
+                }
             },
         ) { currentGate ->
             when (currentGate) {
@@ -787,7 +799,8 @@ fun App(
                         }
                     }
                     ProfileSelectionScreen(
-                        onProfileSelected = { profile ->
+                        onProfileSelected = { profile, tapCenter ->
+                            MewProfileTransition.begin(tapCenter)
                             completeProfileSelection(
                                 profile = profile,
                                 syncOnEnter = authState is AuthState.Authenticated,
@@ -2276,6 +2289,7 @@ private fun MainAppContent(
                                             onProfileSelected = onProfileSelected,
                                             onAddProfileRequested = onSwitchProfile,
                                             rememberTriggerAsContentFocus = false,
+                                            modifier = Modifier.mewReportProfileTabCenter(),
                                         )
                                     },
                                 ),
@@ -2332,6 +2346,7 @@ private fun MainAppContent(
                                                 onProfileSelected = onProfileSelected,
                                                 onAddProfileRequested = onSwitchProfile,
                                                 rememberTriggerAsContentFocus = false,
+                                                modifier = Modifier.mewReportProfileTabCenter(),
                                             )
                                         }
                                     }
@@ -2647,6 +2662,7 @@ private fun MainAppContent(
                                                     onProfileSelected = onProfileSelected,
                                                     onAddProfileRequested = onSwitchProfile,
                                                     rememberTriggerAsContentFocus = false,
+                                                    modifier = Modifier.mewReportProfileTabCenter(),
                                                 )
                                             }
                                         }
@@ -4152,20 +4168,48 @@ private fun MainAppContent(
                     .zIndex(20f),
             )
 
-            val launchOverlayState = remember(ownsAppRuntime) {
-                MutableTransitionState(ownsAppRuntime && !initialHomeReady)
+            // Profile picked on "Who's watching": glide in from the tap, hold luq's 650ms minimum,
+            // then shrink into the profile tab before the overlay goes. Cold starts keep the plain
+            // drop-in and fade.
+            val profileTransition = remember(ownsAppRuntime) {
+                if (ownsAppRuntime) MewProfileTransition.consume() else null
             }
-            launchOverlayState.targetState = ownsAppRuntime && !initialHomeReady
+            var profileTransitionMinHoldElapsed by remember(profileTransition) {
+                mutableStateOf(profileTransition == null)
+            }
+            var profileTransitionExitFinished by remember(profileTransition) {
+                mutableStateOf(profileTransition == null)
+            }
+            LaunchedEffect(profileTransition) {
+                if (profileTransition == null) return@LaunchedEffect
+                kotlinx.coroutines.delay(
+                    if (profileTransition.origin != null) {
+                        ProfileTransitionMinDurationWithOriginMs
+                    } else {
+                        ProfileTransitionMinDurationMs
+                    },
+                )
+                profileTransitionMinHoldElapsed = true
+            }
+            val launchContentReady = initialHomeReady && profileTransitionMinHoldElapsed
+            val launchOverlayVisible = ownsAppRuntime && !(launchContentReady && profileTransitionExitFinished)
+            val launchOverlayState = remember(ownsAppRuntime) {
+                MutableTransitionState(launchOverlayVisible)
+            }
+            launchOverlayState.targetState = launchOverlayVisible
             androidx.compose.animation.AnimatedVisibility(
                 visibleState = launchOverlayState,
                 enter = fadeIn(),
-                exit = fadeOut(tween(400)),
+                exit = fadeOut(tween(if (profileTransition != null) 180 else 400)),
                 modifier = Modifier
                     .fillMaxSize()
                     .zIndex(30f),
             ) {
                 AppLaunchOverlay(
                     profile = profileState.activeProfile ?: profileState.profiles.firstOrNull(),
+                    entryOrigin = profileTransition?.origin,
+                    exitTowardProfileTab = profileTransition != null && launchContentReady,
+                    onExitFinished = { profileTransitionExitFinished = true },
                     modifier = Modifier.fillMaxSize(),
                 )
             }
@@ -4175,6 +4219,9 @@ private fun MainAppContent(
 }
 
 private const val MainLaunchOverlayMaxHoldMs = 2_500L
+// luq's AppGate minimums for the profile-select transition.
+private const val ProfileTransitionMinDurationWithOriginMs = 650L
+private const val ProfileTransitionMinDurationMs = 1_000L
 
 @Composable
 private fun rememberGuardedPopBackStack(
@@ -4456,7 +4503,9 @@ internal fun TabletFloatingTopBar(
                             onProfileSelected = onProfileSelected,
                             onAddProfileRequested = onAddProfileRequested,
                             rememberTriggerAsContentFocus = false,
-                            modifier = Modifier.nuvioRestoreLastContentFocusOnDown(),
+                            modifier = Modifier
+                                .nuvioRestoreLastContentFocusOnDown()
+                                .mewReportProfileTabCenter(),
                         )
                         Text(
                             text = stringResource(Res.string.compose_nav_profile),
@@ -4609,15 +4658,40 @@ private fun TabletTopPillItem(
 private fun AppLaunchOverlay(
     profile: NuvioProfile?,
     modifier: Modifier = Modifier,
+    entryOrigin: Offset? = null,
+    exitTowardProfileTab: Boolean = false,
+    onExitFinished: () -> Unit = {},
 ) {
+    // While the avatar shrinks into the profile tab, the backdrop dissolves with it so the trip
+    // ends on the real tab bar (luq gets this for free from iOS's native tab bar sitting on top).
+    val backdropAlpha by animateFloatAsState(
+        targetValue = if (exitTowardProfileTab) 0f else 1f,
+        animationSpec = tween(450, easing = FastOutSlowInEasing),
+        label = "launch_backdrop_alpha",
+    )
     Box(
         modifier = modifier
             .zIndex(NuvioTokens.Z.dialog)
-            .nuvioConsumePointerEvents()
-            .background(MaterialTheme.nuvio.colors.background),
+            .nuvioConsumePointerEvents(),
     ) {
         PlatformBackHandler(enabled = true) { }
-        MewLaunchLoadingContent(modifier = Modifier.fillMaxSize(), profile = profile)
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer { alpha = backdropAlpha }
+                .background(MaterialTheme.nuvio.colors.background),
+        ) {
+            if (profile != null) {
+                MewProfileBackdrop(profile = profile, modifier = Modifier.fillMaxSize())
+            }
+        }
+        MewLaunchLoadingContent(
+            modifier = Modifier.fillMaxSize(),
+            profile = profile,
+            entryOrigin = entryOrigin,
+            exitTowardProfileTab = exitTowardProfileTab,
+            onExitFinished = onExitFinished,
+        )
     }
 }
 
