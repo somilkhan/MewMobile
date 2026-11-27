@@ -16,6 +16,8 @@ import com.lagradost.cloudstream3.CommonActivity
 import com.lagradost.cloudstream3.LiveSearchResponse
 import com.lagradost.cloudstream3.LiveStreamLoadResponse
 import com.lagradost.cloudstream3.LoadResponse
+import com.lagradost.cloudstream3.LoadResponse.Companion.getImdbId
+import com.lagradost.cloudstream3.LoadResponse.Companion.getTMDbId
 import com.lagradost.cloudstream3.MainAPI
 import com.lagradost.cloudstream3.MainPageRequest
 import com.lagradost.cloudstream3.MovieLoadResponse
@@ -389,6 +391,7 @@ internal actual object CloudStreamPlatformRuntime {
         activityReference?.get()?.let(CommonActivity::setActivityInstance)
         CloudStreamApp.context = context
         setContext(WeakReference(context))
+        installSyncIdPrefixes()
 
         if (hostInitialized) return
 
@@ -405,6 +408,19 @@ internal actual object CloudStreamPlatformRuntime {
             "CloudStream HTTP client initialized defaultTimeoutSeconds=${app.defaultTimeOut}",
         )
 
+    }
+
+    /**
+     * UPSTREAM: AccountManager.initMainAPI() assigns these before any plugin loads. The
+     * library defaults are all "", so without it LoadResponse.addMalId/addAniListId and
+     * addImdbId/addTMDbId (stored under simklIdPrefix) overwrite the same syncData key and
+     * getImdbId()/getTMDbId() return nothing or garbage.
+     */
+    private fun installSyncIdPrefixes() {
+        LoadResponse.malIdPrefix = "mal"
+        LoadResponse.kitsuIdPrefix = "kitsu"
+        LoadResponse.aniListIdPrefix = "anilist"
+        LoadResponse.simklIdPrefix = "simkl"
     }
 
     private fun currentNativeRepositorySyncGeneration(): Long =
@@ -895,6 +911,8 @@ private class AndroidDexCloudStreamProvider(
             durationMinutes = duration?.takeIf { it > 0 },
             contentRating = contentRating?.takeIf(String::isNotBlank),
             cast = nuvioCast(),
+            imdbId = runCatching { getImdbId() }.getOrNull().let(::normalizeCloudStreamExternalId),
+            tmdbId = runCatching { getTMDbId() }.getOrNull().let(::normalizeCloudStreamExternalId),
         )
     }
 

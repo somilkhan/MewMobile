@@ -367,6 +367,10 @@ data class CloudStreamLoadItem(
     val durationMinutes: Int? = null,
     val contentRating: String? = null,
     val cast: List<CloudStreamCastMember> = emptyList(),
+    /** UPSTREAM: LoadResponse.getImdbId() from syncData, when the provider set it. */
+    val imdbId: String? = null,
+    /** UPSTREAM: LoadResponse.getTMDbId() from syncData, when the provider set it. */
+    val tmdbId: String? = null,
 )
 
 data class CloudStreamCastMember(
