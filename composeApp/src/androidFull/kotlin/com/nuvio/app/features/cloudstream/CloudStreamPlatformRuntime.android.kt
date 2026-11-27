@@ -593,11 +593,17 @@ internal actual object CloudStreamPlatformRuntime {
     ) {
         fun unload() {
             runCatching { instance.beforeUnload() }
-            providers.forEach { api ->
+            // UPSTREAM: PluginManager.unloadPlugin removes everything whose sourcePlugin is this
+            // file, not only what existed right after load(). Plugins may register MainAPIs or
+            // extractors later from coroutines; those must not outlive the plugin.
+            val ownedApis = (providers + APIHolder.apis.filter { it.sourcePlugin == path }).distinct()
+            ownedApis.forEach { api ->
                 APIHolder.allProviders.remove(api)
                 APIHolder.removePluginMapping(api)
             }
+            APIHolder.allProviders.removeAll { it.sourcePlugin == path }
             extractorApis.removeAll(extractors.toSet())
+            extractorApis.removeAll { it.sourcePlugin == path }
             VideoClickActionHolder.allVideoClickActions.removeAll { it.sourcePlugin == path }
             PluginManager.unregister(path)
         }
