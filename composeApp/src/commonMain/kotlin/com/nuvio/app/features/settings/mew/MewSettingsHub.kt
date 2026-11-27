@@ -64,7 +64,6 @@ internal enum class MewSettingsSection(
             NuvioEnhancedFeature.PlayerTimeOverlay,
             NuvioEnhancedFeature.PersistentEpisodeShuffle,
             NuvioEnhancedFeature.PlayerStatusOverlay,
-            NuvioEnhancedFeature.StreamSourcePinning,
             NuvioEnhancedFeature.BackgroundStreamPrefetch,
             NuvioEnhancedFeature.ContentWarnings,
         ),

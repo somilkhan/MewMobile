@@ -56,6 +56,7 @@ import com.nuvio.app.features.details.MetaEpisodeCardStyle
 import com.nuvio.app.features.details.MetaScreenSettingsRepository
 import com.nuvio.app.features.downloads.DownloadsExternalFolderPlatform
 import com.nuvio.app.features.home.HomeCatalogSettingsRepository
+import com.nuvio.app.features.home.HomeHeroStyle
 import com.nuvio.app.features.player.AndroidPlaybackEngine
 import com.nuvio.app.features.player.PlayerSettingsRepository
 import com.nuvio.app.isIos
@@ -129,7 +130,11 @@ private fun NuvioEnhancedSettingsPageContent(
     val externalFolderFailedMessage = stringResource(Res.string.nuvio_enhanced_external_folder_failed)
     val homeHeroVideoPreviewSupported = AppFeaturePolicy.heroTrailerPlaybackSupported &&
         AppFeaturePolicy.trailerPlaybackMode == TrailerPlaybackMode.IN_APP
-    val heroVisualControlsEnabled = !settings.originalNuvioHeroBannerEnabled
+    // Mew: Home falls back to the upstream hero when Card style or hero trailers are on
+    // (see HomeScreen useUpstreamHero), so every Mew hero control is inert then.
+    val upstreamHeroActive = homeSettings.heroStyle == HomeHeroStyle.CARD ||
+        homeSettings.heroTrailerPlaybackEnabled
+    val heroVisualControlsEnabled = !upstreamHeroActive && !settings.originalNuvioHeroBannerEnabled
     val detailHeroTrailerPlaybackSupported = AppFeaturePolicy.heroTrailerPlaybackSupported &&
         AppFeaturePolicy.trailerPlaybackMode == TrailerPlaybackMode.IN_APP
 
@@ -360,18 +365,6 @@ private fun NuvioEnhancedSettingsPageContent(
                     )
                     SettingsGroupDivider(isTablet = isTablet)
                     SettingsSwitchRow(
-                        title = stringResource(Res.string.nuvio_enhanced_source_pinning_title),
-                        description = stringResource(Res.string.nuvio_enhanced_source_pinning_desc),
-                        checked = settings.streamSourcePinningEnabled,
-                        isTablet = isTablet,
-                        highlighted = isNew(NuvioEnhancedFeature.StreamSourcePinning),
-                        onCheckedChange = {
-                            markSeen(NuvioEnhancedFeature.StreamSourcePinning)
-                            NuvioEnhancedSettingsRepository.setStreamSourcePinningEnabled(it)
-                        },
-                    )
-                    SettingsGroupDivider(isTablet = isTablet)
-                    SettingsSwitchRow(
                         title = stringResource(Res.string.nuvio_enhanced_background_stream_prefetch_title),
                         description = stringResource(Res.string.nuvio_enhanced_background_stream_prefetch_desc),
                         checked = settings.backgroundStreamPrefetchEnabled,
@@ -399,7 +392,6 @@ private fun NuvioEnhancedSettingsPageContent(
                         title = stringResource(Res.string.nuvio_enhanced_subtitle_sync_title),
                         description = stringResource(Res.string.nuvio_enhanced_subtitle_sync_desc),
                         checked = playerSettings.subtitleSyncMenuEnabled,
-                        enabled = settings.enhancedHomeFeaturesEnabled,
                         isTablet = isTablet,
                         highlighted = isNew(NuvioEnhancedFeature.SubtitleSyncMenu),
                         onCheckedChange = {
@@ -456,7 +448,6 @@ private fun NuvioEnhancedSettingsPageContent(
                         title = stringResource(Res.string.nuvio_enhanced_player_clock_title),
                         description = stringResource(Res.string.nuvio_enhanced_player_clock_desc),
                         checked = playerSettings.playerClockEndTimeEnabled,
-                        enabled = settings.enhancedHomeFeaturesEnabled,
                         isTablet = isTablet,
                         highlighted = isNew(NuvioEnhancedFeature.PlayerTimeOverlay),
                         onCheckedChange = {
@@ -469,7 +460,6 @@ private fun NuvioEnhancedSettingsPageContent(
                         title = stringResource(Res.string.settings_playback_random_next_episode),
                         description = stringResource(Res.string.settings_playback_random_next_episode_description),
                         checked = playerSettings.randomNextEpisodeEnabled,
-                        enabled = settings.enhancedHomeFeaturesEnabled,
                         isTablet = isTablet,
                         highlighted = isNew(NuvioEnhancedFeature.PersistentEpisodeShuffle),
                         onCheckedChange = {
@@ -482,7 +472,6 @@ private fun NuvioEnhancedSettingsPageContent(
                         title = stringResource(Res.string.nuvio_enhanced_next_episode_button_title),
                         description = stringResource(Res.string.nuvio_enhanced_next_episode_button_desc),
                         checked = settings.nextEpisodeButtonEnabled,
-                        enabled = settings.enhancedHomeFeaturesEnabled,
                         isTablet = isTablet,
                         highlighted = isNew(NuvioEnhancedFeature.NextEpisodeButton),
                         onCheckedChange = {
@@ -499,7 +488,6 @@ private fun NuvioEnhancedSettingsPageContent(
                             enabled = !playerSettings.externalPlayerEnabled &&
                                 playerSettings.androidPlaybackEngine != AndroidPlaybackEngine.Libmpv,
                             isTablet = isTablet,
-                            highlighted = isNew(NuvioEnhancedFeature.PlayerStatusOverlay),
                             onCheckedChange = PlayerSettingsRepository::setAndroidMemorySafeBufferEnabled,
                         )
                     }
@@ -515,8 +503,15 @@ private fun NuvioEnhancedSettingsPageContent(
             SettingsGroup(isTablet = isTablet) {
                 SettingsSwitchRow(
                     title = stringResource(Res.string.nuvio_enhanced_original_hero_title),
-                    description = stringResource(Res.string.nuvio_enhanced_original_hero_desc),
+                    description = stringResource(
+                        if (upstreamHeroActive) {
+                            Res.string.nuvio_enhanced_hero_upstream_active_desc
+                        } else {
+                            Res.string.nuvio_enhanced_original_hero_desc
+                        },
+                    ),
                     checked = settings.originalNuvioHeroBannerEnabled,
+                    enabled = !upstreamHeroActive,
                     isTablet = isTablet,
                     highlighted = isNew(NuvioEnhancedFeature.HeroControlsV2),
                     onCheckedChange = {
@@ -687,7 +682,10 @@ private fun NuvioEnhancedSettingsPageContent(
                     title = stringResource(Res.string.nuvio_enhanced_hero_overview_title),
                     description = stringResource(Res.string.nuvio_enhanced_hero_overview_desc),
                     checked = settings.showHeroOverview,
-                    enabled = heroVisualControlsEnabled,
+                    // Showcase always shows the overview; Quiet Home always hides it.
+                    enabled = heroVisualControlsEnabled &&
+                        !settings.streamingShowcaseHeroEnabled &&
+                        !settings.quietHomeModeEnabled,
                     isTablet = isTablet,
                     highlighted = isNew(NuvioEnhancedFeature.HeroExperienceControls),
                     onCheckedChange = {
@@ -959,7 +957,7 @@ private fun NuvioEnhancedSettingsPageContent(
                             markSeen(NuvioEnhancedFeature.BackupImport)
                             val payload = ProfileSettingsSync.exportBackupJson()
                             NuvioEnhancedBackupFileBridge.exportBackup(
-                                fileName = "nuvio-backup.json",
+                                fileName = "mew-backup.json",
                                 payload = payload,
                             ) { result ->
                                 result

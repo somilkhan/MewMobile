@@ -1223,7 +1223,15 @@ fun HomeScreen(
         val continueWatchingCardHeight = remember(posterCardStyle.widthDp) {
             continueWatchingLandscapeCardHeight(posterCardStyle.widthDp)
         }
-        val heroToContinueWatchingGap = if (nuvioEnhancedSettings.streamingShowcaseHeroEnabled) {
+        // Mew hook: effective Mew hero style. Card style / hero trailers switch Home to the upstream
+        // hero, and the classic banner ignores poster-art / showcase, so placeholders must match.
+        val useUpstreamHero = homeSettingsUiState.heroStyle == HomeHeroStyle.CARD ||
+            homeSettingsUiState.heroTrailerPlaybackEnabled
+        val mewStyledHeroActive = !useUpstreamHero && !nuvioEnhancedSettings.originalNuvioHeroBannerEnabled
+        val effectivePosterArtHero = mewStyledHeroActive && nuvioEnhancedSettings.posterArtHeroEnabled
+        val effectiveStreamingShowcaseHero = mewStyledHeroActive &&
+            nuvioEnhancedSettings.streamingShowcaseHeroEnabled
+        val heroToContinueWatchingGap = if (effectiveStreamingShowcaseHero) {
             HOME_STREAMING_SHOWCASE_HERO_TO_CONTINUE_WATCHING_GAP
         } else {
             HOME_HERO_TO_CONTINUE_WATCHING_GAP
@@ -1302,17 +1310,14 @@ fun HomeScreen(
                     item(key = "home_hero", contentType = "hero") {
                         // Upstream card-style / in-app trailer hero uses the upstream HomeHeroSection;
                         // otherwise the Mew hero (poster art, streaming showcase, CTA) is used.
-                        val useUpstreamHero = homeSettingsUiState.heroStyle == HomeHeroStyle.CARD ||
-                            homeSettingsUiState.heroTrailerPlaybackEnabled
                         val homeHeroState = rememberHomeHeroState(homeUiState.heroItems)
                         when {
                             showHeroSkeleton -> HomeSkeletonHero(
                                 modifier = Modifier,
                                 viewportHeight = viewportHeight,
                                 mobileBelowSectionHeightHint = mobileHeroBelowSectionHeightHint,
-                                posterArtHeroEnabled = !useUpstreamHero && nuvioEnhancedSettings.posterArtHeroEnabled,
-                                streamingShowcaseHeroEnabled = !useUpstreamHero &&
-                                    nuvioEnhancedSettings.streamingShowcaseHeroEnabled,
+                                posterArtHeroEnabled = effectivePosterArtHero,
+                                streamingShowcaseHeroEnabled = effectiveStreamingShowcaseHero,
                                 heroStyle = homeSettingsUiState.heroStyle,
                             )
 
@@ -1355,8 +1360,8 @@ fun HomeScreen(
                                     homeSettingsUiState.heroMotionPreviewEnabled,
                                 heroDisplayMode = nuvioEnhancedSettings.heroDisplayMode,
                                 heroArtworkSource = nuvioEnhancedSettings.heroArtworkSource,
-                                posterArtHeroEnabled = nuvioEnhancedSettings.posterArtHeroEnabled,
-                                streamingShowcaseHeroEnabled = nuvioEnhancedSettings.streamingShowcaseHeroEnabled,
+                                posterArtHeroEnabled = effectivePosterArtHero,
+                                streamingShowcaseHeroEnabled = effectiveStreamingShowcaseHero,
                                 streamingShowcaseVideoPreviewEnabled =
                                     nuvioEnhancedSettings.streamingShowcaseVideoPreviewEnabled,
                                 streamingShowcaseVideoPreviewSoundEnabled =
@@ -1364,7 +1369,7 @@ fun HomeScreen(
                                 compactMetadata = nuvioEnhancedSettings.compactHeroMetadata,
                                 showRatings = nuvioEnhancedSettings.showHeroRatings,
                                 ratingsAboveMetadata = nuvioEnhancedSettings.ratingsAboveMetadata,
-                                showOverview = nuvioEnhancedSettings.streamingShowcaseHeroEnabled ||
+                                showOverview = effectiveStreamingShowcaseHero ||
                                     (
                                         nuvioEnhancedSettings.showHeroOverview &&
                                         !nuvioEnhancedSettings.quietHomeModeEnabled
@@ -1395,8 +1400,8 @@ fun HomeScreen(
                                 modifier = Modifier,
                                 viewportHeight = viewportHeight,
                                 mobileBelowSectionHeightHint = mobileHeroBelowSectionHeightHint,
-                                posterArtHeroEnabled = nuvioEnhancedSettings.posterArtHeroEnabled,
-                                streamingShowcaseHeroEnabled = nuvioEnhancedSettings.streamingShowcaseHeroEnabled,
+                                posterArtHeroEnabled = effectivePosterArtHero,
+                                streamingShowcaseHeroEnabled = effectiveStreamingShowcaseHero,
                             )
                         }
                     }

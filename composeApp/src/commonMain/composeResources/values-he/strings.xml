@@ -2337,9 +2337,9 @@ Therefore, duplicate the values-he directory as values-iw. Keep both directories
     <string name="nuvio_enhanced_section_player_tools">נגן וכתוביות</string>
     <string name="settings_trakt_missing_credentials">Trakt אינו מוגדר בגרסה זו. מנהל האפליקציה חייב להוסיף פרטי Trakt לפני הפרסום.</string>
     <string name="nuvio_enhanced_subtitle_selector_title">בורר כתוביות</string>
-    <string name="nuvio_enhanced_subtitle_selector_desc">Choose between the Mew language-grouped selector and the latest core layout.</string>
+    <string name="nuvio_enhanced_subtitle_selector_desc">Choose the Mew language-grouped selector or the Standard layout.</string>
     <string name="nuvio_enhanced_subtitle_selector_enhanced">Mew</string>
-    <string name="nuvio_enhanced_subtitle_selector_nuvio">Mew</string>
+    <string name="nuvio_enhanced_subtitle_selector_nuvio">Standard</string>
     <string name="community_donation_progress_fee_notice">הסכום המוצג הוא לפני עמלות תשלום ובנק, לכן הסכום המתקבל עשוי להיות נמוך יותר.</string>
     <string name="downloads_download_settings">הגדרות הורדה</string>
     <string name="downloads_auto_select">בחירה אוטומטית</string>

@@ -2629,7 +2629,7 @@
     <string name="settings_playback_android_memory_safe_buffer_description">Reduce el uso de memoria del búfer de ExoPlayer en Android para dispositivos con cierres durante la reproducción o presión de memoria. Puede volver a almacenar en búfer antes en redes inestables.</string>
     <string name="settings_nuvio_enhanced_category">Mew</string>
     <string name="settings_nuvio_enhanced_section">Mew</string>
-    <string name="settings_nuvio_enhanced_title">Mew</string>
+    <string name="settings_nuvio_enhanced_title">Mew Enhanced</string>
     <string name="settings_nuvio_enhanced_description">Controles premium exclusivos de esta versión, inteligencia para la pantalla de inicio, copias de seguridad e importación.</string>
     <string name="nuvio_enhanced_section_nuvio_experience">Experiencia Mew</string>
     <string name="nuvio_enhanced_section_premium_labs">Laboratorios Premium</string>
@@ -2775,9 +2775,9 @@
     <string name="nuvio_enhanced_category_new">Nuevo</string>
     <string name="nuvio_enhanced_section_player_tools">Reproductor y subtítulos</string>
     <string name="nuvio_enhanced_subtitle_selector_title">Selector de subtítulos</string>
-    <string name="nuvio_enhanced_subtitle_selector_desc">Choose between the Mew language-grouped selector and the latest core layout.</string>
+    <string name="nuvio_enhanced_subtitle_selector_desc">Choose the Mew language-grouped selector or the Standard layout.</string>
     <string name="nuvio_enhanced_subtitle_selector_enhanced">Mew</string>
-    <string name="nuvio_enhanced_subtitle_selector_nuvio">Mew</string>
+    <string name="nuvio_enhanced_subtitle_selector_nuvio">Standard</string>
     <string name="community_donation_progress_fee_notice">El importe mostrado es anterior a las comisiones de pago y bancarias, por lo que el importe recibido puede ser menor.</string>
     <string name="downloads_download_settings">Configuración de descarga</string>
     <string name="downloads_auto_select">Selección automática</string>

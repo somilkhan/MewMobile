@@ -622,11 +622,13 @@ fun MetaDetailsScreen(
                         season = seriesAction?.seasonNumber.takeIf { hasEpisodesForPrefetch },
                         episode = seriesAction?.episodeNumber.takeIf { hasEpisodesForPrefetch },
                         manualSelection = false,
-                        searchTitle = if (hasEpisodesForPrefetch) seriesAction?.episodeTitle ?: meta.name else meta.name,
+                        // Mew: must match the Play route (StreamsScreen passes title = meta.name), otherwise the
+                        // request key differs and Play discards the prefetched streams. The episode title is not
+                        // a series title, so it also sent CloudStream searches for the wrong show.
+                        searchTitle = meta.name,
                     )
                 }
-                val showRandomEpisodeButton = nuvioEnhancedSettings.enhancedHomeFeaturesEnabled &&
-                    playerSettingsUiState.randomNextEpisodeEnabled &&
+                val showRandomEpisodeButton = playerSettingsUiState.randomNextEpisodeEnabled &&
                     meta.isSeriesLikeForEpisodeRatings()
                 val randomEpisodeLabel = stringResource(Res.string.action_random_episode)
                 var randomEpisodeHistory by remember(

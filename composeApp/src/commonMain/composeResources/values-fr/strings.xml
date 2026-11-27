@@ -2654,9 +2654,9 @@
     <string name="nuvio_enhanced_category_new">Nouveau</string>
     <string name="nuvio_enhanced_section_player_tools">Lecteur et sous-titres</string>
     <string name="nuvio_enhanced_subtitle_selector_title">Sélecteur de sous-titres</string>
-    <string name="nuvio_enhanced_subtitle_selector_desc">Choose between the Mew language-grouped selector and the latest core layout.</string>
+    <string name="nuvio_enhanced_subtitle_selector_desc">Choose the Mew language-grouped selector or the Standard layout.</string>
     <string name="nuvio_enhanced_subtitle_selector_enhanced">Mew</string>
-    <string name="nuvio_enhanced_subtitle_selector_nuvio">Mew</string>
+    <string name="nuvio_enhanced_subtitle_selector_nuvio">Standard</string>
     <string name="community_donation_progress_fee_notice">Le montant affiché est avant les frais de paiement et bancaires, le montant reçu peut donc être inférieur.</string>
     <string name="downloads_download_settings">Paramètres de téléchargement</string>
     <string name="downloads_auto_select">Sélection automatique</string>

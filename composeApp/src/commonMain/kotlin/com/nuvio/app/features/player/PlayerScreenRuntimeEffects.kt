@@ -1048,7 +1048,6 @@ private fun PlayerScreenRuntime.BindPlayerMetadataAndSkipEffects() {
     // Mew: pre-resolve the next episode stream for the Next button.
     LaunchedEffect(
         nextEpisodeInfo,
-        nuvioEnhancedSettingsUiState.enhancedHomeFeaturesEnabled,
         nuvioEnhancedSettingsUiState.nextEpisodeButtonEnabled,
         playerSettingsUiState.streamAutoPlayMode,
         playerSettingsUiState.streamAutoPlaySource,
@@ -1063,7 +1062,6 @@ private fun PlayerScreenRuntime.BindPlayerMetadataAndSkipEffects() {
         currentStreamBingeGroup,
     ) {
         if (
-            !nuvioEnhancedSettingsUiState.enhancedHomeFeaturesEnabled ||
             !nuvioEnhancedSettingsUiState.nextEpisodeButtonEnabled ||
             nextEpisodeInfo?.hasAired != true
         ) {
@@ -1089,7 +1087,6 @@ private fun PlayerScreenRuntime.BindPlayerMetadataAndSkipEffects() {
         watchedUiState.watchedKeys,
         randomNextEpisodeMode, // Mew hook
         playerSettingsUiState.randomNextEpisodeEnabled,
-        nuvioEnhancedSettingsUiState.enhancedHomeFeaturesEnabled,
     ) {
         if (!isSeries || playerMetaVideos.isEmpty()) {
             nextEpisodeInfo = null
@@ -1111,8 +1108,7 @@ private fun PlayerScreenRuntime.BindPlayerMetadataAndSkipEffects() {
                 currentSeason = curSeason,
                 currentEpisode = curEpisode,
                 randomMode = randomNextEpisodeMode && // Mew hook: in-player random mode
-                    playerSettingsUiState.randomNextEpisodeEnabled &&
-                    nuvioEnhancedSettingsUiState.enhancedHomeFeaturesEnabled,
+                    playerSettingsUiState.randomNextEpisodeEnabled,
                 randomHistoryKey = parentMetaId,
             )
         }

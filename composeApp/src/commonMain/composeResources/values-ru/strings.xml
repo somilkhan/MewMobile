@@ -2566,7 +2566,7 @@
     <string name="nuvio_enhanced_concierge_title">Mew Консьерж</string>
     <string name="settings_nuvio_enhanced_category">Улучшенный</string>
     <string name="settings_nuvio_enhanced_section">Mew Расширенный</string>
-    <string name="settings_nuvio_enhanced_title">Mew Расширенный</string>
+    <string name="settings_nuvio_enhanced_title">Mew Enhanced</string>
     <string name="settings_nuvio_enhanced_description">Mew controls, homepage intelligence, backup and import.</string>
     <string name="settings_new_feature_badge">Новый</string>
     <string name="home_smart_resume_signal_continue_now">Продолжить сейчас</string>
@@ -2741,9 +2741,9 @@
     <string name="nuvio_enhanced_category_new">Новое</string>
     <string name="nuvio_enhanced_section_player_tools">Плеер и субтитры</string>
     <string name="nuvio_enhanced_subtitle_selector_title">Выбор субтитров</string>
-    <string name="nuvio_enhanced_subtitle_selector_desc">Choose between the Mew language-grouped selector and the latest core layout.</string>
+    <string name="nuvio_enhanced_subtitle_selector_desc">Choose the Mew language-grouped selector or the Standard layout.</string>
     <string name="nuvio_enhanced_subtitle_selector_enhanced">Mew</string>
-    <string name="nuvio_enhanced_subtitle_selector_nuvio">Mew</string>
+    <string name="nuvio_enhanced_subtitle_selector_nuvio">Standard</string>
     <string name="community_donation_progress_fee_notice">Указанная сумма приведена до вычета платежных и банковских комиссий, поэтому полученная сумма может быть меньше.</string>
     <string name="downloads_download_settings">Настройки загрузки</string>
     <string name="downloads_auto_select">Автовыбор</string>
