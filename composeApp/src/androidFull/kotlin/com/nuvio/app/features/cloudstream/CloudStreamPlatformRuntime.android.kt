@@ -35,6 +35,7 @@ import com.lagradost.cloudstream3.plugins.PluginData
 import com.lagradost.cloudstream3.plugins.PluginManager
 import com.lagradost.cloudstream3.network.initClient
 import com.lagradost.cloudstream3.syncproviders.SyncIdName
+import com.lagradost.cloudstream3.utils.DrmExtractorLink
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.ExtractorLinkType
 import com.lagradost.cloudstream3.utils.extractorApis
@@ -790,7 +791,7 @@ private class AndroidDexCloudStreamProvider(
         val completed = withTimeoutOrNull(
             stageTimeout(api.loadLinksTimeoutMs, DEFAULT_LINK_TIMEOUT_MS),
         ) {
-            runCatching {
+            try {
                 api.loadLinks(
                     data = route.data,
                     isCasting = false,
@@ -806,16 +807,32 @@ private class AndroidDexCloudStreamProvider(
                     },
                     callback = links::add,
                 )
-            }.onFailure { error ->
+            } catch (error: CancellationException) {
+                // Let the timeout (handled by withTimeoutOrNull) and caller cancellation
+                // propagate instead of reporting them as a provider failure.
+                throw error
+            } catch (error: Throwable) {
                 log.w(error) {
                     "CloudStream loadLinks threw provider=${api.name} " +
                         "links=${links.size} error=${error.javaClass.simpleName}: ${error.message}"
                 }
-            }.getOrDefault(false)
+                false
+            }
         }
 
+        // UPSTREAM: RepoLinkGenerator drops blank URLs and de-duplicates subtitles by URL.
         val subtitleSnapshot = synchronized(subtitles) { subtitles.toList() }
-        val linkSnapshot = synchronized(links) { links.toList() }
+            .filter { it.url.isNotBlank() }
+            .distinctBy { it.url }
+        val emittedLinks = synchronized(links) { links.toList() }
+        // ExtractorLinkPlayList has url = "" and DrmExtractorLink needs a DRM session; Mew's
+        // player supports neither, so exposing them only produces streams that cannot start.
+        val linkSnapshot = emittedLinks.filter { link -> link.url.isNotBlank() && link !is DrmExtractorLink }
+        if (linkSnapshot.size != emittedLinks.size) {
+            RuntimeDiagnostics.recordLog(
+                "cs-load-links-unsupported provider=${api.name} dropped=${emittedLinks.size - linkSnapshot.size}",
+            )
+        }
 
         RuntimeDiagnostics.recordLog(
             "cs-load-links-result provider=${api.name} completed=${completed != null} " +
