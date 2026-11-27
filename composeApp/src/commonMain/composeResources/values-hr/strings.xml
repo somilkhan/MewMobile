@@ -4,6 +4,7 @@
     <string name="theme_rose_gold">Ružičasto zlato</string>
     <string name="theme_arctic_blue">Arktičko plava</string>
     <string name="theme_graphite">Grafitna</string>
+    <string name="theme_sumi">Sumi</string>
     <string name="profile_choose_background">Odaberite pozadinu profila</string>
     <string name="profile_background_member_note">Prilagođeni URL-ovi pozadine mogu se konfigurirati putem Nuvio web ploče.</string>
     <string name="profile_background_normal">Standardno</string>

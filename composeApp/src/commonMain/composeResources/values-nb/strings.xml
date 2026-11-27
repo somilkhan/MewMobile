@@ -2138,6 +2138,7 @@ Du bruker denne funksjonen helt på eget ansvar. P2P kan deaktiveres når som he
     <string name="theme_emerald">Emerald</string>
     <string name="theme_gold">Gold</string>
     <string name="theme_graphite">Graphite</string>
+    <string name="theme_sumi">Sumi</string>
     <string name="theme_jade">Jade</string>
     <string name="theme_ocean">Ocean</string>
     <string name="theme_rose">Rose</string>

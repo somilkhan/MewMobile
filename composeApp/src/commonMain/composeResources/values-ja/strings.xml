@@ -4,6 +4,7 @@
     <string name="theme_rose_gold">ローズゴールド</string>
     <string name="theme_arctic_blue">アークティックブルー</string>
     <string name="theme_graphite">グラファイト</string>
+    <string name="theme_sumi">墨</string>
     <string name="profile_choose_background">プロフィール背景を選択</string>
     <string name="profile_background_member_note">カスタム背景URLはNuvioのWebパネルで設定できます。</string>
     <string name="profile_background_normal">通常</string>

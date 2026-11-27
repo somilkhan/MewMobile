@@ -4,6 +4,7 @@
     <string name="theme_rose_gold">Розово злато</string>
     <string name="theme_arctic_blue">Арктическо синьо</string>
     <string name="theme_graphite">Графит</string>
+    <string name="theme_sumi">Sumi</string>
     <string name="profile_choose_background">Избери фон на профила</string>
     <string name="profile_background_member_note">URL адресите за персонализиран фон могат да се конфигурират от уеб панела на Nuvio.</string>
     <string name="profile_background_normal">Нормално</string>

@@ -2162,6 +2162,7 @@ Bu özelliği tamamen kendi sorumluluğunuzda kullanırsınız. P2P istediğiniz
     <string name="theme_rose_gold">Gül Altın</string>
     <string name="theme_arctic_blue">Kutup Mavisi</string>
     <string name="theme_graphite">Grafit</string>
+    <string name="theme_sumi">Sumi</string>
     <string name="profile_choose_background">Profil Arka Planı Seç</string>
     <string name="profile_background_member_note">Özel arka plan URL'leri Nuvio web panelinden yapılandırılabilir.</string>
     <string name="profile_background_normal">Normal</string>

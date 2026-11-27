@@ -20,6 +20,7 @@ import nuvio.composeapp.generated.resources.theme_jade
 import nuvio.composeapp.generated.resources.theme_rose_gold
 import nuvio.composeapp.generated.resources.theme_arctic_blue
 import nuvio.composeapp.generated.resources.theme_graphite
+import nuvio.composeapp.generated.resources.theme_sumi
 import org.jetbrains.compose.resources.StringResource
 
 enum class AppTheme {
@@ -42,6 +43,8 @@ enum class AppTheme {
     ROSE_GOLD,
     ARCTIC_BLUE,
     GRAPHITE,
+    // Mew: ink-and-sakura theme with one solid button colour (not an animated Enhanced theme).
+    SUMI,
 }
 
 val AppTheme.isEnhanced: Boolean
@@ -74,4 +77,5 @@ val AppTheme.labelRes: StringResource
         AppTheme.ROSE_GOLD -> Res.string.theme_rose_gold
         AppTheme.ARCTIC_BLUE -> Res.string.theme_arctic_blue
         AppTheme.GRAPHITE -> Res.string.theme_graphite
+        AppTheme.SUMI -> Res.string.theme_sumi
     }

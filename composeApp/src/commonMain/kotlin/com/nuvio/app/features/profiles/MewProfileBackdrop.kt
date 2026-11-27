@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import coil3.compose.AsyncImage
+import com.nuvio.app.core.ui.SumiProfileBackdrop
 import com.nuvio.app.core.ui.appTheme
 import nuvio.composeapp.generated.resources.Res
 import org.jetbrains.compose.resources.ExperimentalResourceApi
@@ -35,7 +36,9 @@ fun MewProfileBackdrop(
     }
 
     BoxWithConstraints(modifier = modifier) {
-        if (effectiveBackground.preset != null) {
+        if (effectiveBackground.preset == ProfileBackgroundPreset.SUMI) {
+            SumiProfileBackdrop(modifier = Modifier.fillMaxSize())
+        } else if (effectiveBackground.preset != null) {
             AsyncImage(
                 model = Res.getUri(effectiveBackground.preset.resourcePath),
                 contentDescription = null,

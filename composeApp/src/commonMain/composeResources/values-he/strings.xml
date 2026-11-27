@@ -9,6 +9,7 @@ Therefore, duplicate the values-he directory as values-iw. Keep both directories
     <string name="theme_rose_gold">זהב ורוד</string>
     <string name="theme_arctic_blue">כחול ארקטי</string>
     <string name="theme_graphite">גרפיט</string>
+    <string name="theme_sumi">Sumi</string>
     <string name="profile_choose_background">בחירת רקע פרופיל</string>
     <string name="profile_background_member_note">ניתן להגדיר כתובות רקע מותאמות אישית מלוח הבקרה המקוון של Nuvio.</string>
     <string name="profile_background_normal">רגיל</string>

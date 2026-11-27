@@ -4,6 +4,7 @@
     <string name="theme_rose_gold">Rózsaarany</string>
     <string name="theme_arctic_blue">Jégkék</string>
     <string name="theme_graphite">Grafit</string>
+    <string name="theme_sumi">Sumi</string>
     <string name="profile_choose_background">Profilháttér kiválasztása</string>
     <string name="profile_background_member_note">Az egyéni háttér-URL-ek a Nuvio webes felületén konfigurálhatók.</string>
     <string name="profile_background_normal">Normál</string>

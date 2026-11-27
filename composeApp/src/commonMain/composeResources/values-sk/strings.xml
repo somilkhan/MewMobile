@@ -2126,6 +2126,7 @@
     <string name="theme_rose_gold">Ružové zlato</string>
     <string name="theme_arctic_blue">Arktická</string>
     <string name="theme_graphite">Grafitová</string>
+    <string name="theme_sumi">Sumi</string>
     <string name="profile_choose_background">Vybrať pozadie profilu</string>
     <string name="profile_background_member_note">Vlastné URL adresy pozadia je možné nastaviť vo webovom paneli Mew.</string>
     <string name="profile_background_normal">Normálne</string>
