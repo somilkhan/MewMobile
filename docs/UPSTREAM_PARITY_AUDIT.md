@@ -666,7 +666,7 @@ Comparison anchor: Enhanced `ae535226b1488a60d59613c1502fbb717cbb333f` → `a3e8
 ## 2026-11-02 physical-device results and Watch Party disposition
 
 ### Device evidence
-- Candidate `4d838a356a658bf21c9eab0d63c83124d9ba5dd4` was physically tested by the maintainer. See [DEVICE_TEST_REPORT_2026-11-02.md](DEVICE_TEST_REPORT_2026-11-02.md) for the exact APK identity, user-reported pass/fail matrix, sanitized Logcat findings and evidence limits.
+- Candidate `4d838a356a658bf21c9eab0d63c83124d9ba5dd4` was physically tested by the maintainer. See [DEVICE_TEST_REPORT_2026-11-02.md](archive/DEVICE_TEST_REPORT_2026-11-02.md) for the exact APK identity, user-reported pass/fail matrix, sanitized Logcat findings and evidence limits.
 - The candidate is not accepted: seek/timestamp reset, subtitles, AutoSync behavior, purple output, rotation, Raw Catalog grouping, in-player engine switching, Liquid Glass alternate layout, Watch Party and labels remain unresolved.
 - Preserve previously ported Mew implementations. When a requested feature exists but fails, record `ALREADY PRESENT — REPAIR`; do not copy a second upstream implementation over it.
 

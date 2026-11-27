@@ -9,12 +9,10 @@ on:
   push:
     branches:
       - enhanced
-      - feature/cloudstream-dynamic-repositories
-      - sync/upstream
+      - 'integrate/**'
   pull_request:
     branches:
       - enhanced
-      - sync/upstream
   workflow_dispatch:
     inputs:
       build_apk:
@@ -85,6 +83,12 @@ jobs:
 
       - name: Compile Android Kotlin sources without packaging an APK
         run: ./gradlew :composeApp:compileAndroidMain -Pnuvio.android.distribution=full --stacktrace
+
+      - name: Set up Rust for native Android libraries
+        if: (github.event_name == 'workflow_dispatch' && inputs.build_apk == true) || (github.event_name == 'push' && contains(github.event.head_commit.message, '[build-apk]'))
+        run: |
+          rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
+          cargo install cargo-ndk --locked
 
       - name: Build Android Full debug
         if: (github.event_name == 'workflow_dispatch' && inputs.build_apk == true) || (github.event_name == 'push' && contains(github.event.head_commit.message, '[build-apk]'))

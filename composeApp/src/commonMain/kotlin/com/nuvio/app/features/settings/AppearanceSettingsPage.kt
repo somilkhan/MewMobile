@@ -110,6 +110,15 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.nuvio.app.core.ui.NuvioStatusModal
+import com.nuvio.app.core.ui.glass.isLiquidGlassAvailable
+import nuvio.composeapp.generated.resources.settings_appearance_liquid_glass_effects
+import nuvio.composeapp.generated.resources.settings_appearance_liquid_glass_effects_description
+import nuvio.composeapp.generated.resources.settings_appearance_app_language_restart_message
+import nuvio.composeapp.generated.resources.settings_appearance_app_language_restart_title
 
 internal fun LazyListScope.appearanceSettingsContent(
     isTablet: Boolean,
@@ -117,24 +126,27 @@ internal fun LazyListScope.appearanceSettingsContent(
     onThemeSelected: (AppTheme) -> Unit,
     amoledEnabled: Boolean,
     onAmoledToggle: (Boolean) -> Unit,
-    liquidGlassNativeTabBarSupported: Boolean,
-    liquidGlassNativeTabBarEnabled: Boolean,
-    onLiquidGlassNativeTabBarToggle: (Boolean) -> Unit,
-    liquidGlassAutoHideOnScrollEnabled: Boolean,
-    onLiquidGlassAutoHideOnScrollToggle: (Boolean) -> Unit,
+    liquidGlassNativeTabBarSupported: Boolean = false,
+    liquidGlassNativeTabBarEnabled: Boolean = false,
+    onLiquidGlassNativeTabBarToggle: (Boolean) -> Unit = {},
+    liquidGlassAutoHideOnScrollEnabled: Boolean = false,
+    onLiquidGlassAutoHideOnScrollToggle: (Boolean) -> Unit = {},
     appIconState: AppIconSettingsState,
     onAppIconSelected: (AppIconOption) -> Unit,
     onAppIconFailureDismissed: () -> Unit,
     selectedAppLanguage: AppLanguage,
     onAppLanguageSelected: (AppLanguage) -> Unit,
-    selectedNavBarStyle: NavBarStyle,
-    onNavBarStyleSelected: (NavBarStyle) -> Unit,
-    onHomescreenClick: () -> Unit,
-    onMetaScreenClick: () -> Unit,
-    onStreamsClick: () -> Unit,
-    onCollectionsClick: () -> Unit,
-    onContinueWatchingClick: () -> Unit,
-    onPosterCustomizationClick: () -> Unit,
+    selectedNavBarStyle: NavBarStyle = NavBarStyle.entries.first(),
+    onNavBarStyleSelected: (NavBarStyle) -> Unit = {},
+    onHomescreenClick: () -> Unit = {},
+    onMetaScreenClick: () -> Unit = {},
+    onStreamsClick: () -> Unit = {},
+    onCollectionsClick: () -> Unit = {},
+    onContinueWatchingClick: () -> Unit = {},
+    onPosterCustomizationClick: () -> Unit = {},
+    // Mew: false when hosted in the upstream settings layout, where the Layout page owns the
+    // tab bar / nav bar style rows and the Home / Streams / Detail navigation rows.
+    showLayoutEntries: Boolean = false,
 ) {
     item {
         val customFirst by remember { ThemeSettingsRepository.customThemeFirstColor }.collectAsState()
@@ -232,10 +244,14 @@ internal fun LazyListScope.appearanceSettingsContent(
             }
         }
     }
+    appBackgroundSettingsItem(isTablet = isTablet)
     item {
         var showLanguageSheet by remember { mutableStateOf(false) }
+        var showLanguageRestartDialog by remember { mutableStateOf(false) }
+        val layoutDirection = LocalLayoutDirection.current
         var showNavBarStyleSheet by remember { mutableStateOf(false) }
         var showAppIconPicker by remember { mutableStateOf(false) }
+        val liquidGlassEffectsEnabled by ThemeSettingsRepository.liquidGlassEffectsEnabled.collectAsStateWithLifecycle()
         SettingsSection(
             title = stringResource(Res.string.settings_appearance_section_display),
             isTablet = isTablet,
@@ -248,7 +264,17 @@ internal fun LazyListScope.appearanceSettingsContent(
                     isTablet = isTablet,
                     onCheckedChange = onAmoledToggle,
                 )
-                if (liquidGlassNativeTabBarSupported) {
+                if (isLiquidGlassAvailable()) {
+                    SettingsGroupDivider(isTablet = isTablet)
+                    SettingsSwitchRow(
+                        title = stringResource(Res.string.settings_appearance_liquid_glass_effects),
+                        description = stringResource(Res.string.settings_appearance_liquid_glass_effects_description),
+                        checked = liquidGlassEffectsEnabled,
+                        isTablet = isTablet,
+                        onCheckedChange = ThemeSettingsRepository::setLiquidGlassEffectsEnabled,
+                    )
+                }
+                if (showLayoutEntries && liquidGlassNativeTabBarSupported) {
                     SettingsGroupDivider(isTablet = isTablet)
                     SettingsSwitchRow(
                         title = stringResource(Res.string.settings_appearance_liquid_glass),
@@ -286,7 +312,7 @@ internal fun LazyListScope.appearanceSettingsContent(
                     isTablet = isTablet,
                     onClick = { showLanguageSheet = true },
                 )
-                if (!isIos) {
+                if (showLayoutEntries && !isIos) {
                     SettingsGroupDivider(isTablet = isTablet)
                     SettingsNavigationRow(
                         title = stringResource(Res.string.settings_appearance_nav_bar_style),
@@ -304,10 +330,19 @@ internal fun LazyListScope.appearanceSettingsContent(
                 onLanguageSelected = {
                     onAppLanguageSelected(it)
                     showLanguageSheet = false
+                    val newLayoutDirection = if (it.isRightToLeft()) LayoutDirection.Rtl else LayoutDirection.Ltr
+                    if (isIos && newLayoutDirection != layoutDirection) showLanguageRestartDialog = true
                 },
                 onDismiss = { showLanguageSheet = false },
             )
         }
+
+        NuvioStatusModal(
+            title = stringResource(Res.string.settings_appearance_app_language_restart_title),
+            message = stringResource(Res.string.settings_appearance_app_language_restart_message),
+            isVisible = showLanguageRestartDialog,
+            onConfirm = { showLanguageRestartDialog = false },
+        )
 
         if (showAppIconPicker) {
             AppIconPicker(
@@ -333,6 +368,7 @@ internal fun LazyListScope.appearanceSettingsContent(
         }
     }
 
+    if (!showLayoutEntries) return
     item {
         SettingsSection(
             title = stringResource(Res.string.settings_appearance_section_home),
@@ -453,6 +489,7 @@ private fun AppearanceLanguageBottomSheet(
                 }
                 NuvioBottomSheetActionRow(
                     title = stringResource(option.labelRes),
+                    selected = option.language == selectedLanguage,
                     onClick = {
                         onLanguageSelected(option.language)
                         coroutineScope.launch {

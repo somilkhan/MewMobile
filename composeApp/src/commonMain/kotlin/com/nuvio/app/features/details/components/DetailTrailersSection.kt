@@ -18,8 +18,6 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -39,8 +37,11 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import com.nuvio.app.core.ui.Menu
+import com.nuvio.app.core.ui.MenuItem
 import com.nuvio.app.core.ui.NuvioCardDepthSurface
 import com.nuvio.app.core.ui.CardDepthStyleUiState
+import com.nuvio.app.core.ui.backdropControlColor
 import com.nuvio.app.core.ui.rememberCardDepthStyleUiState
 import com.nuvio.app.core.ui.nuvioCardDepth
 import com.nuvio.app.core.ui.nuvioHorizontalScrollBleed
@@ -83,7 +84,8 @@ fun DetailTrailersSection(
     var menuExpanded by remember { mutableStateOf(false) }
 
     val selectedTrailers = grouped[selectedCategory].orEmpty()
-    val userCornerRadius = rememberPosterCardStyleUiState().cornerRadiusDp.dp
+    val posterCardStyle = rememberPosterCardStyleUiState()
+    val userCornerRadius = posterCardStyle.cornerRadiusDp.dp
     val cardDepthStyle = rememberCardDepthStyleUiState()
 
     Column(
@@ -108,7 +110,7 @@ fun DetailTrailersSection(
                 Box {
                     Surface(
                         shape = RoundedCornerShape(sizing.selectorRadius),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                        color = backdropControlColor(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
                         tonalElevation = 0.dp,
                         modifier = Modifier
                             .clip(RoundedCornerShape(sizing.selectorRadius))
@@ -141,20 +143,15 @@ fun DetailTrailersSection(
                         }
                     }
 
-                    DropdownMenu(
+                    Menu(
                         expanded = menuExpanded,
                         onDismissRequest = { menuExpanded = false },
                     ) {
                         grouped.keys.forEach { category ->
                             val count = grouped[category]?.size ?: 0
-                            DropdownMenuItem(
-                                modifier = Modifier.nuvioKeyboardFocusIndicator(RoundedCornerShape(8.dp)),
-                                text = {
-                                    Text(
-                                        text = stringResource(Res.string.detail_trailer_category_count, category, count),
-                                        style = MaterialTheme.typography.bodyMedium,
-                                    )
-                                },
+                            MenuItem(
+                                text = stringResource(Res.string.detail_trailer_category_count, category, count),
+                                selected = category == selectedCategory,
                                 onClick = {
                                     selectedCategory = category
                                     menuExpanded = false
@@ -272,7 +269,7 @@ private data class TrailerSectionSizing(
     val metaFontSize: androidx.compose.ui.unit.TextUnit,
 )
 
-private fun trailerSectionSizing(maxWidthDp: Float, userCornerRadius: Dp): TrailerSectionSizing =
+private fun trailerSectionSizing(maxWidthDp: Float, userCornerRadius: androidx.compose.ui.unit.Dp = 16.dp): TrailerSectionSizing =
     when {
         maxWidthDp >= 1200f -> TrailerSectionSizing(
             cardWidth = 280.dp,

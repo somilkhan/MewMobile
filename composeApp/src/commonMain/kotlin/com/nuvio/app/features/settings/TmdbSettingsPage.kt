@@ -27,6 +27,7 @@ import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.action_save
 import nuvio.composeapp.generated.resources.settings_tmdb_add_api_key_first
 import nuvio.composeapp.generated.resources.settings_tmdb_api_key_label
+import nuvio.composeapp.generated.resources.settings_tmdb_api_key_override_description
 import nuvio.composeapp.generated.resources.settings_tmdb_enable_enrichment
 import nuvio.composeapp.generated.resources.settings_tmdb_enable_enrichment_description
 import nuvio.composeapp.generated.resources.settings_tmdb_enter_api_key
@@ -43,8 +44,8 @@ import nuvio.composeapp.generated.resources.settings_tmdb_module_details
 import nuvio.composeapp.generated.resources.settings_tmdb_module_details_description
 import nuvio.composeapp.generated.resources.settings_tmdb_module_episodes
 import nuvio.composeapp.generated.resources.settings_tmdb_module_episodes_description
-import nuvio.composeapp.generated.resources.settings_tmdb_module_release_dates
-import nuvio.composeapp.generated.resources.settings_tmdb_module_release_dates_description
+import nuvio.composeapp.generated.resources.settings_tmdb_module_episode_ratings
+import nuvio.composeapp.generated.resources.settings_tmdb_module_episode_ratings_description
 import nuvio.composeapp.generated.resources.settings_tmdb_module_more_like_this
 import nuvio.composeapp.generated.resources.settings_tmdb_module_more_like_this_description
 import nuvio.composeapp.generated.resources.settings_tmdb_module_networks
@@ -55,11 +56,11 @@ import nuvio.composeapp.generated.resources.settings_tmdb_module_season_posters
 import nuvio.composeapp.generated.resources.settings_tmdb_module_season_posters_description
 import nuvio.composeapp.generated.resources.settings_tmdb_module_trailers
 import nuvio.composeapp.generated.resources.settings_tmdb_module_trailers_description
+import nuvio.composeapp.generated.resources.settings_tmdb_original_title_language
+import nuvio.composeapp.generated.resources.settings_tmdb_original_title_language_description
 import nuvio.composeapp.generated.resources.settings_tmdb_personal_api_key
 import nuvio.composeapp.generated.resources.settings_tmdb_preferred_language
 import nuvio.composeapp.generated.resources.settings_tmdb_preferred_language_description
-import nuvio.composeapp.generated.resources.settings_tmdb_original_title_language
-import nuvio.composeapp.generated.resources.settings_tmdb_original_title_language_description
 import nuvio.composeapp.generated.resources.settings_tmdb_section_credentials
 import nuvio.composeapp.generated.resources.settings_tmdb_section_localization
 import nuvio.composeapp.generated.resources.settings_tmdb_section_modules
@@ -186,15 +187,6 @@ internal fun LazyListScope.tmdbSettingsContent(
                 SettingsGroupDivider(isTablet = isTablet)
                 TmdbToggleRow(
                     isTablet = isTablet,
-                    title = stringResource(Res.string.settings_tmdb_module_release_dates),
-                    description = stringResource(Res.string.settings_tmdb_module_release_dates_description),
-                    checked = settings.useReleaseDates,
-                    enabled = enrichmentControlsEnabled,
-                    onCheckedChange = TmdbSettingsRepository::setUseReleaseDates,
-                )
-                SettingsGroupDivider(isTablet = isTablet)
-                TmdbToggleRow(
-                    isTablet = isTablet,
                     title = stringResource(Res.string.settings_tmdb_module_credits),
                     description = stringResource(Res.string.settings_tmdb_module_credits_description),
                     checked = settings.useCredits,
@@ -227,6 +219,15 @@ internal fun LazyListScope.tmdbSettingsContent(
                     checked = settings.useEpisodes,
                     enabled = enrichmentControlsEnabled,
                     onCheckedChange = TmdbSettingsRepository::setUseEpisodes,
+                )
+                SettingsGroupDivider(isTablet = isTablet)
+                TmdbToggleRow(
+                    isTablet = isTablet,
+                    title = stringResource(Res.string.settings_tmdb_module_episode_ratings),
+                    description = stringResource(Res.string.settings_tmdb_module_episode_ratings_description),
+                    checked = settings.useEpisodeRatings,
+                    enabled = enrichmentControlsEnabled,
+                    onCheckedChange = TmdbSettingsRepository::setUseEpisodeRatings,
                 )
                 SettingsGroupDivider(isTablet = isTablet)
                 TmdbToggleRow(
@@ -266,14 +267,13 @@ private fun TmdbApiKeyRow(
     value: String,
     onApiKeyCommitted: (String) -> Unit,
 ) {
-    val horizontalPadding = if (isTablet) 20.dp else 16.dp
-    val verticalPadding = if (isTablet) 16.dp else 14.dp
     var draft by rememberSaveable(value) { mutableStateOf(value) }
+    val normalizedDraft = draft.trim()
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = horizontalPadding, vertical = verticalPadding),
+            .padding(horizontal = if (isTablet) 20.dp else 16.dp, vertical = if (isTablet) 16.dp else 14.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -284,33 +284,25 @@ private fun TmdbApiKeyRow(
                 fontWeight = FontWeight.Medium,
             )
             Text(
-                text = stringResource(Res.string.settings_tmdb_enter_api_key),
+                text = stringResource(Res.string.settings_tmdb_api_key_override_description),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-
-        val normalizedDraft = draft.trim()
-
         SettingsSecretTextField(
             value = draft,
-            onValueChange = {
-                draft = it
-            },
+            onValueChange = { draft = it },
             modifier = Modifier.fillMaxWidth(),
             label = stringResource(Res.string.settings_tmdb_api_key_label),
         )
-
-        Row(modifier = Modifier.fillMaxWidth()) {
-            Button(
-                onClick = {
-                    draft = normalizedDraft
-                    onApiKeyCommitted(normalizedDraft)
-                },
-                enabled = normalizedDraft != value,
-            ) {
-                Text(stringResource(Res.string.action_save))
-            }
+        Button(
+            onClick = {
+                draft = normalizedDraft
+                onApiKeyCommitted(normalizedDraft)
+            },
+            enabled = normalizedDraft != value,
+        ) {
+            Text(stringResource(Res.string.action_save))
         }
     }
 }

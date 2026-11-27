@@ -21,9 +21,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -39,6 +40,7 @@ import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import com.nuvio.app.features.autosync.AutoSyncedChip
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -53,6 +55,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
+import com.nuvio.app.core.ui.withDuplicateSafeLazyKeys
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nuvio.app.core.ui.nuvio
@@ -129,9 +132,11 @@ internal fun NuvioSubtitleModal(
         selectedSubtitleIndex = selectedSubtitleIndex,
         selectedAddonSubtitle = effectiveSelectedAddonSubtitle,
     )
+    val subtitleStructureKey = subtitleTracksStructureKey(subtitleTracks)
+    val addonStructureKey = addonSubtitlesStructureKey(addonSubtitles)
     val languageItems = remember(
-        subtitleTracks,
-        addonSubtitles,
+        subtitleStructureKey,
+        addonStructureKey,
         preferredSubtitleLanguage,
         secondaryPreferredSubtitleLanguage,
         subtitleStyle.showOnlyPreferredLanguages,
@@ -154,9 +159,10 @@ internal fun NuvioSubtitleModal(
         )
     }
     var pendingOptionId by remember(visible) { mutableStateOf<String?>(playbackOptionId) }
-    val options = remember(activeLanguageKey, subtitleTracks, addonSubtitles) {
+    val options = remember(activeLanguageKey, subtitleStructureKey, addonStructureKey) {
         buildSubtitleSelectionOptions(activeLanguageKey, subtitleTracks, addonSubtitles)
     }
+    val keyedOptions = remember(options) { options.withDuplicateSafeLazyKeys { it.id } }
     val selectedOptionId = pendingOptionId ?: playbackOptionId
     val languageListState = rememberLazyListState()
     val optionsListState = rememberLazyListState()
@@ -322,7 +328,8 @@ internal fun NuvioSubtitleModal(
                                         verticalArrangement = Arrangement.spacedBy(4.dp),
                                         contentPadding = PaddingValues(vertical = 8.dp),
                                     ) {
-                                        items(options, key = { it.id }) { option ->
+                                        items(keyedOptions, key = { it.lazyKey }) { keyedOption ->
+                                            val option = keyedOption.value
                                             SubtitleOptionRow(
                                                 option = option,
                                                 selected = option.id == selectedOptionId,
@@ -966,7 +973,7 @@ private fun SubtitleLanguageRow(
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .background(if (selected) tokens.colors.accent else Color.Transparent)
-            .clickable(onClick = onClick)
+            .clickableIncludingFlingStop(onClick = onClick)
             .padding(horizontal = 10.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
@@ -1025,8 +1032,8 @@ private fun SubtitleOptionRow(
 
         is SubtitleSelectionOption.Addon -> {
             sourceLabel = option.subtitle.addonName ?: stringResource(Res.string.addon_title)
-            title = languageLabelForCode(option.subtitle.language)
-            metadata = option.subtitle.display.takeIf { it.isNotBlank() && it != title }
+            title = option.subtitle.title ?: languageLabelForCode(option.subtitle.language)
+            metadata = (option.subtitle.label ?: option.subtitle.display).takeIf { it.isNotBlank() && it != title }
         }
     }
 
@@ -1035,7 +1042,7 @@ private fun SubtitleOptionRow(
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .background(if (selected) tokens.colors.accent else Color.Transparent)
-            .clickable(onClick = onClick)
+            .clickableIncludingFlingStop(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 9.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
@@ -1044,7 +1051,15 @@ private fun SubtitleOptionRow(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            SubtitleSourceChip(label = sourceLabel, selected = selected)
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                SubtitleSourceChip(label = sourceLabel, selected = selected)
+                (option as? SubtitleSelectionOption.Addon)?.let {
+                    AutoSyncedChip(it.subtitle.url, selected) // AutoSync hook
+                }
+            }
             Text(
                 text = title,
                 color = if (selected) tokens.colors.onAccent else Color.White,

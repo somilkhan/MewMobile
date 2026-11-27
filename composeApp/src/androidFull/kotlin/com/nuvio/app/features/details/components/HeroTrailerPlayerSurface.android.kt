@@ -5,14 +5,16 @@ import android.graphics.Matrix
 import android.view.TextureView
 import android.widget.FrameLayout
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
@@ -46,11 +48,13 @@ actual fun HeroTrailerPlayerSurface(
     playWhenReady: Boolean,
     muted: Boolean,
     modifier: Modifier,
+    startPositionMs: Long,
     onReady: () -> Unit,
     onEnded: () -> Unit,
     onError: () -> Unit,
     seekRequest: HeroTrailerSeekRequest?,
     onPlaybackStateChanged: (HeroTrailerPlaybackSnapshot) -> Unit,
+    onPositionUpdate: (Long) -> Unit,
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -62,6 +66,7 @@ actual fun HeroTrailerPlayerSurface(
     var lifecycleAllowsPlayback by remember {
         mutableStateOf(lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED))
     }
+    val latestOnPositionUpdate = rememberUpdatedState(onPositionUpdate)
     var playerContainer by remember { mutableStateOf<HeroTrailerTextureContainer?>(null) }
 
     val dataSourceFactory = remember(context) {
@@ -84,21 +89,21 @@ actual fun HeroTrailerPlayerSurface(
                             mediaSourceFactory.createMediaSource(MediaItem.fromUri(sourceUrl)),
                             mediaSourceFactory.createMediaSource(MediaItem.fromUri(sourceAudioUrl)),
                         ),
+                        startPositionMs.coerceAtLeast(0L),
                     )
                 } else {
-                    setMediaItem(MediaItem.fromUri(sourceUrl))
+                    setMediaItem(MediaItem.fromUri(sourceUrl), startPositionMs.coerceAtLeast(0L))
                 }
                 repeatMode = Player.REPEAT_MODE_OFF
                 volume = if (muted) 0f else 1f
                 prepare()
             }
     }
-
     var hasRenderedFirstFrame by remember(exoPlayer) { mutableStateOf(false) }
     var letterboxZoom by remember(exoPlayer) { mutableFloatStateOf(1f) }
-    val letterboxZoomState = androidx.compose.animation.core.animateFloatAsState(
+    val letterboxZoomState = animateFloatAsState(
         targetValue = letterboxZoom,
-        animationSpec = androidx.compose.animation.core.tween(durationMillis = 400),
+        animationSpec = tween(durationMillis = 400),
         label = "heroTrailerLetterboxZoom",
     )
 
@@ -171,6 +176,7 @@ actual fun HeroTrailerPlayerSurface(
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
             exoPlayer.removeListener(listener)
+            latestOnPositionUpdate.value(exoPlayer.currentPosition)
             detachVideoSurface()
             exoPlayer.stop()
             exoPlayer.release()
@@ -243,6 +249,13 @@ actual fun HeroTrailerPlayerSurface(
             }
         } finally {
             sampler.release()
+        }
+    }
+
+    LaunchedEffect(exoPlayer) {
+        while (isActive) {
+            latestOnPositionUpdate.value(exoPlayer.currentPosition)
+            delay(500L)
         }
     }
 

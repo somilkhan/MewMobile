@@ -37,6 +37,7 @@ data class DiscoverCatalogOption(
     val genreRequired: Boolean = false,
     val supportsPagination: Boolean = false,
     val cloudStreamProviderId: String? = null,
+    val server: com.nuvio.app.features.catalog.CatalogTarget.Server? = null,
 )
 
 data class DiscoverUiState(

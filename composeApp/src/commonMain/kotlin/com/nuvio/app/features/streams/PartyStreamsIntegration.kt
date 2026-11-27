@@ -5,7 +5,6 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.staticCompositionLocalOf
 import com.nuvio.app.features.party.PartyRepository
 import com.nuvio.app.features.party.PartySource
 import com.nuvio.app.features.party.PartyStream
@@ -16,10 +15,8 @@ import nuvio.composeapp.generated.resources.party_shared_by
 import nuvio.composeapp.generated.resources.party_source
 import org.jetbrains.compose.resources.stringResource
 
-internal data class SharedPartyStream(val label: String, val stream: StreamItem)
-
-internal val LocalSharedStream = staticCompositionLocalOf<SharedPartyStream?> { null }
-internal val LocalStreamHighlight = staticCompositionLocalOf<((StreamItem) -> String?)?> { null }
+// Mew hook: party locals (LocalSharedStream/LocalStreamHighlight/SharedStream) now come from luq StreamCard.kt.
+internal typealias SharedPartyStream = SharedStream
 
 @Composable
 internal fun PartyStreamsProvider(
@@ -43,7 +40,7 @@ internal fun PartyStreamsProvider(
     val shared = remember(partyStream, sharedLabel, isHost, contentKey) {
         partyStream
             ?.takeIf { !isHost && it.mediaKey == contentKey }
-            ?.let { SharedPartyStream(sharedLabel, it.toStreamItem()) }
+            ?.let { SharedStream(label = sharedLabel, stream = it.toStreamItem()) }
     }
     CompositionLocalProvider(
         LocalStreamHighlight provides highlight,

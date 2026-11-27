@@ -39,6 +39,7 @@ class PlayerSurfaceGesturesTest {
                     .testTag("surface")
                     .playerSurfaceTapGestures(
                         layoutSize = IntSize(320, 180),
+                        playbackGesturesEnabled = true,
                         playerControlsLockedState = controlsLocked,
                         onSurfaceTap = rememberUpdatedState { _: Offset -> taps++ },
                         onSurfaceDoubleTap = rememberUpdatedState { _: Offset -> },
@@ -48,10 +49,13 @@ class PlayerSurfaceGesturesTest {
                     )
                     .playerSurfaceDragGestures(
                         gestureController = null,
+                        playerController = null,
                         layoutSize = IntSize(320, 180),
+                        playbackGesturesEnabled = true,
                         sideGestureSystemEdgeExclusionPx = 0f,
                         playerControlsLockedState = controlsLocked,
                         touchGesturesEnabledState = rememberUpdatedState(true),
+                        swipeToSeekEnabledState = rememberUpdatedState(true),
                         isHoldToSpeedGestureActiveState = rememberUpdatedState(false),
                         currentPositionMsState = rememberUpdatedState(30_000L),
                         currentDurationMsState = rememberUpdatedState(120_000L),

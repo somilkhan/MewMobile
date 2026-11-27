@@ -56,6 +56,7 @@ import org.jetbrains.compose.resources.stringResource
 data class DetailSecondaryAction(
     val label: String,
     val icon: ImageVector,
+    val drawable: org.jetbrains.compose.resources.DrawableResource? = null,
     val isActive: Boolean = false,
     val onClick: () -> Unit = {},
     val onLongClick: (() -> Unit)? = null,

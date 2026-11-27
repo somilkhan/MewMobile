@@ -15,6 +15,10 @@ actual object AppUpdaterPlatform {
 
     actual fun setIgnoredTag(tag: String?) = Unit
 
+    actual fun getUpdateChannel(): String? = null
+
+    actual fun setUpdateChannel(channel: String) = Unit
+
     actual suspend fun downloadApk(
         assetUrl: String,
         assetName: String,

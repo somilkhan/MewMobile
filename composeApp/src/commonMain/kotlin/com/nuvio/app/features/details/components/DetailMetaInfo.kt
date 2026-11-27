@@ -564,7 +564,6 @@ private fun DetailRatingsSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         contentColor = MaterialTheme.colorScheme.onSurface,
-        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
     ) {
         Column(
             modifier = Modifier
@@ -804,7 +803,7 @@ private fun ImdbRatingSourceLabel(
 }
 
 @Composable
-private fun MetaLabelValueRow(
+internal fun MetaLabelValueRow(
     label: String,
     value: String,
 ) {
@@ -827,24 +826,44 @@ private fun MetaLabelValueRow(
 internal fun DetailHeroMetaBadge(
     text: String,
     contentColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+    secondaryText: String? = null,
 ) {
-    Box(
+    val borderColor = contentColor.copy(alpha = 0.55f)
+    Row(
         modifier = Modifier
             .border(
-                border = BorderStroke(1.dp, contentColor.copy(alpha = 0.55f)),
+                border = BorderStroke(1.dp, borderColor),
                 shape = RoundedCornerShape(6.dp),
             )
             .padding(horizontal = 8.dp, vertical = 4.dp),
-        contentAlignment = Alignment.Center,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.labelMedium,
-            color = contentColor,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+        MetaBadgeText(text = text, color = contentColor)
+        secondaryText?.let { secondary ->
+            Box(
+                modifier = Modifier
+                    .width(1.dp)
+                    .height(12.dp)
+                    .background(borderColor),
+            )
+            MetaBadgeText(text = secondary, color = contentColor)
+        }
     }
+}
+
+@Composable
+private fun MetaBadgeText(
+    text: String,
+    color: Color,
+) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelMedium,
+        color = color,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+    )
 }
 
 @Composable
@@ -871,7 +890,7 @@ internal fun DetailImdbRating(
     }
 }
 
-private val ImdbYellow = Color(0xFFF5C518)
+internal val ImdbYellow = Color(0xFFF5C518)
 private val ImdbBlack = Color(0xFF000000)
 
 private data class RatingVisuals(
@@ -950,7 +969,7 @@ private val ratingVisuals = listOf(
     ),
 )
 
-private fun formatOneDecimal(value: Double): String {
+internal fun formatOneDecimal(value: Double): String {
     val rounded = (value * 10.0).roundToInt()
     val whole = rounded / 10
     val decimal = (rounded % 10).absoluteValue
@@ -960,3 +979,56 @@ private fun formatOneDecimal(value: Double): String {
 private fun formatWhole(value: Double): String = value.roundToInt().toString()
 
 private fun formatPercent(value: Double): String = "${value.roundToInt()}%"
+
+// Mew hook: luq home hero (HomeHeroMetaRows) uses these upstream rating helpers.
+@Composable
+internal fun RatingsRow(
+    ratings: List<MetaExternalRating>,
+    modifier: Modifier = Modifier,
+    maxItems: Int = Int.MAX_VALUE,
+) {
+    val orderedRatings = remember(ratings, maxItems) {
+        val bySource = ratings.associateBy { it.source }
+        ratingVisuals.mapNotNull { visuals ->
+            bySource[visuals.source]?.let { rating -> visuals to rating }
+        }.take(maxItems)
+    }
+    if (orderedRatings.isEmpty()) return
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        orderedRatings.forEach { (visuals, rating) ->
+            val ratingTextStyle = MaterialTheme.typography.titleSmall.copy(
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.sp,
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (visuals.source == PROVIDER_IMDB && !AppFeaturePolicy.imdbRatingLogoEnabled) {
+                    ImdbRatingSourceLabel(storeTextStyle = ratingTextStyle)
+                } else {
+                    Image(
+                        painter = painterResource(visuals.logo),
+                        contentDescription = visuals.displayName,
+                        modifier = Modifier.size(width = visuals.logoWidth, height = 16.dp),
+                    )
+                }
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = visuals.format(rating.value),
+                    style = ratingTextStyle,
+                    color = visuals.valueColor,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+internal fun ImdbRatingSourceLabel(storeTextStyle: TextStyle) {
+    ImdbRatingSourceLabel(
+        storeTextStyle = storeTextStyle,
+        storeTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}

@@ -4,12 +4,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -17,22 +15,21 @@ import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material.icons.rounded.VisibilityOff
-import androidx.compose.material3.BasicAlertDialog
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.nuvio.app.core.ui.DialogButton
+import com.nuvio.app.core.ui.DialogButtonStyle
+import com.nuvio.app.core.ui.DialogButtons
+import com.nuvio.app.core.ui.DialogSurface
 import com.nuvio.app.core.ui.nuvio
 import com.nuvio.app.features.player.PlayerToolbarButton
 import com.nuvio.app.features.player.PlayerToolbarLayout
@@ -40,83 +37,69 @@ import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 
-private val PlayerToolbarButton.labelRes: StringResource
+internal val PlayerToolbarButton.labelRes: StringResource
     get() = when (this) {
+        PlayerToolbarButton.NEXT_EPISODE -> Res.string.player_next_episode
+        PlayerToolbarButton.SPEED -> Res.string.compose_player_speed
         PlayerToolbarButton.RESIZE -> Res.string.player_toolbar_button_resize
-        PlayerToolbarButton.SPEED -> Res.string.player_toolbar_button_speed
-        PlayerToolbarButton.SUBTITLES -> Res.string.compose_player_subs
-        PlayerToolbarButton.SUBTITLE_SYNC -> Res.string.compose_player_sync_short
+        PlayerToolbarButton.SUBTITLES -> Res.string.compose_player_subtitles
+        PlayerToolbarButton.CHAPTERS -> Res.string.player_chapters
         PlayerToolbarButton.AUDIO -> Res.string.compose_player_audio
+        PlayerToolbarButton.NIGHT_MODE -> Res.string.player_night_mode
         PlayerToolbarButton.QUALITY -> Res.string.player_toolbar_button_quality
-        PlayerToolbarButton.CHANNELS -> Res.string.live_tv_player_channels
         PlayerToolbarButton.SOURCES -> Res.string.compose_player_sources
         PlayerToolbarButton.EPISODES -> Res.string.compose_player_episodes
-        PlayerToolbarButton.NEXT_EPISODE -> Res.string.compose_player_next_ep
-        PlayerToolbarButton.STREAM_INFO -> Res.string.player_toolbar_button_stream_info
+        PlayerToolbarButton.RATE -> Res.string.user_rating_action_rate
+        PlayerToolbarButton.EXTERNAL_PLAYER -> Res.string.streams_open_external_player
+        PlayerToolbarButton.PLAYBACK_INFO -> Res.string.compose_player_playback_info
+        PlayerToolbarButton.SWITCH_ENGINE -> Res.string.cd_switch_player_engine
+        PlayerToolbarButton.VIDEO_SETTINGS -> Res.string.player_action_video_settings
+        PlayerToolbarButton.SUBMIT_INTRO -> Res.string.submit_intro_action
+        PlayerToolbarButton.SUBTITLE_SYNC -> Res.string.compose_player_sync_short // Mew hook
+        PlayerToolbarButton.STREAM_INFO -> Res.string.player_toolbar_button_stream_info // Mew hook
     }
 
 @Composable
-@OptIn(ExperimentalMaterial3Api::class)
 internal fun PlayerToolbarSettingsDialog(
     layout: PlayerToolbarLayout,
     onLayoutChange: (PlayerToolbarLayout) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    BasicAlertDialog(onDismissRequest = onDismiss) {
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp,
+    DialogSurface(
+        onDismissRequest = onDismiss,
+        title = stringResource(Res.string.settings_playback_toolbar_layout),
+        message = stringResource(Res.string.settings_playback_toolbar_note),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = 460.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            Column(
-                modifier = Modifier.padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Text(
-                    text = stringResource(Res.string.settings_playback_toolbar_layout),
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    text = stringResource(Res.string.settings_playback_toolbar_note),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 460.dp)
-                        .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    ToolbarGroup(
-                        title = stringResource(Res.string.settings_playback_toolbar_shown),
-                        visible = true,
-                        layout = layout,
-                        onLayoutChange = onLayoutChange,
-                    )
-                    ToolbarGroup(
-                        title = stringResource(Res.string.settings_playback_toolbar_hidden),
-                        visible = false,
-                        layout = layout,
-                        onLayoutChange = onLayoutChange,
-                    )
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                ) {
-                    TextButton(onClick = { onLayoutChange(PlayerToolbarLayout.Default) }) {
-                        Text(stringResource(Res.string.action_reset))
-                    }
-                    Spacer(modifier = Modifier.size(8.dp))
-                    TextButton(onClick = onDismiss) {
-                        Text(stringResource(Res.string.action_done))
-                    }
-                }
-            }
+            ToolbarGroup(
+                title = stringResource(Res.string.settings_playback_toolbar_shown),
+                visible = true,
+                layout = layout,
+                onLayoutChange = onLayoutChange,
+            )
+            ToolbarGroup(
+                title = stringResource(Res.string.settings_playback_toolbar_hidden),
+                visible = false,
+                layout = layout,
+                onLayoutChange = onLayoutChange,
+            )
+        }
+        DialogButtons {
+            DialogButton(
+                text = stringResource(Res.string.action_reset),
+                onClick = { onLayoutChange(PlayerToolbarLayout.Default) },
+            )
+            DialogButton(
+                text = stringResource(Res.string.action_done),
+                onClick = onDismiss,
+                style = DialogButtonStyle.Primary,
+            )
         }
     }
 }

@@ -4,28 +4,37 @@ import android.content.Context
 import android.content.SharedPreferences
 import com.nuvio.app.core.diagnostics.SentryNetworkBreadcrumbInterceptor
 import com.nuvio.app.core.network.DnsOverHttpsSettingsRepository
+import com.nuvio.app.core.network.ConfiguredDnsOverHttps
+import com.nuvio.app.core.network.IPv4FirstDns
+import com.nuvio.app.core.network.NetworkErrorInterceptor
+import com.nuvio.app.core.network.SharedOkHttpClient
 import com.nuvio.app.core.network.toOkHttpDns
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.runBlocking
+import java.io.IOException
+import kotlinx.coroutines.withContext
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.network_empty_response_body
 import nuvio.composeapp.generated.resources.network_request_failed_http
 import org.jetbrains.compose.resources.getString
-import okhttp3.ResponseBody
+import okhttp3.Cache
 import okhttp3.Call
 import okhttp3.Callback
+import okhttp3.Dispatcher
 import okhttp3.Response
-import java.io.IOException
+import okhttp3.ResponseBody
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.net.Proxy
 import java.io.ByteArrayOutputStream
+import java.io.File
 import java.io.InputStream
 import kotlin.text.Charsets
 import java.util.concurrent.TimeUnit
@@ -119,31 +128,53 @@ private fun parseEnabledStateLine(line: String): Pair<String, Boolean>? {
     return url to enabled
 }
 
-private val addonHttpClientLock = Any()
-private var cachedAddonHttpClientProviderId: String? = null
-private var cachedAddonHttpClient: OkHttpClient? = null
+internal object AddonHttpClientProvider {
+    private const val cacheSizeBytes = 50L * 1024L * 1024L
+    @Volatile
+    private var client = buildAddonHttpClient()
 
-internal fun addonHttpClient(): OkHttpClient {
-    val provider = DnsOverHttpsSettingsRepository.snapshot().provider
-    synchronized(addonHttpClientLock) {
-        val cached = cachedAddonHttpClient
-        if (cached != null && cachedAddonHttpClientProviderId == provider.id) return cached
-        return OkHttpClient.Builder()
-            .dns(provider.toOkHttpDns())
-            .connectTimeout(10, TimeUnit.SECONDS)
-            .readTimeout(20, TimeUnit.SECONDS)
-            .writeTimeout(20, TimeUnit.SECONDS)
-            .followRedirects(true)
-            .followSslRedirects(true)
-            .addInterceptor(SentryNetworkBreadcrumbInterceptor())
-            .proxy(Proxy.NO_PROXY)
-            .build()
-            .also { client ->
-                cachedAddonHttpClientProviderId = provider.id
-                cachedAddonHttpClient = client
-            }
+    fun initialize(context: Context) {
+        if (client.cache != null) return
+        synchronized(this) {
+            if (client.cache != null) return
+            client = buildAddonHttpClient(
+                cache = Cache(
+                    directory = File(context.cacheDir, "addon_http"),
+                    maxSize = cacheSizeBytes,
+                ),
+            )
+        }
     }
+
+    fun get(): OkHttpClient = client
 }
+
+/** Mew: kept as the call-site entry point; DNS follows the selected DoH provider via [ConfiguredDnsOverHttps]. */
+internal fun addonHttpClient(): OkHttpClient = AddonHttpClientProvider.get()
+
+private val addonDispatcher = Dispatcher().apply {
+    maxRequests = 128
+    maxRequestsPerHost = 8
+}
+
+private fun buildAddonHttpClient(cache: Cache? = null): OkHttpClient =
+    SharedOkHttpClient.base.newBuilder()
+        .dispatcher(addonDispatcher)
+        .dns(IPv4FirstDns(ConfiguredDnsOverHttps))
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
+        .writeTimeout(30, TimeUnit.SECONDS)
+        .followRedirects(true)
+        .followSslRedirects(true)
+        .addInterceptor(NetworkErrorInterceptor())
+        .addInterceptor(SentryNetworkBreadcrumbInterceptor())
+        .proxy(Proxy.NO_PROXY)
+        .apply {
+            if (cache != null) {
+                cache(cache)
+            }
+        }
+        .build()
 
 private val jsonMediaType = "application/json; charset=utf-8".toMediaType()
 
@@ -385,7 +416,7 @@ actual suspend fun httpRequestRaw(
     val request = if (requestAllowsBody(normalizedMethod)) {
         val contentType = sanitizedHeaders.getHeaderIgnoreCase("Content-Type")
             ?: if (normalizedMethod == "POST") "application/x-www-form-urlencoded" else "application/json"
-        val requestBody = body.toByteArray(Charsets.UTF_8).toRequestBody(contentType.toMediaType())
+        val requestBody = (bodyBytes ?: body.toByteArray(Charsets.UTF_8)).toRequestBody(contentType.toMediaType())
         builder.method(normalizedMethod, requestBody)
     } else {
         builder.method(normalizedMethod, null)

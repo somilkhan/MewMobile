@@ -13,3 +13,4 @@ internal actual fun ImageLoader.Builder.configurePlatformImageLoader(): ImageLoa
             add(GifDecoder.Factory())
         }
     }
+internal actual val platformProvidesImageLoader: Boolean = false

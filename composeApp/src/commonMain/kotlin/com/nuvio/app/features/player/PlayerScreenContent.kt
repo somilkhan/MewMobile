@@ -1,26 +1,37 @@
 package com.nuvio.app.features.player
 
+import androidx.compose.runtime.produceState
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.systemGestures
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import com.nuvio.app.core.ui.PlatformBackHandler
 import com.nuvio.app.core.ui.isTvLayoutProfileEnabled
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.unit.IntSize
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.nuvio.app.core.ui.LocalFold
 import com.nuvio.app.features.addons.AddonRepository
 import com.nuvio.app.features.details.MetaDetailsRepository
 import com.nuvio.app.features.details.MetaScreenSettingsRepository
+import com.nuvio.app.features.livetv.LiveTvRepository
 import com.nuvio.app.features.p2p.P2pSettingsRepository
 import com.nuvio.app.features.p2p.P2pStreamingEngine
 import com.nuvio.app.features.settings.NuvioEnhancedSettingsRepository
@@ -43,6 +54,8 @@ import nuvio.composeapp.generated.resources.parental_severity_severe
 import nuvio.composeapp.generated.resources.parental_violence
 import nuvio.composeapp.generated.resources.compose_player_tba
 import org.jetbrains.compose.resources.stringResource
+import com.nuvio.app.core.ui.glass.LocalLiquidGlassBackdrop
+import com.nuvio.app.core.ui.glass.isLiquidGlassSupported
 
 @Composable
 internal fun PlayerScreenContent(args: PlayerScreenArgs) {
@@ -73,6 +86,10 @@ internal fun PlayerScreenContent(args: PlayerScreenArgs) {
         WatchProgressRepository.ensureLoaded()
         WatchProgressRepository.uiState
     }.collectAsStateWithLifecycle()
+    val liveTvUiState by remember {
+        LiveTvRepository.ensureLoaded()
+        LiveTvRepository.uiState
+    }.collectAsStateWithLifecycle()
     val sourceStreamsState by PlayerStreamsRepository.sourceState.collectAsStateWithLifecycle()
     val episodeStreamsRepoState by PlayerStreamsRepository.episodeStreamsState.collectAsStateWithLifecycle()
     val metaUiState by MetaDetailsRepository.uiState.collectAsStateWithLifecycle()
@@ -88,6 +105,20 @@ internal fun PlayerScreenContent(args: PlayerScreenArgs) {
         onDispose { MiniPlayerController.detach(runtime) }
     }
 
+    // The engine publishes a playback snapshot every 250ms. Reading the raw snapshot from this
+    // scope would recompose the whole player subtree four times per second, so the values
+    // below are exposed through derived states that only change when the values do.
+    val isPlaying by remember(runtime) {
+        derivedStateOf { runtime.playbackSnapshot.isPlaying }
+    }
+    val keepScreenAwake by remember(runtime) {
+        derivedStateOf {
+            runtime.errorMessage == null &&
+                (runtime.playbackSnapshot.isPlaying ||
+                    (runtime.shouldPlay && runtime.playbackSnapshot.isLoading))
+        }
+    }
+
     BoxWithConstraints(
         modifier = args.modifier
             .fillMaxSize()
@@ -96,8 +127,18 @@ internal fun PlayerScreenContent(args: PlayerScreenArgs) {
         val density = LocalDensity.current
         val horizontalSafePadding = playerHorizontalSafePadding()
         val useTvLayout = isTvLayoutProfileEnabled()
-        val metrics = remember(maxWidth, maxHeight, useTvLayout) {
-            PlayerLayoutMetrics.fromWidth(maxWidth, tvLayout = useTvLayout, height = maxHeight)
+        val isInPip = rememberIsInPictureInPicture()
+        val dockPartyPanel = LocalFold.current == null && !isInPip && maxWidth > maxHeight
+        val partyPanelWidth = if (dockPartyPanel) minOf(420.dp, maxWidth * 0.45f) else 420.dp
+        val animatedPartyPanelInset by animateDpAsState(
+            targetValue = if (runtime.showPartyPanel && dockPartyPanel) partyPanelWidth else 0.dp,
+            animationSpec = tween(if (runtime.showPartyPanel) 250 else 200),
+            label = "partyPanelInset",
+        )
+        val partyPanelInset = if (dockPartyPanel) animatedPartyPanelInset else 0.dp
+        val playerWidth = maxWidth - partyPanelInset
+        val metrics = remember(playerWidth, maxHeight, useTvLayout) {
+            PlayerLayoutMetrics.fromWidth(playerWidth, tvLayout = useTvLayout, height = maxHeight)
         }
         val tvTextScale = when {
             !useTvLayout -> 1f
@@ -108,7 +149,13 @@ internal fun PlayerScreenContent(args: PlayerScreenArgs) {
 
         runtime.scope = rememberCoroutineScope()
         runtime.hapticFeedback = LocalHapticFeedback.current
-        runtime.gestureController = rememberPlayerGestureController()
+        runtime.gestureController = if (runtime.isMiniPresentation) {
+            null
+        } else {
+            rememberPlayerGestureController(
+                restoreBrightness = playerSettingsUiState.touchGesturesEnabled,
+            )
+        }
         runtime.playerSettingsUiState = playerSettingsUiState
         runtime.nuvioEnhancedSettingsUiState = nuvioEnhancedSettingsUiState
         runtime.p2pSettingsUiState = p2pSettingsUiState
@@ -116,6 +163,7 @@ internal fun PlayerScreenContent(args: PlayerScreenArgs) {
         runtime.metaScreenSettingsUiState = metaScreenSettingsUiState
         runtime.watchedUiState = watchedUiState
         runtime.watchProgressUiState = watchProgressUiState
+        runtime.liveTvUiState = liveTvUiState
         runtime.sourceStreamsState = sourceStreamsState
         runtime.episodeStreamsRepoState = episodeStreamsRepoState
         runtime.metaUiState = metaUiState
@@ -125,10 +173,24 @@ internal fun PlayerScreenContent(args: PlayerScreenArgs) {
         runtime.horizontalSafePadding = horizontalSafePadding
         runtime.metrics = metrics
         runtime.sliderEdgePadding = horizontalSafePadding + metrics.horizontalPadding
-        runtime.overlayBottomPadding = sliderOverlayBottomPadding(metrics)
+        runtime.overlayBottomPadding = if (playerSettingsUiState.useLegacyPlayerLayout) {
+            sliderOverlayBottomPadding(metrics)
+        } else {
+            playerTimelineBottomInsets(metrics).asPaddingValues().calculateBottomPadding() +
+                72.dp + PlayerSliderOverlayGap
+        }
         runtime.sideGestureSystemEdgeExclusionPx = with(density) {
             PlayerSideGestureSystemEdgeExclusion.toPx()
         }
+        // Left/right system gesture insets are only non-zero when the device uses
+        // gesture navigation, so this keeps the edge back swipe working there and
+        // changes nothing for 3-button navigation.
+        val systemGestureInsets = WindowInsets.systemGestures
+        val layoutDirection = LocalLayoutDirection.current
+        runtime.horizontalSeekSystemEdgeExclusionPx = maxOf(
+            systemGestureInsets.getLeft(density, layoutDirection),
+            systemGestureInsets.getRight(density, layoutDirection),
+        ).toFloat()
         runtime.resizeModeFitLabel = stringResource(Res.string.compose_player_resize_fit)
         runtime.resizeModeFillLabel = stringResource(Res.string.compose_player_resize_fill)
         runtime.resizeModeZoomLabel = stringResource(Res.string.compose_player_resize_zoom)
@@ -158,15 +220,11 @@ internal fun PlayerScreenContent(args: PlayerScreenArgs) {
         }
         runtime.resetIdentityStateIfNeeded()
 
-        val keepScreenAwake = runtime.errorMessage == null &&
-            (runtime.playbackSnapshot.isPlaying ||
-                (runtime.shouldPlay && runtime.playbackSnapshot.isLoading))
         if (!runtime.isMiniPresentation) {
             EnterImmersivePlayerMode(keepScreenAwake = keepScreenAwake)
-        } else {
         }
         ManagePlayerPictureInPicture(
-            isPlaying = runtime.playbackSnapshot.isPlaying,
+            isPlaying = isPlaying,
             videoSize = runtime.layoutSize,
         )
         PlatformBackHandler(enabled = playerSettingsUiState.miniPlayerEnabled && !runtime.isMiniPresentation) {
@@ -175,10 +233,31 @@ internal fun PlayerScreenContent(args: PlayerScreenArgs) {
             args.onBack()
         }
         runtime.BindPlayerRuntimeEffects()
+        val hdrVideo by produceState(
+            initialValue = false,
+            runtime.playerController,
+            runtime.activeSourceUrl,
+            runtime.playbackSnapshot.isLoading,
+        ) {
+            val controller = runtime.playerController
+            value = if (controller == null || runtime.playbackSnapshot.isLoading) {
+                value
+            } else {
+                runCatching { controller.getMediaInfo().hdr.isNotEmpty() }.getOrDefault(value)
+            }
+        }
         CompositionLocalProvider(
             LocalDensity provides Density(density.density, density.fontScale * tvTextScale),
+            LocalLiquidGlassBackdrop provides rememberVideoFrameBackdrop(
+                enabled = !runtime.isMiniPresentation && isLiquidGlassSupported() && !hdrVideo,
+            ),
+            LocalPlayerControlGlassEnabled provides playerSettingsUiState.playerControlGlassEnabled,
         ) {
-            runtime.RenderPlayerRuntimeUi()
+            runtime.RenderPlayerRuntimeUi(
+                partyPanelWidth = partyPanelWidth,
+                partyPanelInset = partyPanelInset,
+                dockPartyPanel = dockPartyPanel,
+            )
         }
     }
 }

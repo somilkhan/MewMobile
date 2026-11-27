@@ -14,6 +14,7 @@ data class TmdbSettings(
     val useNetworks: Boolean = true,
     val useEpisodes: Boolean = true,
     val useSeasonPosters: Boolean = true,
+    val useEpisodeRatings: Boolean = true,
     val useMoreLikeThis: Boolean = true,
     val useCollections: Boolean = true,
     val titleLanguage: TmdbTitleLanguage = TmdbTitleLanguage.APP,

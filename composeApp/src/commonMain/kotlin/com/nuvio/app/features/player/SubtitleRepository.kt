@@ -1,37 +1,21 @@
 package com.nuvio.app.features.player
 
-import com.nuvio.app.features.addons.AddonRepository
-import com.nuvio.app.features.addons.AddonResource
-import com.nuvio.app.features.addons.buildAddonResourceUrl
-import com.nuvio.app.features.addons.enabledAddons
-import com.nuvio.app.features.addons.httpGetText
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.supervisorScope
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import nuvio.composeapp.generated.resources.Res
 import nuvio.composeapp.generated.resources.compose_player_no_subtitles_found
-import nuvio.composeapp.generated.resources.player_addon_subtitle_display_format
 import org.jetbrains.compose.resources.getString
 
 object SubtitleRepository {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    private val json = Json { ignoreUnknownKeys = true }
 
     private val _addonSubtitles = MutableStateFlow<List<AddonSubtitle>>(emptyList())
     val addonSubtitles: StateFlow<List<AddonSubtitle>> = _addonSubtitles.asStateFlow()
@@ -39,118 +23,134 @@ object SubtitleRepository {
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
+    private val _loadingProgress = MutableStateFlow<SubtitleLoadingProgress?>(null)
+    internal val loadingProgress: StateFlow<SubtitleLoadingProgress?> = _loadingProgress.asStateFlow()
+
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
     private var activeFetchJob: Job? = null
     private var fetchGeneration = 0L
 
-    fun fetchAddonSubtitles(type: String, videoId: String) {
+    fun fetchAddonSubtitles(
+        type: String,
+        videoId: String,
+        extras: SubtitleRequestExtras? = null,
+    ) {
         activeFetchJob?.cancel()
         val generation = ++fetchGeneration
+        _loadingProgress.value = null
         activeFetchJob = scope.launch {
-            val requestType = canonicalSubtitleType(type)
-            if (generation != fetchGeneration) return@launch
+            executeSubtitleFetch(type, videoId, extras, generation)
+        }
+    }
+
+    /**
+     * Like [fetchAddonSubtitles], but first computes the OpenSubtitles video hash
+     * when the stream extras do not already contain one.
+     */
+    fun fetchAddonSubtitlesWithHashComputation(
+        type: String,
+        videoId: String,
+        extras: SubtitleRequestExtras?,
+        sourceUrl: String,
+        sourceHeaders: Map<String, String>,
+        onExtrasUpdated: (SubtitleRequestExtras) -> Unit,
+    ) {
+        activeFetchJob?.cancel()
+        val generation = ++fetchGeneration
+        _loadingProgress.value = null
+        activeFetchJob = scope.launch {
             _isLoading.value = true
-            if (generation != fetchGeneration) return@launch
             _error.value = null
-            if (generation != fetchGeneration) return@launch
             _addonSubtitles.value = emptyList()
 
-            val addons = AddonRepository.uiState.value.addons.enabledAddons()
-            val subtitleAddons = addons.filter { addon ->
-                val manifest = addon.manifest ?: return@filter false
-                val subtitleResource = manifest.resources.find { it.name.isSubtitleResourceName() }
-                    ?: return@filter false
-                subtitleResource.supportsSubtitleType(requestType, videoId)
-            }
-            val completedBlocks = mutableListOf<List<AddonSubtitle>?>()
-
-            supervisorScope {
-                val requests = subtitleAddons.map { addon ->
-                    async {
-                        val manifest = addon.manifest ?: return@async null
-                        val subtitleUrl = buildAddonResourceUrl(
-                            manifestUrl = manifest.transportUrl,
-                            resource = "subtitles",
-                            type = requestType,
-                            id = videoId,
-                        )
-
-                        try {
-                            withTimeoutOrNull(10_000L) {
-                                val response = withContext(Dispatchers.Default) {
-                                    httpGetText(subtitleUrl)
-                                }
-                                val parsed = json.parseToJsonElement(response).jsonObject
-                                val subtitlesArray = parsed["subtitles"]?.jsonArray ?: return@withTimeoutOrNull emptyList()
-
-                                subtitlesArray.mapIndexedNotNull { index, element ->
-                                    val obj = element.jsonObject
-                                    val id = obj.stringValue("id")
-                                        ?: "${manifest.id}_$index"
-                                    val url = obj.stringValue("url")?.takeIf(::isSupportedAddonSubtitleUrl) ?: return@mapIndexedNotNull null
-                                    val rawLang = obj.subtitleLanguage() ?: "unknown"
-                                    val normalizedLang = normalizeLanguageCode(rawLang) ?: rawLang
-
-                                    AddonSubtitle(
-                                        id = id,
-                                        url = url,
-                                        language = normalizedLang,
-                                        display = getString(
-                                            Res.string.player_addon_subtitle_display_format,
-                                            getLanguageLabelForCode(rawLang),
-                                            addon.displayTitle,
-                                        ),
-                                        addonName = addon.displayTitle,
-                                    )
-                                }
-                            }
-                        } catch (error: Throwable) {
-                            if (error is CancellationException) throw error
-                            null
-                        }
-                    }
-                }
-
-                requests.forEach { request ->
-                    completedBlocks += request.await()
-                    val aggregated = aggregateOrderedSubtitleBlocks(
-                        blocks = completedBlocks,
-                        generation = generation,
-                        activeGeneration = fetchGeneration,
-                    ) ?: return@supervisorScope
-                    if (aggregated != _addonSubtitles.value) {
-                        if (generation != fetchGeneration) return@supervisorScope
-                        _addonSubtitles.value = aggregated
-                    }
-                }
+            val enrichedExtras = try {
+                val hashResult = computeVideoHash(sourceUrl, sourceHeaders)
+                if (hashResult != null) {
+                    val (hash, fileSize) = hashResult
+                    val updated = (extras ?: SubtitleRequestExtras()).copy(
+                        videoHash = hash,
+                        videoSize = extras?.videoSize ?: fileSize,
+                    )
+                    if (generation == fetchGeneration) onExtrasUpdated(updated)
+                    updated
+                } else extras
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                extras
             }
 
             if (generation != fetchGeneration) return@launch
-            val allSubs = aggregateOrderedSubtitleBlocks(
-                blocks = completedBlocks,
-                generation = generation,
-                activeGeneration = fetchGeneration,
-            ) ?: return@launch
-            if (allSubs.isEmpty() && subtitleAddons.isNotEmpty()) {
-                val message = getString(Res.string.compose_player_no_subtitles_found)
-                if (generation != fetchGeneration) return@launch
-                _error.value = message
-            }
-            if (generation != fetchGeneration) return@launch
-            _isLoading.value = false
+            executeSubtitleLoad(type, videoId, enrichedExtras, generation)
         }
     }
 
     fun clear() {
         activeFetchJob?.cancel()
         fetchGeneration += 1L
+        _loadingProgress.value = null
         _addonSubtitles.value = emptyList()
         _isLoading.value = false
         _error.value = null
     }
+
+    private suspend fun executeSubtitleFetch(
+        type: String,
+        videoId: String,
+        extras: SubtitleRequestExtras?,
+        generation: Long,
+    ) {
+        if (generation != fetchGeneration) return
+        _isLoading.value = true
+        _error.value = null
+        _addonSubtitles.value = emptyList()
+        executeSubtitleLoad(type, videoId, extras, generation)
+    }
+
+    private suspend fun executeSubtitleLoad(
+        type: String,
+        videoId: String,
+        extras: SubtitleRequestExtras?,
+        generation: Long,
+    ) {
+        val requests = addonSubtitleRequests(type, videoId, extras)
+        if (requests.isEmpty()) {
+            _isLoading.value = false
+            return
+        }
+
+        _loadingProgress.value = SubtitleLoadingProgress(total = requests.size)
+        // Mew: keep add-on order stable while results arrive, and drop stale generations.
+        val completedBlocks = arrayOfNulls<List<AddonSubtitle>>(requests.size)
+        loadAddonSubtitles(requests) { request, subtitles ->
+            if (generation != fetchGeneration) return@loadAddonSubtitles
+            val index = requests.indexOf(request)
+            if (index >= 0) completedBlocks[index] = subtitles
+            _addonSubtitles.value = aggregateOrderedSubtitleBlocks(
+                blocks = completedBlocks.toList(),
+                generation = generation,
+                activeGeneration = fetchGeneration,
+            ) ?: return@loadAddonSubtitles
+            _loadingProgress.update { progress ->
+                progress?.copy(completed = progress.completed + 1, addonName = request.addonName)
+            }
+        }
+
+        if (generation != fetchGeneration) return
+        if (_addonSubtitles.value.isEmpty()) {
+            _error.value = getString(Res.string.compose_player_no_subtitles_found)
+        }
+        _isLoading.value = false
+    }
 }
+
+internal data class SubtitleLoadingProgress(
+    val total: Int,
+    val completed: Int = 0,
+    val addonName: String? = null,
+)
 
 internal fun <T> aggregateOrderedSubtitleBlocks(
     blocks: List<List<T>?>,
@@ -160,34 +160,6 @@ internal fun <T> aggregateOrderedSubtitleBlocks(
     if (generation != activeGeneration) return null
     return blocks.filterNotNull().flatten()
 }
-
-private fun canonicalSubtitleType(type: String): String =
-    if (type.equals("tv", ignoreCase = true)) "series" else type.lowercase()
-
-private fun String.isSubtitleResourceName(): Boolean =
-    equals("subtitles", ignoreCase = true) || equals("subtitle", ignoreCase = true)
-
-private fun AddonResource.supportsSubtitleType(type: String, videoId: String): Boolean {
-    val canonical = canonicalSubtitleType(type)
-    val typeMatches = types.isEmpty() || types.any { canonicalSubtitleType(it).equals(canonical, ignoreCase = true) }
-    if (!typeMatches) return false
-    return idPrefixes.isEmpty() || idPrefixes.any { prefix -> videoId.startsWith(prefix) }
-}
-
-private fun JsonObject.subtitleLanguage(): String? =
-    stringValue("lang")
-        ?: stringValue("language")
-        ?: stringValue("languageCode")
-        ?: stringValue("locale")
-        ?: stringValue("label")
-
-private fun JsonObject.stringValue(name: String): String? =
-    this[name]
-        ?.jsonPrimitive
-        ?.contentOrNull
-        ?.trim()
-        ?.takeIf { it.isNotBlank() }
-
 
 /**
  * Add-on subtitle URLs are untrusted input and are forwarded to external players.

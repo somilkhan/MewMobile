@@ -59,11 +59,13 @@ internal object PlayerChapters {
     }
 }
 
-// Chapters are read by the engine (libmpv on Android) into PlayerPlaybackSnapshot.chapters.
-// The current chapter title is shown above the timeline when the chapter title setting is on.
+// --- Fork additions -------------------------------------------------------------------------
+// Upstream reads chapters through PlayerEngineController.getChapters() (libmpv on Android,
+// MKV-only ExoPlayer). The fork also fills PlayerPlaybackSnapshot.chapters from iOS mpv and the
+// fork ExoPlayer reader (MKV + MP4); the runtime falls back to those (see
+// PlayerScreenRuntimeChapters.kt). The fork also shows the current chapter above the timeline.
 
 private const val MaxMpvChapters = 500
-private val PlayerChapterLabelInset = 2.dp
 
 internal fun mpvChapters(property: (String) -> String?): List<PlayerChapter> {
     val count = property("chapter-list/count")?.trim()?.toIntOrNull() ?: return emptyList()
@@ -112,6 +114,6 @@ internal fun PlayerChapterLabel(
         overflow = TextOverflow.Ellipsis,
         modifier = modifier
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-            .padding(horizontal = PlayerChapterLabelInset, vertical = 2.dp),
+            .padding(horizontal = PlayerTimelineContentInset, vertical = 2.dp),
     )
 }

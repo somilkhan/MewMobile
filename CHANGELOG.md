@@ -1,5 +1,48 @@
 # Changelog
 
+## 0.6.0-beta.1 - 2026-11-27
+
+First beta built on luqmanfadlli's NuvioMobile Enhanced 1.1.0-beta.3. It is published as a pre-release and only reaches people on the Beta update channel.
+
+### Added
+
+- A Beta update channel. Switch between Stable and Beta in Settings, under About.
+- A Mew settings hub that groups home, hero banner, details page, player, download and diagnostics options, with backup and restore of all Mew settings to a file.
+- Live TV from luqman's module: several playlists at once, Xtream and Stalker portals, XMLTV guides (including gzip), and Guide, Sports and On Demand tabs.
+- Jellyfin and Emby media servers.
+- Episode ratings on details pages, chapter titles in the player and optional chapter skip.
+- Season batch downloads from the details hero, a Wi-Fi only option and a redesigned downloads screen with a pausable queue.
+- A new launcher icon and splash with the Mew ghost, and a smoother hand-off from splash to the first screen.
+- Alternate app icons (Arctic Blue, Emerald, Rose Gold, Copper, Graphite) rebuilt from the Mew ghost on Android and iOS.
+
+### Improved
+
+- Settings now use luqman's layout, with Mew's own sections kept.
+- The player picks up luqman's fixes for HLS start-up, stall recovery, buffering, Matroska chapters and OpenSubtitles hashing.
+- AutoSync uses luqman's newer subtitle sync engine.
+- Mixed right-to-left and left-to-right text now lays out correctly.
+- DNS is now one setting, in Settings under Advanced. It covers every Mew connection, including the player, addons, CloudStream plugins, trailers and sync. A provider picked on either of the old DNS rows is kept, and Mew settings no longer has its own DNS row.
+
+### Fixed
+
+- TorBox cache checks now match alternative hashes.
+- Home keeps your catalog choices when sync runs early after launch.
+- Episode cards fall back to other artwork when an image fails to load.
+- Subtitle outline width stays inside its allowed range.
+- Plugins that ask for an unsupported crypto algorithm are rejected instead of failing silently.
+- Episode release notifications show the Mew ghost and your chosen app icon instead of old Nuvio artwork.
+- If you used an old Nuvio Enhanced icon, it now falls back to the Mew icon instead of a Nuvio one.
+
+### Known issues
+
+- Cast photos need TMDB metadata turned on with your own TMDB key (Settings, TMDB). Without it, Cinemeta only provides names, so cast shows initials.
+- Some internal identifiers still use Nuvio names.
+
+### Release
+
+- Mew 0.6.0-beta.1 (122).
+- Existing 0.5.1 installs only check Stable, so they will not be offered this beta. Install the APK by hand to try it, then updates arrive in the app.
+
 ## 0.5.1 - 2026-11-16
 
 ### Added

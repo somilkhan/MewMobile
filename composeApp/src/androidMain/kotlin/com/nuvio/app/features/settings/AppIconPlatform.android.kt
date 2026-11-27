@@ -27,6 +27,17 @@ internal actual object AppIconPlatform {
 
     private var context: Context? = null
 
+    actual fun loadSelectedIconKey(): String? =
+        context?.getSharedPreferences("app_icon_settings", Context.MODE_PRIVATE)
+            ?.getString("selected_app_icon", null)
+
+    actual fun saveSelectedIconKey(key: String) {
+        context?.getSharedPreferences("app_icon_settings", Context.MODE_PRIVATE)
+            ?.edit()
+            ?.putString("selected_app_icon", key)
+            ?.apply()
+    }
+
     fun initialize(context: Context) {
         val appContext = context.applicationContext
         this.context = appContext
@@ -41,7 +52,7 @@ internal actual object AppIconPlatform {
     fun currentLauncherIconResource(context: Context): Int {
         val option = AppIconOption.fromPlatformName(currentIconName(context))
         val resourceName = if (option == AppIconOption.ORIGINAL) {
-            "ic_launcher_alt_enhanced"
+            "ic_launcher"
         } else {
             "ic_launcher_${option.key}"
         }

@@ -25,6 +25,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
+import com.nuvio.app.features.details.MoreLikeThisPage
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -42,7 +45,7 @@ object TmdbMetadataService {
 
     private val enrichmentCache = mutableMapOf<String, TmdbEnrichment>()
     private val seasonEpisodeCache = mutableMapOf<String, TmdbCachedSeasonEpisodeEnrichment>()
-    private val moreLikeThisCache = mutableMapOf<String, List<MetaPreview>>()
+    private val moreLikeThisCache = mutableMapOf<String, MoreLikeThisPage>()
     private val collectionCache = mutableMapOf<String, Pair<String?, List<MetaPreview>>>()
     private val trailerCache = mutableMapOf<String, List<MetaTrailer>>()
     private val personCache = mutableMapOf<String, PersonDetail>()
@@ -65,6 +68,82 @@ object TmdbMetadataService {
             enrichmentCache.clear()
             previewArtworkCache.clear()
         }
+    }
+
+    // Upstream (luq) API: used by ServerMatcher.
+    fun cachedOriginalTitle(tmdbId: String, type: String): String? {
+        val mediaType = TmdbService.normalizeMediaType(type)
+        val prefix = "$tmdbId:$mediaType:"
+        return synchronized(cacheLock) {
+            enrichmentCache.entries.firstOrNull { it.key.startsWith(prefix) }?.value?.originalTitle
+        }
+    }
+
+    private val backdropCache = linkedMapOf<String, String?>()
+    private val backdropCacheMutex = Mutex()
+    private val backdropRequests = Semaphore(4)
+
+    // Upstream (luq) API: localized backdrops for poster rails.
+    suspend fun fetchLocalizedBackdrop(id: String, type: String, language: String): String? =
+        withContext(Dispatchers.Default) {
+            val mediaType = TmdbService.normalizeMediaType(type)
+            if (mediaType != "movie" && mediaType != "tv") return@withContext null
+            val normalizedLanguage = normalizeTmdbLanguage(language)
+            backdropRequests.withPermit {
+                val tmdbId = TmdbService.ensureTmdbId(id, mediaType) ?: return@withPermit null
+                val cacheKey = "$tmdbId:$mediaType:$normalizedLanguage"
+                backdropCacheMutex.withLock {
+                    if (backdropCache.containsKey(cacheKey)) return@withPermit backdropCache[cacheKey]
+                }
+                val images = fetch<TmdbImagesResponse>(
+                    endpoint = "$mediaType/$tmdbId/images",
+                    query = mapOf("include_image_language" to tmdbImageLanguages(normalizedLanguage)),
+                ) ?: return@withPermit null
+                val backdrop = buildImageUrl(
+                    images.backdrops.selectBestLocalizedImagePath(normalizedLanguage),
+                    "w1280",
+                )
+                backdropCacheMutex.withLock {
+                    backdropCache[cacheKey] = backdrop
+                    if (backdropCache.size > 256) backdropCache.remove(backdropCache.keys.first())
+                }
+                backdrop
+            }
+        }
+
+    suspend fun prefetchEnrichment(
+        type: String,
+        id: String,
+        settings: TmdbSettings,
+    ) {
+        if (!settings.enabled) return
+        val tmdbType = normalizeMetaType(type)
+        val tmdbId = TmdbService.ensureTmdbId(id, tmdbType) ?: return
+        fetchEnrichment(
+            tmdbId = tmdbId,
+            mediaType = tmdbType,
+            language = settings.language,
+            settings = settings,
+        )
+    }
+
+    // Upstream (luq) API: paged "more like this" for the catalog screen.
+    suspend fun fetchMoreLikeThisPage(
+        itemId: String,
+        itemType: String,
+        page: Int,
+        settings: TmdbSettings,
+    ): MoreLikeThisPage {
+        if (!settings.enabled || !settings.useMoreLikeThis) return MoreLikeThisPage()
+        val mediaType = normalizeMetaType(itemType)
+        if (mediaType != "movie" && mediaType != "tv") return MoreLikeThisPage()
+        val tmdbId = TmdbService.ensureTmdbId(itemId, mediaType)?.toIntOrNull() ?: return MoreLikeThisPage()
+        return fetchMoreLikeThis(
+            tmdbId = tmdbId,
+            mediaType = mediaType,
+            language = normalizeTmdbLanguage(settings.language),
+            page = page,
+        )
     }
 
     suspend fun fetchPersonDetail(
@@ -234,6 +313,7 @@ object TmdbMetadataService {
         val seen = mutableSetOf<Int>()
         return cast
             .filter { it.mediaType == "tv" && (it.posterPath != null || it.backdropPath != null) }
+            .filter { !isTalkShowGuestAppearance(it.genreIds.orEmpty(), it.character) } // luq
             .sortedByDescending { it.voteAverage ?: 0.0 }
             .mapNotNull { credit ->
                 if (!seen.add(credit.id)) return@mapNotNull null
@@ -684,7 +764,8 @@ object TmdbMetadataService {
             ?: return meta
 
         val needsEpisodes = (
-            settings.useEpisodes || settings.useReleaseDates || settings.useSeasonPosters
+            settings.useEpisodes || settings.useReleaseDates || settings.useEpisodeRatings ||
+                settings.useSeasonPosters
         ) && tmdbType == "tv"
         val (enrichment, episodeMap) = coroutineScope {
             val enrichmentDeferred = async {
@@ -968,6 +1049,16 @@ object TmdbMetadataService {
                             } else {
                                 video.runtime
                             },
+                            tmdbRating = if (settings.useEpisodeRatings) {
+                                enrichmentForEpisode.voteAverage?.takeIf { it > 0.0 } ?: video.tmdbRating
+                            } else {
+                                null
+                            },
+                            imdbRating = if (settings.useEpisodeRatings) {
+                                enrichmentForEpisode.imdbVoteAverage?.takeIf { it > 0.0 } ?: video.imdbRating
+                            } else {
+                                null
+                            },
                         )
                     }
                 },
@@ -1103,6 +1194,7 @@ object TmdbMetadataService {
         val enrichment = TmdbEnrichment(
             localizedTitle = localizedTitle,
             titleAliases = listOfNotNull(localizedTitle, originalTitle).cleanTmdbTitleAliases(localizedTitle),
+            originalTitle = originalTitle,
             description = description,
             genres = genres,
             backdrop = buildImageUrl(
@@ -1238,6 +1330,7 @@ object TmdbMetadataService {
                     seasonPoster = buildImageUrl(details.posterPath, "w500"),
                     airDate = episode.airDate?.trim()?.takeIf(String::isNotBlank),
                     runtimeMinutes = episode.runtime,
+                    voteAverage = episode.voteAverage?.takeIf { it > 0.0 },
                 )
             }
             .toMap()
@@ -1293,14 +1386,21 @@ object TmdbMetadataService {
         tmdbId: Int,
         mediaType: String,
         language: String,
-    ): List<MetaPreview> {
-        val cacheKey = "$tmdbId:$mediaType:$language:recommendations"
+    ): List<MetaPreview> = fetchMoreLikeThis(tmdbId, mediaType, language, page = 1).items.take(12)
+
+    private suspend fun fetchMoreLikeThis(
+        tmdbId: Int,
+        mediaType: String,
+        language: String,
+        page: Int,
+    ): MoreLikeThisPage {
+        val cacheKey = "$tmdbId:$mediaType:$language:recommendations:$page"
         cacheGet(moreLikeThisCache, cacheKey)?.let { return it }
 
         val response = fetch<TmdbRecommendationResponse>(
             endpoint = "$mediaType/$tmdbId/recommendations",
-            query = mapOf("language" to language),
-        ) ?: return emptyList()
+            query = mapOf("language" to language, "page" to page.toString()),
+        ) ?: return MoreLikeThisPage()
 
         val items = response.results
             .filter { it.id > 0 }
@@ -1332,10 +1432,13 @@ object TmdbMetadataService {
                     imdbRating = recommendation.voteAverage?.formatRating(),
                 )
             }
-            .take(12)
 
-        cachePut(moreLikeThisCache, cacheKey, items)
-        return items
+        val result = MoreLikeThisPage(
+            items = items,
+            hasMore = response.totalPages?.let { page < it } ?: false,
+        )
+        cachePut(moreLikeThisCache, cacheKey, result)
+        return result
     }
 
     private suspend fun fetchCollection(
@@ -1528,6 +1631,7 @@ internal fun resolveTmdbWatchProviderRegion(
 internal data class TmdbEnrichment(
     val localizedTitle: String?,
     val titleAliases: List<String> = emptyList(),
+    val originalTitle: String? = null,
     val description: String?,
     val genres: List<String>,
     val backdrop: String?,
@@ -1647,12 +1751,15 @@ private data class TmdbSeasonEpisodeEnrichmentEntry(
 
 @Serializable
 internal data class TmdbEpisodeEnrichment(
-    val title: String?,
-    val overview: String?,
-    val thumbnail: String?,
+    val title: String? = null,
+    val overview: String? = null,
+    val thumbnail: String? = null,
     val seasonPoster: String? = null,
-    val airDate: String?,
-    val runtimeMinutes: Int?,
+    val airDate: String? = null,
+    val runtimeMinutes: Int? = null,
+    // luq: per-episode ratings (TMDB setting "use episode ratings").
+    val voteAverage: Double? = null,
+    val imdbVoteAverage: Double? = null,
 )
 
 internal fun requestedSeasonsNeedingRefresh(
@@ -1834,20 +1941,6 @@ private fun buildImageUrl(path: String?, size: String): String? {
     return "https://image.tmdb.org/t/p/$size$clean"
 }
 
-private fun List<TmdbImage>.selectBestLocalizedImagePath(normalizedLanguage: String): String? {
-    if (isEmpty()) return null
-    val languageCode = normalizedLanguage.substringBefore("-")
-    val regionCode = normalizedLanguage.substringAfter("-", "").uppercase().takeIf { it.length == 2 }
-        ?: defaultLanguageRegions[languageCode]
-    return sortedWith(
-        compareByDescending<TmdbImage> { it.iso6391 == languageCode && it.iso31661 == regionCode }
-            .thenByDescending { it.iso6391 == languageCode && it.iso31661 == null }
-            .thenByDescending { it.iso6391 == languageCode }
-            .thenByDescending { it.iso6391 == "en" }
-            .thenByDescending { it.iso6391 == null },
-    ).firstOrNull()?.filePath
-}
-
 private fun List<TmdbImage>.selectOriginalOrLocalizedImagePath(
     normalizedLanguage: String,
     originalLanguage: String?,
@@ -1910,6 +2003,7 @@ private val watchProviderDefaultRegions = mapOf(
     "zh" to "CN",
 )
 
+internal const val TMDB_RECOMMENDATIONS_PAGE_SIZE = 20
 private const val TMDB_EPISODE_ENRICHMENT_TTL_MS = 24L * 60L * 60L * 1_000L
 private const val TMDB_RETRY_BASE_DELAY_MS = 250L
 
@@ -2079,22 +2173,6 @@ private data class TmdbCrewMember(
 )
 
 @Serializable
-private data class TmdbImagesResponse(
-    val logos: List<TmdbImage> = emptyList(),
-    val posters: List<TmdbImage> = emptyList(),
-    val backdrops: List<TmdbImage> = emptyList(),
-)
-
-@Serializable
-private data class TmdbImage(
-    @SerialName("file_path") val filePath: String? = null,
-    @SerialName("iso_639_1") val iso6391: String? = null,
-    @SerialName("iso_3166_1") val iso31661: String? = null,
-    @SerialName("vote_average") val voteAverage: Double? = null,
-    @SerialName("vote_count") val voteCount: Int? = null,
-)
-
-@Serializable
 private data class TmdbMovieReleaseDatesResponse(
     val results: List<TmdbMovieReleaseDateCountry> = emptyList(),
 )
@@ -2165,6 +2243,8 @@ private data class TmdbCollectionRef(
 @Serializable
 private data class TmdbRecommendationResponse(
     val results: List<TmdbRecommendationItem> = emptyList(),
+    val page: Int? = null,
+    @SerialName("total_pages") val totalPages: Int? = null,
 )
 
 @Serializable
@@ -2214,6 +2294,7 @@ private data class TmdbEpisodeResponse(
     @SerialName("air_date") val airDate: String? = null,
     val runtime: Int? = null,
     @SerialName("episode_number") val episodeNumber: Int? = null,
+    @SerialName("vote_average") val voteAverage: Double? = null,
 )
 
 // ─── Person Detail Models ───
@@ -2250,6 +2331,7 @@ private data class TmdbPersonCreditCast(
     @SerialName("first_air_date") val firstAirDate: String? = null,
     @SerialName("vote_average") val voteAverage: Double? = null,
     val popularity: Double? = null,
+    @SerialName("genre_ids") val genreIds: List<Int>? = null, // luq talk-show filter
 )
 
 @Serializable
@@ -2355,7 +2437,7 @@ private data class TmdbDiscoverResponse(
 )
 
 @Serializable
-private data class TmdbDiscoverResult(
+internal data class TmdbDiscoverResult(
     val id: Int,
     val title: String? = null,
     val name: String? = null,
@@ -2369,3 +2451,75 @@ private data class TmdbDiscoverResult(
     @SerialName("vote_average") val voteAverage: Double? = null,
     @SerialName("vote_count") val voteCount: Int? = null,
 )
+
+// ─── luq TMDB text helpers (CJK-aware names, talk-show guest filter) ───
+
+internal fun discoverResultsContainCjkTitles(results: List<TmdbDiscoverResult>): Boolean {
+    return results.any { result ->
+        containsCjkOrHangul(result.title ?: result.name ?: return@any false)
+    }
+}
+
+internal fun englishDiscoverTitlesById(results: List<TmdbDiscoverResult>): Map<Int, String> {
+    val titles = linkedMapOf<Int, String>()
+    results.forEach { result ->
+        val text = result.title?.trim()?.takeIf { it.isNotBlank() }
+            ?: result.name?.trim()?.takeIf { it.isNotBlank() }
+            ?: return@forEach
+        if (!containsCjkOrHangul(text)) {
+            titles.getOrPut(result.id) { text }
+        }
+    }
+    return titles
+}
+
+private const val TMDB_TALK_GENRE_ID = 10767
+private val TALK_SHOW_HOST_CHARACTER_REGEX = Regex("\\b(co-?)?host(s|ess)?\\b", RegexOption.IGNORE_CASE)
+
+internal fun isTalkShowGuestAppearance(genreIds: List<Int>, character: String?): Boolean {
+    if (genreIds.none { it == TMDB_TALK_GENRE_ID }) return false
+    return character?.let { TALK_SHOW_HOST_CHARACTER_REGEX.containsMatchIn(it) } != true
+}
+
+internal fun containsCjkOrHangul(text: String): Boolean {
+    return text.any { ch ->
+        ch in '\u3040'..'\u30FF' ||  // Hiragana + Katakana
+            ch in '\u4E00'..'\u9FFF' ||  // CJK Unified Ideographs
+            ch in '\u3400'..'\u4DBF' ||  // CJK Extension A
+            ch in '\uAC00'..'\uD7AF' ||  // Hangul Syllables
+            ch in '\u1100'..'\u11FF' ||  // Hangul Jamo
+            ch in '\u3130'..'\u318F'     // Hangul Compatibility Jamo
+    }
+}
+
+internal fun resolvePersonName(
+    localizedName: String?,
+    originalName: String?,
+    fallbackEnglishName: String? = null,
+    preferredLanguage: String,
+): String? {
+    val name = localizedName?.trim()?.takeIf { it.isNotBlank() }
+    val original = originalName?.trim()?.takeIf { it.isNotBlank() }
+    val fallback = fallbackEnglishName?.trim()?.takeIf { it.isNotBlank() }
+
+    if (name == null) return original ?: fallback
+    val lang = preferredLanguage.lowercase()
+
+    if (lang.startsWith("ja") || lang.startsWith("ko") || lang.startsWith("zh")) {
+        return name
+    }
+
+    if (!containsCjkOrHangul(name)) {
+        return name
+    }
+
+    if (original != null && !containsCjkOrHangul(original)) {
+        return original
+    }
+
+    if (fallback != null && !containsCjkOrHangul(fallback)) {
+        return fallback
+    }
+
+    return fallback ?: original ?: name
+}

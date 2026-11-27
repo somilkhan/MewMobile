@@ -1,0 +1,184 @@
+- core/auth/AuthRepository.kt — kept Mew tri-state remote validation, retry job and local-data owner claim; added luq session flags, signed-out notice, trusted-next-session and refresh mutex. Session loss keeps Mew's offline-data preservation (no wipe) + luq notice. Mew claim now uses luq's suspend wipe(owner).
+- features/livetv/* — Mew (AKRusso) and luq Live TV are separate implementations; took luq's module wholesale (Guide/Sports/On-Demand, multi-playlist, file picker, EPG gzip). Removed Mew-only livetv files (ProfileScope, EpgCompression, PlaylistParser, Clock, FilterBar, EpgSources + tests). Note: per-profile playlist scoping from Mew is not carried over; existing Live TV settings use new storage keys.
+- [bulk] 214 hunks whose Mew side contained only lines already present in luq's history of the same file (stale shared code) -> took luq.
+- features/autosync/* — upstream (skoruppa) AutoSync; luq has the newer engine moved to commonMain + iOS. Took luq's module wholesale, removed Mew's older android-only copies (+ their tests). Mew's AutoSyncCandidateScope/RunPolicy refinement dropped (not in luq).
+- androidFull/.../AndroidAppUpdaterPlatform.kt — kept Mew's SharedOkHttpClient.base (already uses Mew's configured DoH DNS); Mew GitHub updater untouched.
+- androidMain/.../AuthStorage.android.kt — both: Mew local-data-owner accessors + luq loadFlag/saveFlag.
+- androidMain/.../PlayerAudioFocus.kt — luq (resume-on-gain focus handling; Mew side was formatting only).
+- androidMain/.../DownloadsLiveStatusPlatform.android.kt — Mew foreground download service kept + luq's non-negative notificationId (internal).
+- core/ui/Theme.kt + ThemeColors.kt + PosterActionSheet.kt — Mew theme catalog (MEW/Messenger/Amethyst/Blossom/Lagoon/Sunset, 2-color CUSTOM, animated visuals) kept; luq's LocalThemePalette/MaterialTheme.themePalette is provided from Mew's palette so luq UI code works. luq's 3-color CustomThemeColors param kept on the signature but Mew's custom colors drive CUSTOM.
+- core/ui/CardDepthEffect.kt — luq (same sheen logic, early return form).
+- core/deeplink/AppUrlBridge.kt — luq (host/segments parsed earlier for nuvio.tv party links).
+- core/sync/SyncManager.kt — luq restructure (syncRequestGate); Mew's flushPendingProgressToServer is already carried into luq's full-sync path.
+- core/ui/BottomSheet.kt — luq row styling + Mew keyboard focus indicator.
+- core/ui/PosterCardStyleCompose.kt — luq shared LocalPosterCardStyleState + Mew TV-layout 2.3x scaling.
+- core/sync/ProfileSettingsSync.kt — both keys (Mew liquid_glass_auto_hide, luq nav_bar_glow_enabled).
+- features/catalog/CatalogRepository.kt — both targets: Mew CloudStream + luq MoreLikeThis/Server.
+- features/addons/AddonsScreen.kt — luq delete confirmation + Mew dismissVersionChange.
+- features/catalog/CatalogScreen.kt — luq imageModel (raw poster fallback).
+- features/collection/FolderDetailScreen.kt — Mew (no native-nav branch; hero banner logic) + luq's coverAbove.
+- features/debrid/LocalDebridService.kt — Mew's resolveTorboxAliasMatches (nullable on failed retry keeps availability UNKNOWN; Mew tests).
+- features/details/HeroTrailerAudioState.kt — luq per-surface state + applyStartMuted; Mew setMuted() kept as all-surface setter.
+- features/details/MetaDetailsModels.kt — both fields (Mew aliases, luq imdbId/tvdbId).
+- features/mdblist/MdbListSettingsRepository.kt — Mew api-key timestamp migration + luq enabled semantics (built-in key).
+- features/home/HomeCatalogDefinitions.kt — Mew's explicit descriptor signature (no transient state, length-prefixed; Mew test pins hash); luq helpers kept for other callers.
+- features/home/components/PosterGrid.kt — luq rememberPosterGridColumnCount (landscape) + Mew TV-layout columns.
+- features/p2p/P2pConsentDialog.kt — luq shared DialogSurface. core/ui/Dialog.kt DialogButton Primary now paints Mew's animated accent gradient, so all luq dialogs keep Mew's animated theme.
+- player/OpeningOverlay.kt — luq centeredVerticalBarPadding.
+- player/PlayerChapters.kt — luq (same chapter reader; label uses timeline inset).
+- player/PlayerLiquidGlass.kt — both locals (Mew LocalPlayerLiquidGlassEnabled, luq LocalPlayerControlGlassEnabled).
+- player/PlayerPlatformEffects.kt — Mew orientation preference (superset: restores original requested orientation).
+- player/PlayerRuntimeAutoSync.kt — luq (matches luq AutoSync module).
+- player/PlayerScreenArgs.kt — union: Mew randomEpisodeMode/initialStream*/miniPlayer* + luq subtitleExtras/party/stream/linkCache flags.
+- player/PlayerScreenRuntimeSubtitleActions.kt — luq sync-by-ear actions + Mew's pure delay helper (Mew test).
+- player/PlayerScreenSupport.kt — Mew remote-sync constants added; duplicate seek const removed.
+- player/PlayerSubtitleMatching.kt — luq (identical logic).
+- player/PlayerToolbarLayout.kt — Mew default (all buttons visible, enum order; luq NIGHT_MODE included via entries).
+- player/skip/PlayerNextEpisodeRules.kt — both (Mew random-episode key + luq post-credits detection).
+- player/skip/SkipIntroButton.kt, SubmitIntroDialog.kt — luq (category reset; restructured submit button).
+- profiles/PinEntryDialog.kt — luq layout + Mew keyboard focus indicator. ProfileSwitcherTab.kt — luq (InlinePinEntry moved up; Mew's duplicate copy dropped).
+- settings/AdvancedSettingsPage.kt — both: Mew Logs section (RuntimeDiagnostics view/copy/export) + luq config backup section.
+- settings/AppBrandWordmark.kt, AppIconResources.kt, MemberBrandWordmark.kt — Mew branding (Mew SVG wordmark, GOLD->COPPER mapping, no Nuvio member badge).
+- settings/ContentDiscoverySettingsPage.kt, TrackingSettingsPage.kt, ThemeSettingsStorage.kt — union of params/expects (Mew CloudStream/Supporters/liquid-glass auto-hide + luq media servers/mdblist/tab-bar behavior/dynamic artwork/catalog accent).
+- settings/MetaScreenSettingsPage.kt — luq radio semantics + Mew focus indicator.
+- simkl/SimklAuthRepository.kt — luq grantType + Mew effectiveSimklClientId (user-provided client id).
+- streams/StreamBadgePresentation.kt — luq (adds applyToStreams).
+- tmdb/TmdbSettings.kt — Mew superset (hasApiKey/canUseMetadata, selectTmdbDisplayTitle).
+- tracking/TrackingMedia.kt — both fields. tracking/TrackingProvider.kt — luq ids with display names + Mew MY_ANIME_LIST (Mew anime tracking).
+- watched/WatchedRepository.kt — luq superset (addon library events).
+- watchprogress/WatchProgressRepository.kt (scrobble push) — Mew remote-sync guard + luq server-item guard.
+- tests: MetaDetailsParserTest, HomeCatalogDefinitionTest, TmdbMetadataServiceTest — both test sets; AppIconOptionTest — Mew (Mew wordmark mapping); SimklHistoryPushGuardTest — luq.
+- plugins/runtime/PluginRuntime.kt — luq static polyfill (JsBindings re-merged from correct base now has luq's bytecode-cached polyfill).
+- iosApp/Player/NowPlayingController.swift — luq (adds force refresh; same drift logic).
+- [base fix] Re-ran all 550 code merges with remerge3.py: base = newest luq blob whose lines Mew had actually seen; prevents luq additions from being read as Mew deletions (e.g. JsBindings). Manual resolutions above were done on top of this.
+- details/components/HeroTrailerPlayerSurface (common expect + androidFull/androidPlaystore/iosFull/iosAppStore actuals) — Mew seekRequest/onPlaybackStateChanged API kept, luq onPositionUpdate added (default {} in expect). iosFull keeps Mew's implementation and now also reports position.
+- features/downloads/* (whole module) — KEPT MEW. luq downloads is a full rewrite (WorkManager transfer, redesigned screen, DownloadsSettingsPage, offline show metadata, library downloaded tab); Mew rewrite (pending source search/auto-retry, queue mode, preferred quality, external folder, foreground service, speed/ETA) is not line-mergeable. luq-only downloads files NOT added; PlatformLocalAccountDataCleaner drops luq clearUnfinishedDownloads call (keeps clearUnfinishedTransfers). Follow-up candidate.
+- enhanced follow-ups: be3fb89c5 (hero download opens the season batch dialog) cherry-picked; aa698c015 (episode unavailable badge) skipped because luq's EpisodeAvailabilityBadge with watched-aware placement is already integrated.
+- player/PlaybackBuffering.android — union: Mew memorySafeBufferEnabled + luq localFileSource low-buffer branch (with .build()).
+- player/PlayerLibassCompat — luq AutoSync wrapParser around Mew parserFor() (media3 external SSA fallback); Mew innermost-Matroska extractor swap kept.
+- player/PlayerNowPlayingController.android — Mew (imports + followSslRedirects).
+- core/ui/LoadingIndicator — Mew spoke spinner (Mew look).
+- details/components/DetailHero — luq structure (trailer inside backdrop box, BackdropFocus reveal, MiniPlayer guard) with Mew scrollOffsetProvider + Boolean heroTrailerPlayWhenReady.
+- home/HomeCatalogSettingsSyncService — Mew remote selection (adds heroAutoScroll + hideCatalogUnderline standalone merge); luq only relocated code.
+- core/ui/ShelfComponents — union: Mew duplicate-safe keys + row reset + focusGroup, luq ScreenActivityEffect + withVerticalBar.
+- home/components/HomePosterCard — luq images/fallback/clearlogo logic + Mew optional posterCardStyle param.
+- home/components/HomeSkeletonLoading — Mew static skeleton brush; params union (Mew posterArt/streamingShowcase + luq heroStyle).
+- mdblist/MdbListMetadataService — luq logging + Mew behavior (keep existing ratings on skip, merge ratings).
+- player/MiniPlayer — Mew PlayerLaunch-based MiniPlayerHost (App.kt uses it); luq isActive also true while parked in PiP; luq canHandOffToMiniPlayer/handOffToMiniPlayer helpers added.
+- player/PlayerEngine (common) — union: Mew refreshSubtitlePosition + luq network speed/volume/audio delay/amplification/center mix API (duplicate setVideoZoom dropped).
+- player/PlayerModels — union: PlayerLaunch Mew random-episode/initial stream fields + luq subtitleExtras/sourceFilename/stream/link-cache flags; snapshot keeps Mew nullable media fields (videoWidth Int?, codecs, HDR) + luq mediaInfoJson/cast/anime/disc fields.
+- player/PlayerScreen — union of params (Mew random episode, initial stream, mini player launch; luq subtitle extras, launchId, source flags, party media).
+- player/PlayerScreenRuntimeChapters — union: Mew snapshot-chapter adoption + luq chapter panel helpers.
+- player/PlayerSettingsStorage (expect) — union, duplicates removed.
+- player/StreamInfoOverlay — KEPT MEW (detailed source/video/audio/subtitle info incl. addon id, filename, info hash, codecs, HDR); luq redesigned overlay not taken.
+- player/skip/NextEpisodeCard — Mew (swipe-dismiss toggle).
+- player/SubtitleAudioModels — union: Mew shadow/outline constants + luq audio delay/amplification/downmix models; Mew subtitle style fields (outlineWidth default 1, shadow).
+- settings/IntegrationsSettingsPage — union: Mew AI assistant row + luq Debrid row.
+- settings/SettingsComponents — union: Mew highlighted switch row + luq horizontalPadding param.
+- settings/SettingsModels — KEPT MEW categories (Account/General/Enhanced/About/Advanced) and Mew parent pages; luq pages added (Layout, About, WhatsNew, Playback sub-pages, DebugLogs, MediaServers/MediaServer, Omdb, LiveTv) mapped into Mew categories; luq Downloads settings page and DiscordRpc page dropped; icon map extended for Mew pages.
+- settings/SettingsRootPage, SettingsSearch — KEPT MEW (root sections, Enhanced section, Telegram, new-feature highlights).
+- features/discord (luq Rich Presence) — NOT ADDED: Mew removed Discord and its CI branding gate forbids "Discord".
+- (discord drop) removed Discord row/param in IntegrationsSettingsPage, onDiscordClick in SettingsScreen, BindDiscordRpcEffects() call in PlayerScreenRuntimeEffects.
+- features/updater/* — KEPT MEW wholesale (Mew GitHub releases, enhanced/cmp-rewrite channels). luq update-channel files (AppUpdaterRepository, ReleaseSelector, UpdateChannel, UpdatePreferences, VersionUtils, UpdateChannelSettings + tests) NOT added.
+- streams/StreamsTabletLayout — luq layout (liquid glass, smart streams, search field) + Mew episode overview and source pinning args.
+- streams/BingeGroupCacheRepository — Mew (same behavior, compact form).
+- tmdb/TmdbService — Mew v4 bearer-token support + luq InAppLogger logging.
+- watching/domain/SeriesContinuity — Mew (equivalent logic; matches surrounding Mew `?.let`).
+- addons/AddonPlatform.android — luq AddonHttpClientProvider (HTTP cache, dispatcher, NetworkErrorInterceptor[luq-only file]) using Mew ConfiguredDnsOverHttps DoH; Mew executeCancellableRequest call sites; luq bodyBytes request body.
+- core/network/SupabaseProvider — luq (switchable server config, rate-limit plugin, safe retry, Storage, reset) with Mew's longer HTTP timeouts.
+- debrid/DebridStreamPresentation — luq (cosmetic + languageRegex helper).
+- commonTest player/PlayerScreenRuntimeStateTest — union of both test sets.
+- player/PlayerScreenArgs + PlayerScreen — removed duplicate onOpenPartyMedia (kept Mew nullable, default null); RuntimeParty uses ?.invoke.
+- details/PersonDetailScreen — union: Mew favorite people + credit collections, luq fullyWatchedSeriesKeys.
+- details/components/DetailTrailersSection — luq Menu/MenuItem (core/ui/Menu.kt luq-only) + Mew cardDepthStyle.
+- player/PlayerSurfaceGestures — Mew volume-boost-percent gesture algorithm (matches Mew audio boost UI) + luq gesture-end logging; luq setCombinedVolumeLevel left available in PlayerScreenSupport.
+- player/PlayerTrackSelection — luq whole file + Mew hook findPreferredTrackIndex (used by kept Mew TrackActions).
+- player/PlayerPlaybackOverlays — union: Mew stable-opening-overlay toggle + swipe-dismiss next card; luq movie recommendation card, skip/card stacking, loading status message + network speed (speed shown on Mew StableOpeningOverlay which already supports it).
+- player/SubtitleModal — KEPT MEW dispatcher (Enhanced vs Nuvio selector style). luq's modal changes (structure keys, duplicate-safe lazy keys, fling-stop clicks, addon title/label, AutoSyncedChip, sync-by-ear) ported into Mew's NuvioSubtitleModal.kt.
+- player/SubtitleStylePanel — KEPT MEW (sync panel, style cards, autosync controls); appended luq shared controls SubtitleStyleSection/SubtitleStyleStepper(+button, hold repeat)/SubtitleTextAction needed by luq AudioTrackModal and SubtitleAppearanceControls (luq-only add).
+- profiles/ProfileModels — union: Mew background_url (presets/GIF/custom) + luq profile_background_id/url; Mew upstream push payload; luq avatarImageUrl access path.
+- search/SearchScreen — luq ScreenActivityEffect (pauses work when screen inactive) with Mew keys (CloudStream refresh, TMDB enabled) + Mew TV layout via luq rememberPosterGridColumnCount(tvLayout).
+- settings/AppearanceSettingsPage — KEPT MEW (theme catalog, nav bar style, home/streams/detail links, native tab bar toggles) + luq app background section (luq-only AppBackgroundSettingsSection), liquid glass effects toggle, iOS RTL restart dialog, selected marker in language sheet.
+- settings/PlaybackSettingsPage — KEPT MEW single-page playback settings (all Mew options). Luq's split sub-pages (Playback*Settings.kt) not added. TODO: luq-only options without Mew UI: audio output channels, libass render mode/scale, skip-intro offset (repo setters exist).
+- player/PlayerSurfaceGesturesTest — KEPT MEW (matches Mew gesture implementation).
+- player/PlaybackMediaItems.android — luq (background-dispatched local sniffing, remote HLS/DASH header sniffing) + Mew includeLocalContent flag, internal mimeTypeFromHeader.
+- player/PlayerPlatformEffects.android — KEPT MEW orientation logic (MiniPlayer release, config-change safe) + luq FullscreenPlayerDialog/HidePlayerSystemBars, brightness 0..1 + persisted brightness wrapper. EnterImmersivePlayerMode delegates to HidePlayerSystemBars (Mew player is not a dialog). Needs luq-only AudioOutputKey.android.kt.
+- player/SubtitleFileCache — Mew (shared client, URL validation, redacted logs) + luq local file: subtitle copy.
+- details/EpisodeWatchedActionSheet — KEPT MEW sheet layout (download/tracking/season actions) + luq episode/season rating rows styled as Mew rows.
+- player/PlayerNextEpisodeAutoPlay — luq (smart ranking, preload, offline guard, debrid fallback resolve, tried list) + Mew current-provider-first, binge helpers, prepareOnly/onPrepared for NextEpisodeCard.
+- player/PlayerScreenContent — Mew MiniPlayer attach/hand-off, TV layout metrics/text scale, layoutSize PiP + luq derived snapshot states, docked party panel, video-frame liquid glass backdrop (HDR-aware). Luq LocalPlayerMiniPresentation/BindMiniPlayerEffects dropped (Mew MiniPlayer). Also restored luq getMediaInfo/applyAudioLanguagePreferences in PlayerEngine.kt.
+- player/PlayerScreenRuntimePlaybackActions — luq runtime (PlaybackKey, auto-subtitle reset, server sources, openStreamInfo, manual engine switch) + Mew surface source URL, subtitle lock/addon fallback resets, queued scrobble, remote progress tick, Mew Auto-engine failover.
+- player/PlayerSubtitleCueParser — LUQ whole file (more robust SRT/VTT/ASS/TTML parsing with end times; covers Mew's end-time fix). SubtitleSyncCue.endTimeMs switched to luq non-null default (start+5s); Mew call sites still compile.
+- profiles/AvatarRepository — KEPT MEW (off-main decode, Mew catalog). Luq member-avatar catalog depends on luq membership module (not adopted). Added optional force param for API compatibility.
+- home/HomeContinueWatchingSection — KEPT MEW (TV visual scale, data-source key, compact air date, smart-signal pill) + luq poster-card-style sizing, localized episode titles, shuffle badge (luq shuffle module added). Removed duplicate localizedEpisodeTitle in LocalizedUiText.
+- player/PlayerScreenRuntimeSourceActions — union: luq subtitle request extras, playback filename, cancelNextEpisodeAutoPlay + Mew p2p info hash, external subtitles, next-episode preparation resets. Needs luq-only AddonSubtitleLoader.kt.
+- player/PlayerScreenRuntimeTrackActions — KEPT MEW (manual subtitle lock, add-on fallback after built-in scan, forced-flag persistence, episode-safe add-on restore, engine-switch track carry; already contains AutoSync restore hook). Luq's alternative selection rewrite not taken.
+- settings/SupportersContributorsPage — KEPT MEW (donation goal/supporter count UI). Luq membership-based supporters list depends on luq membership backend.
+- simkl/SimklApplicationAdapters — Mew (pushable filter, optimistic progress merge, refreshEpisodeProgress) + luq projection cache, poster in completed moves, hidden-from-CW ids, publication lock.
+- tmdb/TmdbSettingsRepository — KEPT MEW (setBoolean helper, key migration, enrichment invalidation, device language default) + luq episode-rating and API-key change invalidation.
+- details/SeriesPlaybackResolverTest — Mew (format-agnostic localized label assertions).
+- watching/domain/SeriesContinuityTest — Mew (localized label assertions).
+- App.kt — KEPT MEW monolithic shell (luq split it into AppGate/MainAppContent/*Destination files; those split files are NOT added since Mew's shell already defines them). Added from luq: Custom poster / Plex / Silo artwork interceptors in the image loader, `platformProvidesImageLoader` guard, AppBackgroundHost wrapper inside the theme, `setPlayerParkedInPictureInPicture`.
+- core/ui/PlatformImageLoader.android — added `platformProvidesImageLoader = false` actual.
+- core/ui/NavigationBar — Mew theme palette/gradient gating + luq compact icon size.
+- player/SubtitleRepository — luq structure (AddonSubtitleLoader, request extras, video-hash computation, loading progress) + Mew fetch-generation guard, stable add-on order aggregation, http(s)-only subtitle URL filter (also applied in AddonSubtitleLoader). AddonSubtitleLoader.kt added from luq.
+- profiles/ProfileSelectionScreen — KEPT MEW (profile backgrounds, member wordmark, avatar catalog cards).
+- plugins/PluginRepository (full) — KEPT MEW refresh dedupe (refreshLock, lazy job, diagnostics) + quality exclusion; added luq local-plugin search pause (expect/actuals for all flavors). Unused luq activeRefreshJobsLock left only as declaration.
+- core/ui/Components — luq screen metrics (pinned header, side bleed), dynamic artwork transparency, vertical bar padding, keeping Mew backgroundColor param, Mew title style (2 lines) and Mew animated accent primary button.
+- details/components/DetailMetaInfo — KEPT MEW premium/standard overview, ratings sheet, season/episode counts; accepts luq params (horizontalScrollPadding, showOverallRatings, isMdbListActive), showOverallRatings hides the IMDb score; DetailRatingsRow takes luq modifier + Mew onClick.
+- profiles/ProfileEditScreen — KEPT MEW (profile background picker, avatar catalog).
+- profiles/ProfileRepository — KEPT MEW (IO cached load, background overrides, mutation results) + luq ServerRepository/BatchDownload/ProfileSettingsSync profile-change hooks and profile_background_id/url passthrough.
+- settings/ThemeSettingsRepository — KEPT MEW theme model (MEW default, two custom colors, Liquid Glass on/off + auto-hide, legacy theme migration). Added luq API on top: tab bar behavior (kept in sync with Mew toggles), dynamic artwork background, catalog accent, customThemeColors view derived from Mew colors, selectedThemePreference, setCustomTheme mapped to Mew colors. Removed luq membership-gated themes.
+- settings/ThemeSettingsStorage.android — union: Mew custom first/second colors + auto-hide key; luq tab bar behavior, dynamic artwork, catalog accent keys, nav bar position, raw sync of style/position and nav glow sync. luq 3-color custom theme key not used.
+- settings/ThemeSettingsStorage.ios — brought in line with the merged expect (Mew first/second custom colors + auto-hide; it previously only had luq's 3-color key).
+- details/components/DetailActionButtons — KEPT MEW layout (download/side/featured actions, focus requester); DetailSecondaryAction gains luq optional drawable field.
+- library/LibraryScreen — KEPT MEW screen (downloads tab, release-calendar cache, sticky header); switched to shared public LibraryViewMode (Downloads->Downloaded), ADDED luq Servers tab (ServerRepository + serverLibraryContent, new onPreviewClick/onPreviewLongClick/onCatalogClick params) and exhaustive titles for luq MDBList/AniList/WeTrakr/PublicMetaDB sources. luq list-management/filters/genre-year not adopted (TODO).
+- player/PlayerScreenRuntimeGestureActions — MEW seek path (manualSeekTargetPosition/rememberManualSeekPosition, 2x volume boost accent, playerSkipStepMs) unified with LUQ party lock/publish, pending-seek window, auto-subtitle rewind/volume hooks, keyboard shortcuts, changeVolumeBy, speed picker, zoom feedback icon. New trySeekToPosition(): Boolean.
+- SettingsScreen.kt: rebuilt from LUQ; Mew via mew/MewSettingsHost.kt (LocalMewSettingsHost, mewSettingsPageContent, header style); Downloads/Discord branches dropped; Mew args on profile/contentDiscovery/homescreen/tracking/integrations calls marked // Mew hook. AppearanceSettingsPage (Mew) gained showLayoutEntries=false default (Layout page owns nav/tab-bar + home/streams/detail rows).
+- ProfileInsightsSettingsPage.kt: LUQ redesign; Mew favorite people/concierge/profile background moved to settings/mew/MewProfileInsights.kt (hooks).
+- TrackingProviderCards.kt: LUQ redesign (expandable cards, device code, MDBList/AniList/WeTrakr/PublicMetaDB). Mew MyAnimeList (+legacy AniList while connected), VIP-unavailable panel, anime prefs → settings/mew/MewTrackingProviderCards.kt.
+- PlayerSettingsRepository.kt: union via tools/union.py (luq wins on shared keys: chapterTitle default, miniPlayer, pauseOverlay, skip seconds); luq libass/preload/privateViewing/iOS EDR + SubtitleDevicePreferences; Mew brightness/volumeBoost/memory-safe buffers/disk cache/toolbar layout kept. Added luq SubtitleAppearance*, SubtitleDevicePreferences.
+- PlayerSettingsStorage (expect/android/ios): union; luq wins on shared keys (skip seconds, toolbar, pause overlay, chapter title, mini player); subtitle style keys leave sync per luq (device-local), Mew addonSubtitleStartupMode stays synced; iOS gained Mew actuals + missing key consts. New tools: union.py, dedupe_funs.py.
+- PlayerScreenRuntimeState: union (luq var externalSubtitles, mutable settings state, party/media-info/preload/engine failover/auto-subtitle state); Mew P2P filename identity, randomEpisode, live-tv flag, next-episode preparation, subtitle cache kept; removed auto-merge duplicates (Mew's earlier compressed luq ports).
+- Auto-merge duplicate cleanup (tools/dupdecl.py + dedupe_funs.py): PlaybackMediaItems.android, TmdbSettingsStorage android/ios, TmdbSettingsRepository (kept timestamped setApiKey + hero-artwork title language), AppUrlBridge Party, SupabaseEndpointConfig.realtimeUrl, PlatformInsets ResizeForKeyboard, PlayerScreenRuntimeChapters, PlayerScreenRuntimeSubtitleActions, SkipIntroApi, SimklApplicationAdapters, SimklProjections, TrackingReads, JsBindings timerPolyfill.
+- streams/StreamsRepository.kt, player/PlayerStreamsRepository.kt, streams/StreamSearchSessions.kt: LUQ rewrite (shared StreamSearchSessions, smart auto-play, media servers, downloaded-stream group, InAppLogger, DirectDebridStreamPreparer). Mew CloudStream providers, plugin quality filter, plugin scraper timeout/concurrency gate, RuntimeDiagnostics moved to streams/mew/MewStreamSearchExtras.kt; wired through `// Mew hook` lines (StreamSearchTargets.mewExtras, load params parentMetaType/searchTitle). Downloaded group adapted to Mew downloads model. Dropped Mew request-generation guards (superseded by sessions) and per-provider CloudStream flattening (grouped providers resolve with internal concurrency).
+- PlayerScreenRuntimeParty.kt: LUQ whole (newer watch-party impl; Mew's earlier port superseded)
+- MainActivity.kt: union of storage inits (luq Omdb/UserRatings/AppFileCache/ServerConfig/SeekPreview + Mew DnsOverHttps/FavoritePeople/TMDB preview/enrichment, Mew downloads platforms, backup/font bridges, AppSystemUiController, shared stream intent); luq splash keep-on-screen + deferred intent handling
+- StreamsScreen.kt + StreamsTabletLayout.kt: LUQ (search field, smart streams, backgrounds, luq source pinning in ProviderFilterRow.kt supersedes Mew pinning). Mew hooks: CloudStream searchTitle/parentMetaType, episode synopsis (mew/MewStreamsScreenExtras.kt + tablet panel), direct auto-play overlay. Mew party streamHighlight replaced by luq outlined shared stream.
+- iosApp ContentView.swift, Player/MPVPlayerBridge.swift: kept MEW (Mew app shell + iosMain PlayerBridge.kt unchanged; luq iOS shell/bridge rewrite not adopted)
+- PlayerSidecarSubtitles.android.kt (+host test): LUQ (cursor, audio delay, subtitle appearance presentCues, AutoSync hook); API compatible with Mew callers
+- AddonRepository.kt: MEW (profile-generation guards, pending local flush, version tracking) + LUQ tracking-addon consent flow (pendingTrackingConsent/requestTrackingConsent/installWithTrackingConsent, installManifest split). Luq InAppLogger lines not ported.
+- MetaScreenSettingsRepository.kt, HomeCatalogSettingsRepository.kt: union (LUQ + Mew-only settings: heroTrailerSound, randomEpisodeButton, VerticalHorizontal cards, showEpisodeRatings/DownloadAction/AnimeTrackingPencil; hero autoscroll/motion preview, hideCatalogUnderline, cloudStreamProviderId)
+- HomeHeroSection.kt: LUQ verbatim. Mew hero moved to home/components/mew/MewHomeHeroSection.kt (MewHomeHeroSection/MewHomeHeroReservedSpace; shares upstream homeHeroLayout). HomeSkeletonLoading: merged card-style + Mew poster/showcase heights.
+- HomeScreen.kt: MEW layout (smart shelves, premium refresh/haptics, CloudStream rows & CS3 menu, Mew empty states) + LUQ auto-merged logic (ScreenActivityEffect, shuffle, custom posters, next-up seed fixes) + LUQ CW fallback identity/subtitle fixes + server-library empty-state check; hero hook: upstream HomeHeroSection when heroStyle==CARD or trailer playback enabled, else MewHomeHeroSection. Not adopted: luq DynamicArtworkBackground, next-up publish batching, homeContinueWatchingSections refactor.
+- HomeRepository.kt: hybrid. MEW CloudStream home shelves/provider filter, completed-request short-circuit, localized hero artwork, collection-hero timeouts; LUQ concurrent throttled catalog fetch (now over Mew pendingRequests), media-server sections (toServerSection), custom poster overlay, forceRefresh, snapshot save, keep-visible-hero-while-pending.
+- tmdb/TmdbMetadataService.kt: MEW base + luq APIs (cachedOriginalTitle/originalTitle, fetchLocalizedBackdrop, prefetchEnrichment, fetchMoreLikeThisPage paged); image models moved to luq TmdbImages.kt (+Mew vote fields hook)
+- details/MetaDetailsRepository.kt: MEW base (generation guards, RuntimeDiagnostics, CloudStream, coordinator) + luq media-server details (load/fetch), fetchLightweight/MetaLookupOutcome, withPreferredMoreLikeThis, clearCachedMetadata, fetch(useCache), Simkl+paged Trakt more-like-this, OMDb episode ratings, custom poster URLs, supportsResource, fetchAddonResponseText. luq offline download metadata not adopted (Mew downloads kept). TmdbSettings += useEpisodeRatings.
+- details/components/DetailSeriesContent.kt: LUQ (episode navigator, ratings visibility, download badges, glass cards) + Mew VerticalHorizontal style (EpisodeHorizontalColumn, fullWidth card), TV layout metrics, keyboard focus indicators. Download badge helpers adapted to Mew downloads in downloads/mew/MewDownloadBadgeSupport.kt (Queued->Waiting). Dropped Mew showEpisodeRatings param (superseded by episodeRatingsVisibility) and cardDepthStyle hoisting.
+- search/SearchRepository.kt: MEW base (CloudStream search/discover, TMDB fallback + people, concurrency gate) + luq media-server search & discover libraries, pending/failed addon manifest states, forceRefresh, custom poster URLs, canReuseRequestState. SearchModels: DiscoverCatalogOption.server.
+- player/PlayerScreenRuntimeUi.kt: LUQ (playback key guard, keyboard shortcuts, seek preview, party dock, fold layout, ratings, live channels, server tracks, movie recs, NuvioStatusModal engine switch) + Mew hooks: mini-presentation gesture bypass, quality-aware surface URL & external URL, playback-speed restore, message-based engine failover, liquid-glass providers, quiet device status overlay, clock end time, subtitle sync button/tab, random next-episode mode, prepared next episode (downloads), mini-player hand-off on back, selector styles, manual subtitle lock, Mew StreamInfoOverlay, Mew test helpers.
+- player/PlayerControls.kt: LUQ (new timeline/toolbar layout, legacy layout, fold controls, glass, cast/PiP/rate/chapters/disc titles) + Mew hooks: params for device status overlay, clock end time, subtitle sync, random-episode toggle; quiet-status mode hides gradients/legacy header. New mew/MewPlayerControlsExtras.kt (Mew device-status overlay moved verbatim, random toggle + clock end time column, toolbar SUBTITLE_SYNC/STREAM_INFO actions).
+- player/PlayerToolbarLayout.kt + settings/PlayerToolbarSettingsDialog.kt: LUQ (configurable toolbar with overflow) + Mew SUBTITLE_SYNC/STREAM_INFO buttons (Mew storage ids kept; Mew CHANNELS id dropped → luq live channels button). PlayerControlActions: + onSubtitleSyncClick (Mew hook).
+- player/PlayerScreenRuntimeEffects.kt: LUQ (active-playback guards, network condition, server tracks, shuffle, movie recommendations, auto-skip with notifications, link refresh via playReplacementSource) + Mew hooks: addon-subtitle startup policy, add-on subtitle fallback effect, status-bar visibility preference, quality-aware reset, prepared next-episode stream effect, in-player random mode (when luq shuffle is off), download/prepared auto-play (mew/MewPlayerNextEpisode.kt), CloudStream parent ids on credential refresh. Dropped luq hasScannedTextTracksOnce (Mew TrackActions kept).
+- details/MetaDetailsScreen — KEPT MEW screen (cinematic header, Mew action buttons, offline mode, random play, Mew episode ratings) + adapters for luq components: HeroTrailerAudioState per-surface (Details), DetailSeriesContent hoisted season state via rememberEpisodeNavigatorState + rememberEpisodeDownloadLookup + episodeRatingsVisibility. TODO: luq tablet hero/user ratings sheet/shuffle/play externally/from start/pending tracking removal not adopted on this screen.
+- player/PlayerEngine.android — TAKEN LUQ engine (cast bridge, bluray/disc, anime shaders, audio delay/amplification/center mix, libmpv ASS, chapters, media info, live TV load control, luq libmpv command queue) + Mew hooks: buildPlaybackLoadControl(memorySafeBufferEnabled), refreshSubtitlePosition (Exo+mpv). Mew-only test helpers moved to player/mew/MewPlayerEngineHelpers.android.kt. Dropped Mew engine internals: labelled executeMpv/operation gate, mpv HDR diagnostics, audio-route recovery, async subtitle MIME probing, AutoSync extractor wrap, Mew setVolumeBoost (luq 0-200% volume replaces it).
+- settings/SettingsConfigTransfer.kt: LUQ settings backup adapted (no Discord / luq downloads / update channel sections; custom theme colors -> Mew first/second color storage).
+- downloads: luq DownloadSubtitles replaced by downloads/mew/MewDownloadSubtitles.kt (reads Mew DownloadItem.externalSubtitles). streams/StreamSourcePrefillSelector.kt (luq downloads-only) removed.
+- library: luq release-schedule entry points (profile insights "Upcoming", Advanced clear cache) provided by library/mew/MewLibraryReleaseSchedule.kt on Mew LibraryScreen.
+- profiles: luq membership backgrounds (ProfileBackgroundBackdrop/Picker) not adopted; Mew background presets kept. ProfileSelectionRouting.kt: LUQ (activeProfileIndex).
+- updater: Mew AppUpdater kept; GitHubReleaseDto/AssetDto made internal (+published_at). luq What's New support (UpdateChannel/UpdatePreferences/ReleaseSelector/GITHUB_* + in-memory cache) in updater/mew/MewWhatsNewUpdaterCompat.kt, pointed at Mew releases.
+- core/network/ServerConfiguration.kt: LUQ (custom server saveCustom/useOfficial).
+- streams/PartyStreamsIntegration.kt (Mew): now uses luq StreamCard LocalSharedStream/LocalStreamHighlight/SharedStream.
+- Dedupes: HomeScreen dropNextUpItemsClaimedByOtherSeries/distinctBySeedContentIdentity, PlayerScreenRuntimeEffects isControllerOnActivePlayback, skip segmentCategory (kept SkipModels).
+- expect/actual: NativeTabBridge.android (publishNativeTabBarBehavior, accent gradient), HeroTrailerPlayerSurface startPositionMs (+playstore/iOS app store actuals).
+- Strings: new/changed user-facing strings rebranded Nuvio->Mew (keeps upstream Nuvio / Nuvio Supporter / Supporting Nuvio / Nuvio tier / Nuvio web panel).
+- HomeCatalogSettingsSyncService: restored Mew version (legacy multi-platform pull); luq shared-settings cache not adopted (CI fix).
+- player/PlayerQualitySelector: luq version (selectedVariantFor, logging) + Mew forceHls param (// Mew hook).
+- details/components/DetailMetaInfo: restored Mew version (auto-merge was broken) + luq RatingsRow/ImdbRatingSourceLabel(storeTextStyle)/DetailHeroMetaBadge(secondaryText) for luq HomeHeroMetaRows; TabletDetailHero.kt (unused luq) removed.
+- player/SubtitleForwarder, AddonSubtitleLoader: luq verbatim (Mew never changed; auto-merge had dropped luq extras/url filter).
+- settings/ThemeColorPicker.kt — LUQ whole file (needed by luq NavigationBarSettingsSheet).
+- tmdb/TmdbMetadataService.kt: ported luq per-episode ratings (TmdbEpisodeEnrichment voteAverage/imdbVoteAverage, season episode vote_average, applyEnrichment tmdbRating/imdbRating gated by useEpisodeRatings, episode fetch gating) + luq text helpers (containsCjkOrHangul, resolvePersonName, discover CJK helpers) + talk-show guest filter on person TV credits. Luq localized person-name/discover English fallback wiring NOT ported (TODO).
+- details/MetaDetailsRepository: useEpisodeRatings added to TMDB enrichment fingerprint.
+- streams/StreamsRepository: Mew hook shouldReuseStreamRequest restored (dead loading job restarts instead of being reused).
+- settings/MemberBrandWordmark: Mew whole file (merge had garbled it).
+- tests: MpvOperationGateTest removed (Mew engine internals dropped with luq engine); NextEpisodeCardTest/PlayerSurfaceGesturesTest kept Mew + new luq params; PlayerToolbarLayoutTest uses STREAM_INFO (CHANNELS dropped); AutoSyncHttpIndexTest (luq) + mockwebserver 5.3.2 test dependency (same as luq build).

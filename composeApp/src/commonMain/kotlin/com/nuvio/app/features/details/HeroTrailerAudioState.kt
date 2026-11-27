@@ -4,15 +4,29 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-object HeroTrailerAudioState {
-    private val _muted = MutableStateFlow(true)
-    val muted: StateFlow<Boolean> = _muted.asStateFlow()
+enum class HeroTrailerSurface {
+    Home,
+    Details,
+}
 
-    fun toggleMuted() {
-        _muted.value = !_muted.value
+object HeroTrailerAudioState {
+    private val states = HeroTrailerSurface.entries.associateWith { MutableStateFlow(true) }
+
+    fun muted(surface: HeroTrailerSurface): StateFlow<Boolean> = state(surface).asStateFlow()
+
+    fun toggleMuted(surface: HeroTrailerSurface) {
+        val state = state(surface)
+        state.value = !state.value
     }
 
     fun setMuted(muted: Boolean) {
-        _muted.value = muted
+        states.values.forEach { it.value = muted }
     }
+
+    fun applyStartMuted(surface: HeroTrailerSurface, muted: Boolean) {
+        state(surface).value = muted
+    }
+
+    private fun state(surface: HeroTrailerSurface): MutableStateFlow<Boolean> =
+        states.getValue(surface)
 }

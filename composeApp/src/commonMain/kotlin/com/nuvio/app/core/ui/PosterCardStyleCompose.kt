@@ -1,7 +1,6 @@
 package com.nuvio.app.core.ui
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import kotlin.math.roundToInt
@@ -9,7 +8,8 @@ import kotlin.math.roundToInt
 @Composable
 internal fun rememberPosterCardStyleUiState(): PosterCardStyleUiState {
     PosterCardStyleRepository.ensureLoaded()
-    val uiState by PosterCardStyleRepository.uiState.collectAsState()
+    val shared = LocalPosterCardStyleState.current
+    val uiState = shared?.value ?: PosterCardStyleRepository.uiState.collectAsState().value
     val tvLayout = LocalTvLayoutProfile.current
     return remember(uiState, tvLayout) {
         if (!tvLayout.enabled) {

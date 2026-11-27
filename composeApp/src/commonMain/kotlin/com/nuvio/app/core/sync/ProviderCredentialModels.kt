@@ -44,7 +44,7 @@ internal data class ProviderCredentialSnapshot(
         val remoteByProvider = rows.associateBy { it.provider.lowercase() }
         return copy(
             values = values.map { local ->
-                val remote = remoteByProvider[local.provider] ?: return@map local
+                val remote = remoteByProvider[local.provider.lowercase()] ?: return@map local
                 val element = remote.credentialJson[local.field] as? JsonPrimitive
                     ?: error("Invalid credential payload for ${local.provider}")
                 val value = element.contentOrNull
@@ -91,6 +91,8 @@ private fun shouldApplyRemoteCredential(
     if (localUpdatedAt != null) {
         return remoteUpdatedAtEpochMs != null && remoteUpdatedAtEpochMs > localUpdatedAt
     }
+    // A dated remote revision (including a deliberate clear) always beats an undated local value.
+    if (remoteUpdatedAtEpochMs != null) return true
     // Legacy TMDB/MDBList keys are migrated as authoritative instead of being erased by an
     // undated tombstone left by an older client. Other providers retain their existing behavior.
     val supportsPersistedRevision = local.provider == ProviderCredentialIds.TMDB ||

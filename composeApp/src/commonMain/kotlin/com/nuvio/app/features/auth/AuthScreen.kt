@@ -31,7 +31,15 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
+import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.foundation.text.input.TextObfuscationMode
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.TextFieldDecorator
+import androidx.compose.foundation.text.input.KeyboardActionHandler
+import androidx.compose.foundation.text.BasicSecureTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -46,6 +54,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -54,6 +64,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.autofill.ContentType
+import androidx.compose.ui.platform.LocalAutofillManager
+import androidx.compose.ui.semantics.contentType
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithCache
@@ -71,19 +85,19 @@ import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nuvio.app.core.auth.AuthRepository
+import com.nuvio.app.core.auth.DeviceLinkAuthRepository
+import com.nuvio.app.core.auth.DeviceLinkAuthState
+import com.nuvio.app.core.build.AppFeaturePolicy
 import com.nuvio.app.features.settings.AppBrandWordmark
 import kotlin.math.abs
 import kotlin.math.cos
@@ -110,14 +124,14 @@ import nuvio.composeapp.generated.resources.compose_auth_terms_prefix
 import nuvio.composeapp.generated.resources.compose_auth_welcome_back
 import org.jetbrains.compose.resources.stringResource
 
-private val AuthTextPrimary = Color(0xFFF5F7F8)
-private val AuthTextSecondary = Color(0xFF969CA3)
+internal val AuthTextPrimary = Color(0xFFF5F7F8)
+internal val AuthTextSecondary = Color(0xFF969CA3)
 private val AuthTextMuted = Color(0xFF6E7178)
 private val AuthPrimaryButtonBackground = Color(0xFFF5F5F5)
 private val AuthPrimaryButtonText = Color(0xFF111111)
-private val AuthFieldBackground = Color.White.copy(alpha = 0.04f)
+internal val AuthFieldBackground = Color.White.copy(alpha = 0.04f)
 private val AuthFieldBackgroundMobile = Color.White.copy(alpha = 0.035f)
-private val AuthFieldBorder = Color.White.copy(alpha = 0.08f)
+internal val AuthFieldBorder = Color.White.copy(alpha = 0.08f)
 private val AuthPaneBackground = Color.White.copy(alpha = 0.022f)
 private val AuthPaneBorder = Color.White.copy(alpha = 0.07f)
 private val AuthDividerColor = Color.White.copy(alpha = 0.10f)
@@ -187,6 +201,8 @@ fun AuthScreen(
     modifier: Modifier = Modifier,
 ) {
     val authError by AuthRepository.error.collectAsStateWithLifecycle()
+    val deviceLinkAuthState by DeviceLinkAuthRepository.state.collectAsStateWithLifecycle()
+    val serverConnectionState by ServerConnectionController.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
     var isSignUp by rememberSaveable { mutableStateOf(false) }
@@ -196,9 +212,12 @@ fun AuthScreen(
     var isLoading by rememberSaveable { mutableStateOf(false) }
     var emailFieldBounds by remember { mutableStateOf<Rect?>(null) }
     var passwordFieldBounds by remember { mutableStateOf<Rect?>(null) }
+    var showServerSheet by rememberSaveable { mutableStateOf(false) }
+    var showOfficialServerDialog by rememberSaveable { mutableStateOf(false) }
 
     fun submitAuth() {
         if (email.isBlank() || password.length < 6 || isLoading) return
+        DeviceLinkAuthRepository.cancel()
         isLoading = true
         focusManager.clearFocus(force = true)
         scope.launch {
@@ -209,11 +228,30 @@ fun AuthScreen(
     }
 
     fun toggleAuthMode() {
+        DeviceLinkAuthRepository.cancel()
         isSignUp = !isSignUp
         AuthRepository.clearError()
     }
 
+    fun startDeviceLink() {
+        if (isLoading) return
+        focusManager.clearFocus(force = true)
+        AuthRepository.clearError()
+        DeviceLinkAuthRepository.start()
+    }
+
     val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+
+    LaunchedEffect(serverConnectionState.activeServer.backendUrl) {
+        DeviceLinkAuthRepository.cancel()
+        if (!serverConnectionState.activeServer.isCustom) {
+            showOfficialServerDialog = false
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose(DeviceLinkAuthRepository::cancel)
+    }
 
     Box(
         modifier = modifier
@@ -260,6 +298,8 @@ fun AuthScreen(
                         passwordVisible = passwordVisible,
                         isLoading = isLoading,
                         authError = authError,
+                        deviceLinkAuthState = deviceLinkAuthState,
+                        deviceLinkEnabled = serverConnectionState.activeServer.capabilities.tvLogin,
                         formPaneWidth = if (compactLargeScreen) 460.dp else formPaneWidth,
                         brandHorizontalPadding = brandHorizontalPadding,
                         formHorizontalPadding = formHorizontalPadding,
@@ -278,8 +318,11 @@ fun AuthScreen(
                         onToggleAuthMode = ::toggleAuthMode,
                         onContinueWithoutAccount = {
                             focusManager.clearFocus(force = true)
+                            DeviceLinkAuthRepository.cancel()
                             AuthRepository.signInAnonymously()
                         },
+                        onStartDeviceLink = ::startDeviceLink,
+                        onCancelDeviceLink = DeviceLinkAuthRepository::cancel,
                         onEmailBoundsChange = { emailFieldBounds = it },
                         onPasswordBoundsChange = { passwordFieldBounds = it },
                     )
@@ -291,6 +334,8 @@ fun AuthScreen(
                         passwordVisible = passwordVisible,
                         isLoading = isLoading,
                         authError = authError,
+                        deviceLinkAuthState = deviceLinkAuthState,
+                        deviceLinkEnabled = serverConnectionState.activeServer.capabilities.tvLogin,
                         statusBarTop = statusBarTop,
                         onEmailChange = {
                             email = it
@@ -305,14 +350,76 @@ fun AuthScreen(
                         onToggleAuthMode = ::toggleAuthMode,
                         onContinueWithoutAccount = {
                             focusManager.clearFocus(force = true)
+                            DeviceLinkAuthRepository.cancel()
                             AuthRepository.signInAnonymously()
                         },
+                        onStartDeviceLink = ::startDeviceLink,
+                        onCancelDeviceLink = DeviceLinkAuthRepository::cancel,
                         onEmailBoundsChange = { emailFieldBounds = it },
                         onPasswordBoundsChange = { passwordFieldBounds = it },
                     )
                 }
             }
         }
+
+        if (AppFeaturePolicy.customServerConnectionsEnabled) {
+            ServerConnectionMenu(
+                activeServer = serverConnectionState.activeServer,
+                onUseOfficial = {
+                    ServerConnectionController.resetDiscovery()
+                    showOfficialServerDialog = true
+                },
+                onConnectCustom = {
+                    ServerConnectionController.resetDiscovery()
+                    showServerSheet = true
+                },
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(start = 8.dp, top = statusBarTop + 4.dp),
+            )
+        }
+    }
+
+    if (
+        AppFeaturePolicy.customServerConnectionsEnabled &&
+        showServerSheet &&
+        serverConnectionState.discoveredServer == null
+    ) {
+        ServerConnectionSheet(
+            state = serverConnectionState,
+            onDiscover = ServerConnectionController::discover,
+            onDismiss = {
+                showServerSheet = false
+                ServerConnectionController.resetDiscovery()
+            },
+        )
+    }
+
+    serverConnectionState.discoveredServer?.let { server ->
+        if (AppFeaturePolicy.customServerConnectionsEnabled) {
+            ServerTrustDialog(
+                server = server,
+                isSwitching = serverConnectionState.isSwitching,
+                switchFailure = serverConnectionState.switchFailure,
+                onConfirm = ServerConnectionController::connectDiscovered,
+                onDismiss = {
+                    showServerSheet = false
+                    ServerConnectionController.resetDiscovery()
+                },
+            )
+        }
+    }
+
+    if (AppFeaturePolicy.customServerConnectionsEnabled && showOfficialServerDialog) {
+        OfficialServerDialog(
+            isSwitching = serverConnectionState.isSwitching,
+            switchFailure = serverConnectionState.switchFailure,
+            onConfirm = ServerConnectionController::useOfficial,
+            onDismiss = {
+                showOfficialServerDialog = false
+                ServerConnectionController.resetDiscovery()
+            },
+        )
     }
 }
 
@@ -324,6 +431,8 @@ private fun AuthMobileLayout(
     passwordVisible: Boolean,
     isLoading: Boolean,
     authError: String?,
+    deviceLinkAuthState: DeviceLinkAuthState,
+    deviceLinkEnabled: Boolean,
     statusBarTop: Dp,
     onEmailChange: (String) -> Unit,
     onPasswordChange: (String) -> Unit,
@@ -331,6 +440,8 @@ private fun AuthMobileLayout(
     onSubmit: () -> Unit,
     onToggleAuthMode: () -> Unit,
     onContinueWithoutAccount: () -> Unit,
+    onStartDeviceLink: () -> Unit,
+    onCancelDeviceLink: () -> Unit,
     onEmailBoundsChange: (Rect) -> Unit,
     onPasswordBoundsChange: (Rect) -> Unit,
 ) {
@@ -381,6 +492,8 @@ private fun AuthMobileLayout(
                 passwordVisible = passwordVisible,
                 isLoading = isLoading,
                 authError = authError,
+                deviceLinkAuthState = deviceLinkAuthState,
+                deviceLinkEnabled = deviceLinkEnabled,
                 metrics = MobileAuthFormMetrics,
                 onEmailChange = onEmailChange,
                 onPasswordChange = onPasswordChange,
@@ -388,6 +501,8 @@ private fun AuthMobileLayout(
                 onSubmit = onSubmit,
                 onToggleAuthMode = onToggleAuthMode,
                 onContinueWithoutAccount = onContinueWithoutAccount,
+                onStartDeviceLink = onStartDeviceLink,
+                onCancelDeviceLink = onCancelDeviceLink,
                 onEmailBoundsChange = onEmailBoundsChange,
                 onPasswordBoundsChange = onPasswordBoundsChange,
             )
@@ -404,6 +519,8 @@ private fun AuthLargeLayout(
     passwordVisible: Boolean,
     isLoading: Boolean,
     authError: String?,
+    deviceLinkAuthState: DeviceLinkAuthState,
+    deviceLinkEnabled: Boolean,
     formPaneWidth: Dp,
     brandHorizontalPadding: Dp,
     formHorizontalPadding: Dp,
@@ -415,6 +532,8 @@ private fun AuthLargeLayout(
     onSubmit: () -> Unit,
     onToggleAuthMode: () -> Unit,
     onContinueWithoutAccount: () -> Unit,
+    onStartDeviceLink: () -> Unit,
+    onCancelDeviceLink: () -> Unit,
     onEmailBoundsChange: (Rect) -> Unit,
     onPasswordBoundsChange: (Rect) -> Unit,
 ) {
@@ -501,6 +620,8 @@ private fun AuthLargeLayout(
                     passwordVisible = passwordVisible,
                     isLoading = isLoading,
                     authError = authError,
+                    deviceLinkAuthState = deviceLinkAuthState,
+                    deviceLinkEnabled = deviceLinkEnabled,
                     metrics = formMetrics,
                     scale = scale,
                     onEmailChange = onEmailChange,
@@ -509,6 +630,8 @@ private fun AuthLargeLayout(
                     onSubmit = onSubmit,
                     onToggleAuthMode = onToggleAuthMode,
                     onContinueWithoutAccount = onContinueWithoutAccount,
+                    onStartDeviceLink = onStartDeviceLink,
+                    onCancelDeviceLink = onCancelDeviceLink,
                     onEmailBoundsChange = onEmailBoundsChange,
                     onPasswordBoundsChange = onPasswordBoundsChange,
                 )
@@ -602,6 +725,8 @@ private fun AuthForm(
     passwordVisible: Boolean,
     isLoading: Boolean,
     authError: String?,
+    deviceLinkAuthState: DeviceLinkAuthState,
+    deviceLinkEnabled: Boolean,
     metrics: AuthFormMetrics,
     scale: Float = 1f,
     onEmailChange: (String) -> Unit,
@@ -610,10 +735,17 @@ private fun AuthForm(
     onSubmit: () -> Unit,
     onToggleAuthMode: () -> Unit,
     onContinueWithoutAccount: () -> Unit,
+    onStartDeviceLink: () -> Unit,
+    onCancelDeviceLink: () -> Unit,
     onEmailBoundsChange: (Rect) -> Unit,
     onPasswordBoundsChange: (Rect) -> Unit,
 ) {
     val uriHandler = LocalUriHandler.current
+    val autofillManager = LocalAutofillManager.current
+    val submitWithAutofillCommit: () -> Unit = {
+        autofillManager?.commit()
+        onSubmit()
+    }
     Column(
         modifier = Modifier.fillMaxWidth(),
     ) {
@@ -627,6 +759,7 @@ private fun AuthForm(
             modifier = Modifier.onGloballyPositioned { coordinates ->
                 onEmailBoundsChange(coordinates.boundsInRoot())
             },
+            autofillContentType = ContentType.EmailAddress + ContentType.Username,
             keyboardOptions = KeyboardOptions(
                 keyboardType = KeyboardType.Email,
                 imeAction = ImeAction.Next,
@@ -648,13 +781,12 @@ private fun AuthForm(
             modifier = Modifier.onGloballyPositioned { coordinates ->
                 onPasswordBoundsChange(coordinates.boundsInRoot())
             },
+            autofillContentType = if (isSignUp) ContentType.NewPassword else ContentType.Password,
             keyboardOptions = KeyboardOptions(
                 keyboardType = KeyboardType.Password,
                 imeAction = ImeAction.Done,
             ),
-            keyboardActions = KeyboardActions(
-                onDone = { onSubmit() },
-            ),
+            onImeAction = submitWithAutofillCommit,
         )
 
         authError?.let { errorText ->
@@ -686,7 +818,7 @@ private fun AuthForm(
             enabled = !isLoading,
             height = metrics.primaryHeight,
             scale = scale,
-            onClick = onSubmit,
+            onClick = submitWithAutofillCommit,
         )
 
         Spacer(modifier = Modifier.height(metrics.toggleTop))
@@ -702,6 +834,19 @@ private fun AuthForm(
         AuthDivider(scale = scale)
 
         Spacer(modifier = Modifier.height(metrics.secondaryTop))
+
+        if (!isSignUp && deviceLinkEnabled) {
+            DeviceLinkAuthSection(
+                state = deviceLinkAuthState,
+                enabled = !isLoading,
+                height = metrics.secondaryHeight,
+                scale = scale,
+                onStart = onStartDeviceLink,
+                onCancel = onCancelDeviceLink,
+            )
+
+            Spacer(modifier = Modifier.height(14.dp * scale))
+        }
 
         AuthSecondaryButton(
             text = stringResource(Res.string.compose_auth_continue_without_account),
@@ -773,9 +918,50 @@ private fun AuthTextField(
     passwordVisible: Boolean = false,
     onPasswordVisibilityToggle: () -> Unit = {},
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
-    keyboardActions: KeyboardActions = KeyboardActions.Default,
+    onImeAction: (() -> Unit)? = null,
+    autofillContentType: ContentType? = null,
 ) {
     val shape = RoundedCornerShape(14.dp)
+    val state = rememberTextFieldState(initialText = value)
+    val currentOnValueChange by rememberUpdatedState(onValueChange)
+    LaunchedEffect(state) {
+        snapshotFlow { state.text.toString() }.collect { text -> currentOnValueChange(text) }
+    }
+    LaunchedEffect(value) {
+        if (state.text.toString() != value) state.setTextAndPlaceCursorAtEnd(value)
+    }
+
+    val textStyle = MaterialTheme.typography.bodyLarge.copy(
+        color = AuthTextPrimary,
+        fontSize = (16f * scale).sp,
+        lineHeight = (22f * scale).sp,
+        fontWeight = FontWeight.Normal,
+    )
+    val fieldModifier = Modifier
+        .fillMaxHeight()
+        .then(
+            if (autofillContentType != null) {
+                Modifier.semantics { contentType = autofillContentType }
+            } else {
+                Modifier
+            },
+        )
+    val keyboardActionHandler = onImeAction?.let { action -> KeyboardActionHandler { action() } }
+    val decorator = TextFieldDecorator { innerTextField ->
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.CenterStart,
+        ) {
+            if (state.text.isEmpty()) {
+                Text(
+                    text = placeholder,
+                    style = textStyle.copy(color = AuthTextMuted),
+                )
+            }
+            innerTextField()
+        }
+    }
+
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -792,47 +978,33 @@ private fun AuthTextField(
             tint = AuthTextMuted,
         )
         Spacer(modifier = Modifier.width(12.dp))
-        BasicTextField(
-            value = value,
-            onValueChange = onValueChange,
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxHeight(),
-            singleLine = true,
-            textStyle = MaterialTheme.typography.bodyLarge.copy(
-                color = AuthTextPrimary,
-                fontSize = (16f * scale).sp,
-                lineHeight = (22f * scale).sp,
-                fontWeight = FontWeight.Normal,
-            ),
-            cursorBrush = SolidColor(AuthTextPrimary),
-            visualTransformation = if (isPassword && !passwordVisible) {
-                PasswordVisualTransformation()
-            } else {
-                VisualTransformation.None
-            },
-            keyboardOptions = keyboardOptions,
-            keyboardActions = keyboardActions,
-            decorationBox = { innerTextField ->
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.CenterStart,
-                ) {
-                    if (value.isEmpty()) {
-                        Text(
-                            text = placeholder,
-                            style = MaterialTheme.typography.bodyLarge.copy(
-                                color = AuthTextMuted,
-                                fontSize = (16f * scale).sp,
-                                lineHeight = (22f * scale).sp,
-                                fontWeight = FontWeight.Normal,
-                            ),
-                        )
-                    }
-                    innerTextField()
-                }
-            },
-        )
+        if (isPassword) {
+            BasicSecureTextField(
+                state = state,
+                modifier = Modifier.weight(1f).then(fieldModifier),
+                textStyle = textStyle,
+                keyboardOptions = keyboardOptions,
+                onKeyboardAction = keyboardActionHandler,
+                cursorBrush = SolidColor(AuthTextPrimary),
+                decorator = decorator,
+                textObfuscationMode = if (passwordVisible) {
+                    TextObfuscationMode.Visible
+                } else {
+                    TextObfuscationMode.RevealLastTyped
+                },
+            )
+        } else {
+            BasicTextField(
+                state = state,
+                modifier = Modifier.weight(1f).then(fieldModifier),
+                textStyle = textStyle,
+                keyboardOptions = keyboardOptions,
+                onKeyboardAction = keyboardActionHandler,
+                lineLimits = TextFieldLineLimits.SingleLine,
+                cursorBrush = SolidColor(AuthTextPrimary),
+                decorator = decorator,
+            )
+        }
         if (isPassword) {
             Spacer(modifier = Modifier.width(12.dp))
             Box(
@@ -855,7 +1027,7 @@ private fun AuthTextField(
 }
 
 @Composable
-private fun AuthPrimaryButton(
+internal fun AuthPrimaryButton(
     text: String,
     isLoading: Boolean,
     enabled: Boolean,
@@ -983,7 +1155,7 @@ private fun AuthDivider(scale: Float) {
 }
 
 @Composable
-private fun AuthSecondaryButton(
+internal fun AuthSecondaryButton(
     text: String,
     enabled: Boolean,
     height: Dp,

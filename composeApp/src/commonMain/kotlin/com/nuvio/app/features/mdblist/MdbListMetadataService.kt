@@ -1,7 +1,6 @@
 package com.nuvio.app.features.mdblist
 
-import co.touchlab.kermit.Logger
-import com.nuvio.app.features.addons.httpPostJson
+import com.nuvio.app.core.logging.InAppLogger
 import com.nuvio.app.features.details.MetaDetails
 import com.nuvio.app.features.details.MetaExternalRating
 import com.nuvio.app.features.tmdb.TmdbService
@@ -39,9 +38,8 @@ object MdbListMetadataService {
         PROVIDER_MAL,
     )
 
-    private val log = Logger.withTag("MdbListMetadata")
-    private val json = Json { ignoreUnknownKeys = true }
-    private val ratingsCache = mutableMapOf<String, List<MetaExternalRating>>()
+    private val ratingsRepository = lazy { MdbListRatingsRepository(MdbListTracker.ratings) }
+    private val repository by ratingsRepository
     private val imdbRegex = Regex("tt\\d+")
     private val tmdbRegex = Regex("(?:tmdb[:/])?(\\d+)")
     private const val TmdbToImdbTimeoutMs = 4_000L
@@ -51,8 +49,7 @@ object MdbListMetadataService {
         fallbackItemId: String,
         settings: MdbListSettings,
     ): Boolean {
-        if (!settings.enabled) return false
-        if (settings.apiKey.trim().isBlank()) return false
+        if (!settings.isActive) return false
         if (settings.enabledProvidersInPriorityOrder().isEmpty()) return false
         if (extractImdbId(meta.id) != null || extractImdbId(fallbackItemId) != null) return true
         if (extractTmdbId(meta.id) == null && extractTmdbId(fallbackItemId) == null) return false
@@ -66,78 +63,41 @@ object MdbListMetadataService {
         settings: MdbListSettings,
     ): MetaDetails {
         if (!shouldFetchForMeta(meta, fallbackItemId, settings)) {
+            InAppLogger.debug(
+                "Metadata/MDBList",
+                "skip metaId=${meta.id} fallback=$fallbackItemId enabled=${settings.enabled} " +
+                    "providers=${settings.enabledProvidersInPriorityOrder().joinToString(",")}",
+            )
             return meta
         }
-        val apiKey = settings.apiKey.trim()
+        val credential = settings.credential ?: return meta.copy(externalRatings = emptyList())
 
         val imdbId = resolveImdbId(meta = meta, fallbackItemId = fallbackItemId)
             ?: return meta
         val mediaType = toMdbListMediaType(meta.type)
         val enabledProviders = settings.enabledProvidersInPriorityOrder()
 
-        val ratings = fetchRatings(
+        InAppLogger.info(
+            "Metadata/MDBList",
+            "fetch ratings imdb=$imdbId mediaType=$mediaType providers=${enabledProviders.joinToString(",")}",
+        )
+
+        val ratings = repository.getRatings(
             imdbId = imdbId,
             mediaType = mediaType,
-            apiKey = apiKey,
+            credential = credential,
             providers = enabledProviders,
         )
 
+        InAppLogger.info(
+            "Metadata/MDBList",
+            "ratings result imdb=$imdbId mediaType=$mediaType count=${ratings.size}",
+        )
         return meta.copy(externalRatings = mergeExternalRatings(meta.externalRatings, ratings))
     }
 
     fun clearCache() {
-        ratingsCache.clear()
-    }
-
-    private suspend fun fetchRatings(
-        imdbId: String,
-        mediaType: String,
-        apiKey: String,
-        providers: List<String>,
-    ): List<MetaExternalRating> = withContext(Dispatchers.Default) {
-        val cacheKey = "$mediaType:$imdbId:$apiKey:${providers.joinToString(",")}"
-        ratingsCache[cacheKey]?.let { return@withContext it }
-
-        val ratings = coroutineScope {
-            providers.map { providerId ->
-                async {
-                    fetchProviderRating(
-                        imdbId = imdbId,
-                        mediaType = mediaType,
-                        providerId = providerId,
-                        apiKey = apiKey,
-                    )
-                }
-            }.awaitAll().filterNotNull()
-        }
-
-        ratingsCache[cacheKey] = ratings
-        ratings
-    }
-
-    private suspend fun fetchProviderRating(
-        imdbId: String,
-        mediaType: String,
-        providerId: String,
-        apiKey: String,
-    ): MetaExternalRating? {
-        val url = "https://api.mdblist.com/rating/$mediaType/$providerId?apikey=$apiKey"
-        val requestBody = json.encodeToString(
-            RatingRequest(
-                ids = listOf(imdbId),
-                provider = PROVIDER_IMDB,
-            ),
-        )
-
-        return runCatching {
-            val payload = httpPostJson(url = url, body = requestBody)
-            val parsed = json.decodeFromString<RatingResponse>(payload)
-            val rating = parsed.ratings.firstOrNull()?.rating ?: return@runCatching null
-            MetaExternalRating(source = providerId, value = rating)
-        }.onFailure { error ->
-            if (error is CancellationException) throw error
-            log.w { "MDBList request failed for $providerId/$imdbId: ${error.message}" }
-        }.getOrNull()
+        if (ratingsRepository.isInitialized()) repository.clearCache()
     }
 
     private fun extractImdbId(value: String?): String? {
@@ -195,19 +155,3 @@ object MdbListMetadataService {
         return if (normalized == "movie") "movie" else "show"
     }
 }
-
-@Serializable
-private data class RatingRequest(
-    val ids: List<String>,
-    val provider: String,
-)
-
-@Serializable
-private data class RatingResponse(
-    val ratings: List<RatingItem> = emptyList(),
-)
-
-@Serializable
-private data class RatingItem(
-    val rating: Double? = null,
-)

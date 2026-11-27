@@ -59,6 +59,9 @@ internal val PlayerGlassRim = Color.White.copy(alpha = 0.22f)
 
 internal val LocalPlayerLiquidGlassEnabled = staticCompositionLocalOf { false }
 
+/** False when "Glass Backgrounds on Controls" is off: player buttons and pills draw no backing. */
+internal val LocalPlayerControlGlassEnabled = staticCompositionLocalOf { true }
+
 /**
  * The one glass recipe every player control uses: Kyant backdrop with vibrancy, a light blur, lens
  * refraction and edge highlight, sampled from the live video frame provided by
@@ -85,7 +88,11 @@ internal fun Modifier.playerLiquidGlass(
     fallback: Color = PlayerGlassFallback,
     backdropOpacity: Float = PlayerGlassBackdropOpacity,
     rim: Boolean = true,
+    // Panels (e.g. chapters) keep their glass when the control backings are turned off: their
+    // text needs a backing to stay readable over the video.
+    isControl: Boolean = true,
 ): Modifier {
+    if (isControl && !LocalPlayerControlGlassEnabled.current) return this
     val glass = clip(shape).ambientLiquidGlass(
         shape = shape,
         tint = tint,

@@ -382,7 +382,7 @@ object TraktEpisodeMappingService {
 
     // ── Addon episodes fetching (with dedup) ───────────────────────────
 
-    private suspend fun getAddonEpisodes(
+    internal suspend fun getAddonEpisodes(
         contentId: String,
         contentType: String,
     ): List<EpisodeMappingEntry> {

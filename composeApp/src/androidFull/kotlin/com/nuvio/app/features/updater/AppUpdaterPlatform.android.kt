@@ -13,6 +13,12 @@ actual object AppUpdaterPlatform {
         AndroidAppUpdaterPlatform.setIgnoredTag(tag)
     }
 
+    actual fun getUpdateChannel(): String? = AndroidAppUpdaterPlatform.getUpdateChannel()
+
+    actual fun setUpdateChannel(channel: String) {
+        AndroidAppUpdaterPlatform.setUpdateChannel(channel)
+    }
+
     actual suspend fun downloadApk(
         assetUrl: String,
         assetName: String,

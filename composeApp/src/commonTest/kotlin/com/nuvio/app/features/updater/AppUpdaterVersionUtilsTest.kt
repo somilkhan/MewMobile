@@ -67,4 +67,25 @@ class AppUpdaterVersionUtilsTest {
             ),
         )
     }
+
+    @Test
+    fun `stable release is newer than its beta`() {
+        assertTrue(VersionUtils.isRemoteNewer(remote = "v0.6.0", local = "0.6.0-beta.2"))
+    }
+
+    @Test
+    fun `beta is not newer than the matching stable`() {
+        assertFalse(VersionUtils.isRemoteNewer(remote = "v0.6.0-beta.2", local = "0.6.0"))
+    }
+
+    @Test
+    fun `later beta is newer than earlier beta`() {
+        assertTrue(VersionUtils.isRemoteNewer(remote = "0.6.0-beta.2", local = "0.6.0-beta.1"))
+        assertFalse(VersionUtils.isRemoteNewer(remote = "0.6.0-beta.1", local = "0.6.0-beta.2"))
+    }
+
+    @Test
+    fun `beta of a higher version is newer than current stable`() {
+        assertTrue(VersionUtils.isRemoteNewer(remote = "0.6.0-beta.1", local = "0.5.1"))
+    }
 }

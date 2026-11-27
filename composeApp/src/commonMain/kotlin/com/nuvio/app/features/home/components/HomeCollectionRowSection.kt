@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nuvio.app.core.ui.NuvioCardDepthSurface
 import com.nuvio.app.core.ui.CardDepthStyleUiState
+import com.nuvio.app.core.ui.LocalScreenActive
 import com.nuvio.app.core.ui.rememberCardDepthStyleUiState
 import com.nuvio.app.core.ui.NuvioShelfSection
 import com.nuvio.app.core.ui.PosterLandscapeAspectRatio
@@ -170,7 +171,10 @@ private fun CollectionFolderCard(
                             contentDescription = folder.title,
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop,
-                            animateIfPossible = animateGifs && isAnimatedCollectionFolderImage(folder, imageUrl),
+                            animateIfPossible = animateGifs &&
+                                isAnimatedCollectionFolderImage(folder, imageUrl) &&
+                                LocalScreenActive.current,
+                            fallbackImageUrl = firstNonBlank(folder.coverImageUrl),
                         )
                     }
                     !folder.coverEmoji.isNullOrBlank() -> {
@@ -213,10 +217,16 @@ private fun CollectionFolderCard(
 
 private fun collectionFolderCardImageUrl(folder: CollectionFolder): String? {
     return if (folder.mobileFocusGifEnabled) {
-        firstNonBlank(folder.focusGifUrl, folder.coverImageUrl)
+        firstNonBlank(folder.focusGifUrl?.withPlayableGifExtension(), folder.coverImageUrl)
     } else {
         firstNonBlank(folder.coverImageUrl)
     }
+}
+
+private fun String.withPlayableGifExtension(): String {
+    val path = substringBefore('?').substringBefore('#')
+    if (!path.endsWith(".gifv", ignoreCase = true)) return this
+    return path.dropLast(1) + removePrefix(path)
 }
 
 private fun firstNonBlank(vararg candidates: String?): String? {
@@ -227,6 +237,6 @@ private fun isAnimatedCollectionFolderImage(
     folder: CollectionFolder,
     imageUrl: String,
 ): Boolean {
-    val gifUrl = firstNonBlank(folder.focusGifUrl) ?: return false
+    val gifUrl = firstNonBlank(folder.focusGifUrl?.withPlayableGifExtension()) ?: return false
     return folder.mobileFocusGifEnabled && imageUrl == gifUrl
 }

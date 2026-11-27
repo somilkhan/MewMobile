@@ -4,11 +4,15 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -86,6 +90,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.zIndex
@@ -99,6 +104,8 @@ import androidx.navigation3.ui.NavDisplay
 import androidx.savedstate.serialization.SavedStateConfiguration
 import coil3.ImageLoader
 import coil3.annotation.ExperimentalCoilApi
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
 import coil3.compose.AsyncImage
 import coil3.compose.setSingletonImageLoaderFactory
 import coil3.request.CachePolicy
@@ -135,8 +142,8 @@ import com.nuvio.app.core.ui.NuvioPosterZoomActionOverlay
 import com.nuvio.app.core.ui.PosterZoomAnchor
 import com.nuvio.app.core.ui.PosterZoomAnchorHolder
 import com.nuvio.app.core.ui.PosterZoomOverlayAction
-import dev.chrisbanes.haze.hazeSource
-import dev.chrisbanes.haze.rememberHazeState
+import com.nuvio.app.core.ui.glass.nuvioBackdropSource
+import com.nuvio.app.core.ui.glass.rememberNuvioBackdrop
 import com.nuvio.app.core.ui.NuvioStatusModal
 import com.nuvio.app.core.ui.PlatformBackHandler
 import com.nuvio.app.core.ui.platformExitApp
@@ -230,6 +237,7 @@ import com.nuvio.app.features.player.SubtitleLanguageOption
 import com.nuvio.app.features.player.sanitizePlaybackHeaders
 import com.nuvio.app.features.player.sanitizePlaybackResponseHeaders
 import com.nuvio.app.features.profiles.AvatarRepository
+import com.nuvio.app.features.profiles.MewProfileBackdrop
 import com.nuvio.app.features.profiles.NativeProfileSwitcherPopup
 import com.nuvio.app.features.profiles.NuvioProfile
 import com.nuvio.app.features.profiles.ProfileEditScreen
@@ -472,6 +480,31 @@ private object NativeAppGateRequests {
     }
 }
 
+@Composable
+private fun MewThemedAppSurface(
+    appTheme: com.nuvio.app.core.ui.AppTheme,
+    customFirst: androidx.compose.ui.graphics.Color,
+    customSecond: androidx.compose.ui.graphics.Color,
+    amoled: Boolean,
+    content: @Composable () -> Unit,
+) {
+    NuvioTheme(
+        appTheme = appTheme,
+        customFirst = customFirst,
+        customSecond = customSecond,
+        amoled = amoled,
+    ) {
+        com.nuvio.app.core.ui.background.AppBackgroundHost {
+            content()
+        }
+    }
+}
+
+fun setPlayerParkedInPictureInPicture(parked: Boolean) {
+    com.nuvio.app.core.ui.background.AppBackgroundRepository.setPlayerParked(parked)
+    com.nuvio.app.features.player.MiniPlayerController.parkedInPictureInPicture = parked
+}
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalCoilApi::class)
 @Composable
 @Preview
@@ -490,12 +523,15 @@ fun App(
     onAppReady: ((Boolean) -> Unit)? = null,
     onTabTitles: ((home: String, search: String, library: String, profile: String, switchProfile: String, addProfile: String) -> Unit)? = null,
 ) {
-    setSingletonImageLoaderFactory { context ->
+    if (!com.nuvio.app.core.ui.platformProvidesImageLoader) setSingletonImageLoaderFactory { context ->
         ImageLoader.Builder(context)
             .crossfade(false)
             .diskCachePolicy(CachePolicy.ENABLED)
             .memoryCachePolicy(CachePolicy.ENABLED)
             .components {
+                add(com.nuvio.app.core.poster.CustomPosterFallbackInterceptor())
+                add(com.nuvio.app.features.servers.plex.PlexArtworkInterceptor())
+                add(com.nuvio.app.features.servers.silo.SiloArtworkInterceptor())
                 add(SvgDecoder.Factory())
                 add(
                     coil3.network.ktor3.KtorNetworkFetcherFactory(
@@ -516,7 +552,7 @@ fun App(
     val customThemeSecondColor by remember { ThemeSettingsRepository.customThemeSecondColor }
         .collectAsStateWithLifecycle()
     NuvioKeyboardInputProvider {
-    NuvioTheme(
+    MewThemedAppSurface(
         appTheme = selectedTheme,
         customFirst = customThemeFirstColor,
         customSecond = customThemeSecondColor,
@@ -540,7 +576,7 @@ fun App(
                     NativeAppGateRequests.requestProfileSelection()
                 },
             )
-            return@NuvioTheme
+            return@MewThemedAppSurface
         }
 
         LaunchedEffect(Unit) {
@@ -588,6 +624,12 @@ fun App(
         }
 
         var gateScreen by rememberSaveable { mutableStateOf(AppGateScreen.Loading.name) }
+        // luq parity: the intro always plays for at least AppIntroMinDurationMs before routing.
+        var introHoldElapsed by rememberSaveable { mutableStateOf(false) }
+        LaunchedEffect(Unit) {
+            kotlinx.coroutines.delay(AppIntroMinDurationMs)
+            introHoldElapsed = true
+        }
         var editingProfile by remember { mutableStateOf<NuvioProfile?>(null) }
         var isNewProfile by remember { mutableStateOf(false) }
         var autoSkipProfileSelection by rememberSaveable { mutableStateOf(false) }
@@ -654,7 +696,8 @@ fun App(
             }
         }
 
-        LaunchedEffect(authState, networkStatusUiState.condition, profileState.profiles) {
+        LaunchedEffect(authState, networkStatusUiState.condition, profileState.profiles, introHoldElapsed) {
+            if (!introHoldElapsed) return@LaunchedEffect
             val cachedProfiles = profileState.profiles
             val hasCachedProfileAccess =
                 cachedProfiles.isNotEmpty() &&
@@ -729,13 +772,22 @@ fun App(
             targetState = gateScreen,
             label = "app_gate",
             transitionSpec = {
-                (fadeIn(tween(400)) + scaleIn(tween(400), initialScale = 0.94f))
-                    .togetherWith(fadeOut(tween(250)))
+                if (
+                    initialState == AppGateScreen.ProfileSelection.name &&
+                    targetState == AppGateScreen.Main.name
+                ) {
+                    // luq parity: a quick, unscaled cross-fade so the tapped avatar hands off
+                    // to the launch overlay's emblem in place before it glides to the centre.
+                    fadeIn(tween(180)).togetherWith(fadeOut(tween(180)))
+                } else {
+                    (fadeIn(tween(400)) + scaleIn(tween(400), initialScale = 0.94f))
+                        .togetherWith(fadeOut(tween(250)))
+                }
             },
         ) { currentGate ->
             when (currentGate) {
                 AppGateScreen.Loading.name -> {
-                    AppLaunchOverlay(modifier = Modifier.fillMaxSize())
+                    AppIntroContent(modifier = Modifier.fillMaxSize())
                 }
                 AppGateScreen.Auth.name -> {
                     AuthScreen(modifier = Modifier.fillMaxSize())
@@ -747,7 +799,8 @@ fun App(
                         }
                     }
                     ProfileSelectionScreen(
-                        onProfileSelected = { profile ->
+                        onProfileSelected = { profile, tapCenter ->
+                            MewProfileTransition.begin(tapCenter)
                             completeProfileSelection(
                                 profile = profile,
                                 syncOnEnter = authState is AuthState.Authenticated,
@@ -872,7 +925,7 @@ private fun MainAppContent(
         var showExitConfirmation by rememberSaveable { mutableStateOf(false) }
         var selectedPosterActionTarget by remember { mutableStateOf<PosterActionTarget?>(null) }
         var selectedPosterAnchor by remember { mutableStateOf<PosterZoomAnchor?>(null) }
-        val posterOverlayHazeState = rememberHazeState()
+        val posterOverlayHazeState = rememberNuvioBackdrop() // Mew hook: luq liquid-glass backdrop
         var selectedContinueWatchingForActions by remember { mutableStateOf<ContinueWatchingItem?>(null) }
         var selectedContinueWatchingZoomAnchor by remember { mutableStateOf<PosterZoomAnchor?>(null) }
         var requestedSettingsPageName by rememberSaveable { mutableStateOf<String?>(null) }
@@ -1065,7 +1118,6 @@ private fun MainAppContent(
     }
 
     LaunchedEffect(liveTvEnabled, selectedTab) {
-        LiveTvRepository.setFeatureEnabled(liveTvEnabled)
         NativeTabBridge.publishLiveTvEnabled(liveTvEnabled)
         if (!liveTvEnabled && selectedTab == AppScreenTab.LiveTv) {
             activateTab(AppScreenTab.Home)
@@ -1085,11 +1137,12 @@ private fun MainAppContent(
         }
     }
 
-    // Let Compose draw the Mew-branded launch surface once, then reveal the app shell.
-    // Content discovery remains progressive inside Home; it is not a startup prerequisite.
+    // luq-style reveal: keep the Mew launch surface until Home paints its first catalog
+    // (usually instant from the cached snapshot / addon HTTP cache), then cross-fade. The cap
+    // keeps Mew's promise that network catalogs are never a hard startup prerequisite.
     LaunchedEffect(ownsAppRuntime) {
         if (!ownsAppRuntime) return@LaunchedEffect
-        withFrameNanos { }
+        kotlinx.coroutines.delay(MainLaunchOverlayMaxHoldMs)
         initialHomeReady = true
     }
 
@@ -1427,6 +1480,10 @@ private fun MainAppContent(
                                 )
                             }
 
+                            is AddAddonResult.TrackingConsentRequired -> {
+                                AddonRepository.requestTrackingConsent(result.manifest)
+                            }
+
                             is AddAddonResult.Error -> {
                                 NuvioToastController.show(result.message)
                             }
@@ -1560,8 +1617,9 @@ private fun MainAppContent(
                 return
             }
             if (recordRecent) {
-                LiveTvRepository.recordRecentChannel(channel)
+                LiveTvRepository.markChannelWatched(channel)
             }
+            val channel = runCatching { LiveTvRepository.prepareForPlayback(channel) }.getOrDefault(channel)
             launchPlayer(
                 PlayerLaunch(
                     profileId = activePlaybackProfileId,
@@ -1571,13 +1629,13 @@ private fun MainAppContent(
                     streamType = channel.streamType,
                     logo = channel.logoUrl,
                     streamTitle = channel.name,
-                    streamSubtitle = channel.group.takeIf { it.isNotBlank() },
+                    streamSubtitle = channel.group?.takeIf { it.isNotBlank() },
                     providerName = providerName,
                     providerAddonId = "live-tv",
-                    contentType = "live-tv",
+                    contentType = "live",
                     videoId = channel.id,
                     parentMetaId = channel.id.ifBlank { channel.streamUrl },
-                    parentMetaType = "live-tv",
+                    parentMetaType = "live",
                 ),
             )
         }
@@ -1610,31 +1668,15 @@ private fun MainAppContent(
                     }
 
                     is LiveTvIncomingSource.SourceUrl -> {
-                        LiveTvRepository.load(request.url)
-                            .onSuccess { channels ->
-                                if (channels.size == 1) {
-                                    openLiveTvChannel(channels.first(), providerName = "Shared")
-                                } else {
-                                    handleRootTabClick(AppScreenTab.LiveTv)
-                                }
-                            }
-                            .onFailure { error ->
-                                NuvioToastController.show(error.message ?: "Unable to open shared playlist.")
-                            }
+                        // Mew hook: shared playlist URL is added to luq Live TV playlists.
+                        LiveTvRepository.addPlaylistUrl(request.url)
+                        handleRootTabClick(AppScreenTab.LiveTv)
                     }
 
                     is LiveTvIncomingSource.PlaylistData -> {
-                        LiveTvRepository.loadLocalPlaylist(request.fileName, request.data)
-                            .onSuccess { channels ->
-                                if (channels.size == 1) {
-                                    openLiveTvChannel(channels.first(), providerName = "Shared")
-                                } else {
-                                    handleRootTabClick(AppScreenTab.LiveTv)
-                                }
-                            }
-                            .onFailure { error ->
-                                NuvioToastController.show(error.message ?: "Unable to open shared playlist.")
-                            }
+                        // Mew hook: shared M3U file is added to luq Live TV playlists.
+                        LiveTvRepository.addLocalPlaylist(request.fileName, request.data)
+                        handleRootTabClick(AppScreenTab.LiveTv)
                     }
 
                     is LiveTvIncomingSource.Magnet -> {
@@ -1883,6 +1925,10 @@ private fun MainAppContent(
             LibrarySourceMode.LOCAL -> stringResource(Res.string.compose_catalog_subtitle_library)
             LibrarySourceMode.TRAKT -> stringResource(Res.string.compose_catalog_subtitle_trakt_library)
             LibrarySourceMode.SIMKL -> stringResource(Res.string.compose_catalog_subtitle_simkl_library)
+            LibrarySourceMode.MDBLIST -> stringResource(Res.string.library_mdblist_title)
+            LibrarySourceMode.ANILIST -> stringResource(Res.string.library_anilist_title)
+            LibrarySourceMode.WETRAKR -> stringResource(Res.string.library_wetrakr_title)
+            LibrarySourceMode.PUBLICMETADB -> stringResource(Res.string.library_publicmetadb_title)
         }
 
         val onLibrarySectionViewAllClick: (LibrarySection, LibrarySortOption) -> Unit = { section, sortOption ->
@@ -2115,7 +2161,7 @@ private fun MainAppContent(
                     .fillMaxSize()
                     .then(
                         if (selectedPosterActionTarget != null || selectedContinueWatchingZoomAnchor != null) {
-                            Modifier.hazeSource(state = posterOverlayHazeState)
+                            Modifier.nuvioBackdropSource(posterOverlayHazeState)
                         } else {
                             Modifier
                         },
@@ -2243,6 +2289,7 @@ private fun MainAppContent(
                                             onProfileSelected = onProfileSelected,
                                             onAddProfileRequested = onSwitchProfile,
                                             rememberTriggerAsContentFocus = false,
+                                            modifier = Modifier.mewReportProfileTabCenter(),
                                         )
                                     },
                                 ),
@@ -2299,6 +2346,7 @@ private fun MainAppContent(
                                                 onProfileSelected = onProfileSelected,
                                                 onAddProfileRequested = onSwitchProfile,
                                                 rememberTriggerAsContentFocus = false,
+                                                modifier = Modifier.mewReportProfileTabCenter(),
                                             )
                                         }
                                     }
@@ -2333,6 +2381,30 @@ private fun MainAppContent(
                                         },
                                         onPosterLongClick = { meta ->
                                             openPosterActions(PosterActionTarget(preview = meta))
+                                        },
+                                        onLiveTvVodClick = { vod ->
+                                            coroutineScope.launch { launchPlayer(
+                                                PlayerLaunch(
+                                                    profileId = activePlaybackProfileId,
+                                                    title = vod.title,
+                                                    sourceUrl = vod.streamUrl,
+                                                    sourceHeaders = vod.headers,
+                                                    streamType = vod.streamType,
+                                                    poster = vod.posterUrl,
+                                                    background = vod.episodeThumbnail ?: vod.posterUrl,
+                                                    seasonNumber = vod.seasonNumber,
+                                                    episodeNumber = vod.episodeNumber,
+                                                    episodeTitle = vod.episodeTitle,
+                                                    episodeThumbnail = vod.episodeThumbnail,
+                                                    streamTitle = vod.episodeTitle ?: vod.title,
+                                                    providerName = "Live TV",
+                                                    providerAddonId = "live-tv",
+                                                    contentType = "vod",
+                                                    videoId = null,
+                                                    parentMetaId = vod.id,
+                                                    parentMetaType = "live",
+                                                ),
+                                            ) }
                                         },
                                         onLiveTvChannelClick = { channel ->
                                             coroutineScope.launch {
@@ -2469,7 +2541,7 @@ private fun MainAppContent(
                                         onRequestedSettingsPageConsumed = {
                                             requestedSettingsPageName = null
                                         },
-                                        onInitialHomeContentRendered = {},
+                                        onInitialHomeContentRendered = { initialHomeReady = true },
                                     )
                                 }
 
@@ -2547,7 +2619,7 @@ private fun MainAppContent(
                                                 .align(Alignment.BottomCenter)
                                                 .onSizeChanged { miniPlayerBottomBarHeightPx = it.height },
                                             scrollState = navBarScrollState,
-                                            hazeState = null,
+                                            backdrop = null,
                                         ) {
                                             NavItem(
                                                 selected = selectedTab == AppScreenTab.Home,
@@ -2590,6 +2662,7 @@ private fun MainAppContent(
                                                     onProfileSelected = onProfileSelected,
                                                     onAddProfileRequested = onSwitchProfile,
                                                     rememberTriggerAsContentFocus = false,
+                                                    modifier = Modifier.mewReportProfileTabCenter(),
                                                 )
                                             }
                                         }
@@ -3883,7 +3956,7 @@ private fun MainAppContent(
                                 },
                             ),
                         ),
-                        hazeState = posterOverlayHazeState,
+                        backdrop = posterOverlayHazeState,
                         onDismissed = {
                             selectedPosterActionTarget = null
                             selectedPosterAnchor = null
@@ -3948,7 +4021,7 @@ private fun MainAppContent(
                                     ),
                                 )
                             },
-                            hazeState = posterOverlayHazeState,
+                            backdrop = posterOverlayHazeState,
                             onDismissed = {
                                 selectedContinueWatchingForActions = null
                                 selectedContinueWatchingZoomAnchor = null
@@ -4095,9 +4168,60 @@ private fun MainAppContent(
                     .zIndex(20f),
             )
 
+            // Profile picked on "Who's watching": glide in from the tap, hold luq's 650ms minimum,
+            // then shrink into the profile tab before the overlay goes. Cold starts keep the plain
+            // drop-in and fade.
+            val profileTransition = remember(ownsAppRuntime) {
+                if (ownsAppRuntime) MewProfileTransition.consume() else null
+            }
+            var profileTransitionMinHoldElapsed by remember(profileTransition) {
+                mutableStateOf(profileTransition == null)
+            }
+            var profileTransitionExitFinished by remember(profileTransition) {
+                mutableStateOf(profileTransition == null)
+            }
+            LaunchedEffect(profileTransition) {
+                if (profileTransition == null) return@LaunchedEffect
+                kotlinx.coroutines.delay(
+                    if (profileTransition.origin != null) {
+                        ProfileTransitionMinDurationWithOriginMs
+                    } else {
+                        ProfileTransitionMinDurationMs
+                    },
+                )
+                profileTransitionMinHoldElapsed = true
+            }
+            val launchContentReady = initialHomeReady && profileTransitionMinHoldElapsed
+            val launchOverlayVisible = ownsAppRuntime && !(launchContentReady && profileTransitionExitFinished)
+            val launchOverlayState = remember(ownsAppRuntime) {
+                MutableTransitionState(launchOverlayVisible)
+            }
+            launchOverlayState.targetState = launchOverlayVisible
+            androidx.compose.animation.AnimatedVisibility(
+                visibleState = launchOverlayState,
+                enter = fadeIn(),
+                exit = fadeOut(tween(if (profileTransition != null) 180 else 400)),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .zIndex(30f),
+            ) {
+                AppLaunchOverlay(
+                    profile = profileState.activeProfile ?: profileState.profiles.firstOrNull(),
+                    entryOrigin = profileTransition?.origin,
+                    exitTowardProfileTab = profileTransition != null && launchContentReady,
+                    onExitFinished = { profileTransitionExitFinished = true },
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+
             }
         }
 }
+
+private const val MainLaunchOverlayMaxHoldMs = 2_500L
+// luq's AppGate minimums for the profile-select transition.
+private const val ProfileTransitionMinDurationWithOriginMs = 650L
+private const val ProfileTransitionMinDurationMs = 1_000L
 
 @Composable
 private fun rememberGuardedPopBackStack(
@@ -4135,6 +4259,7 @@ private fun AppTabHost(
     onPosterClick: ((MetaPreview) -> Unit)? = null,
     onPosterLongClick: ((MetaPreview) -> Unit)? = null,
     onLiveTvChannelClick: ((LiveTvChannel) -> Unit)? = null,
+    onLiveTvVodClick: ((com.nuvio.app.features.livetv.LiveTvVodPlayback) -> Unit)? = null,
     onLibraryPosterClick: ((LibraryItem) -> Unit)? = null,
     onLibraryPosterLongClick: ((LibraryItem, LibrarySection) -> Unit)? = null,
     onLibrarySectionViewAllClick: ((LibrarySection, LibrarySortOption) -> Unit)? = null,
@@ -4209,6 +4334,7 @@ private fun AppTabHost(
                         LiveTvScreen(
                             modifier = Modifier.fillMaxSize(),
                             onChannelClick = { channel -> onLiveTvChannelClick?.invoke(channel) },
+                            onVodClick = { vod -> onLiveTvVodClick?.invoke(vod) },
                         )
                     }
                 }
@@ -4257,16 +4383,19 @@ private fun AppTabHost(
     }
 
 @Composable
-private fun TabletFloatingTopBar(
+internal fun TabletFloatingTopBar(
     selectedTab: AppScreenTab,
     liveTvEnabled: Boolean,
     onTabSelected: (AppScreenTab) -> Unit,
     onProfileSelected: (NuvioProfile) -> Unit,
     onAddProfileRequested: () -> Unit,
     modifier: Modifier = Modifier,
+    // luq: settings preview passes a fixed inset instead of the status bar padding.
+    topInset: Dp? = null,
 ) {
     val tokens = MaterialTheme.nuvio
-    val statusBarPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    val statusBarPadding = topInset?.let { it - NuvioTokens.Space.s10 }
+        ?: WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
 
     Box(
         modifier = modifier
@@ -4374,7 +4503,9 @@ private fun TabletFloatingTopBar(
                             onProfileSelected = onProfileSelected,
                             onAddProfileRequested = onAddProfileRequested,
                             rememberTriggerAsContentFocus = false,
-                            modifier = Modifier.nuvioRestoreLastContentFocusOnDown(),
+                            modifier = Modifier
+                                .nuvioRestoreLastContentFocusOnDown()
+                                .mewReportProfileTabCenter(),
                         )
                         Text(
                             text = stringResource(Res.string.compose_nav_profile),
@@ -4518,62 +4649,49 @@ private fun TabletTopPillItem(
     }
 }
 
-@OptIn(ExperimentalResourceApi::class)
+/**
+ * Shown while Home paints its first catalog (luq parity: AppShellComponents.AppLaunchOverlay).
+ * The active profile's avatar, or the Mew wordmark before one exists, springs in over the app
+ * background, with no spinner. Mew keeps its own 2.5s cap (MainLaunchOverlayMaxHoldMs).
+ */
 @Composable
 private fun AppLaunchOverlay(
+    profile: NuvioProfile?,
     modifier: Modifier = Modifier,
+    entryOrigin: Offset? = null,
+    exitTowardProfileTab: Boolean = false,
+    onExitFinished: () -> Unit = {},
 ) {
-    val tokens = MaterialTheme.nuvio
-    val splashTransition = rememberInfiniteTransition(label = "mew_splash_mascot")
-    val mascotOffsetY by splashTransition.animateFloat(
-        initialValue = -7f,
-        targetValue = 7f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1500, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "mascot_offset",
+    // While the avatar shrinks into the profile tab, the backdrop dissolves with it so the trip
+    // ends on the real tab bar (luq gets this for free from iOS's native tab bar sitting on top).
+    val backdropAlpha by animateFloatAsState(
+        targetValue = if (exitTowardProfileTab) 0f else 1f,
+        animationSpec = tween(450, easing = FastOutSlowInEasing),
+        label = "launch_backdrop_alpha",
     )
     Box(
         modifier = modifier
             .zIndex(NuvioTokens.Z.dialog)
-            .nuvioConsumePointerEvents()
-            .background(Color(0xFF0B0C0C)),
-        contentAlignment = Alignment.Center,
+            .nuvioConsumePointerEvents(),
     ) {
         PlatformBackHandler(enabled = true) { }
-
-        AsyncImage(
-            model = Res.getUri("drawable/mew_splash_scene.svg"),
-            contentDescription = null,
-            modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.FillBounds,
-        )
-
-        AsyncImage(
-            model = Res.getUri("drawable/mew_splash_mascot.svg"),
-            contentDescription = "Mew",
+        Box(
             modifier = Modifier
-                .fillMaxWidth(0.58f)
-                .aspectRatio(760f / 560f)
-                .offset(y = mascotOffsetY.dp),
-            contentScale = ContentScale.Fit,
-        )
-
-        Column(
-            modifier = Modifier
-                .align(Alignment.Center)
-                .padding(top = 230.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
+                .fillMaxSize()
+                .graphicsLayer { alpha = backdropAlpha }
+                .background(MaterialTheme.nuvio.colors.background),
         ) {
-            NuvioLoadingIndicator(color = Color.White)
-            Spacer(modifier = Modifier.height(tokens.spacing.controlGap))
-            Text(
-                text = stringResource(Res.string.profile_loading_enhancing_experience),
-                style = MaterialTheme.typography.bodyLarge,
-                color = Color.White.copy(alpha = 0.72f),
-            )
+            if (profile != null) {
+                MewProfileBackdrop(profile = profile, modifier = Modifier.fillMaxSize())
+            }
         }
+        MewLaunchLoadingContent(
+            modifier = Modifier.fillMaxSize(),
+            profile = profile,
+            entryOrigin = entryOrigin,
+            exitTowardProfileTab = exitTowardProfileTab,
+            onExitFinished = onExitFinished,
+        )
     }
 }
 

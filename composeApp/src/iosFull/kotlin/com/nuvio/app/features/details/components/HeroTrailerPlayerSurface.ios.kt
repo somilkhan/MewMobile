@@ -33,11 +33,13 @@ actual fun HeroTrailerPlayerSurface(
     onError: () -> Unit,
     seekRequest: HeroTrailerSeekRequest?,
     onPlaybackStateChanged: (HeroTrailerPlaybackSnapshot) -> Unit,
+    onPositionUpdate: (Long) -> Unit,
 ) {
     val latestOnReady = rememberUpdatedState(onReady)
     val latestOnEnded = rememberUpdatedState(onEnded)
     val latestOnError = rememberUpdatedState(onError)
     val latestOnPlaybackStateChanged = rememberUpdatedState(onPlaybackStateChanged)
+    val latestOnPositionUpdate = rememberUpdatedState(onPositionUpdate)
     val bridge = remember {
         NuvioPlayerBridgeFactory.create()
     }
@@ -137,6 +139,7 @@ actual fun HeroTrailerPlayerSurface(
                     isPlaying = runCatching { bridge.getIsPlaying() }.getOrDefault(false),
                 ),
             )
+            latestOnPositionUpdate.value(runCatching { bridge.getPositionMs() }.getOrDefault(0L).coerceAtLeast(0L))
             delay(250L)
         }
     }

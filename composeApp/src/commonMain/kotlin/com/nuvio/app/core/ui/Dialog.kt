@@ -1,5 +1,6 @@
 package com.nuvio.app.core.ui
 
+import com.nuvio.app.core.ui.background.appGlassBackdrop
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -28,6 +29,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.semantics.Role
@@ -57,7 +59,8 @@ fun DialogSurface(
         Surface(
             modifier = modifier
                 .fillMaxWidth()
-                .widthIn(max = tokens.components.dialogMaxWidth),
+                .widthIn(max = tokens.components.dialogMaxWidth)
+                .appGlassBackdrop(tokens.shapes.dialog),
             shape = tokens.shapes.dialog,
             color = tokens.colors.surfaceDialog,
             contentColor = tokens.colors.textPrimary,
@@ -138,13 +141,23 @@ fun DialogButton(
         DialogButtonStyle.Destructive -> tokens.colors.danger
     }
     val contentColor = if (style == DialogButtonStyle.Secondary) tokens.colors.textPrimary else tokens.colors.onAccent
+    // Mew: primary buttons follow the animated theme gradient when one is active.
+    val accentBrush = if (style == DialogButtonStyle.Primary) rememberAnimatedAccentBrush() else null
     Button(
         onClick = onClick,
-        modifier = modifier.heightIn(min = NuvioTokens.Space.s48),
+        modifier = modifier
+            .heightIn(min = NuvioTokens.Space.s48)
+            .then(
+                if (accentBrush != null && enabled && !loading) {
+                    Modifier.clip(tokens.shapes.button).background(accentBrush)
+                } else {
+                    Modifier
+                },
+            ),
         enabled = enabled && !loading,
         shape = tokens.shapes.button,
         colors = ButtonDefaults.buttonColors(
-            containerColor = containerColor,
+            containerColor = if (accentBrush != null && enabled && !loading) Color.Transparent else containerColor,
             contentColor = contentColor,
             disabledContainerColor = containerColor.copy(alpha = containerColor.alpha * tokens.opacity.disabled),
             disabledContentColor = contentColor.copy(alpha = tokens.opacity.disabled),

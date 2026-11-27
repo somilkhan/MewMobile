@@ -15,9 +15,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -28,12 +31,29 @@ import com.nuvio.app.core.format.formatReleaseDateForDisplay
 import com.nuvio.app.core.ui.NuvioCardDepthSurface
 import com.nuvio.app.core.ui.rememberCardDepthStyleUiState
 import com.nuvio.app.core.ui.NuvioPosterWatchedOverlay
+import com.nuvio.app.core.ui.SkeletonPoster
 import com.nuvio.app.core.ui.nuvioCardDepth
 import com.nuvio.app.core.ui.posterCardClickable
 import com.nuvio.app.core.ui.rememberPosterCardStyleUiState
 import com.nuvio.app.features.home.MetaPreview
 import com.nuvio.app.features.home.PosterShape
 import com.nuvio.app.features.watching.application.WatchingState
+
+@Composable
+internal fun rememberPosterGridColumnCount(availableWidth: Dp, tvLayout: Boolean = false): Int {
+    val windowSize = LocalWindowInfo.current.containerSize
+    val density = LocalDensity.current
+    return remember(availableWidth, windowSize, density, tvLayout) {
+        val windowWidth = with(density) { windowSize.width.toDp() }
+        val windowHeight = with(density) { windowSize.height.toDp() }
+        when {
+            tvLayout -> posterGridColumnCountForWidth(availableWidth, tvLayout = true)
+            windowWidth <= windowHeight -> posterGridColumnCountForWidth(availableWidth)
+            minOf(windowWidth, windowHeight) >= 600.dp -> 7
+            else -> 6
+        }
+    }
+}
 
 internal fun posterGridColumnCountForWidth(screenWidth: Dp, tvLayout: Boolean = false): Int {
     if (tvLayout) {
@@ -57,6 +77,7 @@ internal fun PosterGridRow(
     fullyWatchedSeriesKeys: Set<String> = emptySet(),
     onPosterClick: ((MetaPreview) -> Unit)? = null,
     onPosterLongClick: ((MetaPreview) -> Unit)? = null,
+    cellOverride: (@Composable (index: Int, modifier: Modifier) -> (@Composable () -> Unit)?)? = null,
 ) {
     val posterCardStyle = rememberPosterCardStyleUiState()
     val cardDepthStyle = rememberCardDepthStyleUiState()
@@ -66,12 +87,16 @@ internal fun PosterGridRow(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.Top,
     ) {
-        items.forEach { item ->
-            PosterGridTile(
+        items.forEachIndexed { index, item ->
+            val cellModifier = Modifier.weight(1f)
+            val overrideContent = cellOverride?.invoke(index, cellModifier)
+            if (overrideContent != null) {
+                overrideContent()
+            } else PosterGridTile(
                 item = item,
                 cornerRadiusDp = posterCardStyle.cornerRadiusDp,
                 hideLabels = posterCardStyle.hideLabelsEnabled,
-                modifier = Modifier.weight(1f),
+                modifier = cellModifier,
                 isWatched = WatchingState.isPosterWatched(
                     watchedKeys = watchedKeys,
                     item = item,
@@ -100,12 +125,10 @@ internal fun PosterGridSkeletonRow(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         repeat(columns) {
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .aspectRatio(0.68f)
-                    .clip(RoundedCornerShape(posterCardStyle.cornerRadiusDp.dp))
-                    .background(MaterialTheme.colorScheme.surface),
+            SkeletonPoster(
+                modifier = Modifier.weight(1f),
+                cornerRadius = posterCardStyle.cornerRadiusDp.dp,
+                showLabels = !posterCardStyle.hideLabelsEnabled,
             )
         }
     }
@@ -146,8 +169,22 @@ private fun PosterGridTile(
                 ),
         ) {
             if (item.poster != null) {
+                val platformContext = coil3.compose.LocalPlatformContext.current
+                val hasFallback = !item.rawPosterUrl.isNullOrBlank() && item.rawPosterUrl != item.poster
+                val imageModel = remember(item.poster, item.rawPosterUrl, platformContext) {
+                    if (hasFallback) {
+                        coil3.request.ImageRequest.Builder(platformContext)
+                            .data(item.poster)
+                            .memoryCacheKeyExtras(
+                                mapOf(com.nuvio.app.core.poster.CustomPosterFallbackInterceptor.FALLBACK_URL_KEY to item.rawPosterUrl!!)
+                            )
+                            .build()
+                    } else {
+                        item.poster
+                    }
+                }
                 AsyncImage(
-                    model = item.poster,
+                    model = imageModel,
                     contentDescription = item.name,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop,

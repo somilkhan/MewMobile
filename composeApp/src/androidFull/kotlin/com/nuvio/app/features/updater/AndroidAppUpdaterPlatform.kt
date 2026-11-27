@@ -30,6 +30,7 @@ import java.util.concurrent.TimeUnit
 object AndroidAppUpdaterPlatform {
     private const val preferencesName = "nuvio_updater"
     private const val ignoredTagKey = "ignored_release_tag"
+    private const val updateChannelKey = "update_channel"
 
     private val httpClient = SharedOkHttpClient.base.newBuilder()
         .connectTimeout(60, TimeUnit.SECONDS)
@@ -50,6 +51,14 @@ object AndroidAppUpdaterPlatform {
     fun isDebugBuild(): Boolean {
         val context = appContext ?: return false
         return context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
+    }
+
+    fun getUpdateChannel(): String? =
+        appContext?.let { preferences().getString(updateChannelKey, null) }
+
+    fun setUpdateChannel(channel: String) {
+        if (appContext == null) return
+        preferences().edit().putString(updateChannelKey, channel).apply()
     }
 
     fun getIgnoredTag(): String? =

@@ -1,7 +1,12 @@
 package com.nuvio.app.features.player
 
+import com.nuvio.app.features.details.MetaLookupOutcome
+import com.nuvio.app.features.details.MetaDetailsRepository
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import com.nuvio.app.features.party.PartyMedia
 
 @Composable
 fun PlayerScreen(
@@ -22,6 +27,7 @@ fun PlayerScreen(
     onOpenPartyMedia: ((com.nuvio.app.features.party.PartyMedia) -> Unit)? = null,
     onOpenInExternalPlayer: ((ExternalPlayerPlaybackRequest) -> Unit)? = null,
     onOpenExternalUrl: ((String) -> Unit)? = null,
+    onOpenMetaDetails: ((com.nuvio.app.features.home.MetaPreview) -> Unit)? = null,
     modifier: Modifier = Modifier,
     logo: String? = null,
     poster: String? = null,
@@ -47,7 +53,26 @@ fun PlayerScreen(
     initialStreamInfoHash: String? = null,
     miniPlayerLaunch: PlayerLaunch? = null,
     miniPresentation: Boolean = false,
+    subtitleExtras: SubtitleRequestExtras? = null,
+    launchId: Long? = null,
+    sourceFilename: String? = null,
+    stream: com.nuvio.app.features.streams.StreamItem? = null,
+    sourceFromLinkCache: Boolean = false,
+    sourceAutoSelected: Boolean = false,
 ) {
+    val resolvedLogo by produceState(
+        initialValue = logo?.takeIf { it.isNotBlank() }
+            ?: MetaDetailsRepository.peek(type = parentMetaType, id = parentMetaId)?.logo?.takeIf { it.isNotBlank() },
+        logo,
+        parentMetaType,
+        parentMetaId,
+    ) {
+        if (value != null || parentMetaType in PlayerLogoLookupSkippedTypes) return@produceState
+        val lookup = runCatching {
+            MetaDetailsRepository.fetchLightweight(type = parentMetaType, id = parentMetaId)
+        }.getOrNull()
+        value = (lookup as? MetaLookupOutcome.Loaded)?.meta?.logo?.takeIf { it.isNotBlank() }
+    }
     PlayerScreenContent(
         PlayerScreenArgs(
             profileId = profileId,
@@ -67,8 +92,9 @@ fun PlayerScreen(
             onOpenPartyMedia = onOpenPartyMedia,
             onOpenInExternalPlayer = onOpenInExternalPlayer,
             onOpenExternalUrl = onOpenExternalUrl,
+            onOpenMetaDetails = onOpenMetaDetails,
             modifier = modifier,
-            logo = logo,
+            logo = resolvedLogo,
             poster = poster,
             background = background,
             seasonNumber = seasonNumber,
@@ -92,6 +118,14 @@ fun PlayerScreen(
             initialStreamInfoHash = initialStreamInfoHash,
             miniPlayerLaunch = miniPlayerLaunch,
             miniPresentation = miniPresentation,
+            subtitleExtras = subtitleExtras,
+            launchId = launchId,
+            sourceFilename = sourceFilename,
+            stream = stream,
+            sourceFromLinkCache = sourceFromLinkCache,
+            sourceAutoSelected = sourceAutoSelected,
         )
     )
 }
+
+private val PlayerLogoLookupSkippedTypes = setOf("tv", "channel")

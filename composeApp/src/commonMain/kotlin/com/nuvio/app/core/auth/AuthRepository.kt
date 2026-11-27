@@ -26,8 +26,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.getString
+
+private const val KEY_HAD_ACCOUNT_SESSION = "had_account_session"
+private const val KEY_SIGNED_OUT_NOTICE = "signed_out_notice"
 
 object AuthRepository {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -40,8 +45,11 @@ object AuthRepository {
     val error: StateFlow<String?> = _error.asStateFlow()
 
     private var initialized = false
+    private var sessionStatusJob: Job? = null
     private var validatedRemoteUserId: String? = null
     private var remoteValidationJob: Job? = null
+    private var trustNextSessionWithoutValidation = false
+    private val refreshMutex = Mutex()
 
     fun initialize() {
         if (initialized) return
@@ -49,7 +57,7 @@ object AuthRepository {
 
         val savedAnonId = AuthStorage.loadAnonymousUserId()
         if (savedAnonId != null) {
-            claimLocalAccountData(savedAnonId)
+            claimLocalAccountDataNow(savedAnonId)
             _state.value = AuthState.Authenticated(
                 userId = savedAnonId,
                 email = null,
@@ -57,7 +65,10 @@ object AuthRepository {
             )
         }
 
-        scope.launch {
+        sessionStatusJob = scope.launch {
+            if (AuthStorage.loadFlag(KEY_SIGNED_OUT_NOTICE)) {
+                _error.value = getString(Res.string.auth_notice_signed_out)
+            }
             SupabaseProvider.client.auth.sessionStatus.collect { status ->
                 if (AuthStorage.loadAnonymousUserId() != null) return@collect
                 when (status) {
@@ -67,6 +78,8 @@ object AuthRepository {
                         val sessionValidated = validateRemoteSession(userId)
                         if (sessionValidated == false) return@collect
                         if (sessionValidated == true) claimLocalAccountData(userId)
+                        AuthStorage.saveFlag(KEY_HAD_ACCOUNT_SESSION, true)
+                        AuthStorage.saveFlag(KEY_SIGNED_OUT_NOTICE, false)
                         val previousState = _state.value as? AuthState.Authenticated
                         _state.value = AuthState.Authenticated(
                             userId = userId,
@@ -92,7 +105,11 @@ object AuthRepository {
                     is SessionStatus.NotAuthenticated -> {
                         remoteValidationJob?.cancel()
                         remoteValidationJob = null
-                        validatedRemoteUserId = null
+                        if (AuthStorage.loadFlag(KEY_HAD_ACCOUNT_SESSION)) {
+                            resetAfterLostSession()
+                        } else {
+                            validatedRemoteUserId = null
+                        }
                         _state.value = AuthState.Unauthenticated
                     }
                     is SessionStatus.Initializing -> {
@@ -100,12 +117,7 @@ object AuthRepository {
                             _state.value = AuthState.Loading
                         }
                     }
-                    is SessionStatus.RefreshFailure -> {
-                        remoteValidationJob?.cancel()
-                        remoteValidationJob = null
-                        validatedRemoteUserId = null
-                        _state.value = AuthState.Unauthenticated
-                    }
+                    is SessionStatus.RefreshFailure -> Unit
                 }
             }
         }
@@ -119,6 +131,11 @@ object AuthRepository {
     private suspend fun validateRemoteSession(userId: String): Boolean? {
         if (userId.isBlank()) return false
         if (validatedRemoteUserId == userId) return true
+        if (trustNextSessionWithoutValidation) {
+            trustNextSessionWithoutValidation = false
+            validatedRemoteUserId = userId
+            return true
+        }
 
         return runCatching {
             val remoteUser = SupabaseProvider.client.auth.retrieveUserForCurrentSession(false)
@@ -129,7 +146,8 @@ object AuthRepository {
             validatedRemoteUserId = userId
             true
         }.getOrElse { e ->
-            if (isInvalidRemoteSessionError(e)) {
+            val invalid = if (e.isJwtExpiredError()) refreshRejected() else e.isInvalidSessionError()
+            if (invalid) {
                 log.w(e) { "Stored Supabase session no longer belongs to an active account; clearing local auth" }
                 clearLocalSessionAfterRemoteInvalidation()
                 false
@@ -189,7 +207,7 @@ object AuthRepository {
         validatedRemoteUserId = null
         _error.value = null
         val userId = Uuid.random().toString()
-        claimLocalAccountData(userId)
+        claimLocalAccountDataNow(userId)
         AuthStorage.saveAnonymousUserId(userId)
         _state.value = AuthState.Authenticated(
             userId = userId,
@@ -204,6 +222,7 @@ object AuthRepository {
             this.email = email
             this.password = password
         }
+        trustNextSessionWithoutValidation = true
         Unit
     }.onFailure { e ->
         log.e(e) { "Email sign-up failed" }
@@ -217,6 +236,7 @@ object AuthRepository {
             this.email = email
             this.password = password
         }
+        trustNextSessionWithoutValidation = true
     }.onFailure { e ->
         log.e(e) { "Email sign-in failed" }
         _error.value = e.safeAuthErrorDescription()
@@ -225,11 +245,14 @@ object AuthRepository {
 
     suspend fun signOut(): Result<Unit> {
         _error.value = null
+        val accountUserId = (state.value as? AuthState.Authenticated)?.userId
         val anonymousRead = runCatching { AuthStorage.loadAnonymousUserId() }
         val wasAnonymous = anonymousRead.getOrNull() != null
         val anonymousClear = runCatching { AuthStorage.clearAnonymousUserId() }
         remoteValidationJob?.cancel()
         remoteValidationJob = null
+        AuthStorage.saveFlag(KEY_HAD_ACCOUNT_SESSION, false)
+        AuthStorage.saveFlag(KEY_SIGNED_OUT_NOTICE, false)
         validatedRemoteUserId = null
         val remoteSignOut = if (wasAnonymous) {
             Result.success(Unit)
@@ -243,7 +266,7 @@ object AuthRepository {
         } else {
             Result.success(Unit)
         }
-        val localCleanup = runCatching { LocalAccountDataCleaner.wipe() }
+        val localCleanup = runCatching { LocalAccountDataCleaner.wipe(accountUserId) }
         val ownerClear = runCatching { AuthStorage.clearLocalDataOwnerUserId() }
         _state.value = AuthState.Unauthenticated
 
@@ -267,16 +290,50 @@ object AuthRepository {
         }
     }
 
+    suspend fun prepareForServerSwitch(): Result<Unit> {
+        _error.value = null
+        val anonymousClear = runCatching { AuthStorage.clearAnonymousUserId() }
+        AuthStorage.saveFlag(KEY_HAD_ACCOUNT_SESSION, false)
+        validatedRemoteUserId = null
+        val sessionClear = runCatching { SupabaseProvider.client.auth.clearSession() }
+        _state.value = AuthState.Unauthenticated
+        val failure = anonymousClear.exceptionOrNull() ?: sessionClear.exceptionOrNull()
+        val cancellation = sessionClear.exceptionOrNull() as? CancellationException
+        if (cancellation != null) throw cancellation
+        return if (failure == null) Result.success(Unit) else Result.failure(failure)
+    }
+
+    fun reinitialize() {
+        sessionStatusJob?.cancel()
+        sessionStatusJob = null
+        initialized = false
+        validatedRemoteUserId = null
+        _state.value = AuthState.Loading
+        initialize()
+    }
+
     suspend fun signOutIfSessionInvalid(error: Throwable, source: String): Boolean {
-        if (!isInvalidRemoteSessionError(error)) return false
+        val invalid = if (error.isJwtExpiredError()) refreshRejected() else error.isDeletedAccountError()
+        if (!invalid) return false
 
         log.w(error) { "$source failed because the current Supabase account/session is no longer valid; clearing local auth" }
         clearLocalSessionAfterRemoteInvalidation()
         return true
     }
 
+    private suspend fun refreshRejected(): Boolean = refreshMutex.withLock {
+        try {
+            SupabaseProvider.client.auth.refreshCurrentSession()
+            false
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Throwable) {
+            log.w(e) { "Supabase session refresh failed" }
+            e.isInvalidRefreshError()
+        }
+    }
+
     private suspend fun clearLocalSessionAfterRemoteInvalidation() {
-        _error.value = null
         AuthStorage.clearAnonymousUserId()
         remoteValidationJob?.cancel()
         remoteValidationJob = null
@@ -286,21 +343,40 @@ object AuthRepository {
         }.onFailure { e ->
             log.w(e) { "Failed to clear Supabase session after remote invalidation; continuing local reset" }
         }
+        resetAfterLostSession()
+    }
+
+    /**
+     * Mew keeps offline/local data when a session is lost (ownership is re-checked by
+     * [claimLocalAccountData] on the next sign-in) and only stops account sync.
+     * luqman's signed-out notice is shown to the user.
+     */
+    private suspend fun resetAfterLostSession() {
+        val notice = runCatching { getString(Res.string.auth_notice_signed_out) }.getOrNull()
+        AuthStorage.clearAnonymousUserId()
+        remoteValidationJob?.cancel()
+        remoteValidationJob = null
+        validatedRemoteUserId = null
         SyncManager.cancelAccountSync()
         ProfileSettingsSync.clearAccountState()
         ProviderCredentialSync.clearAccountState()
+        AuthStorage.saveFlag(KEY_HAD_ACCOUNT_SESSION, false)
+        AuthStorage.saveFlag(KEY_SIGNED_OUT_NOTICE, true)
+        _error.value = notice
         _state.value = AuthState.Unauthenticated
     }
 
     suspend fun deleteAccount(): Result<Unit> = runCatching {
         _error.value = null
+        val accountUserId = (state.value as? AuthState.Authenticated)?.userId
         SupabaseProvider.client.functions.invoke("delete-account")
+        AuthStorage.saveFlag(KEY_HAD_ACCOUNT_SESSION, false)
         SupabaseProvider.client.auth.signOut()
         remoteValidationJob?.cancel()
         remoteValidationJob = null
         validatedRemoteUserId = null
         try {
-            LocalAccountDataCleaner.wipe()
+            LocalAccountDataCleaner.wipe(accountUserId)
         } finally {
             AuthStorage.clearLocalDataOwnerUserId()
             _state.value = AuthState.Unauthenticated
@@ -314,50 +390,29 @@ object AuthRepository {
         _error.value = null
     }
 
-    private fun claimLocalAccountData(userId: String) {
+    /**
+     * Mew: local data belongs to one account. When a different account signs in on this
+     * device the previous owner's local data is wiped before the new owner is recorded.
+     */
+    private suspend fun claimLocalAccountData(userId: String) {
         if (userId.isBlank()) return
         val previousOwner = AuthStorage.loadLocalDataOwnerUserId()
         if (previousOwner != null && previousOwner != userId) {
-            LocalAccountDataCleaner.wipe()
+            LocalAccountDataCleaner.wipe(previousOwner)
         }
         AuthStorage.saveLocalDataOwnerUserId(userId)
     }
 
-    private fun isInvalidRemoteSessionError(error: Throwable): Boolean {
-        val restError = error.findCause<RestException>()
-        if (restError?.statusCode == 401 || restError?.statusCode == 403) return true
-
-        val message = buildString {
-            append(error.message.orEmpty())
-            if (restError != null) {
-                append(' ')
-                append(restError.error)
-                append(' ')
-                append(restError.description)
-            }
-        }.lowercase()
-
-        return (
-            "jwt" in message &&
-                ("invalid" in message || "expired" in message || "malformed" in message)
-            ) || (
-            "user" in message &&
-                ("does not exist" in message || "not found" in message || "deleted" in message)
-            ) || (
-            "foreign key" in message &&
-                ("auth.users" in message || "user_id" in message)
-            )
-    }
-
-    private inline fun <reified T : Throwable> Throwable.findCause(): T? {
-        var current: Throwable? = this
-        while (current != null) {
-            if (current is T) return current
-            current = current.cause
+    /** Non-suspending entry point; the wipe (if any) runs on [scope]. */
+    private fun claimLocalAccountDataNow(userId: String) {
+        if (userId.isBlank()) return
+        val previousOwner = AuthStorage.loadLocalDataOwnerUserId()
+        if (previousOwner == null || previousOwner == userId) {
+            AuthStorage.saveLocalDataOwnerUserId(userId)
+            return
         }
-        return null
+        scope.launch { claimLocalAccountData(userId) }
     }
-
     private fun Throwable.safeAuthErrorDescription(): String? =
         findCause<AuthRestException>()
             ?.errorDescription

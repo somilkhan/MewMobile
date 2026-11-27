@@ -38,5 +38,31 @@ internal actual fun platformPhysicalTopInset(): Dp {
         ?: WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
 }
 
+@OptIn(ExperimentalForeignApi::class)
+@Composable
+internal actual fun platformNativeBarButtonAnchor(): NativeBarButtonAnchor? {
+    val controller = LocalUIViewController.current
+    val windowSize = LocalWindowInfo.current.containerSize
+    val anchor by produceState(controller.nativeBarButtonAnchor(), controller, windowSize) {
+        withFrameNanos { }
+        value = controller.nativeBarButtonAnchor()
+    }
+    return anchor
+}
+
+@OptIn(ExperimentalForeignApi::class)
+private fun UIViewController.nativeBarButtonAnchor(): NativeBarButtonAnchor? {
+    val bar = navigationController?.navigationBar ?: return null
+    if (bar.hidden) return null
+    val centerY = bar.frame.useContents { origin.y + size.height / 2.0 }
+    val trailing = bar.directionalLayoutMargins.useContents { trailing }
+    return NativeBarButtonAnchor(
+        centerY = centerY.toFloat().dp,
+        trailingCenterX = (trailing + NativeBarButtonSize / 2.0).toFloat().dp,
+    )
+}
+
+private const val NativeBarButtonSize = 44.0
+
 @Composable
 internal actual fun ResizeForKeyboard() = Unit

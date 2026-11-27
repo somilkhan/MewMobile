@@ -13,6 +13,8 @@ import com.nuvio.app.features.tracking.TrackingWatchedProvider
 import com.nuvio.app.features.tracking.TrackingWatchedSnapshot
 import com.nuvio.app.features.watched.WatchedItem
 import com.nuvio.app.features.watchprogress.WatchProgressEntry
+import kotlinx.atomicfu.locks.SynchronizedObject
+import kotlinx.atomicfu.locks.synchronized
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -29,8 +31,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 object SimklWatchedSyncAdapter : TrackingWatchedProvider {
+    private val log = Logger.withTag("SimklWatched")
     override val providerId: TrackingProviderId = TrackingProviderId.SIMKL
-    private val log = Logger.withTag("SimklWatchedSyncAdapter")
     override suspend fun pull(profileId: Int, pageSize: Int): List<WatchedItem> {
         if (profileId != ProfileRepository.activeProfileId) return emptyList()
         SimklSyncRepository.refresh(
@@ -48,8 +50,6 @@ object SimklWatchedSyncAdapter : TrackingWatchedProvider {
     }
 
     override suspend fun pullFullyWatchedSeriesKeys(profileId: Int): Set<String>? {
-        // Simkl "completed" = all episodes watched; Nuvio "completed" = all
-        // *available* episodes watched. Let local revalidation decide.
         return null
     }
 
@@ -87,10 +87,13 @@ object SimklWatchedSyncAdapter : TrackingWatchedProvider {
 
     override suspend fun push(profileId: Int, items: Collection<WatchedItem>) {
         if (profileId != ProfileRepository.activeProfileId || items.isEmpty()) return
+        val pushableItems = simklHistoryPushItems(items)
+        if (pushableItems.isEmpty()) {
+            log.i { "Skipped ${items.size} Simkl history items: nothing but whole-series marks" }
+            return
+        }
         SimklSyncRepository.ensureLoaded()
         val snapshot = SimklSyncRepository.state.value.snapshot
-        val pushableItems = simklHistoryPushItems(items)
-        if (pushableItems.isEmpty()) return
         val historyItems = pushableItems.map { item ->
             TrackingHistoryItem(
                 media = snapshot.mediaReference(
@@ -101,6 +104,7 @@ object SimklWatchedSyncAdapter : TrackingWatchedProvider {
                     season = item.season,
                     episode = item.episode,
                     videoId = item.videoId,
+                    posterUrl = item.poster,
                 ),
                 watchedAtEpochMs = item.markedAtEpochMs,
             )
@@ -125,6 +129,7 @@ object SimklWatchedSyncAdapter : TrackingWatchedProvider {
                 contentType = item.type,
                 title = item.name,
                 releaseInfo = item.releaseInfo,
+                posterUrl = item.poster,
             )
         }
         runCatching {
@@ -133,9 +138,9 @@ object SimklWatchedSyncAdapter : TrackingWatchedProvider {
                 items = media,
                 destination = TrackingListStatus.COMPLETED,
             )
-        }.onSuccess { moveResult ->
-            if (!moveResult.isComplete) {
-                log.w { "Simkl could not move ${moveResult.notFoundCount} of ${moveResult.attemptedCount} series to Completed" }
+        }.onSuccess { result ->
+            if (!result.isComplete) {
+                log.w { "Simkl could not move ${result.notFoundCount} of ${result.attemptedCount} series to Completed" }
             }
         }.onFailure { error ->
             if (error is CancellationException) throw error
@@ -147,7 +152,6 @@ object SimklWatchedSyncAdapter : TrackingWatchedProvider {
         if (profileId != ProfileRepository.activeProfileId || items.isEmpty()) return
         val episodeItems = items.filter { item -> item.season != null && item.episode != null }
         if (episodeItems.isEmpty()) return
-        // Optimistically mark video IDs as removed so fallback won't show them as watched
         episodeItems.forEach { item -> item.videoId?.let(SimklAnimeWatchedFallback::markOptimisticallyRemoved) }
         SimklSyncRepository.ensureLoaded()
         val snapshot = SimklSyncRepository.state.value.snapshot
@@ -194,6 +198,7 @@ data class SimklProgressUiState(
     val isLoading: Boolean = false,
     val hasLoadedRemoteProgress: Boolean = false,
     val errorMessage: String? = null,
+    val hiddenContentIds: Set<String> = emptySet(),
 )
 
 object SimklProgressRepository {
@@ -202,6 +207,8 @@ object SimklProgressRepository {
     private val _uiState = MutableStateFlow(SimklProgressUiState())
     val uiState: StateFlow<SimklProgressUiState> = _uiState.asStateFlow()
     private val optimisticEntries = MutableStateFlow<Map<String, WatchProgressEntry>>(emptyMap())
+    private val publicationLock = SynchronizedObject()
+    private val projectionCache = SimklSnapshotProjectionCache(SimklSyncSnapshot::toSimklProgressEntries)
 
     init {
         scope.launch {
@@ -308,15 +315,38 @@ object SimklProgressRepository {
     }
 
     private fun publish(syncState: SimklSyncUiState) {
-        _uiState.value = SimklProgressUiState(
-            entries = mergeSimklOptimisticProgress(
-                providerEntries = syncState.snapshot.toSimklProgressEntries(),
-                optimisticEntries = optimisticEntries.value.values,
-            ),
-            isLoading = syncState.isLoading,
-            hasLoadedRemoteProgress = syncState.hasLoaded && syncState.errorMessage == null,
-            errorMessage = syncState.errorMessage,
-        )
+        synchronized(publicationLock) {
+            _uiState.value = SimklProgressUiState(
+                entries = mergeSimklOptimisticProgress(
+                    providerEntries = projectionCache.get(syncState),
+                    optimisticEntries = optimisticEntries.value.values,
+                ),
+                isLoading = syncState.isLoading,
+                hasLoadedRemoteProgress = syncState.hasLoaded && syncState.errorMessage == null,
+                errorMessage = syncState.errorMessage,
+                hiddenContentIds = syncState.snapshot.hiddenFromContinueWatchingContentIds(),
+            )
+        }
+    }
+}
+
+internal class SimklSnapshotProjectionCache<T : Any>(
+    private val project: (SimklSyncSnapshot) -> T,
+) {
+    private var snapshot: SimklSyncSnapshot? = null
+    private var projectionVersion = 0L
+    private var projection: T? = null
+
+    fun get(state: SimklSyncUiState): T {
+        val current = projection
+        if (current != null && snapshot === state.snapshot && projectionVersion == state.projectionVersion) {
+            return current
+        }
+        return project(state.snapshot).also { updated ->
+            snapshot = state.snapshot
+            projectionVersion = state.projectionVersion
+            projection = updated
+        }
     }
 }
 
@@ -337,8 +367,7 @@ object SimklTrackingProgressProvider : TrackingProgressProvider {
         val state = SimklProgressRepository.uiState.value
         return TrackingProgressSnapshot(
             entries = state.entries,
-            hiddenContentIds = SimklSyncRepository.state.value.snapshot
-                .hiddenFromContinueWatchingContentIds(),
+            hiddenContentIds = state.hiddenContentIds,
             hasLoadedRemoteProgress = state.hasLoadedRemoteProgress,
             errorMessage = state.errorMessage,
         )
