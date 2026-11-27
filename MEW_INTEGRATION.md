@@ -46,6 +46,20 @@ The per-file record of decisions is in [`docs/upstream-merges/luqman-1.1.0-beta.
 | `livetv/mew/MewLiveTvIncomingSource.kt` | Shared-link / M3U intake into luq Live TV |
 | `updater/mew/MewSemanticVersion.kt`, `MewWhatsNewUpdaterCompat.kt` | luq What's New on the Mew updater (Mew release repo) |
 | `com/nuvio/app/mew/MewAppShellCompat.kt` | luq app-shell helpers (`AppLoadingProfileAvatar`) for luq settings on Mew's shell |
+| `streams/mew/MewCloudStreamFetchSupport.kt` | CloudStream stream resolution, title matching and episode mapping (from `StreamFetchSupport.kt`) |
+| `home/mew/MewCloudStreamHomeSupport.kt` | CloudStream home shelves: provider gating, MainPage scan, section building and keys (from `HomeRepository.kt`, `HomeModels.kt`) |
+| `home/mew/MewCloudStreamHomeScreenSupport.kt` | CloudStream "CS3" Home provider picker (from `HomeScreen.kt`) |
+| `search/mew/MewCloudStreamSearchSupport.kt` | CloudStream search sections, Discover providers and main pages, `CLOUDSTREAM_SEARCH_*` (from `SearchRepository.kt`) |
+| `catalog/mew/MewCloudStreamCatalogSupport.kt` | `CatalogTarget.CloudStream` paging and `selectCloudStreamCategoryItems` (from `CatalogRepository.kt`) |
+| `details/mew/MewCloudStreamDetailsSupport.kt` | CloudStream detail gate, timeout and provider load (from `MetaDetailsRepository.kt`) |
+
+CloudStream code lives in the `MewCloudStream*Support.kt` files above. The upstream
+files they came from (`StreamFetchSupport.kt`, `HomeRepository.kt`, `HomeModels.kt`,
+`HomeScreen.kt`, `SearchRepository.kt`, `CatalogRepository.kt`,
+`MetaDetailsRepository.kt`) only call into them from `// Mew hook` lines. CloudStream
+state that is owned by an upstream object (for example the selected Home provider in
+`HomeRepository`, `loadCloudStream` in `MetaDetailsRepository`, and the stored
+`cloudStreamProviderId` in `HomeCatalogSettingsRepository`) still lives in that file.
 
 ### Hybrid files (expect conflicts here)
 
