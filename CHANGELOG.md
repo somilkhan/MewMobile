@@ -13,6 +13,7 @@ First beta built on luqmanfadlli's NuvioMobile Enhanced 1.1.0-beta.3. It is publ
 - Episode ratings on details pages, chapter titles in the player and optional chapter skip.
 - Season batch downloads from the details hero, a Wi-Fi only option and a redesigned downloads screen with a pausable queue.
 - A new launcher icon and splash with the Mew ghost, and a smoother hand-off from splash to the first screen.
+- Alternate app icons (Arctic Blue, Emerald, Rose Gold, Copper, Graphite) rebuilt from the Mew ghost on Android and iOS.
 
 ### Improved
 
@@ -29,10 +30,12 @@ First beta built on luqmanfadlli's NuvioMobile Enhanced 1.1.0-beta.3. It is publ
 - Episode cards fall back to other artwork when an image fails to load.
 - Subtitle outline width stays inside its allowed range.
 - Plugins that ask for an unsupported crypto algorithm are rejected instead of failing silently.
+- Episode release notifications show the Mew ghost and your chosen app icon instead of old Nuvio artwork.
+- If you used an old Nuvio Enhanced icon, it now falls back to the Mew icon instead of a Nuvio one.
 
 ### Known issues
 
-- Cast members on details pages show initials instead of photos.
+- Cast photos need TMDB metadata turned on with your own TMDB key (Settings, TMDB). Without it, Cinemeta only provides names, so cast shows initials.
 - Some internal identifiers still use Nuvio names.
 
 ### Release

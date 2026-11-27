@@ -1,3 +1,7 @@
+import sys
+
+sys.exit("Mew: this upstream Nuvio icon script is retired. Run python3 tools/brand/build_brand.py instead.")
+
 from pathlib import Path
 import json
 import shutil

@@ -375,9 +375,10 @@ internal actual object EpisodeReleaseNotificationPlatform {
     ): android.app.Notification {
         val pendingIntent = buildPendingIntent(context, request)
         val backdropBitmap = loadBackdropBitmap(request.backdropUrl)
+        // Mew: show the launcher icon the user picked, not a leftover Nuvio Enhanced asset.
         val appIconBitmap = ContextCompat.getDrawable(
             context,
-            com.nuvio.app.R.mipmap.ic_launcher_alt_enhanced,
+            com.nuvio.app.features.settings.AppIconPlatform.currentLauncherIconResource(context),
         )?.toBitmap()
 
         return NotificationCompat.Builder(context, channelId)

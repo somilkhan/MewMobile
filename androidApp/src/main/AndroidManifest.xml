@@ -236,8 +236,8 @@
             android:name="com.nuvio.enhanced.IconMonochrome"
             android:enabled="false"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher_alt_monochrome"
-            android:roundIcon="@mipmap/ic_launcher_alt_monochrome"
+            android:icon="@mipmap/ic_launcher"
+            android:roundIcon="@mipmap/ic_launcher_round"
             android:targetActivity="com.nuvio.app.MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -250,8 +250,8 @@
             android:name="com.nuvio.enhanced.IconNeon"
             android:enabled="false"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher_alt_neon"
-            android:roundIcon="@mipmap/ic_launcher_alt_neon"
+            android:icon="@mipmap/ic_launcher"
+            android:roundIcon="@mipmap/ic_launcher_round"
             android:targetActivity="com.nuvio.app.MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -264,8 +264,8 @@
             android:name="com.nuvio.enhanced.IconGear"
             android:enabled="false"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher_alt_gear"
-            android:roundIcon="@mipmap/ic_launcher_alt_gear"
+            android:icon="@mipmap/ic_launcher"
+            android:roundIcon="@mipmap/ic_launcher_round"
             android:targetActivity="com.nuvio.app.MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -278,8 +278,8 @@
             android:name="com.nuvio.enhanced.IconChrome"
             android:enabled="false"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher_alt_chrome"
-            android:roundIcon="@mipmap/ic_launcher_alt_chrome"
+            android:icon="@mipmap/ic_launcher"
+            android:roundIcon="@mipmap/ic_launcher_round"
             android:targetActivity="com.nuvio.app.MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -292,8 +292,8 @@
             android:name="com.nuvio.enhanced.IconAurora"
             android:enabled="false"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher_alt_aurora"
-            android:roundIcon="@mipmap/ic_launcher_alt_aurora"
+            android:icon="@mipmap/ic_launcher"
+            android:roundIcon="@mipmap/ic_launcher_round"
             android:targetActivity="com.nuvio.app.MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -306,8 +306,8 @@
             android:name="com.nuvio.enhanced.IconEmerald"
             android:enabled="false"
             android:exported="true"
-            android:icon="@mipmap/ic_launcher_alt_emerald"
-            android:roundIcon="@mipmap/ic_launcher_alt_emerald"
+            android:icon="@mipmap/ic_launcher"
+            android:roundIcon="@mipmap/ic_launcher_round"
             android:targetActivity="com.nuvio.app.MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
