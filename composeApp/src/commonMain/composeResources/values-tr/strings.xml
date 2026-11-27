@@ -2832,7 +2832,7 @@ Bu özelliği tamamen kendi sorumluluğunuzda kullanırsınız. P2P istediğiniz
     <string name="settings_meta_random_episode_button_description">Dizi detay sayfalarında bir rastgele bölüm düğmesi göster. Oynatma, rastgele seçilmiş yayınlanmış bir bölümden başlar.</string>
     <string name="settings_nuvio_enhanced_category">Mew</string>
     <string name="settings_nuvio_enhanced_section">Mew</string>
-    <string name="settings_nuvio_enhanced_title">Mew</string>
+    <string name="settings_nuvio_enhanced_title">Mew Enhanced</string>
     <string name="settings_nuvio_enhanced_description">Fork'a özel premium kontroller, ana sayfa zekası, backup ve import.</string>
     <string name="settings_new_feature_badge">Yeni</string>
     <string name="home_smart_resume_signal_continue_now">Şimdi devam et</string>
@@ -3026,9 +3026,9 @@ Bu özelliği tamamen kendi sorumluluğunuzda kullanırsınız. P2P istediğiniz
     <string name="nuvio_enhanced_category_new">Yeni</string>
     <string name="nuvio_enhanced_section_player_tools">Oynatıcı ve altyazılar</string>
     <string name="nuvio_enhanced_subtitle_selector_title">Altyazı seçici</string>
-    <string name="nuvio_enhanced_subtitle_selector_desc">Choose between the Mew language-grouped selector and the latest core layout.</string>
+    <string name="nuvio_enhanced_subtitle_selector_desc">Choose the Mew language-grouped selector or the Standard layout.</string>
     <string name="nuvio_enhanced_subtitle_selector_enhanced">Mew</string>
-    <string name="nuvio_enhanced_subtitle_selector_nuvio">Mew</string>
+    <string name="nuvio_enhanced_subtitle_selector_nuvio">Standard</string>
     <string name="community_donation_progress_fee_notice">Gösterilen tutar ödeme ve banka ücretlerinden öncedir; bu nedenle alınan tutar daha düşük olabilir.</string>
     <string name="downloads_download_settings">İndirme ayarları</string>
     <string name="downloads_auto_select">Otomatik seçim</string>

@@ -611,19 +611,16 @@ private fun PlayerScreenRuntime.RenderPlayerControls(
             nextEpisodeReady = nextEpisodeAutoPlayReady,
             randomNextEpisodeMode = randomNextEpisodeMode,
             onRandomNextEpisodeModeToggle = if (
-                nuvioEnhancedSettingsUiState.enhancedHomeFeaturesEnabled &&
                 isSeries &&
                 playerSettingsUiState.randomNextEpisodeEnabled
             ) {
                 { randomNextEpisodeMode = !randomNextEpisodeMode }
             } else null,
             showDeviceStatusOverlay = showQuietDeviceStatusOverlay,
-            showClockEndTime = nuvioEnhancedSettingsUiState.enhancedHomeFeaturesEnabled &&
-                playerSettingsUiState.playerClockEndTimeEnabled &&
+            showClockEndTime = playerSettingsUiState.playerClockEndTimeEnabled &&
                 !isLiveTvPlayback,
             onSubtitleSyncClick = if (
                 !isLiveTvPlayback &&
-                nuvioEnhancedSettingsUiState.enhancedHomeFeaturesEnabled &&
                 playerSettingsUiState.subtitleSyncMenuEnabled
             ) {
                 {
@@ -1188,8 +1185,7 @@ private fun PlayerScreenRuntime.RenderPlayerModals() {
                 loadSubtitleAutoSyncCues()
             }
         },
-        subtitleSyncEnabled = nuvioEnhancedSettingsUiState.enhancedHomeFeaturesEnabled &&
-            playerSettingsUiState.subtitleSyncMenuEnabled,
+        subtitleSyncEnabled = playerSettingsUiState.subtitleSyncMenuEnabled,
         currentPlaybackPositionMs = playbackSnapshot.positionMs,
         isPlaying = playbackSnapshot.isPlaying,
         onBuiltInSubtitleTrackSelected = { index ->

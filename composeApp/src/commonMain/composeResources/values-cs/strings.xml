@@ -2333,9 +2333,9 @@
     <string name="nuvio_enhanced_category_new">Nové</string>
     <string name="nuvio_enhanced_section_player_tools">Přehrávač a titulky</string>
     <string name="nuvio_enhanced_subtitle_selector_title">Výběr titulků</string>
-    <string name="nuvio_enhanced_subtitle_selector_desc">Choose between the Mew language-grouped selector and the latest core layout.</string>
+    <string name="nuvio_enhanced_subtitle_selector_desc">Choose the Mew language-grouped selector or the Standard layout.</string>
     <string name="nuvio_enhanced_subtitle_selector_enhanced">Mew</string>
-    <string name="nuvio_enhanced_subtitle_selector_nuvio">Mew</string>
+    <string name="nuvio_enhanced_subtitle_selector_nuvio">Standard</string>
     <string name="community_donation_progress_fee_notice">Zobrazená částka je před poplatky za platbu a bankovními poplatky, takže přijatá částka může být nižší.</string>
     <string name="downloads_download_settings">Nastavení stahování</string>
     <string name="downloads_auto_select">Automatický výběr</string>

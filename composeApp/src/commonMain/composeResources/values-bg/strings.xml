@@ -2418,9 +2418,9 @@
     <string name="nuvio_enhanced_category_new">Ново</string>
     <string name="nuvio_enhanced_section_player_tools">Плейър и субтитри</string>
     <string name="nuvio_enhanced_subtitle_selector_title">Избор на субтитри</string>
-    <string name="nuvio_enhanced_subtitle_selector_desc">Choose between the Mew language-grouped selector and the latest core layout.</string>
+    <string name="nuvio_enhanced_subtitle_selector_desc">Choose the Mew language-grouped selector or the Standard layout.</string>
     <string name="nuvio_enhanced_subtitle_selector_enhanced">Mew</string>
-    <string name="nuvio_enhanced_subtitle_selector_nuvio">Mew</string>
+    <string name="nuvio_enhanced_subtitle_selector_nuvio">Standard</string>
     <string name="community_donation_progress_fee_notice">Показаната сума е преди таксите за плащане и банките, така че получената сума може да е по-ниска.</string>
     <string name="downloads_download_settings">Настройки за изтегляне</string>
     <string name="downloads_auto_select">Автоматичен избор</string>

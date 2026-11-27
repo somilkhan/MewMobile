@@ -2571,9 +2571,9 @@
     <string name="nuvio_enhanced_category_new">Mới</string>
     <string name="nuvio_enhanced_section_player_tools">Trình phát và phụ đề</string>
     <string name="nuvio_enhanced_subtitle_selector_title">Trình chọn phụ đề</string>
-    <string name="nuvio_enhanced_subtitle_selector_desc">Choose between the Mew language-grouped selector and the latest core layout.</string>
+    <string name="nuvio_enhanced_subtitle_selector_desc">Choose the Mew language-grouped selector or the Standard layout.</string>
     <string name="nuvio_enhanced_subtitle_selector_enhanced">Mew</string>
-    <string name="nuvio_enhanced_subtitle_selector_nuvio">Mew</string>
+    <string name="nuvio_enhanced_subtitle_selector_nuvio">Standard</string>
     <string name="community_donation_progress_fee_notice">Số tiền hiển thị là trước phí thanh toán và ngân hàng, nên số tiền nhận được có thể thấp hơn.</string>
     <string name="downloads_download_settings">Cài đặt tải xuống</string>
     <string name="downloads_auto_select">Tự động chọn</string>
