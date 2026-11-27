@@ -350,6 +350,17 @@ data class CloudStreamLoadItem(
     val ratingPercent: Int? = null,
     val tags: List<String> = emptyList(),
     val episodes: List<CloudStreamEpisode> = emptyList(),
+    val logoUrl: String? = null,
+    /** Runtime in minutes, as reported by the provider (`LoadResponse.duration`). */
+    val durationMinutes: Int? = null,
+    val contentRating: String? = null,
+    val cast: List<CloudStreamCastMember> = emptyList(),
+)
+
+data class CloudStreamCastMember(
+    val name: String,
+    val character: String? = null,
+    val photoUrl: String? = null,
 )
 
 sealed interface CloudStreamProviderError {

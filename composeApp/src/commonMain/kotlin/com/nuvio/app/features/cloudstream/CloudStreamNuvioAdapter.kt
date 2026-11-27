@@ -1,6 +1,7 @@
 package com.nuvio.app.features.cloudstream
 
 import com.nuvio.app.features.details.MetaDetails
+import com.nuvio.app.features.details.MetaPerson
 import com.nuvio.app.features.details.MetaVideo
 import com.nuvio.app.features.home.MetaPreview
 import com.nuvio.app.features.home.PosterShape
@@ -51,7 +52,7 @@ fun CloudStreamLoadItem.toMetaDetails(): MetaDetails {
         listOf(
             MetaVideo(
                 id = routeId,
-                title = if (type == CloudStreamTvType.Live) "Canlı yayın" else name,
+                title = name,
                 available = true,
                 thumbnail = backgroundUrl ?: posterUrl,
             ),
@@ -83,6 +84,13 @@ fun CloudStreamLoadItem.toMetaDetails(): MetaDetails {
         },
         genres = tags,
         videos = videos,
+        logo = logoUrl,
+        ageRating = contentRating,
+        // Same shape as Cinemeta's runtime field ("142 min"), which the details UI already formats.
+        runtime = durationMinutes?.let { "$it min" },
+        cast = cast.map { member ->
+            MetaPerson(name = member.name, role = member.character, photo = member.photoUrl)
+        },
     )
 }
 

@@ -773,7 +773,9 @@ private class AndroidDexCloudStreamProvider(
                     subtitleCallback = { subtitle ->
                         subtitles += CloudStreamSubtitle(
                             url = subtitle.url,
-                            language = subtitle.lang,
+                            // UPSTREAM: SubtitleFile.langTag is the IETF tag ("en", "pt-BR");
+                            // lang is a display name. Match on the tag when the extension sets it.
+                            language = subtitle.langTag?.takeIf(String::isNotBlank) ?: subtitle.lang,
                             name = subtitle.lang,
                             headers = subtitle.headers.orEmpty(),
                         )
@@ -884,8 +886,30 @@ private class AndroidDexCloudStreamProvider(
             ratingPercent = score?.toInt(100),
             tags = tags.orEmpty(),
             episodes = episodes,
+            logoUrl = logoUrl?.takeIf(String::isNotBlank),
+            durationMinutes = duration?.takeIf { it > 0 },
+            contentRating = contentRating?.takeIf(String::isNotBlank),
+            cast = nuvioCast(),
         )
     }
+
+    /**
+     * UPSTREAM: LoadResponse.actors carries the provider's cast with photos. Read it
+     * defensively so one malformed entry never fails the whole details load.
+     */
+    private fun LoadResponse.nuvioCast(): List<CloudStreamCastMember> =
+        runCatching {
+            actors.orEmpty().mapNotNull { entry ->
+                val name = entry.actor.name.trim().takeIf(String::isNotBlank) ?: return@mapNotNull null
+                CloudStreamCastMember(
+                    name = name,
+                    character = entry.roleString?.trim()?.takeIf(String::isNotBlank),
+                    photoUrl = entry.actor.image?.trim()?.takeIf(String::isNotBlank),
+                )
+            }.distinctBy { it.name.lowercase() }
+        }.onFailure { error ->
+            log.w(error) { "CloudStream cast mapping failed api=$apiName" }
+        }.getOrDefault(emptyList())
 
     private fun com.lagradost.cloudstream3.Episode.toNuvioEpisode(
         api: MainAPI,

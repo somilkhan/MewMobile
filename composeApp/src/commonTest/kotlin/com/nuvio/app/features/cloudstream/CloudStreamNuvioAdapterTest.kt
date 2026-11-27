@@ -154,4 +154,41 @@ class CloudStreamNuvioAdapterTest {
         apiVersion = 1,
         fileHash = null,
     )
+
+    @Test
+    fun detailsCarryProviderCastRuntimeLogoAndRating() {
+        val details = CloudStreamLoadItem(
+            providerId = "https://example.com/repo.json#MovieProvider",
+            data = "movie:7",
+            name = "Example Movie",
+            type = CloudStreamTvType.Movie,
+            logoUrl = "https://cdn.example/logo.png",
+            durationMinutes = 142,
+            contentRating = "PG-13",
+            cast = listOf(
+                CloudStreamCastMember("Jane Doe", character = "Lead", photoUrl = "https://cdn.example/jane.jpg"),
+                CloudStreamCastMember("John Roe"),
+            ),
+        ).toMetaDetails()
+
+        assertEquals("https://cdn.example/logo.png", details.logo)
+        assertEquals("142 min", details.runtime)
+        assertEquals("PG-13", details.ageRating)
+        assertEquals(listOf("Jane Doe", "John Roe"), details.cast.map { it.name })
+        assertEquals("Lead", details.cast.first().role)
+        assertEquals("https://cdn.example/jane.jpg", details.cast.first().photo)
+        assertEquals(null, details.cast.last().photo)
+    }
+
+    @Test
+    fun liveDetailsUseProviderTitleInsteadOfHardcodedLabel() {
+        val details = CloudStreamLoadItem(
+            providerId = "https://example.com/repo.json#LiveProvider",
+            data = "live:1",
+            name = "News Channel",
+            type = CloudStreamTvType.Live,
+        ).toMetaDetails()
+
+        assertEquals("News Channel", details.videos.single().title)
+    }
 }
