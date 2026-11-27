@@ -5,14 +5,11 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.MutatePriority
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.stopScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
@@ -20,10 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -34,7 +28,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -1599,63 +1592,13 @@ fun HomeScreen(
 
             val addonDataFetchEnabled = enabledAddons.any { it.manifest != null }
             if (!addonDataFetchEnabled && runnableCloudStreamProviders.isNotEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .align(androidx.compose.ui.Alignment.BottomEnd)
-                        .padding(
-                            end = 16.dp,
-                            bottom = nativeBottomNavigationOverlayHeight + 16.dp,
-                        ),
-                ) {
-                    DropdownMenu(
-                        expanded = cloudStreamProviderMenuExpanded,
-                        onDismissRequest = { cloudStreamProviderMenuExpanded = false },
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("All extensions") },
-                            onClick = {
-                                cloudStreamProviderMenuExpanded = false
-                                HomeRepository.setSelectedCloudStreamProvider(null)
-                            },
-                        )
-                        runnableCloudStreamProviders.forEach { provider ->
-                            DropdownMenuItem(
-                                text = { Text(provider.metadata.name) },
-                                onClick = {
-                                    cloudStreamProviderMenuExpanded = false
-                                    HomeRepository.setSelectedCloudStreamProvider(provider.metadata.id.value)
-                                },
-                            )
-                        }
-                    }
-                    val selectedCloudStreamProvider = runnableCloudStreamProviders.firstOrNull {
-                        it.metadata.id.value == selectedCloudStreamProviderId
-                    }
-                    val sourceLabel = selectedCloudStreamProvider?.metadata?.name ?: "All sources"
-
-                    Box(
-                        modifier = Modifier
-                            .size(52.dp)
-                            .clip(CircleShape)
-                            .background(
-                                MaterialTheme.colorScheme.surface.copy(alpha = 0.82f),
-                            )
-                            .border(
-                                width = 1.dp,
-                                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.30f),
-                                shape = CircleShape,
-                            )
-                            .clickable { cloudStreamProviderMenuExpanded = true },
-                        contentAlignment = androidx.compose.ui.Alignment.Center,
-                    ) {
-                        Text(
-                            text = "CS3",
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.94f),
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
-                        )
-                    }
-                }
+                CloudStreamHomeProviderPicker( // Mew hook
+                    runnableCloudStreamProviders = runnableCloudStreamProviders,
+                    selectedCloudStreamProviderId = selectedCloudStreamProviderId,
+                    cloudStreamProviderMenuExpanded = cloudStreamProviderMenuExpanded,
+                    onCloudStreamProviderMenuExpandedChange = { cloudStreamProviderMenuExpanded = it },
+                    nativeBottomNavigationOverlayHeight = nativeBottomNavigationOverlayHeight,
+                )
             }
         }
     }
