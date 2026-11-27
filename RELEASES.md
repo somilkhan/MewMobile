@@ -95,8 +95,9 @@ These property names are retained as internal compatibility identifiers; their
 current defaults target `somilkhan/MewMobile` for Mew releases.
 
 The app checks the 20 most recent GitHub Releases at startup. On the Stable
-channel it ignores pre-releases and prefers releases cut from `main` or
-`enhanced`. On the Beta channel it also considers pre-releases. A release is
+channel it ignores pre-releases and prefers releases cut from `enhanced`, the
+only long-lived branch. Installed 0.5.x apps accept nothing else, so every
+release must be dispatched from `enhanced`. On the Beta channel it also considers pre-releases. A release is
 offered only when it contains a compatible APK and has a newer version than the
 installed app, so `0.6.0` outranks `0.6.0-beta.2`, which outranks `0.6.0-beta.1`.
 The GitHub release body is displayed as the in-app changelog.
@@ -109,7 +110,7 @@ in the same range are dropped too.
 
 ## Release checklist
 
-1. Merge the release branch into `main` and dispatch releases from `main`.
+1. Merge the release branch into `enhanced` and dispatch releases from `enhanced`.
 2. Add a `CHANGELOG.md` section whose heading starts with the exact version,
    for example `## 0.6.0-beta.1 - 2026-11-27`.
 3. Increment `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in

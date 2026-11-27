@@ -8,12 +8,10 @@ concurrency:
 on:
   push:
     branches:
-      - main
       - enhanced
       - 'integrate/**'
   pull_request:
     branches:
-      - main
       - enhanced
   workflow_dispatch:
     inputs:

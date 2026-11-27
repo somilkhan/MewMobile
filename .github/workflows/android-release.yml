@@ -5,7 +5,7 @@ on:
   # Add [release-beta] to either to ship on the Beta update channel (published as a GitHub pre-release).
   push:
     branches:
-      - main
+      - enhanced
   workflow_dispatch:
     inputs:
       mode:
