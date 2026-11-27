@@ -3751,7 +3751,7 @@
     <string name="nuvio_enhanced_feedback_desc">Send bugs, ideas or user feedback directly to the Mew maintainer.</string>
     <string name="nuvio_enhanced_intro_title">Mew</string>
     <string name="nuvio_enhanced_intro_desc">Everything unique to Mew, grouped by where it shows up in the app.</string>
-    <string name="nuvio_enhanced_mark_all_seen">Mark everything as seen</string>
+    <string name="nuvio_enhanced_mark_all_seen">Mark all seen</string>
     <string name="nuvio_enhanced_backup_ready_title">Backup ready</string>
     <string name="nuvio_enhanced_backup_ready_desc">The backup was copied to your clipboard. Keep it private because it may include account-linked settings and API keys.</string>
     <string name="nuvio_enhanced_backup_copy_again">Copy again</string>
@@ -3921,7 +3921,7 @@
     <string name="live_tv_programme_detail_status">Status</string>
     <string name="live_tv_programme_watch_live">WATCH LIVE</string>
     <string name="live_tv_programme_open_live">OPEN LIVE CHANNEL NOW</string>
-    <string name="addons_refresh_all">Refresh all Nuvio add-ons</string>
+    <string name="addons_refresh_all">Refresh all add-ons</string>
     <string name="player_toolbar_button_speed">Speed</string>
     <string name="player_stream_info_title">STREAM INFORMATION</string>
     <string name="player_stream_info_provider">Provider</string>

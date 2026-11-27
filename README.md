@@ -57,10 +57,10 @@ Feature availability depends on the installed integration, build variant and pla
 ## Screenshots
 
 <p align="center">
-  <img src="docs/Screenshot_2026-11-17-05-08-37-525_com.mew.mobile.jpg" width="24%" alt="Mew app screen 1">
-  <img src="docs/Screenshot_2026-11-17-05-11-37-861_com.mew.mobile.jpg" width="24%" alt="Mew app screen 2">
-  <img src="docs/IMG_20261117_051959.jpg" width="24%" alt="Mew player screen">
-  <img src="docs/Screenshot_2026-11-17-05-12-15-850_com.mew.mobile.jpg" width="24%" alt="Mew app screen 4">
+  <img src="docs/screenshots/home.jpg" width="24%" alt="Home with hero banner">
+  <img src="docs/screenshots/details.jpg" width="24%" alt="Details page">
+  <img src="docs/screenshots/search.jpg" width="24%" alt="Search">
+  <img src="docs/screenshots/mew-settings.jpg" width="24%" alt="Mew settings">
 </p>
 
 ## Download
