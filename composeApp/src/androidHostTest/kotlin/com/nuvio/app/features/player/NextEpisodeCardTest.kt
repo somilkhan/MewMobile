@@ -159,6 +159,7 @@ class NextEpisodeCardTest {
                         isAutoPlayReady = false,
                         autoPlaySourceName = "Source",
                         autoPlayCountdownSec = countdown.value,
+                        blurred = false,
                         onPlayNext = { plays++ },
                         onDismiss = {
                             dismissals++

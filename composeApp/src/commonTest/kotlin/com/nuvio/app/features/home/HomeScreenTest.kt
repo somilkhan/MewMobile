@@ -746,13 +746,13 @@ class HomeScreenTest {
             )),
         )
 
-        val result = dropNextUpItemsClaimedByOtherSeries(nextUpItems) { id ->
+        val result = dropNextUpItemsClaimedByOtherSeries(nextUpItems, canonicalSeedContentId = { id ->
             when {
                 id == "show-a" -> "tt-show-a"
                 id == "show-b" || id.startsWith("show-b:") -> "tt-show-b"
                 else -> id
             }
-        }
+        })
 
         assertEquals(setOf("show-b"), result.keys)
     }

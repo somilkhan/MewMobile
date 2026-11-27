@@ -1310,6 +1310,7 @@ internal fun tmdbEnrichmentSettingsFingerprint(settings: TmdbSettings): String =
         useProductions,
         useNetworks,
         useEpisodes,
+        useEpisodeRatings,
         useSeasonPosters,
         useMoreLikeThis,
         useCollections,

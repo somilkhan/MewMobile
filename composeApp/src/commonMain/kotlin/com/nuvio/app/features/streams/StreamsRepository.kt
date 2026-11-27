@@ -135,8 +135,13 @@ object StreamsRepository {
         val currentState = _uiState.value
         if (
             !forceRefresh &&
-            activeRequestKey == requestKey &&
-            (currentState.groups.isNotEmpty() || currentState.emptyStateReason != null || currentState.isAnyLoading)
+            // Mew hook: a loading state whose job died must restart instead of being reused.
+            shouldReuseStreamRequest(
+                sameRequest = activeRequestKey == requestKey,
+                hasResult = currentState.groups.isNotEmpty() || currentState.emptyStateReason != null,
+                isLoading = currentState.isAnyLoading,
+                jobActive = activeJob?.isActive == true,
+            )
         ) {
             log.d { "Skipping stream reload for unchanged request type=$type id=$videoId" }
             return
@@ -775,3 +780,11 @@ object StreamsRepository {
 }
 
 private const val SMART_AUTOPLAY_UNLIMITED_WAIT_MS = 60_000L
+
+// Mew hook: reuse a request only while its job is alive (or it already produced a result).
+internal fun shouldReuseStreamRequest(
+    sameRequest: Boolean,
+    hasResult: Boolean,
+    isLoading: Boolean,
+    jobActive: Boolean,
+): Boolean = sameRequest && if (isLoading) jobActive else hasResult

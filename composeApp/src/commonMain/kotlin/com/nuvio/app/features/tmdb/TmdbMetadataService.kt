@@ -313,6 +313,7 @@ object TmdbMetadataService {
         val seen = mutableSetOf<Int>()
         return cast
             .filter { it.mediaType == "tv" && (it.posterPath != null || it.backdropPath != null) }
+            .filter { !isTalkShowGuestAppearance(it.genreIds.orEmpty(), it.character) } // luq
             .sortedByDescending { it.voteAverage ?: 0.0 }
             .mapNotNull { credit ->
                 if (!seen.add(credit.id)) return@mapNotNull null
@@ -763,7 +764,8 @@ object TmdbMetadataService {
             ?: return meta
 
         val needsEpisodes = (
-            settings.useEpisodes || settings.useReleaseDates || settings.useSeasonPosters
+            settings.useEpisodes || settings.useReleaseDates || settings.useEpisodeRatings ||
+                settings.useSeasonPosters
         ) && tmdbType == "tv"
         val (enrichment, episodeMap) = coroutineScope {
             val enrichmentDeferred = async {
@@ -1047,6 +1049,16 @@ object TmdbMetadataService {
                             } else {
                                 video.runtime
                             },
+                            tmdbRating = if (settings.useEpisodeRatings) {
+                                enrichmentForEpisode.voteAverage?.takeIf { it > 0.0 } ?: video.tmdbRating
+                            } else {
+                                null
+                            },
+                            imdbRating = if (settings.useEpisodeRatings) {
+                                enrichmentForEpisode.imdbVoteAverage?.takeIf { it > 0.0 } ?: video.imdbRating
+                            } else {
+                                null
+                            },
                         )
                     }
                 },
@@ -1318,6 +1330,7 @@ object TmdbMetadataService {
                     seasonPoster = buildImageUrl(details.posterPath, "w500"),
                     airDate = episode.airDate?.trim()?.takeIf(String::isNotBlank),
                     runtimeMinutes = episode.runtime,
+                    voteAverage = episode.voteAverage?.takeIf { it > 0.0 },
                 )
             }
             .toMap()
@@ -1738,12 +1751,15 @@ private data class TmdbSeasonEpisodeEnrichmentEntry(
 
 @Serializable
 internal data class TmdbEpisodeEnrichment(
-    val title: String?,
-    val overview: String?,
-    val thumbnail: String?,
+    val title: String? = null,
+    val overview: String? = null,
+    val thumbnail: String? = null,
     val seasonPoster: String? = null,
-    val airDate: String?,
-    val runtimeMinutes: Int?,
+    val airDate: String? = null,
+    val runtimeMinutes: Int? = null,
+    // luq: per-episode ratings (TMDB setting "use episode ratings").
+    val voteAverage: Double? = null,
+    val imdbVoteAverage: Double? = null,
 )
 
 internal fun requestedSeasonsNeedingRefresh(
@@ -2278,6 +2294,7 @@ private data class TmdbEpisodeResponse(
     @SerialName("air_date") val airDate: String? = null,
     val runtime: Int? = null,
     @SerialName("episode_number") val episodeNumber: Int? = null,
+    @SerialName("vote_average") val voteAverage: Double? = null,
 )
 
 // ─── Person Detail Models ───
@@ -2314,6 +2331,7 @@ private data class TmdbPersonCreditCast(
     @SerialName("first_air_date") val firstAirDate: String? = null,
     @SerialName("vote_average") val voteAverage: Double? = null,
     val popularity: Double? = null,
+    @SerialName("genre_ids") val genreIds: List<Int>? = null, // luq talk-show filter
 )
 
 @Serializable
@@ -2419,7 +2437,7 @@ private data class TmdbDiscoverResponse(
 )
 
 @Serializable
-private data class TmdbDiscoverResult(
+internal data class TmdbDiscoverResult(
     val id: Int,
     val title: String? = null,
     val name: String? = null,
@@ -2433,3 +2451,75 @@ private data class TmdbDiscoverResult(
     @SerialName("vote_average") val voteAverage: Double? = null,
     @SerialName("vote_count") val voteCount: Int? = null,
 )
+
+// ─── luq TMDB text helpers (CJK-aware names, talk-show guest filter) ───
+
+internal fun discoverResultsContainCjkTitles(results: List<TmdbDiscoverResult>): Boolean {
+    return results.any { result ->
+        containsCjkOrHangul(result.title ?: result.name ?: return@any false)
+    }
+}
+
+internal fun englishDiscoverTitlesById(results: List<TmdbDiscoverResult>): Map<Int, String> {
+    val titles = linkedMapOf<Int, String>()
+    results.forEach { result ->
+        val text = result.title?.trim()?.takeIf { it.isNotBlank() }
+            ?: result.name?.trim()?.takeIf { it.isNotBlank() }
+            ?: return@forEach
+        if (!containsCjkOrHangul(text)) {
+            titles.getOrPut(result.id) { text }
+        }
+    }
+    return titles
+}
+
+private const val TMDB_TALK_GENRE_ID = 10767
+private val TALK_SHOW_HOST_CHARACTER_REGEX = Regex("\\b(co-?)?host(s|ess)?\\b", RegexOption.IGNORE_CASE)
+
+internal fun isTalkShowGuestAppearance(genreIds: List<Int>, character: String?): Boolean {
+    if (genreIds.none { it == TMDB_TALK_GENRE_ID }) return false
+    return character?.let { TALK_SHOW_HOST_CHARACTER_REGEX.containsMatchIn(it) } != true
+}
+
+internal fun containsCjkOrHangul(text: String): Boolean {
+    return text.any { ch ->
+        ch in '\u3040'..'\u30FF' ||  // Hiragana + Katakana
+            ch in '\u4E00'..'\u9FFF' ||  // CJK Unified Ideographs
+            ch in '\u3400'..'\u4DBF' ||  // CJK Extension A
+            ch in '\uAC00'..'\uD7AF' ||  // Hangul Syllables
+            ch in '\u1100'..'\u11FF' ||  // Hangul Jamo
+            ch in '\u3130'..'\u318F'     // Hangul Compatibility Jamo
+    }
+}
+
+internal fun resolvePersonName(
+    localizedName: String?,
+    originalName: String?,
+    fallbackEnglishName: String? = null,
+    preferredLanguage: String,
+): String? {
+    val name = localizedName?.trim()?.takeIf { it.isNotBlank() }
+    val original = originalName?.trim()?.takeIf { it.isNotBlank() }
+    val fallback = fallbackEnglishName?.trim()?.takeIf { it.isNotBlank() }
+
+    if (name == null) return original ?: fallback
+    val lang = preferredLanguage.lowercase()
+
+    if (lang.startsWith("ja") || lang.startsWith("ko") || lang.startsWith("zh")) {
+        return name
+    }
+
+    if (!containsCjkOrHangul(name)) {
+        return name
+    }
+
+    if (original != null && !containsCjkOrHangul(original)) {
+        return original
+    }
+
+    if (fallback != null && !containsCjkOrHangul(fallback)) {
+        return fallback
+    }
+
+    return fallback ?: original ?: name
+}

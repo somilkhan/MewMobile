@@ -703,6 +703,7 @@ kotlin {
                 implementation(libs.androidx.activity.compose)
                 implementation("org.robolectric:robolectric:4.16")
                 implementation("androidx.compose.ui:ui-test-junit4:${libs.versions.composeMultiplatform.get()}")
+                implementation("com.squareup.okhttp3:mockwebserver:5.3.2") // luq AutoSync HTTP tests
             }
             if (androidDistribution == "full") {
                 kotlin.srcDir(project.file("src/androidFullHostTest/kotlin"))

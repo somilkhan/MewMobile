@@ -177,3 +177,8 @@ TODO: apply /tmp/enhanced_new.patch (enhanced be3fb89c5+aa698c015) after conflic
 - details/components/DetailMetaInfo: restored Mew version (auto-merge was broken) + luq RatingsRow/ImdbRatingSourceLabel(storeTextStyle)/DetailHeroMetaBadge(secondaryText) for luq HomeHeroMetaRows; TabletDetailHero.kt (unused luq) removed.
 - player/SubtitleForwarder, AddonSubtitleLoader: luq verbatim (Mew never changed; auto-merge had dropped luq extras/url filter).
 - settings/ThemeColorPicker.kt — LUQ whole file (needed by luq NavigationBarSettingsSheet).
+- tmdb/TmdbMetadataService.kt: ported luq per-episode ratings (TmdbEpisodeEnrichment voteAverage/imdbVoteAverage, season episode vote_average, applyEnrichment tmdbRating/imdbRating gated by useEpisodeRatings, episode fetch gating) + luq text helpers (containsCjkOrHangul, resolvePersonName, discover CJK helpers) + talk-show guest filter on person TV credits. Luq localized person-name/discover English fallback wiring NOT ported (TODO).
+- details/MetaDetailsRepository: useEpisodeRatings added to TMDB enrichment fingerprint.
+- streams/StreamsRepository: Mew hook shouldReuseStreamRequest restored (dead loading job restarts instead of being reused).
+- settings/MemberBrandWordmark: Mew whole file (merge had garbled it).
+- tests: MpvOperationGateTest removed (Mew engine internals dropped with luq engine); NextEpisodeCardTest/PlayerSurfaceGesturesTest kept Mew + new luq params; PlayerToolbarLayoutTest uses STREAM_INFO (CHANNELS dropped); AutoSyncHttpIndexTest (luq) + mockwebserver 5.3.2 test dependency (same as luq build).

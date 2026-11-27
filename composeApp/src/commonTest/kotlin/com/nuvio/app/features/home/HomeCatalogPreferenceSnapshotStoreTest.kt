@@ -81,6 +81,7 @@ class HomeCatalogPreferenceSnapshotStoreTest {
     fun `preference snapshot replacement preserves enhanced-only settings`() {
         val beforeUpdate = HomeCatalogSettingsSnapshot(
             heroEnabled = false,
+            heroStyle = HomeHeroStyle.FULL_BLEED,
             heroAutoScrollEnabled = false,
             heroMotionPreviewEnabled = true,
             showCatalogType = false,

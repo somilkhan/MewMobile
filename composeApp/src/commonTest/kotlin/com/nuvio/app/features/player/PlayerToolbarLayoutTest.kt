@@ -13,7 +13,7 @@ class PlayerToolbarLayoutTest {
     @Test
     fun encodeDecodePreservesVisibilityAndOrder() {
         val layout = PlayerToolbarLayout.Default
-            .withVisibility(PlayerToolbarButton.CHANNELS, false)
+            .withVisibility(PlayerToolbarButton.STREAM_INFO, false)
             .moved(0, 3)
         assertEquals(layout, PlayerToolbarLayout.decode(layout.encode()))
     }
