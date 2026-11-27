@@ -86,7 +86,7 @@ fun localizedMovieTypeLabel(): String = resourceString("Movie") { getString(Res.
 fun localizedSeasonEpisodeCode(seasonNumber: Int?, episodeNumber: Int?): String? =
     when {
         seasonNumber != null && episodeNumber != null ->
-            resourceString("S${seasonNumber}E${episodeNumber}") {
+            resourceString("S${seasonNumber} E${episodeNumber}") {
                 getString(Res.string.compose_player_episode_code_full, seasonNumber, episodeNumber)
             }
         episodeNumber != null ->

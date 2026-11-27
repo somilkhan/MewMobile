@@ -2,16 +2,18 @@ package com.nuvio.app.core.format
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class ReleaseDateDisplayTest {
     @Test
     fun formatsIsoDate() {
-        assertEquals("2025 February 1", formatReleaseDateForDisplay("2025-02-01"))
+        assertLocalizedDate(formatReleaseDate("2025-02-01", includeYear = true, localeTag = "en-US"), "February", "1", "2025")
     }
 
     @Test
     fun stripsTimePortion() {
-        assertEquals("2024 January 15", formatReleaseDateForDisplay("2024-01-15T12:30:00Z"))
+        assertLocalizedDate(formatReleaseDate("2024-01-15T12:30:00Z", includeYear = true, localeTag = "en-US"), "January", "15", "2024")
     }
 
     @Test
@@ -36,12 +38,12 @@ class ReleaseDateDisplayTest {
 
     @Test
     fun formatsIsoDateWithoutYear() {
-        assertEquals("February 1", formatReleaseDateWithoutYear("2025-02-01"))
+        assertLocalizedDate(formatReleaseDate("2025-02-01", includeYear = false, localeTag = "en-US"), "February", "1", year = null)
     }
 
     @Test
     fun formatReleaseDateWithoutYearStripsTimePortion() {
-        assertEquals("January 15", formatReleaseDateWithoutYear("2024-01-15T12:30:00Z"))
+        assertLocalizedDate(formatReleaseDate("2024-01-15T12:30:00Z", includeYear = false, localeTag = "en-US"), "January", "15", year = null)
     }
 
     @Test
@@ -52,5 +54,13 @@ class ReleaseDateDisplayTest {
     @Test
     fun formatReleaseDateWithoutYearLeavesNonIsoUnchanged() {
         assertEquals("TBA", formatReleaseDateWithoutYear("TBA"))
+    }
+
+    // Release dates follow the device locale (luq 1.1.0), so assert the parts rather than one exact layout.
+    private fun assertLocalizedDate(formatted: String, month: String, day: String, year: String?) {
+        assertTrue(month in formatted, formatted)
+        assertTrue(Regex("\\b$day\\b").containsMatchIn(formatted), formatted)
+        if (year != null) assertTrue(year in formatted, formatted) else assertFalse(Regex("\\b\\d{4}\\b").containsMatchIn(formatted), formatted)
+        assertFalse(':' in formatted, formatted)
     }
 }

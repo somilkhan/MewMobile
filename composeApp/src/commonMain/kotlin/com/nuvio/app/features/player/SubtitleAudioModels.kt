@@ -112,7 +112,8 @@ val PlayerSettingsUiState.effectiveDownmixEnabled: Boolean
 internal fun audioAmplificationGain(db: Int): Double =
     10.0.pow(db.coerceIn(AUDIO_AMPLIFICATION_MIN_DB, AUDIO_AMPLIFICATION_MAX_DB) / 20.0)
 
-internal const val SUBTITLE_OUTLINE_WIDTH_DEFAULT = 2
+// Mew keeps a 1-step outline as its default look; luq's native-outline checks compare against this.
+internal const val SUBTITLE_OUTLINE_WIDTH_DEFAULT = 1
 internal val subtitleOutlineWidthRange: IntRange = 1..5
 
 internal val subtitleFontSizeRangeSp: IntRange
@@ -123,7 +124,7 @@ data class SubtitleStyleState(
     val backgroundColor: Color = Color.Transparent,
     val outlineColor: Color = Color.Black,
     val outlineEnabled: Boolean = true,
-    val outlineWidth: Int = 1,
+    val outlineWidth: Int = SUBTITLE_OUTLINE_WIDTH_DEFAULT,
     val shadowEnabled: Boolean = false,
     val shadowStrength: Int = SUBTITLE_SHADOW_STRENGTH_DEFAULT,
     val bold: Boolean = false,

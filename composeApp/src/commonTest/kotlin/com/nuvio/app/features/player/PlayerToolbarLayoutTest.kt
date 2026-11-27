@@ -7,7 +7,24 @@ import kotlin.test.assertNotEquals
 class PlayerToolbarLayoutTest {
     @Test
     fun defaultsPreserveExistingMewActionPills() {
-        assertEquals(PlayerToolbarButton.entries, PlayerToolbarLayout.Default.visibleButtons)
+        // luq's layout keeps six primary pills and moves the rest to the overflow; every action,
+        // including Mew's subtitle sync and stream info, must still be reachable.
+        val defaults = PlayerToolbarLayout.Default
+        assertEquals(PlayerToolbarButton.entries.toSet(), defaults.entries.map(PlayerToolbarEntry::button).toSet())
+        assertEquals(PlayerToolbarButton.entries.size, defaults.entries.size)
+        assertEquals(
+            listOf(
+                PlayerToolbarButton.NEXT_EPISODE,
+                PlayerToolbarButton.SPEED,
+                PlayerToolbarButton.RESIZE,
+                PlayerToolbarButton.SUBTITLES,
+                PlayerToolbarButton.CHAPTERS,
+                PlayerToolbarButton.NIGHT_MODE,
+            ),
+            defaults.visibleButtons,
+        )
+        assertEquals(true, PlayerToolbarButton.SUBTITLE_SYNC in defaults.hiddenButtons)
+        assertEquals(true, PlayerToolbarButton.STREAM_INFO in defaults.hiddenButtons)
     }
 
     @Test
@@ -35,7 +52,7 @@ class PlayerToolbarLayoutTest {
     @Test
     fun moveAndVisibilityReturnNewLayouts() {
         val defaults = PlayerToolbarLayout.Default
-        assertNotEquals(defaults, defaults.withVisibility(PlayerToolbarButton.AUDIO, false))
+        assertNotEquals(defaults, defaults.withVisibility(PlayerToolbarButton.SPEED, false))
         assertNotEquals(defaults, defaults.moved(0, 1))
     }
 }

@@ -222,6 +222,24 @@ internal fun findBestInternalSubtitleTrackIndex(
                     continue
                 }
             }
+            if (normalizedTarget == "pt-br" || normalizedTarget == "es-419") {
+                // A lone name-only match (e.g. "Spanish Castilian" for es-419) must not
+                // beat a correctly tagged regional track that only carries the base code.
+                val track = tracks[preferredCandidateIndexes.first()]
+                val variant = SubtitleLanguageMatching.detectTrackLanguageVariant(
+                    language = track.language,
+                    name = track.label,
+                    trackId = track.id,
+                )
+                if (variant != normalizedTarget) {
+                    val regional = if (normalizedTarget == "pt-br") {
+                        findBrazilianPortugueseInGenericPtTracks(tracks, normalOnly)
+                    } else {
+                        findLatinoSpanishInGenericEsTracks(tracks, normalOnly)
+                    }
+                    if (regional >= 0) return regional
+                }
+            }
             return preferredCandidateIndexes.first()
         }
 
@@ -464,7 +482,9 @@ internal fun filterAddonSubtitlesForSettings(
     subtitles: List<AddonSubtitle>,
     settings: PlayerSettingsUiState,
 ): List<AddonSubtitle> {
-    val shouldFilter = settings.subtitleStyle.showOnlyPreferredLanguages
+    // Mew: PREFERRED_ONLY addon startup mode also restricts the addon list.
+    val shouldFilter = settings.subtitleStyle.showOnlyPreferredLanguages ||
+        settings.addonSubtitleStartupMode == AddonSubtitleStartupMode.PREFERRED_ONLY
     if (!shouldFilter) return subtitles
 
     val targets = preferredSubtitleTargetsForSettings(settings)
@@ -472,7 +492,10 @@ internal fun filterAddonSubtitlesForSettings(
 
     return subtitles.filter { subtitle ->
         targets.any { target ->
-            SubtitleLanguageMatching.matchesLanguageCode(subtitle.language, target)
+            // luq's strict regional matcher, plus Mew's primary-language fallback so a
+            // generic "por" track is not hidden from a pt-BR user browsing the list.
+            SubtitleLanguageMatching.matchesLanguageCode(subtitle.language, target) ||
+                languageMatchesPreference(subtitle.language, target)
         }
     }
 }

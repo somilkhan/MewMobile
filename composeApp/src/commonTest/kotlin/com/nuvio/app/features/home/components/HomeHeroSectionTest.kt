@@ -24,14 +24,15 @@ class HomeHeroSectionTest {
     }
 
     @Test
-    fun `mobile hero height stays compact without continue watching`() {
+    fun `mobile portrait hero uses the luq poster ratio`() {
         val layout = homeHeroLayout(
             maxWidthDp = 390f,
             viewportHeightDp = 844f,
         )
 
         assertEquals(false, layout.isTablet)
-        assertEquals(692.08f, layout.heroHeight.value, 0.001f)
+        // luq 1.1.0: portrait phones get a fixed 1.5x-width poster hero.
+        assertEquals(585f, layout.heroHeight.value, 0.001f)
     }
 
     @Test
@@ -46,15 +47,8 @@ class HomeHeroSectionTest {
     }
 
     @Test
-    fun `mobile hero height leaves room for continue watching card section`() {
-        val viewportHeight = 844f
+    fun `mobile portrait hero keeps its height above continue watching`() {
         val continueWatchingLayout = rememberContinueWatchingLayout(maxWidthDp = 390f)
-        val continueWatchingHeight = continueWatchingSectionHeightEstimate(
-            style = ContinueWatchingSectionStyle.Card,
-            layout = continueWatchingLayout,
-            basePosterWidthDp = 110,
-            showHeaderAccent = true,
-        )
         val reserveHeight = continueWatchingHeroViewportReserveHeight(
             style = ContinueWatchingSectionStyle.Card,
             layout = continueWatchingLayout,
@@ -63,24 +57,37 @@ class HomeHeroSectionTest {
         )
         val layout = homeHeroLayout(
             maxWidthDp = 390f,
-            viewportHeightDp = viewportHeight,
+            viewportHeightDp = 844f,
             mobileBelowSectionHeightHintDp = reserveHeight.value,
         )
 
-        assertEquals(24f, viewportHeight - layout.heroHeight.value - continueWatchingHeight.value, 0.001f)
+        assertEquals(585f, layout.heroHeight.value, 0.001f)
     }
 
     @Test
-    fun `mobile hero can shrink below default minimum to fit short viewport`() {
+    fun `mobile landscape hero leaves room for the section below`() {
         val layout = homeHeroLayout(
-            maxWidthDp = 390f,
-            viewportHeightDp = 568f,
-            mobileBelowSectionHeightHintDp = 300f,
+            maxWidthDp = 560f,
+            viewportHeightDp = 360f,
+            mobileBelowSectionHeightHintDp = 100f,
         )
 
         assertEquals(false, layout.isTablet)
-        assertEquals(268f, layout.heroHeight.value, 0.001f)
+        assertEquals(260f, layout.heroHeight.value, 0.001f)
     }
+
+    @Test
+    fun `mobile landscape hero can shrink below default minimum to fit short viewport`() {
+        val layout = homeHeroLayout(
+            maxWidthDp = 560f,
+            viewportHeightDp = 300f,
+            mobileBelowSectionHeightHintDp = 100f,
+        )
+
+        assertEquals(false, layout.isTablet)
+        assertEquals(200f, layout.heroHeight.value, 0.001f)
+    }
+
     @Test
     fun `original TMDB title mode prefers the title selected for the home item`() {
         assertEquals(

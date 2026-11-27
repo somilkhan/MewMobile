@@ -341,6 +341,15 @@ object SearchRepository {
         errorMessage: String? = null,
     ) {
         activeJob?.cancel()
+        if (!TmdbSettingsRepository.snapshot().enabled) {
+            // No TMDB fallback available: settle immediately instead of flashing a loader.
+            _uiState.value = SearchUiState(
+                isLoading = false,
+                emptyStateReason = fallbackReason,
+                errorMessage = errorMessage,
+            )
+            return
+        }
         _uiState.value = SearchUiState(isLoading = true)
         activeJob = scope.launch {
             val sectionDeferred = async { tmdbSearchSection(query) }
@@ -422,6 +431,7 @@ object SearchRepository {
             forceRefresh = forceRefresh,
             hasPendingAddonManifests = hasPendingAddonManifests,
             addonManifestErrorMessage = addonManifestErrorMessage,
+            hasActiveAddons = activeAddons.isNotEmpty(),
         )
     }
 
@@ -430,6 +440,7 @@ object SearchRepository {
         forceRefresh: Boolean = false,
         hasPendingAddonManifests: Boolean = false,
         addonManifestErrorMessage: String? = null,
+        hasActiveAddons: Boolean = false,
     ) {
         val current = _discoverUiState.value
         val hideUnreleasedContent = HomeCatalogSettingsRepository.snapshot().hideUnreleasedContent
@@ -445,6 +456,13 @@ object SearchRepository {
         if (sources.isEmpty()) {
             if (hasPendingAddonManifests) {
                 _discoverUiState.value = DiscoverUiState(isLoading = true)
+                return
+            }
+            if (hasActiveAddons) {
+                // luq: loaded addons without discover catalogs is a capability gap, not a failure.
+                _discoverUiState.value = DiscoverUiState(
+                    emptyStateReason = DiscoverEmptyStateReason.NoDiscoverCatalogs,
+                )
                 return
             }
             if (addonManifestErrorMessage != null) {

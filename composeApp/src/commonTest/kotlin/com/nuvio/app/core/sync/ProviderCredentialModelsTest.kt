@@ -36,7 +36,17 @@ class ProviderCredentialModelsTest {
         val merged = local.mergeRemote(remote)
 
         assertEquals("remote-key", merged.values.single { it.provider == ProviderCredentialIds.TMDB }.value)
-        assertEquals("", merged.mergeRemote(emptyList()).values.single { it.provider == ProviderCredentialIds.TMDB }.value)
+
+        // Mew clears a key only through a dated tombstone, never through a missing row.
+        val tombstone = listOf(
+            SupabaseProviderCredential(
+                "tmdb",
+                buildJsonObject { put("api_key", "") },
+                updatedAt = "1970-01-01T00:00:05Z",
+            ),
+        )
+        assertEquals("", merged.mergeRemote(tombstone).values.single { it.provider == ProviderCredentialIds.TMDB }.value)
+        assertEquals("remote-key", merged.mergeRemote(emptyList()).values.single { it.provider == ProviderCredentialIds.TMDB }.value)
     }
 
     @Test
@@ -57,7 +67,7 @@ class ProviderCredentialModelsTest {
     }
 
     @Test
-    fun `missing remote provider clears its cached credential`() {
+    fun `missing remote provider keeps its cached credential`() {
         val snapshot = ProviderCredentialSnapshot(
             profileId = 1,
             values = listOf(
@@ -69,7 +79,7 @@ class ProviderCredentialModelsTest {
             SupabaseProviderCredential("debrid:torbox", buildJsonObject { put("api_key", "remote") }),
         )
 
-        assertEquals(listOf("remote", ""), snapshot.mergeRemote(rows).values.map { it.value })
+        assertEquals(listOf("remote", "local-anime"), snapshot.mergeRemote(rows).values.map { it.value })
     }
 
     @Test
@@ -95,11 +105,11 @@ class ProviderCredentialModelsTest {
         val merged = local.mergeRemote(remote)
 
         assertEquals("remote-torbox", merged.values[0].value)
-        assertEquals("", merged.values[1].value)
+        assertEquals("local-anime", merged.values[1].value)
     }
 
     @Test
-    fun `empty remote snapshot clears all cached credentials`() {
+    fun `empty remote snapshot keeps cached credentials`() {
         val local = ProviderCredentialSnapshot(
             profileId = 1,
             values = listOf(
@@ -108,7 +118,8 @@ class ProviderCredentialModelsTest {
             ),
         )
 
-        assertEquals(listOf("", ""), local.mergeRemote(emptyList()).values.map { it.value })
+        // A failed or partial fetch must not wipe keys saved on this device.
+        assertEquals(listOf("local-torbox", "local-anime"), local.mergeRemote(emptyList()).values.map { it.value })
     }
 
     @Test

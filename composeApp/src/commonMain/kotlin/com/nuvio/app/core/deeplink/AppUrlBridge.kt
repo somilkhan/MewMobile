@@ -97,14 +97,11 @@ internal fun parseAppDeepLink(url: String): AppDeepLink? {
 
         "imdb", "tmdb" -> parseProviderMetaDeepLink(host, pathSegments, parsedUrl)
 
-        "party", "watchparty", "watch-party" -> {
-            val code = (pathSegments.firstOrNull() ?: firstParameter(parsedUrl, "code", "invite")).orEmpty()
-            code.takeIf { it.isNotBlank() }?.let(AppDeepLink::Party)
-        }
-
         "downloads" -> AppDeepLink.Downloads
 
-        "party" -> partyDeepLink(pathSegments.firstOrNull() ?: firstParameter(parsedUrl, "code"))
+        // Mew keeps its watchparty/watch-party aliases and invite= param; luq validates the code.
+        "party", "watchparty", "watch-party" ->
+            partyDeepLink(pathSegments.firstOrNull() ?: firstParameter(parsedUrl, "code", "invite"))
 
         "auth" -> null
 

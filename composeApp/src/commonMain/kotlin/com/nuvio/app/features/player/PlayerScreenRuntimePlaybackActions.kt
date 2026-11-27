@@ -393,7 +393,6 @@ internal fun PlayerScreenRuntime.tryShowParentalGuide() {
         !playbackStartedForParentalGuide
     ) {
         playbackStartedForParentalGuide = true
-        controlsVisible = true
         showParentalGuide = true
         parentalGuideHasShown = true
     }

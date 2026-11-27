@@ -311,6 +311,7 @@ class PlayerTrackSelectionTest {
         assertEquals(3, findPreferredSubtitleTrackIndex(tracks, listOf("es-419"), SubtitleAutoSelectionMode.NORMAL_ONLY))
     }
 
+    @Test
     fun europeanPortugueseTargetDoesNotSelectBrazilianOnlyTrack() {
         val selectedIndex = findPreferredSubtitleTrackIndex(
             tracks = listOf(subtitleTrack(0, "pt", "Portuguese (Brazil)", false)),
@@ -321,6 +322,7 @@ class PlayerTrackSelectionTest {
         assertEquals(-1, selectedIndex)
     }
 
+    @Test
     fun forcedRestoreSkipsNormalLanguageFallback() {
         val selectedIndex = findPersistedSubtitleTrackIndex(
             tracks = listOf(
@@ -337,6 +339,7 @@ class PlayerTrackSelectionTest {
         assertEquals(1, selectedIndex)
     }
 
+    @Test
     fun forcedAddonDetectionIgnoresRegularTranslations() {
         val regular = addonSubtitle("english", "en")
         val forced = addonSubtitle("english-forced", "en", "https://example.com/en.forced.srt")
@@ -347,6 +350,7 @@ class PlayerTrackSelectionTest {
         assertEquals(false, addonSubtitleMatchesSelectedAudioLanguage(forced, audioTrack("ja")))
     }
 
+    @Test
     fun preferredOnlyFilteringRemovesNonPreferredAddons() {
         val subtitles = listOf(
             addonSubtitle(id = "english", language = "en"),
