@@ -40,7 +40,7 @@ First beta built on luqmanfadlli's NuvioMobile Enhanced 1.1.0-beta.3. It is publ
 
 ### Release
 
-- Mew 0.6.0-beta.1 (121).
+- Mew 0.6.0-beta.1 (122).
 - Existing 0.5.1 installs only check Stable, so they will not be offered this beta. Install the APK by hand to try it, then updates arrive in the app.
 
 ## 0.5.1 - 2026-11-16
