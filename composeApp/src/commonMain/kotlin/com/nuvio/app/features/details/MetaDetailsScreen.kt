@@ -109,6 +109,8 @@ import com.nuvio.app.features.details.components.DetailSeriesContent
 import com.nuvio.app.features.details.components.rememberEpisodeDownloadLookup
 import com.nuvio.app.features.details.components.rememberEpisodeNavigatorState
 import com.nuvio.app.features.details.components.DetailTrailersSection
+import com.nuvio.app.features.details.components.MewAiAssistantFab
+import com.nuvio.app.features.details.components.MewAiAssistantFabClearance
 import com.nuvio.app.features.details.components.readableDetailContentColor
 import com.nuvio.app.features.details.components.BatchDownloadDialog
 import com.nuvio.app.features.details.components.EpisodeDownloadFlowSheet
