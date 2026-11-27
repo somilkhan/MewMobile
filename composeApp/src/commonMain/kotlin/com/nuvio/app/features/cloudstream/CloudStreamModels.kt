@@ -346,6 +346,8 @@ data class CloudStreamEpisode(
     val episode: Int? = null,
     val posterUrl: String? = null,
     val description: String? = null,
+    /** UPSTREAM: Episode.runTime, in minutes. */
+    val runtimeMinutes: Int? = null,
 )
 
 data class CloudStreamLoadItem(
@@ -389,3 +391,35 @@ internal fun shouldKeepCloudStreamPluginEnabled(
     statusCanInstall: Boolean,
     compatibilityIsRunnable: Boolean,
 ): Boolean = wasEnabled && statusCanInstall && compatibilityIsRunnable
+
+/**
+ * UPSTREAM: APIRepository.isInvalidData. CloudStream never calls load()/loadLinks() with
+ * these placeholder values; providers rely on the host to filter them.
+ */
+internal fun isInvalidCloudStreamData(data: String): Boolean =
+    data.isEmpty() || data == "[]" || data == "about:blank"
+
+/**
+ * UPSTREAM: ResultViewModel2 numbers episodes without an explicit number as `index + 1`.
+ * TV series index after sorting by `season * 10_000 + episode` (nulls as 0, stable);
+ * anime index within each DubStatus list in provider order ([sortBySeasonAndEpisode] = false).
+ * Without this, unnumbered episodes cannot be matched to a requested S/E and sort by name.
+ */
+internal fun fillMissingCloudStreamEpisodeNumbers(
+    episodes: List<CloudStreamEpisode>,
+    sortBySeasonAndEpisode: Boolean,
+): List<CloudStreamEpisode> {
+    if (episodes.none { it.episode == null }) return episodes
+    val ordered = if (sortBySeasonAndEpisode) {
+        episodes.sortedBy { (it.season?.times(10_000) ?: 0) + (it.episode ?: 0) }
+    } else {
+        episodes
+    }
+    return ordered.mapIndexed { index, episode ->
+        if (episode.episode != null) episode else episode.copy(episode = index + 1)
+    }
+}
+
+/** UPSTREAM: SimklSyncServices ids are only meaningful when non-blank. */
+internal fun normalizeCloudStreamExternalId(value: String?): String? =
+    value?.trim()?.takeIf { it.isNotEmpty() && it != "null" }

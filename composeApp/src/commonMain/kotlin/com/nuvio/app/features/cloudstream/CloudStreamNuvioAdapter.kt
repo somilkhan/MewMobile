@@ -67,6 +67,7 @@ fun CloudStreamLoadItem.toMetaDetails(): MetaDetails {
                 season = episode.season,
                 episode = episode.episode,
                 overview = episode.description,
+                runtime = episode.runtimeMinutes?.takeIf { it > 0 },
             )
         }
     }

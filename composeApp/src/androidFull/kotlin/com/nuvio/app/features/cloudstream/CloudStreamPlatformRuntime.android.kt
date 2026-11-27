@@ -866,11 +866,16 @@ private class AndroidDexCloudStreamProvider(
             else -> url
         }
         val episodes = when (this) {
-            is TvSeriesLoadResponse -> episodes.map { episode -> episode.toNuvioEpisode(api) }
+            is TvSeriesLoadResponse -> fillMissingCloudStreamEpisodeNumbers(
+                episodes.map { episode -> episode.toNuvioEpisode(api) },
+                sortBySeasonAndEpisode = true,
+            ).map { episode -> episode.withDisplayName(variant = null) }
             is AnimeLoadResponse -> episodes.flatMap { (dubStatus, values) ->
-                values.map { episode ->
-                    episode.toNuvioEpisode(api, dubStatus.name.takeUnless { episodes.size == 1 })
-                }
+                val variant = dubStatus.name.takeUnless { episodes.size == 1 }
+                fillMissingCloudStreamEpisodeNumbers(
+                    values.map { episode -> episode.toNuvioEpisode(api) },
+                    sortBySeasonAndEpisode = false,
+                ).map { episode -> episode.withDisplayName(variant) }
             }
             else -> emptyList()
         }
@@ -913,15 +918,15 @@ private class AndroidDexCloudStreamProvider(
 
     private fun com.lagradost.cloudstream3.Episode.toNuvioEpisode(
         api: MainAPI,
-        variant: String? = null,
     ): CloudStreamEpisode = CloudStreamEpisode(
         data = encodeAndroidDexRoute(api.javaClass.name, data),
-        name = listOfNotNull(name?.takeIf(String::isNotBlank), variant).joinToString(" · ")
-            .ifBlank { "Episode ${episode ?: ""}".trim() },
+        // The display name is finalised by withDisplayName() once missing numbers are assigned.
+        name = name?.trim().orEmpty(),
         season = season,
         episode = episode,
         posterUrl = posterUrl,
         description = description,
+        runtimeMinutes = runTime?.takeIf { it > 0 },
     )
 
     private companion object {
@@ -952,6 +957,11 @@ private class AndroidDexCloudStreamProvider(
         private const val MIN_PROVIDER_TIMEOUT_MS = 5_000L
         private const val MAX_LOAD_TIMEOUT_MS = 480_000L
     }
+}
+
+private fun CloudStreamEpisode.withDisplayName(variant: String?): CloudStreamEpisode {
+    val base = name.ifBlank { "Episode ${episode ?: ""}".trim() }
+    return copy(name = listOfNotNull(base, variant).joinToString(" · "))
 }
 
 private data class AndroidDexRoute(val providerClassName: String, val data: String)
