@@ -97,8 +97,9 @@ python3 tools/upstream-merge/brand_new_strings.py                   # Nuvio -> M
 ```
 
 Branding rules: user-visible text says **Mew**, except "upstream Nuvio", "Nuvio Supporter",
-"Supporting Nuvio", "Nuvio tier" and the "Nuvio web panel". CI rejects `Discord`, `Ko-fi`,
-`Mew Enhanced` and `Nuvio Enhanced` in `composeResources/*/strings.xml`.
+"Supporting Nuvio", "Nuvio tier" and the "Nuvio web panel". The Mew settings page is titled
+**Mew Enhanced** (#65). CI rejects `Discord`, `Ko-fi` and `Nuvio Enhanced` in
+`composeResources/*/strings.xml`.
 
 Record each file decision in `docs/upstream-merges/luqman-<tag>.md`, commit the merge with
 the luq tag as second parent, and let `mew-cloudstream-build.yml` compile it.
