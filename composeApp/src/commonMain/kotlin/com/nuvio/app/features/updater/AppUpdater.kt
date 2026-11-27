@@ -24,9 +24,9 @@ import nuvio.composeapp.generated.resources.*
 import org.jetbrains.compose.resources.getString
 
 private const val gitHubApiBase = "https://api.github.com"
-// Mew hook: Mew releases are cut from `main`; `enhanced` keeps 0.5.x releases eligible.
-// Without `main`, Stable would prefer the older `enhanced` release and never offer 0.6+.
-private val releaseChannelBranches = listOf("main", "enhanced", "cmp-rewrite")
+// Mew hook: every Mew release is cut from `enhanced`, the only long-lived branch.
+// 0.5.x builds match on the same branch, so they keep receiving Stable updates.
+private val releaseChannelBranches = listOf("enhanced", "cmp-rewrite")
 
 data class AppUpdate(
     val tag: String,
