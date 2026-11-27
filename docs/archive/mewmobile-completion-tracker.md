@@ -46,7 +46,7 @@ Status distinctions: **DONE** (required evidence recorded), **IN PROGRESS**, **B
 9. Handoffs update status, evidence, blockers, and **NEXT EXACT TASK**.
 
 ## Baseline (2026-11-02)
-Device candidate 4d838a356a658bf21c9eab0d63c83124d9ba5dd4 tested, not accepted. CI candidate build run 41350265383 passed; routine run 41350269421 passed with APK steps skipped (not proof for later commits). Evidence: [device report](DEVICE_TEST_REPORT_2026-11-02.md), [parity audit](UPSTREAM_PARITY_AUDIT.md), [PR #38](https://github.com/somilkhan/MewMobile/pull/38). Previously merged: sync auth/write guard, TMDB v3/v4 credentials, plugin TMDB ID resolution, centralized Liquid Glass preference (device retest pending). Watch Party NOT IMPLEMENTED; Nuvio backend reuse decided. iOS unverified.
+Device candidate 4d838a356a658bf21c9eab0d63c83124d9ba5dd4 tested, not accepted. CI candidate build run 41350265383 passed; routine run 41350269421 passed with APK steps skipped (not proof for later commits). Evidence: [device report](DEVICE_TEST_REPORT_2026-11-02.md), [parity audit](../UPSTREAM_PARITY_AUDIT.md), [PR #38](https://github.com/somilkhan/MewMobile/pull/38). Previously merged: sync auth/write guard, TMDB v3/v4 credentials, plugin TMDB ID resolution, centralized Liquid Glass preference (device retest pending). Watch Party NOT IMPLEMENTED; Nuvio backend reuse decided. iOS unverified.
 
 ## Handoff log
 | Date | Item | Evidence/status | Next exact task |

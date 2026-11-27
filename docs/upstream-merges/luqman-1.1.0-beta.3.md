@@ -53,7 +53,7 @@
 - [base fix] Re-ran all 550 code merges with remerge3.py: base = newest luq blob whose lines Mew had actually seen; prevents luq additions from being read as Mew deletions (e.g. JsBindings). Manual resolutions above were done on top of this.
 - details/components/HeroTrailerPlayerSurface (common expect + androidFull/androidPlaystore/iosFull/iosAppStore actuals) — Mew seekRequest/onPlaybackStateChanged API kept, luq onPositionUpdate added (default {} in expect). iosFull keeps Mew's implementation and now also reports position.
 - features/downloads/* (whole module) — KEPT MEW. luq downloads is a full rewrite (WorkManager transfer, redesigned screen, DownloadsSettingsPage, offline show metadata, library downloaded tab); Mew rewrite (pending source search/auto-retry, queue mode, preferred quality, external folder, foreground service, speed/ETA) is not line-mergeable. luq-only downloads files NOT added; PlatformLocalAccountDataCleaner drops luq clearUnfinishedDownloads call (keeps clearUnfinishedTransfers). Follow-up candidate.
-TODO: apply /tmp/enhanced_new.patch (enhanced be3fb89c5+aa698c015) after conflicts
+- enhanced follow-ups: be3fb89c5 (hero download opens the season batch dialog) cherry-picked; aa698c015 (episode unavailable badge) skipped because luq's EpisodeAvailabilityBadge with watched-aware placement is already integrated.
 - player/PlaybackBuffering.android — union: Mew memorySafeBufferEnabled + luq localFileSource low-buffer branch (with .build()).
 - player/PlayerLibassCompat — luq AutoSync wrapParser around Mew parserFor() (media3 external SSA fallback); Mew innermost-Matroska extractor swap kept.
 - player/PlayerNowPlayingController.android — Mew (imports + followSslRedirects).
