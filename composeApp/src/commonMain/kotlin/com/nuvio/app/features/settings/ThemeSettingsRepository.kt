@@ -28,8 +28,12 @@ import kotlinx.coroutines.launch
 
 internal const val DEFAULT_NAV_BAR_ICON_COLOR = 0x969CA3
 
+// Mew: Sumi is the theme for installs (and profiles) that never picked one.
+// A theme the user chose explicitly, including Mew, is always kept.
+internal val DefaultAppTheme = AppTheme.SUMI
+
 object ThemeSettingsRepository {
-    private val _selectedTheme = MutableStateFlow(AppTheme.MEW)
+    private val _selectedTheme = MutableStateFlow(DefaultAppTheme)
     private val _selectedThemePreference = MutableStateFlow<AppTheme?>(null)
     val selectedThemePreference: StateFlow<AppTheme?> = _selectedThemePreference.asStateFlow()
     val selectedTheme: StateFlow<AppTheme> = _selectedTheme.asStateFlow()
@@ -113,7 +117,7 @@ object ThemeSettingsRepository {
 
     fun clearLocalState() {
         hasLoaded = false
-        _selectedTheme.value = AppTheme.MEW
+        _selectedTheme.value = DefaultAppTheme
         _selectedThemePreference.value = null
         _customThemeFirstColor.value = ThemeAccentColor.PINK.color
         _customThemeSecondColor.value = ThemeAccentColor.CYAN.color
@@ -124,7 +128,7 @@ object ThemeSettingsRepository {
         _tabBarBehavior.value = NuvioTabBarBehavior.OFF
         _dynamicArtworkBackgroundEnabled.value = false
         _showCatalogAccentEnabled.value = false
-        NativeTabBridge.publishAccentColor(AppTheme.MEW.nativeTabAccentHex())
+        NativeTabBridge.publishAccentColor(DefaultAppTheme.nativeTabAccentHex())
         NativeTabBridge.publishTabBarBehavior(NuvioTabBarBehavior.OFF)
         NativeTabBridge.publishLiquidGlassEnabled(false)
         _selectedAppLanguage.value = AppLanguage.DEVICE
@@ -473,13 +477,13 @@ object ThemeSettingsRepository {
 private fun AppTheme.nativeTabAccentHex(customFirst: Color = ThemeAccentColor.PINK.color): String =
     ThemeColors.getColorPalette(this, customFirst = customFirst).nativeAccentHex
 
-private fun String?.toAppTheme(): AppTheme = when (this) {
+internal fun String?.toAppTheme(): AppTheme = when (this) {
     "AURORA", "LAVENDER" -> AppTheme.MESSENGER
     "PRISM" -> AppTheme.AMETHYST
     "NEBULA", "ORCHID" -> AppTheme.BLOSSOM
     "OPAL", "TWILIGHT" -> AppTheme.LAGOON
     "ULTRAVIOLET" -> AppTheme.SUNSET
-    else -> this?.let { stored -> AppTheme.entries.firstOrNull { it.name == stored } } ?: AppTheme.MEW
+    else -> this?.let { stored -> AppTheme.entries.firstOrNull { it.name == stored } } ?: DefaultAppTheme
 }
 
 private fun Color.toRgbInt(): Int =
