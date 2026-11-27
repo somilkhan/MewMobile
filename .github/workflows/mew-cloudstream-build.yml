@@ -8,13 +8,13 @@ concurrency:
 on:
   push:
     branches:
+      - main
       - enhanced
-      - feature/cloudstream-dynamic-repositories
-      - sync/upstream
+      - 'integrate/**'
   pull_request:
     branches:
+      - main
       - enhanced
-      - sync/upstream
   workflow_dispatch:
     inputs:
       build_apk:
