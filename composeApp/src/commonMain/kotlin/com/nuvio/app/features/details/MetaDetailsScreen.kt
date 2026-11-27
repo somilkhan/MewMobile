@@ -38,14 +38,12 @@ import androidx.compose.material.icons.filled.CheckCircleOutline
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Shuffle
-import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import com.nuvio.app.core.ui.NuvioLoadingIndicator
 import com.nuvio.app.core.ui.NuvioToastController
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SmallFloatingActionButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -1481,7 +1479,13 @@ fun MetaDetailsScreen(
                                 key = "detail-bottom-spacer",
                                 contentType = "detail-spacer",
                             ) {
-                                Spacer(modifier = Modifier.height(nuvioSafeBottomPadding(32.dp)))
+                                // Mew hook: keep the last row clear of the "Ask Mew" button.
+                                val aiFabClearance = if (aiAssistantSettings.enabled && supportsAiAssistant) {
+                                    MewAiAssistantFabClearance
+                                } else {
+                                    0.dp
+                                }
+                                Spacer(modifier = Modifier.height(nuvioSafeBottomPadding(32.dp) + aiFabClearance))
                             }
                         }
 
@@ -1561,24 +1565,19 @@ fun MetaDetailsScreen(
                         )
 
                         if (aiAssistantSettings.enabled && supportsAiAssistant) {
-                            SmallFloatingActionButton(
+                            // Mew hook: glass "Ask Mew" button (details/components/mew/MewAiAssistantFab.kt).
+                            MewAiAssistantFab(
+                                listState = listState,
+                                visible = !showAiAssistant,
                                 onClick = { showAiAssistant = true },
                                 modifier = Modifier
                                     .align(Alignment.BottomEnd)
                                     .padding(
-                                        end = 18.dp,
+                                        end = 16.dp,
                                         bottom = nuvioSafeBottomPadding(18.dp),
                                     )
                                     .zIndex(3f),
-                                shape = androidx.compose.foundation.shape.CircleShape,
-                                containerColor = MaterialTheme.colorScheme.primary,
-                                contentColor = MaterialTheme.colorScheme.onPrimary,
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.AutoAwesome,
-                                    contentDescription = stringResource(Res.string.ai_chat_title),
-                                )
-                            }
+                            )
                         }
 
                         if (showAiAssistant) {
