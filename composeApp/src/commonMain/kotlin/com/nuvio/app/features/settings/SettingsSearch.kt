@@ -47,6 +47,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.nuvio.app.core.network.DnsSettingsRepository
 import com.nuvio.app.core.ui.NuvioTokens
 import com.nuvio.app.core.ui.nuvio
 import com.nuvio.app.features.p2p.P2pSettingsRepository
@@ -483,6 +484,17 @@ internal fun settingsSearchEntries(
         section = stringResource(Res.string.settings_advanced_section_startup),
         category = advancedCategory,
     )
+    if (DnsSettingsRepository.isSupported) {
+        addRow(
+            page = SettingsPage.Advanced,
+            key = "dns-provider",
+            title = stringResource(Res.string.settings_advanced_dns),
+            description = stringResource(Res.string.settings_advanced_dns_note),
+            pageLabel = advancedPage,
+            section = stringResource(Res.string.settings_advanced_section_network),
+            category = advancedCategory,
+        )
+    }
     if (SentrySettingsRepository.isSupported) {
         addRow(
             page = SettingsPage.Advanced,

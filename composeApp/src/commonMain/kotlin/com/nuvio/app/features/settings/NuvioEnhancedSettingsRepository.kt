@@ -121,7 +121,8 @@ internal enum class NuvioEnhancedFeature(
     PlayerTimeOverlay("player_time_overlay_v3"),
     PersistentEpisodeShuffle("persistent_episode_shuffle_v3"),
     StatusBarVisibility("status_bar_visibility"),
-    NetworkControls("network_controls"),
+    // Mew: the DNS row moved to Settings > Advanced; kept so stored "seen" ids stay valid.
+    NetworkControls("network_controls", showInEnhancedSettings = false),
     CommunityLinks("community_links"),
     PremiumLabs("premium_labs"),
     SmartShelfComposer("smart_shelf_composer"),

@@ -19,7 +19,8 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nuvio.app.core.diagnostics.RuntimeDiagnostics
-import com.nuvio.app.core.network.DnsProvider
+import com.nuvio.app.core.network.DnsOverHttpsProvider
+import com.nuvio.app.core.network.DnsOverHttpsSettingsRepository
 import com.nuvio.app.core.network.DnsSettingsRepository
 import com.nuvio.app.core.ui.DialogButton
 import com.nuvio.app.core.ui.DialogButtonStyle
@@ -109,10 +110,11 @@ internal fun LazyListScope.advancedSettingsContent(
     }
     if (DnsSettingsRepository.isSupported) {
         item {
-            val dnsProvider by remember {
-                DnsSettingsRepository.ensureLoaded()
-                DnsSettingsRepository.provider
+            val dnsSettings by remember {
+                DnsOverHttpsSettingsRepository.ensureLoaded()
+                DnsOverHttpsSettingsRepository.uiState
             }.collectAsStateWithLifecycle()
+            val dnsProvider = dnsSettings.provider
             var showDnsDialog by rememberSaveable { mutableStateOf(false) }
             SettingsSection(
                 title = stringResource(Res.string.settings_advanced_section_network),
@@ -131,7 +133,7 @@ internal fun LazyListScope.advancedSettingsContent(
                 DnsProviderDialog(
                     selected = dnsProvider,
                     onSelected = { provider ->
-                        DnsSettingsRepository.setProvider(provider)
+                        DnsOverHttpsSettingsRepository.setProvider(provider)
                         showDnsDialog = false
                     },
                     onDismiss = { showDnsDialog = false },
@@ -464,17 +466,17 @@ private fun SentryInfoSection(
 }
 
 @Composable
-private fun dnsProviderLabel(provider: DnsProvider): String =
-    if (provider == DnsProvider.SYSTEM) {
+private fun dnsProviderLabel(provider: DnsOverHttpsProvider): String =
+    if (provider == DnsOverHttpsProvider.None) {
         stringResource(Res.string.settings_advanced_dns_system)
     } else {
-        stringResource(Res.string.settings_advanced_dns_doh_format, provider.displayName)
+        stringResource(Res.string.settings_advanced_dns_doh_format, provider.label)
     }
 
 @Composable
 private fun DnsProviderDialog(
-    selected: DnsProvider,
-    onSelected: (DnsProvider) -> Unit,
+    selected: DnsOverHttpsProvider,
+    onSelected: (DnsOverHttpsProvider) -> Unit,
     onDismiss: () -> Unit,
 ) {
     DialogSurface(
@@ -483,12 +485,12 @@ private fun DnsProviderDialog(
         message = stringResource(Res.string.settings_advanced_dns_note),
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(NuvioTokens.Space.s8)) {
-            DnsProvider.entries.forEach { provider ->
+            DnsOverHttpsProvider.entries.forEach { provider ->
                 DialogOption(
-                    text = if (provider == DnsProvider.SYSTEM) {
+                    text = if (provider == DnsOverHttpsProvider.None) {
                         stringResource(Res.string.settings_advanced_dns_system)
                     } else {
-                        provider.displayName
+                        provider.label
                     },
                     selected = provider == selected,
                     onClick = { onSelected(provider) },

@@ -75,7 +75,6 @@ internal enum class MewSettingsSection(
         setOf(
             NuvioEnhancedFeature.StatusBarVisibility,
             NuvioEnhancedFeature.LiveTvControls,
-            NuvioEnhancedFeature.NetworkControls,
             NuvioEnhancedFeature.FeatureHighlights,
         ),
     ),

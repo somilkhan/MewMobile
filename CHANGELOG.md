@@ -20,6 +20,7 @@ First beta built on luqmanfadlli's NuvioMobile Enhanced 1.1.0-beta.3. It is publ
 - The player picks up luqman's fixes for HLS start-up, stall recovery, buffering, Matroska chapters and OpenSubtitles hashing.
 - AutoSync uses luqman's newer subtitle sync engine.
 - Mixed right-to-left and left-to-right text now lays out correctly.
+- DNS is now one setting, in Settings under Advanced. It covers every Mew connection, including the player, addons, CloudStream plugins, trailers and sync. A provider picked on either of the old DNS rows is kept, and Mew settings no longer has its own DNS row.
 
 ### Fixed
 

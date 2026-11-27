@@ -22,7 +22,7 @@ import okhttp3.Response
 /** Dedicated client for container index range requests, kept apart from Nuvio's shared pool. */
 private val containerIndexHttpClient: OkHttpClient by lazy {
     OkHttpClient.Builder()
-        .dns(com.nuvio.app.core.network.NuvioDns)
+        .dns(com.nuvio.app.core.network.ConfiguredDnsOverHttps)
         .connectTimeout(3, TimeUnit.SECONDS)
         .readTimeout(4, TimeUnit.SECONDS)
         .callTimeout(5, TimeUnit.SECONDS)

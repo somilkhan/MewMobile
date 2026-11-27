@@ -2,7 +2,8 @@ package com.nuvio.app.features.settings
 
 import com.nuvio.app.core.build.AppFeaturePolicy
 import com.nuvio.app.core.build.AppVersionConfig
-import com.nuvio.app.core.network.DnsProvider
+import com.nuvio.app.core.network.DnsOverHttpsProvider
+import com.nuvio.app.core.network.DnsOverHttpsSettingsRepository
 import com.nuvio.app.core.network.DnsSettingsRepository
 import com.nuvio.app.core.poster.CustomPosterUrlRepository
 import com.nuvio.app.core.poster.CustomPosterUrlStorage
@@ -298,7 +299,7 @@ internal object SettingsConfigTransfer {
         LibraryDisplaySettingsRepository.ensureLoaded()
         EpisodeReleaseNotificationsRepository.ensureLoaded()
         SearchHistoryRepository.ensureLoaded()
-        DnsSettingsRepository.ensureLoaded()
+        DnsOverHttpsSettingsRepository.ensureLoaded()
         P2pSettingsRepository.ensureLoaded()
         LiveTvRepository.ensureLoaded()
     }
@@ -450,7 +451,9 @@ internal object SettingsConfigTransfer {
         put("episode_release_alerts_enabled", EpisodeReleaseNotificationsRepository.uiState.value.isEnabled)
         put("search_history_enabled", SearchHistoryRepository.enabled.value)
         if (DnsSettingsRepository.isSupported) {
-            put("dns_provider", DnsSettingsRepository.provider.value.storageId)
+            // "system" keeps backups readable by older builds; other ids match both resolvers.
+            val provider = DnsOverHttpsSettingsRepository.snapshot().provider
+            put("dns_provider", if (provider == DnsOverHttpsProvider.None) "system" else provider.id)
         }
         if (AppUpdaterPlatform.isSupported) {
             put("update_channel", UpdatePreferences.shared.channel.value.storedValue)
@@ -461,7 +464,7 @@ internal object SettingsConfigTransfer {
         payload.boolean("episode_release_alerts_enabled")?.let(EpisodeReleaseNotificationsRepository::applyFromSyncEnabled)
         payload.boolean("search_history_enabled")?.let(SearchHistoryRepository::setEnabled)
         if (DnsSettingsRepository.isSupported) {
-            payload.string("dns_provider")?.let { DnsSettingsRepository.setProvider(DnsProvider.fromStorage(it)) }
+            payload.string("dns_provider")?.let { DnsOverHttpsSettingsRepository.setProvider(DnsOverHttpsProvider.fromId(it)) }
         }
         if (AppUpdaterPlatform.isSupported) {
             UpdateChannel.fromStoredValue(payload.string("update_channel"))?.let(UpdatePreferences.shared::setChannel)

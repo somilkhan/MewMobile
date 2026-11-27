@@ -41,15 +41,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.nuvio.app.core.build.AppFeaturePolicy
 import com.nuvio.app.core.build.TrailerPlaybackMode
 import com.nuvio.app.core.diagnostics.CrashDiagnostics
-import com.nuvio.app.core.network.DnsOverHttpsProvider
-import com.nuvio.app.core.network.DnsOverHttpsSettingsRepository
 import com.nuvio.app.core.sync.ProfileSettingsSync
 import com.nuvio.app.core.ui.AppIconResource
 import com.nuvio.app.core.ui.Chip
 import com.nuvio.app.core.ui.DialogButton
 import com.nuvio.app.core.ui.DialogButtonStyle
 import com.nuvio.app.core.ui.DialogButtons
-import com.nuvio.app.core.ui.DialogOption
 import com.nuvio.app.core.ui.DialogSurface
 import com.nuvio.app.core.ui.NuvioToastController
 import com.nuvio.app.core.ui.NuvioTokens
@@ -103,10 +100,6 @@ private fun NuvioEnhancedSettingsPageContent(
         HomeCatalogSettingsRepository.snapshot()
         HomeCatalogSettingsRepository.uiState
     }.collectAsStateWithLifecycle()
-    val dnsOverHttpsSettings by remember {
-        DnsOverHttpsSettingsRepository.ensureLoaded()
-        DnsOverHttpsSettingsRepository.uiState
-    }.collectAsStateWithLifecycle()
     val detailSettings by remember {
         MetaScreenSettingsRepository.ensureLoaded()
         MetaScreenSettingsRepository.uiState
@@ -125,7 +118,6 @@ private fun NuvioEnhancedSettingsPageContent(
     var showImportDialog by remember { mutableStateOf(false) }
     var importPayload by remember { mutableStateOf("") }
     var importError by remember { mutableStateOf<String?>(null) }
-    var showDnsDialog by remember { mutableStateOf(false) }
     val backupImportedMessage = stringResource(Res.string.nuvio_enhanced_toast_backup_imported)
     val invalidBackupPayloadMessage = stringResource(Res.string.nuvio_enhanced_toast_invalid_backup)
     val backupFileReadyMessage = stringResource(Res.string.nuvio_enhanced_toast_backup_ready)
@@ -951,26 +943,6 @@ private fun NuvioEnhancedSettingsPageContent(
         }
         }
 
-        if (section == MewSettingsSection.App) {
-            SettingsSection(
-                title = stringResource(Res.string.nuvio_enhanced_section_network),
-                isTablet = isTablet,
-            ) {
-                SettingsGroup(isTablet = isTablet) {
-                    SettingsNavigationRow(
-                        title = stringResource(Res.string.nuvio_enhanced_section_network),
-                        description = dnsOverHttpsSettings.provider.label,
-                        isTablet = isTablet,
-                        highlighted = isNew(NuvioEnhancedFeature.NetworkControls),
-                        onClick = {
-                            markSeen(NuvioEnhancedFeature.NetworkControls)
-                            showDnsDialog = true
-                        },
-                    )
-                }
-            }
-        }
-
         if (section == MewSettingsSection.Backup) {
             SettingsSection(
                 title = stringResource(Res.string.nuvio_enhanced_section_backup_import),
@@ -1234,17 +1206,6 @@ private fun NuvioEnhancedSettingsPageContent(
         )
     }
 
-    if (showDnsDialog) {
-        DnsOverHttpsProviderDialog(
-            selected = dnsOverHttpsSettings.provider,
-            onSelected = { provider ->
-                DnsOverHttpsSettingsRepository.setProvider(provider)
-                showDnsDialog = false
-            },
-            onDismiss = { showDnsDialog = false },
-        )
-    }
-
     if (showImportDialog) {
         ImportBackupDialog(
             payload = importPayload,
@@ -1314,35 +1275,6 @@ private fun <T> EnhancedChoiceRow(
                     onClick = { onSelected(option.value) },
                 )
             }
-        }
-    }
-}
-
-@Composable
-private fun DnsOverHttpsProviderDialog(
-    selected: DnsOverHttpsProvider,
-    onSelected: (DnsOverHttpsProvider) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    DialogSurface(
-        onDismissRequest = onDismiss,
-        title = stringResource(Res.string.nuvio_enhanced_section_network),
-        message = stringResource(Res.string.settings_advanced_doh_description),
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(NuvioTokens.Space.s8)) {
-            DnsOverHttpsProvider.entries.forEach { provider ->
-                DialogOption(
-                    text = provider.label,
-                    selected = provider == selected,
-                    onClick = { onSelected(provider) },
-                )
-            }
-        }
-        DialogButtons {
-            DialogButton(
-                text = stringResource(Res.string.action_cancel),
-                onClick = onDismiss,
-            )
         }
     }
 }

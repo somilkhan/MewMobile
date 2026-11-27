@@ -4,7 +4,6 @@ package com.nuvio.app.features.settings
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AutoAwesome
-import androidx.compose.material.icons.rounded.Link
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.runtime.Composable
@@ -164,16 +163,6 @@ internal fun mewSettingsSearchEntries(): List<SettingsSearchEntry> {
         section = stringResource(Res.string.nuvio_enhanced_section_hero_experience),
         category = enhancedCategory,
         icon = Icons.Rounded.AutoAwesome,
-    )
-    addRow(
-        page = SettingsPage.MewApp,
-        key = "network-dns-over-https",
-        title = stringResource(Res.string.settings_advanced_section_network),
-        description = stringResource(Res.string.settings_advanced_doh_description),
-        pageLabel = stringResource(SettingsPage.MewApp.titleRes),
-        section = stringResource(Res.string.nuvio_enhanced_section_network),
-        category = enhancedCategory,
-        icon = Icons.Rounded.Link,
     )
     addRow(
         page = SettingsPage.MewDetails,

@@ -1,28 +1,34 @@
 package com.nuvio.app.core.network
 
 import android.content.Context
-import android.content.SharedPreferences
 
 internal actual object DnsPlatform {
-    private const val preferencesName = "nuvio_network"
-    private const val providerKey = "dns_provider"
-    private var preferences: SharedPreferences? = null
+    // The Advanced page used to keep its own provider here, separate from Mew's resolver.
+    private const val legacyPreferencesName = "nuvio_network"
+    private const val legacyProviderKey = "dns_provider"
 
+    /**
+     * Called from Application.onCreate so the DNS choice is readable before any network
+     * client is built, including background work that starts without an Activity.
+     */
     fun initialize(context: Context) {
-        preferences = context.applicationContext.getSharedPreferences(preferencesName, Context.MODE_PRIVATE)
-        NuvioDns.provider = DnsProvider.fromStorage(load())
+        val appContext = context.applicationContext
+        DnsOverHttpsSettingsStorage.initialize(appContext)
+        migrateLegacyProvider(appContext)
     }
 
     actual val isSupported: Boolean = true
 
-    actual fun load(): String? = preferences?.getString(providerKey, null)
-
-    actual fun save(storageId: String) {
-        preferences?.edit()?.putString(providerKey, storageId)?.apply()
-    }
-
-    actual fun apply(provider: DnsProvider) {
-        NuvioDns.provider = provider
+    /** Keeps a provider chosen on the old Advanced row unless Mew's own setting is already set. */
+    private fun migrateLegacyProvider(context: Context) {
+        val legacy = context.getSharedPreferences(legacyPreferencesName, Context.MODE_PRIVATE)
+        val legacyId = legacy.getString(legacyProviderKey, null) ?: return
+        val current = DnsOverHttpsProvider.fromId(DnsOverHttpsSettingsStorage.loadProviderId())
+        val migrated = DnsOverHttpsProvider.fromId(legacyId)
+        if (current == DnsOverHttpsProvider.None && migrated != DnsOverHttpsProvider.None) {
+            DnsOverHttpsSettingsStorage.saveProviderId(migrated.id)
+        }
+        legacy.edit().remove(legacyProviderKey).apply()
     }
 }
 

@@ -3973,8 +3973,8 @@
     <string name="mew_settings_page_details_desc">Cinematic header, episode layout, trailers and ratings</string>
     <string name="mew_settings_page_player">Player &amp; subtitles</string>
     <string name="mew_settings_page_player_desc">Selectors, subtitle sync, clock, next episode and sources</string>
-    <string name="mew_settings_page_app">Interface &amp; network</string>
-    <string name="mew_settings_page_app_desc">Status bar, Live TV tab, private DNS and setting highlights</string>
+    <string name="mew_settings_page_app">Interface</string>
+    <string name="mew_settings_page_app_desc">Status bar, Live TV tab and setting highlights</string>
     <string name="mew_settings_page_downloads">Downloads</string>
     <string name="mew_settings_page_downloads_desc">Wi-Fi only, season batches and download folder</string>
     <string name="mew_settings_page_backup">Backup &amp; restore</string>

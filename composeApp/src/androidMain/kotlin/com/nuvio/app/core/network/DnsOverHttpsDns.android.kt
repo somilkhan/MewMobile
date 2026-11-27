@@ -7,11 +7,11 @@ import okhttp3.dnsoverhttps.DnsOverHttps
 import java.net.InetAddress
 
 fun DnsOverHttpsProvider.toOkHttpDns(): Dns {
-    val url = endpointUrl ?: return IPv4FirstDns()
+    val url = endpointUrl ?: return IPv4FirstDns(Dns.SYSTEM)
     return DnsOverHttps.Builder()
         .client(
             OkHttpClient.Builder()
-                .dns(IPv4FirstDns())
+                .dns(IPv4FirstDns(Dns.SYSTEM))
                 .build(),
         )
         .url(url.toHttpUrl())
